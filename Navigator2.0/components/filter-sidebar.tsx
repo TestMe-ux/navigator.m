@@ -47,7 +47,7 @@ interface FilterSidebarProps {
   initialFilters?: Partial<FilterValue>
   losGuest: { "Los": [], "Guest": [] }
 }
-
+ 
 export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, losGuest }: FilterSidebarProps) {
   const [selectedProperty, setSelectedProperty] = React.useState<any>(localStorageService.get('SelectedProperty'))
   const [filters, setFilters] = React.useState<FilterValue>({
