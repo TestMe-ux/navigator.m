@@ -2,8 +2,6 @@
 
 A comprehensive hotel revenue management dashboard built with Next.js, React, and TypeScript. This professional-grade application provides hotel revenue managers with powerful tools for rate parity monitoring, competitive analysis, and revenue optimization.
 
-
-
 ## 🌟 Features
 
 ### 🏨 Core Dashboard
