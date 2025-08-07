@@ -59,7 +59,7 @@ export function MarketDemandWidget() {
       getAllEventData(),
     ]);
 
-  }, [startDate, endDate]);
+  }, [startDate, endDate,selectedProperty?.sid]);
   const getDemandAIData = () => {
     GetDemandAIData({ SID: selectedProperty?.sid, startDate: startDate?.toISOString().split('T')[0], endDate: endDate?.toISOString().split('T')[0] })
       .then((res) => {

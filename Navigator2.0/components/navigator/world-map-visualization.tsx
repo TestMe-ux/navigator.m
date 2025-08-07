@@ -75,7 +75,7 @@ export function WorldMapVisualization({ demandAiAvg }: any) {
     coordinates: countryCoordinates[selectedProperty?.country] || [0, 0],
     city: selectedProperty?.city + ", " + selectedProperty?.country || ""
   }
-  const sourceMarkets = demandAiAvg.map((market: any, index: number) => ({
+  const sourceMarkets = demandAiAvg.filter((market: any) => market.srcCountryName !== "Others").map((market: any, index: number) => ({
     name: market.srcCountryName,
     coordinates: countryCoordinates[market.srcCountryName] || [0, 0],
     percent: market.averageTotalFlights,

@@ -43,7 +43,7 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, compariso
   const days = differenceInDays(endDate, startDate) + 1
   const today = new Date()
 
-
+  debugger;
   const avgAllSubscriberRate = rateData?.pricePositioningEntites?.find((x: any) => x.propertyType === 0)?.AvgData;
   const allWithAvg = rateData?.pricePositioningEntites
     ?.filter((x: any) => (typeof x.AvgData === "number") && (x.propertyType === 0 || x.propertyType === 1)) || [];
@@ -104,7 +104,7 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, compariso
     {
       id: 'average-rate',
       title: 'Average Daily Rate',
-      value: !!avgAllSubscriberRate? avgAllSubscriberRate : 0,
+      value: !!avgAllSubscriberRate ? avgAllSubscriberRate : 0,
       previousValue: prevRate,
       change: ((avgAllSubscriberRate - prevRate) / prevRate) * 100,
       changeType: avgAllSubscriberRate > prevRate ? 'increase' : 'decrease',
@@ -120,7 +120,7 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, compariso
     {
       id: 'parity-status',
       title: 'Rate Parity Score',
-      value: !!parityBase? parityBase : 0,
+      value: !!parityBase ? parityBase : 0,
       previousValue: prevParity,
       change: ((parityBase - prevParity) / prevParity) * 100,
       changeType: parityBase > prevParity ? 'increase' : 'decrease',
@@ -150,7 +150,7 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, compariso
     },
   ]
   // Include Events KPI only for current and future dates (revenue managers focus on actionable events)
-  const shouldShowEventsKPI = !!latestEvent?true : false
+  const shouldShowEventsKPI = !!latestEvent ? true : false
 
   if (shouldShowEventsKPI) {
     const dubaiEvents = [
@@ -399,7 +399,7 @@ function KPICard({ metric }: { metric: KPIMetric }) {
                 </span>
               )}
             </div>
-            {metric.format === 'text'  && metric.change > 0 && (
+            {metric.format === 'text' && metric.change > 0 && (
               <Badge className="badge-minimal bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 hover:bg-amber-200 hover:text-amber-900 dark:hover:bg-amber-800 dark:hover:text-amber-100 transition-colors inline-block pr-4 ml-auto font-bold">
                 +{metric.change}% impact
               </Badge>
@@ -469,14 +469,14 @@ export function OverviewKpiCards(props: any) {
   // Render loading state or actual content based on data availability
   const isLoading = contextIsLoading || !startDate || !endDate
 
-  console.log('🚨 KPI Loading Status:', {
-    isLoading,
-    contextIsLoading,
-    hasStartDate: !!startDate,
-    hasEndDate: !!endDate,
-    metricsLength: metrics.length,
-    firstMetric: metrics[0]
-  })
+  // console.log('🚨 KPI Loading Status:', {
+  //   isLoading,
+  //   contextIsLoading,
+  //   hasStartDate: !!startDate,
+  //   hasEndDate: !!endDate,
+  //   metricsLength: metrics.length,
+  //   firstMetric: metrics[0]
+  // })
 
   return (
     <TooltipProvider>

@@ -16,7 +16,7 @@ import { set } from "date-fns"
 export type FilterValue = {
   lengthOfStay: string | null // Radio button - single selection
   rateTypes: string   // Radio button - single selection
-  roomTypes: string   // Radio button - single selection
+  roomTypes: string | null  // Radio button - single selection
   inclusions: string[] // Checkbox - multi-selection
   device: string[]     // Checkbox - multi-selection
   guest: string | null // Radio button - single selection
@@ -27,7 +27,7 @@ const defaultFilters: FilterValue = {
   lengthOfStay: "All",
   guest: "All",
   rateTypes: "low",
-  roomTypes: "",
+  roomTypes: "All",
   inclusions: [],
   device: ["All", "desktop", "mobile"],
   rateViewBy: {
@@ -47,7 +47,7 @@ interface FilterSidebarProps {
   initialFilters?: Partial<FilterValue>
   losGuest: { "Los": [], "Guest": [] }
 }
- 
+
 export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, losGuest }: FilterSidebarProps) {
   const [selectedProperty, setSelectedProperty] = React.useState<any>(localStorageService.get('SelectedProperty'))
   const [filters, setFilters] = React.useState<FilterValue>({
@@ -59,7 +59,7 @@ export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, l
   useEffect(() => {
     getInclusion();
     getTagProduct();
-  }, []);
+  }, [selectedProperty?.sid]);
   const getInclusion = () => {
     GetTagInclusions({ SID: selectedProperty?.sid })
       .then((res) => {
@@ -78,7 +78,7 @@ export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, l
     GetTagProducts({ SID: selectedProperty?.sid })
       .then((res) => {
         if (res.status) {
-          const roomTypeOptionsData = res.body.map((roomType: any) => ({ id: roomType.tagID, label: roomType.tagName + " (" + roomType.abbreviation + ")" }));
+          const roomTypeOptionsData = res.body.map((roomType: any) => ({ id: roomType.tagID, label: roomType.tagName + " (" + roomType.abbreviation + ")", name: roomType.tagName }));
           const combineRoomType = [{ id: "All", label: "Any" }, ...roomTypeOptionsData]
           setroomTypeOptions(combineRoomType);
           filters.roomTypes = "All";
@@ -98,6 +98,38 @@ export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, l
       }
     })
   }
+  const handleInclusionCheckboxChange = (category: keyof FilterValue, value: string) => {
+    debugger;
+    var allOptions: string[] = inclusionValues.map((option: any) => option.id);
+    setFilters((prev) => {
+      const currentValues = prev[category] as string[];
+
+      let newValues: string[];
+      const nonAnyOptions = allOptions.filter((opt) => opt !== "All");
+      if (value === "All") {
+        // Selecting "Any" means select all
+        const isAllSelected = currentValues.length === allOptions.length;
+        newValues = isAllSelected ? [...nonAnyOptions[0]] : [...allOptions];
+      } else {
+        const isSelected = currentValues.includes(value);
+        const filtered = isSelected
+          ? currentValues.filter((v) => v !== value)
+          : [...currentValues, value];
+
+        // If after update, all options (except "Any") are selected, include "Any"
+        const nonAnyOptions = allOptions.filter((opt) => opt !== "All");
+        const allSelected = nonAnyOptions.every((opt) => filtered.includes(opt));
+
+        newValues = allSelected ? [...nonAnyOptions, "All"] : filtered.filter(v => v !== "All");
+      }
+
+      return {
+        ...prev,
+        [category]: newValues,
+      };
+    });
+  };
+
 
   // Handler for radio button filters (single-select)
   const handleRadioChange = (category: keyof FilterValue, value: string) => {
@@ -112,11 +144,13 @@ export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, l
   }
 
   const handleApply = () => {
-    filters.guest = filters.guest === "All" ? null : filters.guest;
-    filters.lengthOfStay = filters.lengthOfStay === "All" ? null : filters.lengthOfStay;
-    filters.device = filters.device.filter((device) => device !== "All");
-    filters.inclusions = filters.inclusions.includes("All") ? ["All"] : filters.inclusions;
-    filters.rateViewBy = filters.rateTypes === "low" ? {
+    let filtersValue = { ...filters }
+    filtersValue.guest = filtersValue.guest === "All" ? null : filtersValue.guest;
+    filtersValue.lengthOfStay = filtersValue.lengthOfStay === "All" ? null : filtersValue.lengthOfStay;
+    filtersValue.roomTypes = filtersValue.roomTypes === "All" ? null : roomTypeOptions.filter((x: any) => x.id === filtersValue.roomTypes).map((x: any) => x.name)[0] || null;
+    filtersValue.device = filtersValue.device.filter((device) => device !== "All");
+    filtersValue.inclusions = filtersValue.inclusions.includes("All") ? [] : filtersValue.inclusions;
+    filtersValue.rateViewBy = filtersValue.rateTypes === "low" ? {
       RestrictionText: "All",
       PromotionText: "All",
       QualificationText: "All",
@@ -131,7 +165,7 @@ export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, l
       Qualification: false,
       Promotion: false
     };
-    onApply(filters)
+    onApply(filtersValue)
     onClose()
   }
 
@@ -302,7 +336,7 @@ export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, l
                       type="checkbox"
                       value={option.id}
                       checked={filters.inclusions.includes(option.id)}
-                      onChange={() => handleCheckboxChange("inclusions", option.id)}
+                      onChange={() => handleInclusionCheckboxChange("inclusions", option.id)}
                       className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-0 focus:outline-none"
                     />
                     <span className="text-sm text-gray-700 dark:text-slate-300">

@@ -5,6 +5,7 @@ import React, { createContext, useContext, useState, ReactNode, useMemo } from "
 export type ComparisonOption = "Last 7 Days" | "Last 30 Days" | "Last Quarter"
 export type ChannelSelection = { channelId?: number[] | []; channelName?: any[] | [] };
 export type CompsetSelection = true | false;
+export type SideFilterSelection = any;
 interface ComparisonContextType {
   selectedComparison: ComparisonOption
   setSelectedComparison: (option: ComparisonOption) => void
@@ -12,6 +13,8 @@ interface ComparisonContextType {
   setChannelFilter: (c: ChannelSelection) => void;
   compsetFilter: CompsetSelection;
   setCompsetFilter: (c: CompsetSelection) => void;
+  sideFilter: SideFilterSelection;
+  setSideFilter: (c: SideFilterSelection) => void;
 }
 
 const ComparisonContext = createContext<ComparisonContextType | undefined>(undefined)
@@ -20,10 +23,11 @@ export function ComparisonProvider({ children }: { children: ReactNode }) {
   const [selectedComparison, setSelectedComparison] = useState<ComparisonOption>("Last 7 Days")
   const [channelFilter, setChannelFilter] = useState<ChannelSelection>({ channelId: [], channelName: [] });
   const [compsetFilter, setCompsetFilter] = useState<CompsetSelection>(false);
+  const [sideFilter, setSideFilter] = useState<CompsetSelection>(Object);
 
   const value = useMemo(
-    () => ({ channelFilter, setChannelFilter, selectedComparison, setSelectedComparison,compsetFilter, setCompsetFilter }),
-    [channelFilter, selectedComparison,compsetFilter]
+    () => ({ channelFilter, setChannelFilter, selectedComparison, setSelectedComparison,compsetFilter, setCompsetFilter,sideFilter, setSideFilter }),
+    [channelFilter, selectedComparison,compsetFilter,sideFilter]
   );
 
   return (
