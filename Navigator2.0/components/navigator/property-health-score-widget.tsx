@@ -234,7 +234,7 @@ export function PropertyHealthScoreWidget(props: any) {
       pendingFetchRef.current = false;
       fetchOtaAndRanks(); // defined below
     }
-  }, [startDate, endDate]);
+  }, [startDate, endDate,selectedProperty?.sid]);
 
   useEffect(() => {
     if (!pendingFetchRef.current) return;
@@ -402,8 +402,8 @@ export function PropertyHealthScoreWidget(props: any) {
           {combinedData.map((channel: any) => {
             // const Icon = channel.channelIcon
             const sortedData = [...channel.data].sort((a, b) => parseScore(a.score) - parseScore(b.score));
-            const subsOtaranData = channel.data.filter((xy: any) => xy.propertyID == 246342)
-            const Subindex = sortedData.findIndex((h: any) => h.propertyID === 246342);
+            const subsOtaranData = channel.data.filter((xy: any) => xy.propertyID == selectedProperty?.hmid)
+            const Subindex = sortedData.findIndex((h: any) => h.propertyID === selectedProperty?.hmid);
             return (
               <Card key={channel.name} className="hover:shadow-xl hover:scale-[1.01] transition-all duration-300 transform-gpu cursor-default">
                 <CardHeader className="pb-2">

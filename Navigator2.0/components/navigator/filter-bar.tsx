@@ -140,10 +140,10 @@ export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
       }
       )
       .catch((err) => console.error(err));
-  }, []);
+  }, [selectedProperty?.sid]);
   // Channel multi-select state
 
-  const compareOptions = [
+  const compareOptions = [  
     { id: "last7days", label: "Last 7 Days" as ComparisonOption },
     { id: "last30days", label: "Last 30 Days" as ComparisonOption },
     { id: "lastquarter", label: "Last Quarter" as ComparisonOption }

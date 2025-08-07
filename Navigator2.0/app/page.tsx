@@ -217,7 +217,7 @@ function getInsightStyling(type: string) {
  * Optimized for revenue managers with clean, professional design
  */
 export default function Home() {
-  const { selectedComparison, channelFilter, compsetFilter } = useComparison()
+  const { selectedComparison, channelFilter, compsetFilter, setSideFilter, sideFilter } = useComparison()
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false)
   const [showCSATCard, setShowCSATCard] = useState(false)
   const [csatClosed, setCSATClosed] = useState(false)
@@ -237,7 +237,6 @@ export default function Home() {
 
   // Show CSAT card when triggered
   useEffect(() => {
-    debugger;
     if (hasTriggered && !showCSATCard && !csatClosed) {
       console.log('🎯 Showing CSAT card after scroll trigger')
       // Add a small delay for better UX
@@ -252,40 +251,39 @@ export default function Home() {
     Promise.all([
       GetParityDatas(),
       getRateDate()]);
-  }, [hasTriggered, showCSATCard, csatClosed, startDate, endDate, channelFilter, compsetFilter])
+  }, [hasTriggered, showCSATCard, csatClosed, startDate, endDate, channelFilter, compsetFilter, sideFilter])
 
   const getRateDate = () => {
     var filtersValue = {
-      "LOS": null,
-      "guest": null,
-      "productTypeID": null,
-      "inclusionID": [],
-      "properties": [],
-      "channels": channelFilter.channelId,
-      "restriction": null,
-      "qualification": null,
-      "promotion": null,
       "SID": selectedProperty?.sid,
-      "mSIRequired": false,
-      "benchmarkRequired": true,
-      "compsetRatesRequired": true,
-      "subscriberPropertyID": selectedProperty?.hmid,
-      "restrictionText": "All",
-      "promotionText": "All",
-      "qualificationText": "All",
-      "productTypeIDText": "All",
-      "inclusionIDText": ["All"],
-      "propertiesText": [],
+      "channels": channelFilter.channelId,
       "channelsText": channelFilter.channelName,
       "checkInStartDate": startDate?.toISOString().split('T')[0],
       "checkInEndDate": endDate?.toISOString().split('T')[0],
-      "isSecondary": compsetFilter,
+      "LOS": sideFilter?.lengthOfStay || null,
+      "guest": sideFilter?.guest || null,
+      "productTypeID": sideFilter?.roomTypes || null,
+      "productTypeIDText": sideFilter?.roomTypes || "All",
+      "inclusionID": sideFilter?.inclusions || [],
+      "inclusionIDText": sideFilter?.inclusions?.length ? sideFilter.inclusions : ["All"],
+      "properties": [],
+      "restriction": sideFilter?.rateTypes?.Restriction || null,
+      "qualification": sideFilter?.rateTypes?.Qualification || null,
+      "promotion": sideFilter?.rateTypes?.Promotion || null,
+      "restrictionText": sideFilter?.rateTypes?.RestrictionText || "All",
+      "promotionText": sideFilter?.rateTypes?.PromotionText || "All",
+      "qualificationText": sideFilter?.rateTypes?.QualificationText || "All",
+      "subscriberPropertyID": selectedProperty?.hmid,
       "subscriberName": selectedProperty?.name,
+      "mSIRequired": false,
+      "benchmarkRequired": true,
+      "compsetRatesRequired": true,
+      "propertiesText": [],
+      "isSecondary": compsetFilter,
     }
     getRateTrends(filtersValue)
       .then((res) => {
         if (res.status) {
-          debugger
           var CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
             const allSubscriberRate = x.subscriberPropertyRate?.map((r: any) => parseInt(r.rate) > 0 ? parseInt(r.rate) : 0) || [];
             const ty = allSubscriberRate.length
@@ -390,7 +388,7 @@ export default function Home() {
 
               {/* Rate Trends Chart - Full width with enhanced styling */}
               <div className="animate-fade-in mb-12" data-coach-mark="rate-trends">
-                <RateTrendsChart />
+                <RateTrendsChart rateData={rateData}/>
               </div>
 
               {/* Property Health Score and Market Demand Cards - Grouped with consistent spacing */}
@@ -419,6 +417,7 @@ export default function Home() {
           onClose={() => setIsFilterSidebarOpen(false)}
           onApply={(filters) => {
             // Handle filter apply logic here
+            setSideFilter(filters);
             console.log('Applied filters:', filters)
             setIsFilterSidebarOpen(false)
           }}

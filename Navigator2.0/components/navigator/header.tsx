@@ -50,6 +50,11 @@ export function Header() {
     if (didFetch.current) return;
 
     didFetch.current = true;
+    const selectedProperty = localStorageService.get('SelectedProperty');
+    if (selectedProperty) {
+      setSelectedHotel(selectedProperty);
+      return
+    }
     getSIDListforUser();
   }, [])
   const getSIDListforUser = () => {
@@ -57,8 +62,8 @@ export function Header() {
       .then((res) => {
         if (res.status) {
           localStorageService.set('Properties', res.body);
-          localStorageService.set('SelectedProperty', res.body[0]);
-          setSelectedHotel(res.body[0]);
+          localStorageService.set('SelectedProperty', res.body[5]);
+          setSelectedHotel(res.body[5]);
           setHotelOptions(res.body)
           // setotachannel(res.body);
           // getOTARankOnAllChannels(res.body);
@@ -102,8 +107,14 @@ export function Header() {
   const handleHotelSelect = useCallback((hotel: any) => {
     try {
       setSelectedHotel(hotel);
+      localStorageService.set('SelectedProperty', hotel);
       setHotelSearch("");
       console.log(`🏨 Hotel selected: ${hotel.name} (ID: ${hotel?.hmid})`);
+
+      // Trigger API calls after hotel selection
+      // This will force the main page to re-fetch data with the new hotel's SID
+      window.location.reload();
+
     } catch (error) {
       console.error("❌ Error selecting hotel:", error);
     }
