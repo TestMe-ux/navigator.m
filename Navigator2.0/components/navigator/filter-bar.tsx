@@ -254,20 +254,20 @@ export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
     console.log(`📊 Compare option changed: ${option}`)
 
     // Simulate data refresh with dummy values instead of full page reload
-    setTimeout(() => {
-      console.log(`🔄 Refreshing data with ${option} comparison...`)
-      console.log(`📈 Updated metrics for ${option}:`)
-      console.log(`- Revenue Impact: ${(Math.random() * 20 - 10).toFixed(1)}%`)
-      console.log(`- Booking Volume: ${(Math.random() * 100 + 500).toFixed(0)} bookings`)
-      console.log(`- Average Rate: $${(Math.random() * 50 + 150).toFixed(0)}`)
+    // setTimeout(() => {
+    //   console.log(`🔄 Refreshing data with ${option} comparison...`)
+    //   console.log(`📈 Updated metrics for ${option}:`)
+    //   console.log(`- Revenue Impact: ${(Math.random() * 20 - 10).toFixed(1)}%`)
+    //   console.log(`- Booking Volume: ${(Math.random() * 100 + 500).toFixed(0)} bookings`)
+    //   console.log(`- Average Rate: $${(Math.random() * 50 + 150).toFixed(0)}`)
 
-      // In a real app, this would trigger data refetch
-      // For demo purposes, we'll show a subtle indication that data has refreshed
-      const event = new CustomEvent('dataRefresh', {
-        detail: { compareOption: option, timestamp: new Date().toISOString() }
-      })
-      window.dispatchEvent(event)
-    }, 300)
+    //   // In a real app, this would trigger data refetch
+    //   // For demo purposes, we'll show a subtle indication that data has refreshed
+    //   const event = new CustomEvent('dataRefresh', {
+    //     detail: { compareOption: option, timestamp: new Date().toISOString() }
+    //   })
+    //   window.dispatchEvent(event)
+    // }, 300)
   }, [setSelectedComparison])
 
   /**
