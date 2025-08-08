@@ -144,6 +144,7 @@ export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, l
   }
 
   const handleApply = () => {
+    debugger;
     let filtersValue = { ...filters }
     filtersValue.guest = filtersValue.guest === "All" ? null : filtersValue.guest;
     filtersValue.lengthOfStay = filtersValue.lengthOfStay === "All" ? null : filtersValue.lengthOfStay;
@@ -170,12 +171,14 @@ export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, l
   }
 
   const lengthOfStayOptions = [
-    { id: "All", label: "Any" }, ...losGuest?.Los.map((los: any) => ({ id: los, label: los }))
-  ]
+    { id: "All", label: "Any" },
+    ...(Array.isArray(losGuest?.Los) ? losGuest.Los.map((los: any) => ({ id: los, label: los })) : [])
+  ];
 
   const guestOptions = [
-    { id: "All", label: "Any" }, ...losGuest?.Guest.map((guest: any) => ({ id: guest, label: guest }))
-  ]
+    { id: "All", label: "Any" },
+    ...(Array.isArray(losGuest?.Guest) ? losGuest.Guest.map((guest: any) => ({ id: guest, label: guest })) : [])
+  ];
 
   const deviceOptions = [
     { id: "All", label: "Any" },

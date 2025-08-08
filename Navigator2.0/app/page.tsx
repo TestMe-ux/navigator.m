@@ -225,6 +225,7 @@ export default function Home() {
   const [selectedProperty, setSelectedProperty] = useState<any>(localStorageService.get('SelectedProperty'))
   // Scroll detection for CSAT card
   const [parityData, setparityData] = useState(Object);
+  const [parityDataComp, setParityDataComp] = useState(Object);
   const [rateData, setRateData] = useState(Object);
   const [rateCompData, setRateCompData] = useState(Object);
   const [losGuest, setLosGuest] = useState({ "Los": [], "Guest": [] });
@@ -252,11 +253,23 @@ export default function Home() {
     Promise.all([
       GetParityDatas(),
       getRateDate(),
-      // getCompRateData()
+      getCompRateData(),
+      GetParityDatas_Comp()
     ]);
   }, [hasTriggered, showCSATCard, csatClosed, startDate, endDate, channelFilter, compsetFilter, sideFilter])
 
+  useEffect(() => {
+    if (!startDate ||
+      !endDate ||
+      !channelFilter?.channelId || channelFilter?.channelId.length === 0) return;
+    Promise.all([
+      getCompRateData(),
+      GetParityDatas_Comp()
+    ]);
+  }, [selectedComparison])
+
   const getRateDate = () => {
+    setRateData(Object);
     var filtersValue = {
       "SID": selectedProperty?.sid,
       "channels": channelFilter.channelId,
@@ -270,12 +283,12 @@ export default function Home() {
       "inclusionID": sideFilter?.inclusions || [],
       "inclusionIDText": sideFilter?.inclusions?.length ? sideFilter.inclusions : ["All"],
       "properties": [],
-      "restriction": sideFilter?.rateTypes?.Restriction || null,
-      "qualification": sideFilter?.rateTypes?.Qualification || null,
-      "promotion": sideFilter?.rateTypes?.Promotion || null,
-      "restrictionText": sideFilter?.rateTypes?.RestrictionText || "All",
-      "promotionText": sideFilter?.rateTypes?.PromotionText || "All",
-      "qualificationText": sideFilter?.rateTypes?.QualificationText || "All",
+      "restriction": sideFilter?.rateViewBy?.Restriction,
+      "qualification": sideFilter?.rateViewBy?.Qualification,
+      "promotion": sideFilter?.rateViewBy?.Promotion,
+      "restrictionText": sideFilter?.rateViewBy?.RestrictionText || "All",
+      "promotionText": sideFilter?.rateViewBy?.PromotionText || "All",
+      "qualificationText": sideFilter?.rateViewBy?.QualificationText || "All",
       "subscriberPropertyID": selectedProperty?.hmid,
       "subscriberName": selectedProperty?.name,
       "mSIRequired": false,
@@ -305,11 +318,12 @@ export default function Home() {
       .catch((err) => console.error(err));
   }
   const getCompRateData = () => {
+    setRateCompData(Object);
     var startDateComp = startDate
-      ? new Date(startDate.getTime() + (-7 * 24 * 60 * 60 * 1000))
+      ? new Date(startDate.getTime() + (-selectedComparison * 24 * 60 * 60 * 1000))
       : new Date();
     var endDateComp = endDate
-      ? new Date(endDate.getTime() + (-7 * 24 * 60 * 60 * 1000))
+      ? new Date(endDate.getTime() + (-selectedComparison * 24 * 60 * 60 * 1000))
       : new Date();
     var filtersValue = {
       "SID": selectedProperty?.sid,
@@ -324,12 +338,12 @@ export default function Home() {
       "inclusionID": sideFilter?.inclusions || [],
       "inclusionIDText": sideFilter?.inclusions?.length ? sideFilter.inclusions : ["All"],
       "properties": [],
-      "restriction": sideFilter?.rateTypes?.Restriction || null,
-      "qualification": sideFilter?.rateTypes?.Qualification || null,
-      "promotion": sideFilter?.rateTypes?.Promotion || null,
-      "restrictionText": sideFilter?.rateTypes?.RestrictionText || "All",
-      "promotionText": sideFilter?.rateTypes?.PromotionText || "All",
-      "qualificationText": sideFilter?.rateTypes?.QualificationText || "All",
+      "restriction": sideFilter?.rateViewBy?.Restriction,
+      "qualification": sideFilter?.rateViewBy?.Qualification,
+      "promotion": sideFilter?.rateViewBy?.Promotion,
+      "restrictionText": sideFilter?.rateViewBy?.RestrictionText || "All",
+      "promotionText": sideFilter?.rateViewBy?.PromotionText || "All",
+      "qualificationText": sideFilter?.rateViewBy?.QualificationText || "All",
       "subscriberPropertyID": selectedProperty?.hmid,
       "subscriberName": selectedProperty?.name,
       "mSIRequired": false,
@@ -359,17 +373,33 @@ export default function Home() {
       .catch((err) => console.error(err));
   }
   const GetParityDatas = () => {
-    GetParityData({ "sid": selectedProperty?.sid, "checkInStartDate": startDate?.toISOString().split('T')[0], "checkInEndDate": endDate?.toISOString().split('T')[0], "channelName": channelFilter.channelId })
+    setparityData(Object);
+    var filtersValue = {
+      "sid": selectedProperty?.sid,
+      "checkInStartDate": startDate?.toISOString().split('T')[0],
+      "checkInEndDate": endDate?.toISOString().split('T')[0],
+      "channelName": channelFilter.channelId,
+      "guest": sideFilter?.guest || null,
+      "los": sideFilter?.lengthOfStay || null,
+      "promotion": sideFilter?.rateViewBy?.PromotionText === "All" ? null : sideFilter?.rateViewBy?.PromotionText,
+      "qualification": sideFilter?.rateViewBy?.QualificationText === "All" ? null : sideFilter?.rateViewBy?.QualificationText,
+      "restriction": sideFilter?.rateViewBy?.RestrictionText === "All" ? null : sideFilter?.rateViewBy?.RestrictionText,
+    }
+    GetParityData(filtersValue)
       .then((res) => {
         if (res.status) {
           let parityDatasMain = res.body;
           let totalviolationCount = 0;
           let parityDatas = res.body.otaViolationChannelRate.overallWinMeetLoss;
-          if (parityData != null && (parityData.winCount + parityData.meetCount + parityData.lossCount) != 0) {
+          if (parityDatas != null && (parityDatas.winCount + parityDatas.meetCount + parityDatas.lossCount) != 0) {
             let win = parityDatas.winCount
             let meet = parityDatas.meetCount
             let loss = parityDatas.lossCount
             parityDatas.parityScore = Math.round(((win + meet) / (win + meet + loss)) * 100)
+          }
+          else {
+            res.body.otaViolationChannelRate.overallWinMeetLoss = {};
+            res.body.otaViolationChannelRate.overallWinMeetLoss["parityScore"] = 0;
           }
           if (parityDatasMain && parityDatasMain.otaViolationChannelRate && parityDatasMain.otaViolationChannelRate.violationChannelRatesCollection) {
             parityDatasMain.otaViolationChannelRate.violationChannelRatesCollection.forEach((element: any) => {
@@ -395,6 +425,66 @@ export default function Home() {
       })
       .catch((err) => console.error(err));
   }
+  const GetParityDatas_Comp = () => {
+    setParityDataComp(Object);
+    var startDateComp = startDate
+      ? new Date(startDate.getTime() + (-selectedComparison * 24 * 60 * 60 * 1000))
+      : new Date();
+    var endDateComp = endDate
+      ? new Date(endDate.getTime() + (-selectedComparison * 24 * 60 * 60 * 1000))
+      : new Date();
+    var filtersValue = {
+      "sid": selectedProperty?.sid,
+      "checkInStartDate": startDateComp?.toISOString().split('T')[0],
+      "checkInEndDate": endDateComp?.toISOString().split('T')[0],
+      "channelName": channelFilter.channelId,
+      "guest": sideFilter?.guest || null,
+      "los": sideFilter?.lengthOfStay || null,
+      "promotion": sideFilter?.rateViewBy?.Promotion || null,
+      "qualification": sideFilter?.rateViewBy?.Qualification || null,
+      "restriction": sideFilter?.rateViewBy?.Restriction || null,
+    }
+    GetParityData(filtersValue)
+      .then((res) => {
+        if (res.status) {
+          let parityDatasMain = res.body;
+          let totalviolationCount = 0;
+          let parityDatas = res.body.otaViolationChannelRate.overallWinMeetLoss;
+          if (parityDatas != null && (parityDatas.winCount + parityDatas.meetCount + parityDatas.lossCount) != 0) {
+            let win = parityDatas.winCount
+            let meet = parityDatas.meetCount
+            let loss = parityDatas.lossCount
+            parityDatas.parityScore = Math.round(((win + meet) / (win + meet + loss)) * 100)
+          }
+          else {
+            res.body.otaViolationChannelRate.overallWinMeetLoss = {};
+            res.body.otaViolationChannelRate.overallWinMeetLoss["parityScore"] = 0;
+          }
+          if (parityDatasMain && parityDatasMain.otaViolationChannelRate && parityDatasMain.otaViolationChannelRate.violationChannelRatesCollection) {
+            parityDatasMain.otaViolationChannelRate.violationChannelRatesCollection.forEach((element: any) => {
+              if (!element.isBrand) {
+                let totalWinMeetLossCount = element.channelWisewinMeetLoss.lossCount + element.channelWisewinMeetLoss.meetCount + element.channelWisewinMeetLoss.winCount;
+
+                if (totalWinMeetLossCount > 0) {
+                  element.channelWisewinMeetLoss.parityScore = Math.round(((element.channelWisewinMeetLoss.winCount + element.channelWisewinMeetLoss.meetCount) * 100) / totalWinMeetLossCount);
+                }
+              }
+              const violationCount = element?.checkInDateWiseRates.filter((x: any) => (x.rateViolation || x.availViolation)).length;
+              if (element.channelWisewinMeetLoss) {
+                element.channelWisewinMeetLoss.violationCount = violationCount;
+                totalviolationCount += violationCount
+              }
+            });
+
+          }
+          parityDatasMain.totalviolationCount = totalviolationCount;
+          setParityDataComp(parityDatasMain);
+          // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
+        }
+      })
+      .catch((err) => console.error(err));
+  }
+
 
   const handleMoreFiltersClick = () => {
     setIsFilterSidebarOpen(true)
@@ -436,7 +526,7 @@ export default function Home() {
 
             {/* KPI Cards - Enhanced with proper spacing */}
             <div className="w-full animate-slide-up" data-coach-mark="kpi-cards">
-              <OverviewKpiCards parityData={parityData} rateData={rateData} />
+              <OverviewKpiCards parityData={parityData} rateData={rateData} rateCompData={rateCompData} parityDataComp={parityDataComp} />
             </div>
 
             {/* Main Content Grid - Enhanced with consistent spacing */}

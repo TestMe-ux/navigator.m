@@ -471,7 +471,7 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
                         ? 'text-emerald-700 dark:text-emerald-300'
                         : 'text-gray-900 dark:text-slate-100'
                       }`}>
-                      {currencySymbol}{entry.value?.toLocaleString()}
+                      {`\u200E${currencySymbol}\u200E ${entry.value?.toLocaleString()}`}
                     </div>
                     {/* Variance column - empty for Avg. Compset to maintain alignment */}
                     <div className="text-xs font-medium min-w-[40px]">

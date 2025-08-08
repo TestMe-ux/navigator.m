@@ -106,7 +106,7 @@ export function DemandSummaryCards({ avgDemand,demandAIPerCountryAverageData }: 
   const summaryData: SummaryCardProps[] = [
     {
       title: "Avg. Market ADR",
-      value: `${selectedProperty?.currencySymbol ?? '$'}  ${avgDemand?.AvrageHotelADR?.toFixed(2)}`,
+      value: `\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E  ${avgDemand?.AvrageHotelADR?.toFixed(0)}`,
       trend: `${avgDemand?.AvrageHotelADRWow}%`,
       trendDirection: `${avgDemand?.AvrageHotelADRWow > 0 ? "up" : "down"}`,
       icon: DollarSign,

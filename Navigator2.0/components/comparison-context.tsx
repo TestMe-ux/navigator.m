@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useMemo } from "react"
 
-export type ComparisonOption = "Last 7 Days" | "Last 30 Days" | "Last Quarter"
+export type ComparisonOption = 7 | 30 | 90
 export type ChannelSelection = { channelId?: number[] | []; channelName?: any[] | [] };
 export type CompsetSelection = true | false;
 export type SideFilterSelection = any;
@@ -20,7 +20,7 @@ interface ComparisonContextType {
 const ComparisonContext = createContext<ComparisonContextType | undefined>(undefined)
 
 export function ComparisonProvider({ children }: { children: ReactNode }) {
-  const [selectedComparison, setSelectedComparison] = useState<ComparisonOption>("Last 7 Days")
+  const [selectedComparison, setSelectedComparison] = useState<ComparisonOption>(7)
   const [channelFilter, setChannelFilter] = useState<ChannelSelection>({ channelId: [], channelName: [] });
   const [compsetFilter, setCompsetFilter] = useState<CompsetSelection>(false);
   const [sideFilter, setSideFilter] = useState<CompsetSelection>(Object);

@@ -30,13 +30,14 @@ interface KPIMetric {
   urgency?: 'low' | 'medium' | 'high' | 'critical'
   currencyCode?: string
   outOfIndex?: number
+  comparisonText?: string
 }
 
 /**
  * Generate KPI data with always-included Events card
  * Enhanced for revenue managers with focus on actionable insights
  */
-function generateKPIData(startDate: Date | null, endDate: Date | null, comparison: ComparisonOption, parityData: any, rateData: any, selectedProperty: any): KPIMetric[] {
+function generateKPIData(startDate: Date | null, endDate: Date | null, parityData: any, rateData: any, rateCompData: any, parityDataComp: any, selectedProperty: any, selectedComparison: ComparisonOption): KPIMetric[] {
   // Return empty array if dates are null
   if (!startDate || !endDate) return []
 
@@ -44,13 +45,18 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, compariso
   const today = new Date()
 
   debugger;
+  //All Subscriber Rate and Market Positioning Data
   const avgAllSubscriberRate = rateData?.pricePositioningEntites?.find((x: any) => x.propertyType === 0)?.AvgData;
   const allWithAvg = rateData?.pricePositioningEntites
     ?.filter((x: any) => (typeof x.AvgData === "number") && (x.propertyType === 0 || x.propertyType === 1)) || [];
   const sortedByAvg = [...allWithAvg].sort((a, b) => a.AvgData - b.AvgData);
-  // 3. Find index of propertyType === 0
   const indexOfSubscriber = sortedByAvg.findIndex(x => x.propertyType === 0);
-  console.log('indexOfSubscriber', sortedByAvg);
+  //All Compset Subscriber Rate and Market Positioning Data
+  const avgAllSubscriberRate_Comp = rateCompData?.pricePositioningEntites?.find((x: any) => x.propertyType === 0)?.AvgData;
+  const allWithAvg_Comp = rateCompData?.pricePositioningEntites
+    ?.filter((x: any) => (typeof x.AvgData === "number") && (x.propertyType === 0 || x.propertyType === 1)) || [];
+  const sortedByAvg_Comp = [...allWithAvg_Comp].sort((a, b) => a.AvgData - b.AvgData);
+  const indexOfSubscriber_Comp = sortedByAvg_Comp.findIndex(x => x.propertyType === 0);
   const latestEvent = rateData?.pricePositioningEntites?.find((x: any) => x.propertyType === 0)?.subscriberPropertyRate?.map((x: any) => x.event?.eventDetails)?.find((details: any) => Array.isArray(details) && details.length > 0)?.[0];
 
   // Normalize dates to start of day for accurate comparison
@@ -64,40 +70,17 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, compariso
   const isCurrentRange = startDateStart <= todayStart && endDateStart >= todayStart
 
   console.group('📅 Enhanced KPI Analysis')
-  console.log(`Today: ${format(todayStart, 'yyyy-MM-dd')}`)
-  console.log(`Range: ${format(startDateStart, 'yyyy-MM-dd')} to ${format(endDateStart, 'yyyy-MM-dd')}`)
+  console.log(`Today: ${indexOfSubscriber_Comp}`)
+  console.log(`Range: ${indexOfSubscriber}`)
   console.log(`Days: ${days}, Future: ${isFutureRange}, Past: ${isPastRange}, Current: ${isCurrentRange}`)
   console.groupEnd()
 
   // Enhanced base values with market realism (deterministic for SSR)
-  const dateHash = startDateStart.getTime() % 1000 // Use date for deterministic "randomness"
-
-  // Generate different values based on comparison period
-  const getComparisonMultiplier = (comparison: ComparisonOption) => {
-    switch (comparison) {
-      case "Last 7 Days":
-        return { rate: 1.0, parity: 1.0, market: 0 }
-      case "Last 30 Days":
-        return { rate: 0.95, parity: 0.98, market: 1 }
-      case "Last Quarter":
-        return { rate: 0.88, parity: 0.92, market: 2 }
-      default:
-        return { rate: 1.0, parity: 1.0, market: 0 }
-    }
-  }
-
-  const multiplier = getComparisonMultiplier(comparison)
-
-  // Base values adjusted by comparison period
-  // const baseRate = (280 + (days * 0.5) + ((dateHash % 40))) * multiplier.rate
+  const dateHash = startDateStart.getTime() % 1000 // Use date for deterministic "randomness" 
   const parityBase = parityData?.otaViolationChannelRate?.overallWinMeetLoss.parityScore
-  // const marketPos = Math.max(1, Math.min(5, Math.round(3 - (days * 0.02) + multiplier.market)))
 
-  // Previous period values with realistic variance (different for each comparison)
-  const compVariance = comparison === "Last 7 Days" ? 0.95 : comparison === "Last 30 Days" ? 0.92 : 0.85
-  const prevRate = avgAllSubscriberRate * (compVariance + ((dateHash % 10) / 100))
-  const prevParity = parityBase * (compVariance + ((dateHash % 15) / 100))
-  const prevMarketPos = Math.max(1, Math.min(5, indexOfSubscriber + (dateHash % 2 === 0 ? 1 : -1)))
+  const parityBase_Comp = parityDataComp?.otaViolationChannelRate?.overallWinMeetLoss.parityScore
+
 
   // Core revenue metrics
   const baseKPIs: KPIMetric[] = [
@@ -105,25 +88,26 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, compariso
       id: 'average-rate',
       title: 'Average Daily Rate',
       value: !!avgAllSubscriberRate ? avgAllSubscriberRate : 0,
-      previousValue: prevRate,
-      change: ((avgAllSubscriberRate - prevRate) / prevRate) * 100,
-      changeType: avgAllSubscriberRate > prevRate ? 'increase' : 'decrease',
+      previousValue: avgAllSubscriberRate_Comp,
+      change: !!avgAllSubscriberRate_Comp ? ((avgAllSubscriberRate - avgAllSubscriberRate_Comp) / avgAllSubscriberRate_Comp) * 100 : 0,
+      changeType: avgAllSubscriberRate > avgAllSubscriberRate_Comp ? 'increase' : 'decrease',
       icon: DollarSign,
       description: `ADR performance`,
       format: 'currency',
       color: 'primary',
       isImportant: true,
       gradient: 'from-blue-500 to-blue-600',
-      urgency: Math.abs(((avgAllSubscriberRate - prevRate) / prevRate) * 100) > 5 ? 'high' : 'medium',
-      currencyCode: selectedProperty?.currencyCode || 'USD',
+      urgency: Math.abs(((avgAllSubscriberRate - avgAllSubscriberRate_Comp) / avgAllSubscriberRate_Comp) * 100) > 5 ? 'high' : 'medium',
+      currencyCode: selectedProperty?.currencySymbol || '$',
+      comparisonText: selectedComparison ? selectedComparison === 7 ? 'Last 7 Days' : selectedComparison === 30 ? 'Last 30 Days' : 'Last Quarter' : 'N/A',
     },
     {
       id: 'parity-status',
       title: 'Rate Parity Score',
       value: !!parityBase ? parityBase : 0,
-      previousValue: prevParity,
-      change: ((parityBase - prevParity) / prevParity) * 100,
-      changeType: parityBase > prevParity ? 'increase' : 'decrease',
+      previousValue: !!parityBase_Comp ? parityBase_Comp : 0,
+      change: !!parityBase_Comp ? ((parityBase - parityBase_Comp) / parityBase_Comp) * 100 : 0,
+      changeType: parityBase > parityBase_Comp ? 'increase' : 'decrease',
       icon: Shield,
       description: `Channel rate consistency`,
       format: 'percentage',
@@ -131,14 +115,15 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, compariso
       isImportant: true,
       gradient: parityBase > 95 ? 'from-emerald-500 to-emerald-600' : parityBase > 85 ? 'from-amber-500 to-amber-600' : 'from-red-500 to-red-600',
       urgency: parityBase < 85 ? 'critical' : parityBase < 95 ? 'high' : 'low',
+      comparisonText: selectedComparison ? selectedComparison === 7 ? 'Last 7 Days' : selectedComparison === 30 ? 'Last 30 Days' : 'Last Quarter' : 'N/A',
     },
     {
       id: 'market-position',
       title: 'Market Ranking',
       value: indexOfSubscriber,
-      previousValue: prevMarketPos,
-      change: ((prevMarketPos - indexOfSubscriber) / prevMarketPos) * 100, // Inverted for ranking
-      changeType: indexOfSubscriber < prevMarketPos ? 'increase' : 'decrease',
+      previousValue: indexOfSubscriber_Comp,
+      change: !!indexOfSubscriber_Comp ? ((indexOfSubscriber - indexOfSubscriber_Comp) / indexOfSubscriber_Comp) * 100 : 0, // Inverted for ranking
+      changeType: indexOfSubscriber > indexOfSubscriber_Comp ? 'increase' : 'decrease',
       icon: Target,
       description: `Competitive positioning`,
       format: 'number',
@@ -147,6 +132,7 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, compariso
       gradient: 'from-purple-500 to-purple-600',
       urgency: indexOfSubscriber > 5 ? 'high' : 'medium',
       outOfIndex: rateData?.pricePositioningEntites?.length - 2 || 0,
+      comparisonText: selectedComparison ? selectedComparison === 7 ? 'Last 7 Days' : selectedComparison === 30 ? 'Last 30 Days' : 'Last Quarter' : 'N/A',
     },
   ]
   // Include Events KPI only for current and future dates (revenue managers focus on actionable events)
@@ -213,46 +199,54 @@ function useAnimatedCounter(targetValue: number, duration: number = 2000): numbe
   const [count, setCount] = useState(0)
 
   useEffect(() => {
-    if (targetValue === 0) return
-
     let startTime: number
-    const startValue = count
+    let animationFrameId: number
 
     const animate = (currentTime: number) => {
       if (!startTime) startTime = currentTime
       const progress = Math.min((currentTime - startTime) / duration, 1)
 
-      // Smooth easing function
       const easeOutQuart = 1 - Math.pow(1 - progress, 4)
-      const currentCount = startValue + (targetValue - startValue) * easeOutQuart
+      const currentCount = 0 + (targetValue - 0) * easeOutQuart // always start from 0
 
       setCount(currentCount)
 
       if (progress < 1) {
-        requestAnimationFrame(animate)
+        animationFrameId = requestAnimationFrame(animate)
       } else {
         setCount(targetValue)
       }
     }
 
-    requestAnimationFrame(animate)
-  }, [targetValue, duration, count])
+    // Reset to 0 immediately
+    setCount(0)
+    animationFrameId = requestAnimationFrame(animate)
+
+    // Cleanup to stop any old animations
+    return () => cancelAnimationFrame(animationFrameId)
+  }, [targetValue, duration])
 
   return count
 }
-
 /**
  * Enhanced value formatting with better typography
  */
 function formatValue(value: number, format: KPIMetric['format']): string {
+  const selectedProperty: any = localStorageService.get('SelectedProperty') || {
+    currencySymbol: '$'
+  };
+
+  const currencySymbol = selectedProperty?.currencySymbol || '$';
   switch (format) {
     case 'currency':
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
+      const formattedNumber = new Intl.NumberFormat('en-US', {
+        style: 'decimal',
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
+        useGrouping: true
       }).format(value)
+
+      return `\u200E${currencySymbol}\u200E ${formattedNumber}`;
     case 'percentage':
       return `${value.toFixed(1)}%`
     case 'decimal':
@@ -389,7 +383,7 @@ function KPICard({ metric }: { metric: KPIMetric }) {
                   </TooltipContent>
                 </Tooltip>
               ) : (
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight" >
                   {metric.id === 'market-position' ? `#${getDisplayValue()}` : String(getDisplayValue()).toLowerCase().replace('international', 'int.').replace(/\b\w/g, char => char.toUpperCase())}
                 </p>
               )}
@@ -414,7 +408,7 @@ function KPICard({ metric }: { metric: KPIMetric }) {
                 {Math.abs(metric.change).toFixed(1)}%
               </span>
               <span className="text-xs text-slate-500 dark:text-slate-400">
-                vs last week
+                vs {metric.comparisonText}
               </span>
             </div>
           )}
@@ -432,39 +426,17 @@ export function OverviewKpiCards(props: any) {
   const { startDate, endDate, isLoading: contextIsLoading } = useDateContext()
   const [selectedProperty, setSelectedProperty] = useState<any>(localStorageService.get('SelectedProperty'))
   const { selectedComparison } = useComparison()
-
   const metrics = useMemo(() => {
     // Use default dates if context dates aren't available
     const fallbackStartDate = startDate || new Date()
     const fallbackEndDate = endDate || new Date(Date.now() + 6 * 24 * 60 * 60 * 1000)
     if (!startDate || !endDate) return []
-    return generateKPIData(fallbackStartDate, fallbackEndDate, selectedComparison, props?.parityData, props?.rateData, selectedProperty)
-  }, [startDate, endDate, selectedComparison, props?.parityData, props?.rateData])
+    return generateKPIData(fallbackStartDate, fallbackEndDate, props?.parityData, props?.rateData, props?.rateCompData, props?.parityDataComp, selectedProperty, selectedComparison)
+  }, [startDate, endDate, props?.parityData, props?.rateData, props?.rateCompData, props?.parityDataComp])
 
-  // Debug logging
-  useEffect(() => {
-    console.log('🔍 KPI Debug:', {
-      contextIsLoading,
-      startDate: startDate?.toLocaleDateString(),
-      endDate: endDate?.toLocaleDateString(),
-      selectedComparison,
-      hasData: metrics.length > 0
-    })
-  }, [contextIsLoading, startDate, endDate, selectedComparison, metrics.length])
 
-  // Enhanced verification logging with Events KPI tracking
-  useEffect(() => {
-    if (!startDate || !endDate || metrics.length === 0) return
 
-    const hasEventsKPI = metrics.some(m => m.id === 'dubai-events')
-    console.group('🔍 Enhanced KPI Verification')
-    console.log(`📊 Total KPIs: ${metrics.length}`)
-    console.log(`🔄 Comparison: ${selectedComparison}`)
-    console.log(`🎉 Events KPI: ${hasEventsKPI ? '✅ Shown (actionable)' : '❌ Hidden (past dates)'}`)
-    console.log(`📅 Date Range: ${format(startDate, 'MMM dd')} - ${format(endDate, 'MMM dd')}`)
-    console.log(`📋 Active KPIs:`, metrics.map(m => ({ id: m.id, title: m.title, value: m.value, urgency: m.urgency })))
-    console.groupEnd()
-  }, [metrics, startDate, endDate, selectedComparison])
+
 
   // Render loading state or actual content based on data availability
   const isLoading = contextIsLoading || !startDate || !endDate
