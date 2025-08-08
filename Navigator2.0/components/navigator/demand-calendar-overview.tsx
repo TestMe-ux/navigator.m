@@ -4,13 +4,15 @@ import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import {
   Calendar, 
   ChevronLeft, 
   ChevronRight,
   Star,
   MapPin,
-  Users
+  Users,
+  Info
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -22,7 +24,7 @@ interface CalendarEvent {
   date: Date
   title: string
   type: "conference" | "festival" | "exhibition" | "sports" | "cultural" | "business"
-  impact: "very_low" | "low" | "normal" | "elevated" | "high" | "very_high"
+  impact: "low" | "normal" | "elevated" | "high"
   location?: string
 }
 
@@ -38,20 +40,82 @@ interface CalendarDay {
   isCurrentMonth: boolean
   events: CalendarEvent[]
   hasEvents: boolean
+  demandLevel: 'low' | 'normal' | 'elevated' | 'high'
+  hasEventIcon?: boolean
+  eventName?: string
+  eventCategory?: string
+  eventImpact?: string
+  eventDateRange?: string
+}
+
+/**
+ * Generate deterministic demand level for a given date
+ */
+const generateDemandLevel = (date: Date): CalendarDay['demandLevel'] => {
+  // Use date as seed for deterministic generation
+  const seed = date.getTime() / (1000 * 60 * 60 * 24) // Days since epoch
+  const random = Math.sin(seed) * 10000
+  const value = random - Math.floor(random)
+  
+  // Define demand level probabilities (4 levels)
+  if (value < 0.25) return 'low'
+  if (value < 0.5) return 'normal'
+  if (value < 0.75) return 'elevated'
+  return 'high'
+}
+
+/**
+ * Get Demand Level Styling
+ * Returns styling for demand level cells (76% background opacity, 100% border opacity)
+ * Uses 2-color shading: Light and Dark shades for better visual distinction
+ */
+const getDemandStyling = (demandLevel: CalendarDay['demandLevel']) => {
+  switch (demandLevel) {
+    case 'low':
+      return {
+        bg: 'bg-blue-300/[76%]', // Light shade of Normal blue
+        border: 'border border-blue-300',
+        text: 'text-white'
+      }
+    case 'normal':
+      return {
+        bg: 'bg-blue-500/[76%]', // Original blue - unchanged
+        border: 'border border-blue-500',
+        text: 'text-white'
+      }
+    case 'elevated':
+      return {
+        bg: 'bg-red-300/[76%]', // Light shade of High red
+        border: 'border border-red-300',
+        text: 'text-white'
+      }
+    case 'high':
+      return {
+        bg: 'bg-red-600/[76%]', // Original red - unchanged
+        border: 'border border-red-600',
+        text: 'text-white'
+      }
+    default:
+      return {
+        bg: 'bg-blue-300/[76%]',
+        border: 'border border-blue-300',
+        text: 'text-white'
+      }
+  }
 }
 
 /**
  * Get Event Impact Styling
- * Returns styling based on impact level with simple border colors and dot indicators
+ * Returns styling based on impact level (76% background opacity, 100% border opacity)
  */
 const getEventStyling = (events: CalendarEvent[], isToday: boolean = false, isSelected: boolean = false) => {
   // Base styling for days without events
   if (!events.length) {
     if (isToday) {
       return {
-        bg: "bg-white dark:bg-slate-800",
-        text: "text-blue-900 dark:text-blue-100 font-bold",
-        border: "border border-blue-500 dark:border-blue-400",
+        bg: "bg-blue-500/[76%]",
+        text: "text-white font-bold",
+        border: "border border-blue-500",
         indicator: "",
         hover: "",
         shadow: ""
@@ -68,63 +132,46 @@ const getEventStyling = (events: CalendarEvent[], isToday: boolean = false, isSe
   }
   
   // Get highest impact event for styling priority
-  const impacts = ["very_high", "high", "elevated", "normal", "low", "very_low"] as const
-  const highestImpact = impacts.find(level => events.some(e => e.impact === level)) || "very_low"
+  const impacts = ["high", "elevated", "normal", "low"] as const
+  const highestImpact = impacts.find(level => events.some(e => e.impact === level)) || "low"
   
-  // Impact-based styling with simple borders and dot colors
+  // Impact-based styling with 76% background opacity and 100% border opacity
+  // Using 2-color shading system
   switch (highestImpact) {
-    case "very_high":
-      return {
-        bg: "bg-white dark:bg-slate-800",
-        text: "text-slate-900 dark:text-slate-100",
-        border: "border border-red-500 dark:border-red-400",
-        indicator: "bg-red-600",
-        hover: "",
-        shadow: ""
-      }
     case "high":
       return {
-        bg: "bg-white dark:bg-slate-800",
-        text: "text-slate-900 dark:text-slate-100",
-        border: "border border-orange-500 dark:border-orange-400",
-        indicator: "bg-orange-500",
+        bg: "bg-red-600/[76%]", // Dark red
+        text: "text-white",
+        border: "border border-red-600",
+        indicator: "bg-red-600",
         hover: "",
         shadow: ""
       }
     case "elevated":
       return {
-        bg: "bg-white dark:bg-slate-800",
-        text: "text-slate-900 dark:text-slate-100",
-        border: "border border-yellow-500 dark:border-yellow-400",
-        indicator: "bg-yellow-500",
+        bg: "bg-red-300/[76%]", // Light red
+        text: "text-white",
+        border: "border border-red-300",
+        indicator: "bg-red-300",
         hover: "",
         shadow: ""
       }
     case "normal":
       return {
-        bg: "bg-white dark:bg-slate-800",
-        text: "text-slate-900 dark:text-slate-100",
-        border: "border border-blue-500 dark:border-blue-400",
+        bg: "bg-blue-500/[76%]", // Dark blue
+        text: "text-white",
+        border: "border border-blue-500",
         indicator: "bg-blue-500",
         hover: "",
         shadow: ""
       }
     case "low":
-      return {
-        bg: "bg-white dark:bg-slate-800",
-        text: "text-slate-900 dark:text-slate-100",
-        border: "border border-green-500 dark:border-green-400",
-        indicator: "bg-green-500",
-        hover: "",
-        shadow: ""
-      }
-    case "very_low":
     default:
       return {
-        bg: "bg-white dark:bg-slate-800",
-        text: "text-slate-900 dark:text-slate-100",
-        border: "border border-gray-500 dark:border-gray-400",
-        indicator: "bg-gray-400",
+        bg: "bg-blue-300/[76%]", // Light blue
+        text: "text-white",
+        border: "border border-blue-300",
+        indicator: "bg-blue-300",
         hover: "",
         shadow: ""
       }
@@ -144,8 +191,8 @@ const generateCalendarEvents = (): CalendarEvent[] => {
     
     // Dubai-specific events with realistic dates
     const eventTemplates = [
-      { title: "GITEX Technology Week", type: "conference" as const, impact: "very_high" as const, location: "Dubai World Trade Centre" },
-      { title: "Dubai Shopping Festival", type: "festival" as const, impact: "very_high" as const, location: "Dubai Mall" },
+      { title: "GITEX Technology Week", type: "conference" as const, impact: "high" as const, location: "Dubai World Trade Centre" },
+      { title: "Dubai Shopping Festival", type: "festival" as const, impact: "high" as const, location: "Dubai Mall" },
       { title: "Arab Health Exhibition", type: "exhibition" as const, impact: "high" as const, location: "DWTC" },
       { title: "Dubai International Film Festival", type: "cultural" as const, impact: "elevated" as const, location: "Madinat Jumeirah" },
       { title: "Business Leadership Summit", type: "business" as const, impact: "elevated" as const, location: "Burj Al Arab" },
@@ -153,10 +200,10 @@ const generateCalendarEvents = (): CalendarEvent[] => {
       { title: "Middle East Energy Conference", type: "conference" as const, impact: "normal" as const, location: "DWTC" },
       { title: "Dubai Food Festival", type: "festival" as const, impact: "elevated" as const, location: "Various Locations" },
       { title: "Gulfood Exhibition", type: "exhibition" as const, impact: "high" as const, location: "Dubai World Trade Centre" },
-      { title: "Dubai Airshow", type: "exhibition" as const, impact: "very_high" as const, location: "Al Maktoum Airport" },
+      { title: "Dubai Airshow", type: "exhibition" as const, impact: "high" as const, location: "Al Maktoum Airport" },
       { title: "Art Dubai Fair", type: "cultural" as const, impact: "normal" as const, location: "Madinat Jumeirah" },
       { title: "Dubai Fitness Challenge", type: "sports" as const, impact: "low" as const, location: "City Wide" },
-      { title: "Global Education Summit", type: "conference" as const, impact: "very_low" as const, location: "Emirates Towers" },
+      { title: "Global Education Summit", type: "conference" as const, impact: "low" as const, location: "Emirates Towers" },
       { title: "Dubai Design Week", type: "cultural" as const, impact: "normal" as const, location: "Design District" },
       { title: "FinTech Summit Middle East", type: "business" as const, impact: "elevated" as const, location: "DIFC" }
     ]
@@ -187,7 +234,7 @@ const generateCalendarEvents = (): CalendarEvent[] => {
 
 /**
  * Generate Calendar Days for Month
- * Creates calendar grid for a specific month
+ * Creates calendar grid for a specific month (current month days only)
  */
 const generateMonthDays = (year: number, month: number, events: CalendarEvent[], today: Date): CalendarDay[] => {
   const daysInMonth = new Date(year, month + 1, 0).getDate()
@@ -196,39 +243,14 @@ const generateMonthDays = (year: number, month: number, events: CalendarEvent[],
   
   const days: CalendarDay[] = []
   
-  // Add padding days from previous month
-  const prevMonth = month === 0 ? 11 : month - 1
-  const prevYear = month === 0 ? year - 1 : year
-  const daysInPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate()
-  
-  for (let i = startPadding - 1; i >= 0; i--) {
-    const dayNumber = daysInPrevMonth - i
-    const date = new Date(prevYear, prevMonth, dayNumber)
-    const dayEvents = events.filter(e => 
-      e.date.getFullYear() === date.getFullYear() &&
-      e.date.getMonth() === date.getMonth() &&
-      e.date.getDate() === date.getDate()
-    )
-    
-    days.push({
-      date,
-      dayNumber,
-      dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),
-      isToday: date.toDateString() === today.toDateString(),
-      isCurrentMonth: false,
-      events: dayEvents,
-      hasEvents: dayEvents.length > 0
-    })
+  // Add empty cells for proper day alignment
+  for (let i = 0; i < startPadding; i++) {
+    days.push(null as any) // Empty placeholder for alignment
   }
   
-  // Add current month days
+  // Add current month days only
   for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(year, month, day)
-    const dayEvents = events.filter(e => 
-      e.date.getFullYear() === date.getFullYear() &&
-      e.date.getMonth() === date.getMonth() &&
-      e.date.getDate() === date.getDate()
-    )
     
     days.push({
       date,
@@ -236,32 +258,9 @@ const generateMonthDays = (year: number, month: number, events: CalendarEvent[],
       dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),
       isToday: date.toDateString() === today.toDateString(),
       isCurrentMonth: true,
-      events: dayEvents,
-      hasEvents: dayEvents.length > 0
-    })
-  }
-  
-  // Add padding days from next month
-  const totalCells = Math.ceil(days.length / 7) * 7
-  const nextMonth = month === 11 ? 0 : month + 1
-  const nextYear = month === 11 ? year + 1 : year
-  
-  for (let day = 1; days.length < totalCells; day++) {
-    const date = new Date(nextYear, nextMonth, day)
-    const dayEvents = events.filter(e => 
-      e.date.getFullYear() === date.getFullYear() &&
-      e.date.getMonth() === date.getMonth() &&
-      e.date.getDate() === date.getDate()
-    )
-    
-    days.push({
-      date,
-      dayNumber: day,
-      dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),
-      isToday: date.toDateString() === today.toDateString(),
-      isCurrentMonth: false,
-      events: dayEvents,
-      hasEvents: dayEvents.length > 0
+      events: [], // Events are only shown as star icons, not in cell styling
+      hasEvents: false, // Events are only shown as star icons, not in cell styling
+      demandLevel: generateDemandLevel(date)
     })
   }
   
@@ -287,14 +286,91 @@ export function DemandCalendarOverview() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [currentDate, setCurrentDate] = useState(new Date())
   const [isClient, setIsClient] = useState(false)
+  const [hiddenDemandLevels, setHiddenDemandLevels] = useState<Set<CalendarDay['demandLevel']>>(
+    new Set(['low', 'normal'])
+  )
   
-  const events = useMemo(() => generateCalendarEvents(), [])
+  const events = useMemo(() => [], []) // Events are now only shown as star icons
   
   // Handle client-side hydration
   useEffect(() => {
     setIsClient(true)
   }, [])
   
+  /**
+   * Handle demand level legend click to toggle visibility
+   */
+  const toggleDemandLevel = (level: CalendarDay['demandLevel']) => {
+    setHiddenDemandLevels(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(level)) {
+        newSet.delete(level)
+      } else {
+        newSet.add(level)
+      }
+      return newSet
+    })
+  }
+
+  /**
+   * Get default styling for hidden demand levels
+   */
+  const getDefaultStyling = () => ({
+    bg: 'bg-white dark:bg-slate-800',
+    border: 'border border-slate-200 dark:border-slate-700',
+    text: 'text-slate-500 dark:text-slate-400'
+  })
+
+  /**
+   * Generate deterministic event icons for each month (max 3 per month)
+   */
+  const generateEventIcons = (days: CalendarDay[]): CalendarDay[] => {
+    const currentMonthDays = days.filter(day => day?.isCurrentMonth)
+    
+    // Use deterministic selection based on month/year
+    const monthSeed = currentMonthDays[0]?.date.getMonth() ?? 0
+    const yearSeed = currentMonthDays[0]?.date.getFullYear() ?? 2025
+    const seed = monthSeed + yearSeed * 12
+    
+    // Deterministic selection of 3 dates
+    const selectedIndices = [
+      (seed + 3) % currentMonthDays.length,
+      (seed + 7) % currentMonthDays.length,
+      (seed + 11) % currentMonthDays.length
+    ].filter((value, index, self) => self.indexOf(value) === index) // Remove duplicates
+    
+    const randomDates = selectedIndices.map(i => currentMonthDays[i])
+    
+    const eventData = [
+      { name: 'Tech Conference', category: 'Technology', impact: 'High' },
+      { name: 'Trade Show', category: 'Business', impact: 'Very High' },
+      { name: 'Art Exhibition', category: 'Cultural', impact: 'Medium' },
+      { name: 'Business Summit', category: 'Corporate', impact: 'High' },
+      { name: 'Cultural Festival', category: 'Entertainment', impact: 'Very High' },
+      { name: 'Sports Event', category: 'Sports', impact: 'Medium' }
+    ]
+    
+    return days.map(day => {
+      if (!day) return day
+      const hasIcon = randomDates.includes(day)
+      const eventIndex = hasIcon ? ((day.date.getDate() + seed + monthSeed) % eventData.length) : 0
+      const selectedEvent = eventData[eventIndex]
+      
+      // Add date range for Sep 16 specifically
+      const isSep16 = hasIcon && day.date.getMonth() === 8 && day.date.getDate() === 16 // September is month 8
+      const dateRange = isSep16 ? '16 Sep - 18 Sep' : undefined
+      
+      return {
+        ...day,
+        hasEventIcon: hasIcon,
+        eventName: hasIcon ? selectedEvent.name : undefined,
+        eventCategory: hasIcon ? selectedEvent.category : undefined,
+        eventImpact: hasIcon ? selectedEvent.impact : undefined,
+        eventDateRange: dateRange
+      }
+    })
+  }
+
   /**
    * Handle day selection
    */
@@ -325,16 +401,19 @@ export function DemandCalendarOverview() {
   
   // Generate calendar data for current and next two months
   const today = new Date()
-  const currentMonth = generateMonthDays(currentDate.getFullYear(), currentDate.getMonth(), events, today)
+  const currentMonthBase = generateMonthDays(currentDate.getFullYear(), currentDate.getMonth(), events, today)
+  const currentMonth = generateEventIcons(currentMonthBase)
   const nextMonthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
-  const nextMonth = generateMonthDays(nextMonthDate.getFullYear(), nextMonthDate.getMonth(), events, today)
+  const nextMonthBase = generateMonthDays(nextMonthDate.getFullYear(), nextMonthDate.getMonth(), events, today)
+  const nextMonth = generateEventIcons(nextMonthBase)
   const thirdMonthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 1)
-  const thirdMonth = generateMonthDays(thirdMonthDate.getFullYear(), thirdMonthDate.getMonth(), events, today)
+  const thirdMonthBase = generateMonthDays(thirdMonthDate.getFullYear(), thirdMonthDate.getMonth(), events, today)
+  const thirdMonth = generateEventIcons(thirdMonthBase)
   
   // Calculate statistics
   const totalEvents = events.length
   const upcomingEvents = events.filter(e => e.date >= today).length
-  const highImpactEvents = events.filter(e => e.impact === 'high' || e.impact === 'very_high').length
+  const highImpactEvents = events.filter(e => e.impact === 'high').length
   
   console.log('📊 Calendar statistics:', { totalEvents, upcomingEvents, highImpactEvents })
   
@@ -361,54 +440,46 @@ export function DemandCalendarOverview() {
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   
   return (
-    <section className="w-full bg-gradient-to-r from-slate-50/80 to-blue-50/60 dark:from-slate-900/80 dark:to-slate-800/60 border-b border-slate-200/50 dark:border-slate-700/50">
-      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 lg:py-6">
-        <div className="max-w-7xl mx-auto">
+    <TooltipProvider>
+      <section className="w-full bg-gradient-to-r from-slate-50/80 to-blue-50/60 dark:from-slate-900/80 dark:to-slate-800/60 border-b border-slate-200/50 dark:border-slate-700/50">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-3 lg:py-4">
+          <div className="max-w-7xl mx-auto">
           
 
           
-          {/* Calendar Navigation */}
-          <div className="flex items-center justify-between mb-4">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => navigateMonth('prev')}
-              className="flex items-center gap-2"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Previous
-            </Button>
-            
-            <div className="text-center">
-              <h3 className="text-lg lg:text-xl font-semibold text-foreground">
-                Event Calendar
-              </h3>
-            </div>
-            
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => navigateMonth('next')}
-              className="flex items-center gap-2"
-            >
-              Next
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
+
           
-          {/* Three Month Calendar Grid - Compact View */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10">
+          {/* Three Month Calendar Grid - Responsive View */}
+          <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-16">
             
             {/* Current Month */}
-            <div className="space-y-3">
-              <h4 className="text-base font-semibold text-foreground text-center">
-                {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              </h4>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => navigateMonth('prev')}
+                      className="flex items-center justify-center w-8 h-8 p-0"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-black text-white border-black">
+                    <p>Previous</p>
+                  </TooltipContent>
+                </Tooltip>
+                <h4 className="text-base md:text-lg lg:text-[15px] font-semibold text-foreground text-center">
+                  {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </h4>
+                <div className="w-8"></div> {/* Spacer for alignment */}
+              </div>
               
               {/* Day Headers */}
-              <div className="grid grid-cols-7 gap-0.5 mb-1">
+              <div className="grid grid-cols-7 gap-0.5 mb-0.5">
                 {dayNames.map(day => (
-                  <div key={day} className="text-center text-xs font-medium text-muted-foreground py-1">
+                  <div key={day} className="text-center text-xs font-semibold text-slate-700 dark:text-slate-300 py-0.5">
                     {day}
                   </div>
                 ))}
@@ -417,55 +488,79 @@ export function DemandCalendarOverview() {
               {/* Calendar Days */}
               <div className="grid grid-cols-7 gap-1">
                 {currentMonth.map((day, index) => {
+                  // Empty cell for alignment
+                  if (!day) {
+                    return <div key={index} className="h-8 md:h-10 lg:h-8" />
+                  }
+                  
                   const isSelected = selectedDay ? day.date.toDateString() === selectedDay.toDateString() : false
-                  const styling = getEventStyling(day.events, day.isToday, isSelected)
+                  
+                  // Check if demand level is hidden
+                  const isDemandHidden = hiddenDemandLevels.has(day.demandLevel)
+                  
+                  // Use default styling if demand level is hidden, otherwise use demand styling
+                  // Events are only shown as star icons, not in cell styling
+                  const styling = isDemandHidden
+                    ? getDefaultStyling()
+                    : {
+                        bg: getDemandStyling(day.demandLevel).bg,
+                        text: getDemandStyling(day.demandLevel).text,
+                        border: getDemandStyling(day.demandLevel).border,
+                        indicator: "",
+                        hover: "",
+                        shadow: ""
+                      }
                   
                   return (
                     <div
                       key={index}
                       className={cn(
-                        "relative h-10 lg:h-12 flex items-center justify-center text-xs lg:text-sm rounded-lg cursor-pointer group",
+                        "relative h-8 md:h-10 lg:h-8 flex items-center justify-center text-xs md:text-sm lg:text-xs rounded-lg cursor-pointer group",
                         styling.bg,
                         styling.text,
                         styling.border,
                         isSelected ? "ring-2 ring-yellow-400 ring-offset-2 z-10" : "",
-                        !day.isCurrentMonth ? "opacity-50" : "",
-                        day.hasEvents ? "font-semibold" : "font-medium"
+                        day.hasEventIcon ? "font-semibold" : "font-medium"
                       )}
                       onClick={() => handleDayClick(day)}
                     >
-                      <span className="relative z-10">{day.dayNumber}</span>
+                      <div className="flex items-center relative z-10" style={{ gap: '3px' }}>
+                        <span>{day.dayNumber}</span>
+                        {day.hasEventIcon && (
+                          <Star className="w-3 h-3 text-amber-500 fill-amber-500" style={{ stroke: 'white', strokeWidth: '1px' }} />
+                        )}
+                      </div>
                       
                       {/* Today indicator */}
-                      {day.isToday && !day.hasEvents && (
+                      {day.isToday && (
                         <div className="absolute inset-0 rounded-lg border-2 border-blue-500 animate-pulse" />
                       )}
                       
-                      {/* Event Impact Indicator */}
-                      {day.hasEvents && (
-                        <div className="absolute top-1 right-1">
-                          <div className={cn("w-2 h-2 rounded-full shadow-sm", styling.indicator)} />
-                        </div>
-                      )}
-                      
-                      {/* Multiple Events Indicator */}
-                      {day.events.length > 1 && (
-                        <div className="absolute bottom-0.5 right-0.5">
-                          <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 min-w-4 bg-white/90 text-slate-700 shadow-sm">
-                            +{day.events.length - 1}
-                          </Badge>
-                        </div>
-                      )}
-                      
-                      {/* Enhanced Hover tooltip with event details */}
-                      {day.hasEvents && (
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-black/90 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20 whitespace-nowrap backdrop-blur-sm">
-                          <div className="font-semibold">{day.events[0]?.title}</div>
-                          <div className="text-xs text-gray-300 capitalize">{day.events[0]?.type} • {day.events[0]?.impact.replace('_', ' ')} Impact</div>
-                          {day.events[0]?.location && <div className="text-xs text-gray-400">{day.events[0].location}</div>}
-                          {day.events.length > 1 && <div className="text-xs text-gray-300 mt-1">+{day.events.length - 1} more events</div>}
-                        </div>
-                      )}
+                      {/* Enhanced Hover tooltip with demand and event details */}
+                      <div className={cn(
+                        "absolute px-3 py-2 bg-black/90 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20 whitespace-nowrap backdrop-blur-sm",
+                        // Position tooltip to the right for left columns (Mon, Tue, Wed) to avoid overlap
+                        day.dayName === 'Mon' || day.dayName === 'Tue' || day.dayName === 'Wed' 
+                          ? "left-full ml-2 top-1/2 transform -translate-y-1/2" 
+                          : "bottom-full mb-2 left-1/2 transform -translate-x-1/2"
+                      )}>
+                        <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                        <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
+                        {day.hasEventIcon && (
+                          <>
+                            <div className="border-t border-gray-600 my-1 pt-1">
+                              <div className="font-semibold text-amber-400 flex items-center gap-1">
+                                <Star className="w-3 h-3 fill-amber-400" />
+                                {day.eventName}
+                              </div>
+                              {day.eventDateRange && (
+                                <div className="text-xs text-gray-300 mb-1">{day.eventDateRange}</div>
+                              )}
+                              <div className="text-xs text-gray-300">{day.eventCategory} | {day.eventImpact} Impact</div>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   )
                 })}
@@ -473,15 +568,19 @@ export function DemandCalendarOverview() {
             </div>
             
             {/* Next Month */}
-            <div className="space-y-3">
-              <h4 className="text-base font-semibold text-foreground text-center">
-                {nextMonthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              </h4>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="w-8"></div> {/* Spacer for alignment */}
+                <h4 className="text-base md:text-lg lg:text-[15px] font-semibold text-foreground text-center">
+                  {nextMonthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </h4>
+                <div className="w-8"></div> {/* Spacer for alignment */}
+              </div>
               
               {/* Day Headers */}
-              <div className="grid grid-cols-7 gap-0.5 mb-1">
+              <div className="grid grid-cols-7 gap-0.5 mb-0.5">
                 {dayNames.map(day => (
-                  <div key={day} className="text-center text-xs font-medium text-muted-foreground py-1">
+                  <div key={day} className="text-center text-xs font-semibold text-slate-700 dark:text-slate-300 py-0.5">
                     {day}
                   </div>
                 ))}
@@ -490,55 +589,79 @@ export function DemandCalendarOverview() {
               {/* Calendar Days */}
               <div className="grid grid-cols-7 gap-1">
                 {nextMonth.map((day, index) => {
+                  // Empty cell for alignment
+                  if (!day) {
+                    return <div key={index} className="h-8 md:h-10 lg:h-8" />
+                  }
+                  
                   const isSelected = selectedDay ? day.date.toDateString() === selectedDay.toDateString() : false
-                  const styling = getEventStyling(day.events, day.isToday, isSelected)
+                  
+                  // Check if demand level is hidden
+                  const isDemandHidden = hiddenDemandLevels.has(day.demandLevel)
+                  
+                  // Use default styling if demand level is hidden, otherwise use demand styling
+                  // Events are only shown as star icons, not in cell styling
+                  const styling = isDemandHidden
+                    ? getDefaultStyling()
+                    : {
+                        bg: getDemandStyling(day.demandLevel).bg,
+                        text: getDemandStyling(day.demandLevel).text,
+                        border: getDemandStyling(day.demandLevel).border,
+                        indicator: "",
+                        hover: "",
+                        shadow: ""
+                      }
                   
                   return (
                     <div
                       key={index}
                       className={cn(
-                        "relative h-10 lg:h-12 flex items-center justify-center text-xs lg:text-sm rounded-lg cursor-pointer group",
+                        "relative h-8 md:h-10 lg:h-8 flex items-center justify-center text-xs md:text-sm lg:text-xs rounded-lg cursor-pointer group",
                         styling.bg,
                         styling.text,
                         styling.border,
                         isSelected ? "ring-2 ring-yellow-400 ring-offset-2 z-10" : "",
-                        !day.isCurrentMonth ? "opacity-50" : "",
-                        day.hasEvents ? "font-semibold" : "font-medium"
+                        day.hasEventIcon ? "font-semibold" : "font-medium"
                       )}
                       onClick={() => handleDayClick(day)}
                     >
-                      <span className="relative z-10">{day.dayNumber}</span>
+                      <div className="flex items-center relative z-10" style={{ gap: '3px' }}>
+                        <span>{day.dayNumber}</span>
+                        {day.hasEventIcon && (
+                          <Star className="w-3 h-3 text-amber-500 fill-amber-500" style={{ stroke: 'white', strokeWidth: '1px' }} />
+                        )}
+                      </div>
                       
                       {/* Today indicator */}
-                      {day.isToday && !day.hasEvents && (
+                      {day.isToday && (
                         <div className="absolute inset-0 rounded-lg border-2 border-blue-500 animate-pulse" />
                       )}
                       
-                      {/* Event Impact Indicator */}
-                      {day.hasEvents && (
-                        <div className="absolute top-1 right-1">
-                          <div className={cn("w-2 h-2 rounded-full shadow-sm", styling.indicator)} />
-                        </div>
-                      )}
-                      
-                      {/* Multiple Events Indicator */}
-                      {day.events.length > 1 && (
-                        <div className="absolute bottom-0.5 right-0.5">
-                          <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 min-w-4 bg-white/90 text-slate-700 shadow-sm">
-                            +{day.events.length - 1}
-                          </Badge>
-                        </div>
-                      )}
-                      
-                      {/* Enhanced Hover tooltip with event details */}
-                      {day.hasEvents && (
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-black/90 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20 whitespace-nowrap backdrop-blur-sm">
-                          <div className="font-semibold">{day.events[0]?.title}</div>
-                          <div className="text-xs text-gray-300 capitalize">{day.events[0]?.type} • {day.events[0]?.impact.replace('_', ' ')} Impact</div>
-                          {day.events[0]?.location && <div className="text-xs text-gray-400">{day.events[0].location}</div>}
-                          {day.events.length > 1 && <div className="text-xs text-gray-300 mt-1">+{day.events.length - 1} more events</div>}
-                        </div>
-                      )}
+                      {/* Enhanced Hover tooltip with demand and event details */}
+                      <div className={cn(
+                        "absolute px-3 py-2 bg-black/90 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20 whitespace-nowrap backdrop-blur-sm",
+                        // Position tooltip to the right for left columns (Mon, Tue, Wed) to avoid overlap
+                        day.dayName === 'Mon' || day.dayName === 'Tue' || day.dayName === 'Wed' 
+                          ? "left-full ml-2 top-1/2 transform -translate-y-1/2" 
+                          : "bottom-full mb-2 left-1/2 transform -translate-x-1/2"
+                      )}>
+                        <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                        <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
+                        {day.hasEventIcon && (
+                          <>
+                            <div className="border-t border-gray-600 my-1 pt-1">
+                              <div className="font-semibold text-amber-400 flex items-center gap-1">
+                                <Star className="w-3 h-3 fill-amber-400" />
+                                {day.eventName}
+                              </div>
+                              {day.eventDateRange && (
+                                <div className="text-xs text-gray-300 mb-1">{day.eventDateRange}</div>
+                              )}
+                              <div className="text-xs text-gray-300">{day.eventCategory} | {day.eventImpact} Impact</div>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   )
                 })}
@@ -546,15 +669,33 @@ export function DemandCalendarOverview() {
             </div>
 
             {/* Third Month */}
-            <div className="space-y-3">
-              <h4 className="text-base font-semibold text-foreground text-center">
-                {thirdMonthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              </h4>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="w-8"></div> {/* Spacer for alignment */}
+                <h4 className="text-base md:text-lg lg:text-[15px] font-semibold text-foreground text-center">
+                  {thirdMonthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </h4>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => navigateMonth('next')}
+                      className="flex items-center justify-center w-8 h-8 p-0"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-black text-white border-black">
+                    <p>Next</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               
               {/* Day Headers */}
-              <div className="grid grid-cols-7 gap-0.5 mb-1">
+              <div className="grid grid-cols-7 gap-0.5 mb-0.5">
                 {dayNames.map(day => (
-                  <div key={day} className="text-center text-xs font-medium text-muted-foreground py-1">
+                  <div key={day} className="text-center text-xs font-semibold text-slate-700 dark:text-slate-300 py-0.5">
                     {day}
                   </div>
                 ))}
@@ -563,55 +704,79 @@ export function DemandCalendarOverview() {
               {/* Calendar Days */}
               <div className="grid grid-cols-7 gap-1">
                 {thirdMonth.map((day, index) => {
+                  // Empty cell for alignment
+                  if (!day) {
+                    return <div key={index} className="h-8 md:h-10 lg:h-8" />
+                  }
+                  
                   const isSelected = selectedDay ? day.date.toDateString() === selectedDay.toDateString() : false
-                  const styling = getEventStyling(day.events, day.isToday, isSelected)
+                  
+                  // Check if demand level is hidden
+                  const isDemandHidden = hiddenDemandLevels.has(day.demandLevel)
+                  
+                  // Use default styling if demand level is hidden, otherwise use demand styling
+                  // Events are only shown as star icons, not in cell styling
+                  const styling = isDemandHidden
+                    ? getDefaultStyling()
+                    : {
+                        bg: getDemandStyling(day.demandLevel).bg,
+                        text: getDemandStyling(day.demandLevel).text,
+                        border: getDemandStyling(day.demandLevel).border,
+                        indicator: "",
+                        hover: "",
+                        shadow: ""
+                      }
                   
                   return (
                     <div
                       key={index}
                       className={cn(
-                        "relative h-10 lg:h-12 flex items-center justify-center text-xs lg:text-sm rounded-lg cursor-pointer group",
+                        "relative h-8 md:h-10 lg:h-8 flex items-center justify-center text-xs md:text-sm lg:text-xs rounded-lg cursor-pointer group",
                         styling.bg,
                         styling.text,
                         styling.border,
                         isSelected ? "ring-2 ring-yellow-400 ring-offset-2 z-10" : "",
-                        !day.isCurrentMonth ? "opacity-50" : "",
-                        day.hasEvents ? "font-semibold" : "font-medium"
+                        day.hasEventIcon ? "font-semibold" : "font-medium"
                       )}
                       onClick={() => handleDayClick(day)}
                     >
-                      <span className="relative z-10">{day.dayNumber}</span>
+                      <div className="flex items-center relative z-10" style={{ gap: '3px' }}>
+                        <span>{day.dayNumber}</span>
+                        {day.hasEventIcon && (
+                          <Star className="w-3 h-3 text-amber-500 fill-amber-500" style={{ stroke: 'white', strokeWidth: '1px' }} />
+                        )}
+                      </div>
                       
                       {/* Today indicator */}
-                      {day.isToday && !day.hasEvents && (
+                      {day.isToday && (
                         <div className="absolute inset-0 rounded-lg border-2 border-blue-500 animate-pulse" />
                       )}
                       
-                      {/* Event Impact Indicator */}
-                      {day.hasEvents && (
-                        <div className="absolute top-1 right-1">
-                          <div className={cn("w-2 h-2 rounded-full shadow-sm", styling.indicator)} />
-                        </div>
-                      )}
-                      
-                      {/* Multiple Events Indicator */}
-                      {day.events.length > 1 && (
-                        <div className="absolute bottom-0.5 right-0.5">
-                          <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 min-w-4 bg-white/90 text-slate-700 shadow-sm">
-                            +{day.events.length - 1}
-                          </Badge>
-                        </div>
-                      )}
-                      
-                      {/* Enhanced Hover tooltip with event details */}
-                      {day.hasEvents && (
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-black/90 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20 whitespace-nowrap backdrop-blur-sm">
-                          <div className="font-semibold">{day.events[0]?.title}</div>
-                          <div className="text-xs text-gray-300 capitalize">{day.events[0]?.type} • {day.events[0]?.impact.replace('_', ' ')} Impact</div>
-                          {day.events[0]?.location && <div className="text-xs text-gray-400">{day.events[0].location}</div>}
-                          {day.events.length > 1 && <div className="text-xs text-gray-300 mt-1">+{day.events.length - 1} more events</div>}
-                        </div>
-                      )}
+                      {/* Enhanced Hover tooltip with demand and event details */}
+                      <div className={cn(
+                        "absolute px-3 py-2 bg-black/90 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20 whitespace-nowrap backdrop-blur-sm",
+                        // Position tooltip to the right for left columns (Mon, Tue, Wed) to avoid overlap
+                        day.dayName === 'Mon' || day.dayName === 'Tue' || day.dayName === 'Wed' 
+                          ? "left-full ml-2 top-1/2 transform -translate-y-1/2" 
+                          : "bottom-full mb-2 left-1/2 transform -translate-x-1/2"
+                      )}>
+                        <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                        <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
+                        {day.hasEventIcon && (
+                          <>
+                            <div className="border-t border-gray-600 my-1 pt-1">
+                              <div className="font-semibold text-amber-400 flex items-center gap-1">
+                                <Star className="w-3 h-3 fill-amber-400" />
+                                {day.eventName}
+                              </div>
+                              {day.eventDateRange && (
+                                <div className="text-xs text-gray-300 mb-1">{day.eventDateRange}</div>
+                              )}
+                              <div className="text-xs text-gray-300">{day.eventCategory} | {day.eventImpact} Impact</div>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   )
                 })}
@@ -619,76 +784,90 @@ export function DemandCalendarOverview() {
                         </div>
           </div>
           
-          {/* Impact Levels Legend with Counts */}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-sm">
-            {(() => {
-              // Calculate counts for each impact level
-              const impactCounts = {
-                very_low: events.filter(e => e.impact === 'very_low').length,
-                low: events.filter(e => e.impact === 'low').length,
-                normal: events.filter(e => e.impact === 'normal').length,
-                elevated: events.filter(e => e.impact === 'elevated').length,
-                high: events.filter(e => e.impact === 'high').length,
-                very_high: events.filter(e => e.impact === 'very_high').length
-              }
-              
-              // Only show impact levels that have events
-              const impactLevels = [
-                { key: 'very_low', label: 'Very Low', color: 'bg-gray-400', count: impactCounts.very_low },
-                { key: 'low', label: 'Low', color: 'bg-green-500', count: impactCounts.low },
-                { key: 'normal', label: 'Normal', color: 'bg-blue-500', count: impactCounts.normal },
-                { key: 'elevated', label: 'Elevated', color: 'bg-yellow-500', count: impactCounts.elevated },
-                { key: 'high', label: 'High', color: 'bg-orange-500', count: impactCounts.high },
-                { key: 'very_high', label: 'Very High', color: 'bg-red-600', count: impactCounts.very_high }
-              ].filter(level => level.count > 0)
-              
-              return impactLevels.map(level => (
-                <div key={level.key} className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${level.color}`} />
-                  <span className="text-foreground">{level.label} ({level.count})</span>
-                </div>
-              ))
-            })()}
-          </div>
-          
-          {/* Selected Day Events */}
-          {selectedDay && (
-            <div className="mt-8 p-6 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-              <h4 className="text-lg font-semibold text-foreground mb-4">
-                Events on {selectedDay.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-              </h4>
-              <div className="space-y-3">
-                {events
-                  .filter(e => e.date.toDateString() === selectedDay.toDateString())
-                  .map((event, index) => (
-                    <div key={index} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-700">
+          {/* Demand Levels Legend - Clickable */}
+          <div className="mt-6">
+            <div className="flex flex-wrap items-center justify-center gap-1 text-xs">
+              <div className="flex items-center gap-1 mr-1">
+                <span className="font-semibold text-foreground">Demand</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3 h-3 text-muted-foreground hover:text-foreground cursor-help transition-colors" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs bg-slate-800 text-white border-slate-700">
+                    <p className="text-sm">
+                      Color-coded demand levels help visualize market intensity. Click legend items to show/hide specific demand levels on the calendar.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+                <span className="font-semibold text-foreground">:</span>
+              </div>
+              {(() => {
+                const demandLevels = [
+                  { key: 'low' as const, label: 'Low', color: 'bg-blue-300' }, // Light blue
+                  { key: 'normal' as const, label: 'Normal', color: 'bg-blue-500' }, // Dark blue
+                  { key: 'elevated' as const, label: 'Elevated', color: 'bg-red-300' }, // Light red
+                  { key: 'high' as const, label: 'High', color: 'bg-red-600' } // Dark red
+                ]
+                
+                return demandLevels.map(level => {
+                  const isHidden = hiddenDemandLevels.has(level.key)
+                  return (
+                    <button
+                      key={level.key}
+                      onClick={() => toggleDemandLevel(level.key)}
+                      className={cn(
+                        "flex items-center gap-2 px-2 py-1 rounded-lg transition-all duration-200 hover:bg-slate-100 dark:hover:bg-slate-700",
+                        isHidden ? "opacity-50" : "opacity-100"
+                      )}
+                    >
                       <div className={cn(
                         "w-3 h-3 rounded-full",
-                        event.impact === 'very_high' ? 'bg-red-600' : 
-                        event.impact === 'high' ? 'bg-orange-500' : 
-                        event.impact === 'elevated' ? 'bg-yellow-500' : 
-                        event.impact === 'normal' ? 'bg-blue-500' : 
-                        event.impact === 'low' ? 'bg-green-500' : 'bg-gray-400'
+                        isHidden ? "bg-white border-2 border-slate-300" : level.color
                       )} />
-                      <div className="flex-1">
-                        <h5 className="font-medium text-foreground">{event.title}</h5>
-                        {event.location && (
-                          <p className="text-sm text-muted-foreground flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            {event.location}
-                          </p>
-                        )}
-                      </div>
-                      <Badge variant="outline" className="text-xs capitalize">
-                        {event.impact} Impact
-                      </Badge>
-                    </div>
-                  ))}
-              </div>
+                      <span className="text-slate-800 dark:text-slate-200 font-medium">{level.label}</span>
+                    </button>
+                  )
+                })
+              })()}
             </div>
-          )}
+          </div>
+          
+          {/* Selected Day Star Events */}
+          {selectedDay && (() => {
+            // Find the selected day's star event data
+            const selectedDayData = [...currentMonth, ...nextMonth, ...thirdMonth]
+              .find(day => day && day.date.toDateString() === selectedDay.toDateString())
+            
+            if (!selectedDayData?.hasEventIcon) return null
+            
+            return (
+              <div className="mt-8 p-6 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                <h4 className="text-lg font-semibold text-foreground mb-4">
+                  Event on {selectedDay.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                </h4>
+                <div className="flex items-center gap-3 p-4 rounded-lg bg-slate-50 dark:bg-slate-700">
+                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  <div className="flex-1">
+                    <h5 className="font-medium text-foreground">{selectedDayData.eventName}</h5>
+                    {selectedDayData.eventDateRange && (
+                      <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">
+                        {selectedDayData.eventDateRange}
+                      </p>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                      {selectedDayData.eventCategory}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    {selectedDayData.eventImpact} Impact
+                  </Badge>
+                </div>
+              </div>
+            )
+          })()}
         </div>
       </div>
     </section>
+    </TooltipProvider>
   )
 } 

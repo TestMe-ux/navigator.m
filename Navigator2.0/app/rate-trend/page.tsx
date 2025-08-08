@@ -151,7 +151,7 @@ export default function RateTrendPage() {
   const [currentView, setCurrentView] = useState<"calendar" | "chart" | "table">("calendar")
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false)
   const [isClient, setIsClient] = useState(false)
-  
+  const [losGuest, setLosGuest] = useState({ "Los": [], "Guest": [] });
   // Get date context for dynamic KPIs
   const { startDate, endDate, isLoading } = useDateContext()
   
@@ -206,8 +206,8 @@ export default function RateTrendPage() {
     <ComparisonProvider>
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       
-      {/* Enhanced Filter Bar with Dashboard styling */}
-      <div className="filter-bar-minimal">
+      {/* Enhanced Filter Bar with Sticky Positioning */}
+      <div className="sticky top-0 z-50 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-all duration-200 min-h-[80px]">
         <FilterBar onMoreFiltersClick={handleMoreFiltersClick} />
       </div>
       
@@ -422,6 +422,7 @@ export default function RateTrendPage() {
 
       {/* Filter Sidebar */}
       <FilterSidebar 
+       losGuest={losGuest}
         isOpen={isFilterSidebarOpen} 
         onClose={() => setIsFilterSidebarOpen(false)} 
         onApply={(filters) => {

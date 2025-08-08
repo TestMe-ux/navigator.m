@@ -226,6 +226,7 @@ export default function Home() {
   // Scroll detection for CSAT card
   const [parityData, setparityData] = useState(Object);
   const [rateData, setRateData] = useState(Object);
+  const [rateCompData, setRateCompData] = useState(Object);
   const [losGuest, setLosGuest] = useState({ "Los": [], "Guest": [] });
   const { hasTriggered, resetTrigger } = useScrollDetection({
     threshold: 0.9, // Show when 90% scrolled (very close to bottom)
@@ -250,7 +251,9 @@ export default function Home() {
       !channelFilter?.channelId || channelFilter?.channelId.length === 0) return;
     Promise.all([
       GetParityDatas(),
-      getRateDate()]);
+      getRateDate(),
+      // getCompRateData()
+    ]);
   }, [hasTriggered, showCSATCard, csatClosed, startDate, endDate, channelFilter, compsetFilter, sideFilter])
 
   const getRateDate = () => {
@@ -301,7 +304,60 @@ export default function Home() {
       })
       .catch((err) => console.error(err));
   }
+  const getCompRateData = () => {
+    var startDateComp = startDate
+      ? new Date(startDate.getTime() + (-7 * 24 * 60 * 60 * 1000))
+      : new Date();
+    var endDateComp = endDate
+      ? new Date(endDate.getTime() + (-7 * 24 * 60 * 60 * 1000))
+      : new Date();
+    var filtersValue = {
+      "SID": selectedProperty?.sid,
+      "channels": channelFilter.channelId,
+      "channelsText": channelFilter.channelName,
+      "checkInStartDate": startDateComp?.toISOString().split('T')[0],
+      "checkInEndDate": endDateComp?.toISOString().split('T')[0],
+      "LOS": sideFilter?.lengthOfStay || null,
+      "guest": sideFilter?.guest || null,
+      "productTypeID": sideFilter?.roomTypes || null,
+      "productTypeIDText": sideFilter?.roomTypes || "All",
+      "inclusionID": sideFilter?.inclusions || [],
+      "inclusionIDText": sideFilter?.inclusions?.length ? sideFilter.inclusions : ["All"],
+      "properties": [],
+      "restriction": sideFilter?.rateTypes?.Restriction || null,
+      "qualification": sideFilter?.rateTypes?.Qualification || null,
+      "promotion": sideFilter?.rateTypes?.Promotion || null,
+      "restrictionText": sideFilter?.rateTypes?.RestrictionText || "All",
+      "promotionText": sideFilter?.rateTypes?.PromotionText || "All",
+      "qualificationText": sideFilter?.rateTypes?.QualificationText || "All",
+      "subscriberPropertyID": selectedProperty?.hmid,
+      "subscriberName": selectedProperty?.name,
+      "mSIRequired": false,
+      "benchmarkRequired": true,
+      "compsetRatesRequired": true,
+      "propertiesText": [],
+      "isSecondary": compsetFilter,
+    }
+    getRateTrends(filtersValue)
+      .then((res) => {
+        if (res.status) {
+          var CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
+            const allSubscriberRate = x.subscriberPropertyRate?.map((r: any) => parseInt(r.rate) > 0 ? parseInt(r.rate) : 0) || [];
+            const ty = allSubscriberRate.length
+              ? allSubscriberRate.reduce((sum: any, rate: any) => sum + rate, 0) / allSubscriberRate.length
+              : 0;
 
+            return { ...x, AvgData: ty };
+          });
+          res.body.pricePositioningEntites = CalulatedData;
+          console.log('Rate trends data:', res.body);
+          setRateCompData(res.body);
+          // setLosGuest({ "Los": res.body?.losList, "Guest": res.body?.guestList });
+          // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
+        }
+      })
+      .catch((err) => console.error(err));
+  }
   const GetParityDatas = () => {
     GetParityData({ "sid": selectedProperty?.sid, "checkInStartDate": startDate?.toISOString().split('T')[0], "checkInEndDate": endDate?.toISOString().split('T')[0], "channelName": channelFilter.channelId })
       .then((res) => {
@@ -388,7 +444,7 @@ export default function Home() {
 
               {/* Rate Trends Chart - Full width with enhanced styling */}
               <div className="animate-fade-in mb-12" data-coach-mark="rate-trends">
-                <RateTrendsChart rateData={rateData}/>
+                <RateTrendsChart rateData={rateData} />
               </div>
 
               {/* Property Health Score and Market Demand Cards - Grouped with consistent spacing */}
