@@ -143,10 +143,10 @@ export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
   }, [selectedProperty?.sid]);
   // Channel multi-select state
 
-  const compareOptions = [  
-    { id: "last7days", label: "Last 7 Days" as ComparisonOption },
-    { id: "last30days", label: "Last 30 Days" as ComparisonOption },
-    { id: "lastquarter", label: "Last Quarter" as ComparisonOption }
+  const compareOptions = [
+    { id: 7 as ComparisonOption, label: "Last 7 Days" },
+    { id: 30 as ComparisonOption, label: "Last 30 Days" },
+    { id: 90 as ComparisonOption, label: "Last Quarter" }
   ]
 
   /**
@@ -329,7 +329,7 @@ export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
                     >
                       <Calendar className="w-4 h-4 shrink-0" />
                       <span className="truncate max-w-[80px] font-semibold">
-                        Vs. {selectedComparison}
+                        Vs. {compareOptions.find(opt => opt.id === selectedComparison)?.label}
                       </span>
                       <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
                     </Button>
@@ -343,14 +343,14 @@ export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
                           {compareOptions.map((option) => (
                             <Button
                               key={option.id}
-                              variant={selectedComparison === option.label ? "default" : "ghost"}
+                              variant={selectedComparison === option.id ? "default" : "ghost"}
                               size="sm"
                               className="w-full justify-start text-left h-auto py-2 px-3"
-                              onClick={() => handleCompareOptionSelect(option.label)}
+                              onClick={() => handleCompareOptionSelect(option.id)}
                             >
                               <span className={cn(
                                 "text-sm font-medium",
-                                selectedComparison === option.label ? "text-white" : "text-foreground"
+                                selectedComparison === option.id ? "text-white" : "text-foreground"
                               )}>
                                 {option.label}
                               </span>

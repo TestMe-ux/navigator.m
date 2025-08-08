@@ -59,7 +59,7 @@ export function MarketDemandWidget() {
       getAllEventData(),
     ]);
 
-  }, [startDate, endDate,selectedProperty?.sid]);
+  }, [startDate, endDate, selectedProperty?.sid]);
   const getDemandAIData = () => {
     GetDemandAIData({ SID: selectedProperty?.sid, startDate: startDate?.toISOString().split('T')[0], endDate: endDate?.toISOString().split('T')[0] })
       .then((res) => {
@@ -168,7 +168,7 @@ export function MarketDemandWidget() {
               <span className="text-sm font-medium text-foreground/80">Market ADR</span>
             </div>
             <div className="space-y-1">
-              <div className="text-xl font-bold text-foreground">{selectedProperty?.currencySymbol ?? '$'}{avgDemand?.AvrageHotelADR}</div>
+              <div className="text-xl font-bold text-foreground">{`\u200E${selectedProperty?.currencySymbol ?? '$'}\u200E ${avgDemand?.AvrageHotelADR}`}</div>
               <div className="flex items-center gap-1">
                 <span className={`text-sm font-medium px-1.5 py-0.5 rounded
                   ${avgDemand?.AvrageHotelADRWow > 0 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' :
@@ -247,7 +247,7 @@ export function MarketDemandWidget() {
             <div className="flex flex-col gap-6">
               {/* Map Section - Full Width */}
               <div className="w-full h-[400px]">
-                <WorldMapVisualization demandAiAvg={demandAIPerCountryAverageData}/>
+                <WorldMapVisualization demandAiAvg={demandAIPerCountryAverageData} />
               </div>
 
               {/* Events Section - Full Width Below Map */}

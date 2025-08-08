@@ -58,12 +58,12 @@ export function Header() {
     getSIDListforUser();
   }, [])
   const getSIDListforUser = () => {
-    GetSIDListforUser({ UserID: 46248 })
+    GetSIDListforUser({ UserID: 50986 })
       .then((res) => {
         if (res.status) {
           localStorageService.set('Properties', res.body);
-          localStorageService.set('SelectedProperty', res.body[5]);
-          setSelectedHotel(res.body[5]);
+          localStorageService.set('SelectedProperty', res.body[0]);
+          setSelectedHotel(res.body[0]);
           setHotelOptions(res.body)
           // setotachannel(res.body);
           // getOTARankOnAllChannels(res.body);

@@ -230,6 +230,7 @@ export function MyEventsHolidaysTable({ events }: MyEventsHolidaysTableProps) {
         </CardHeader>
         <CardContent className="pb-7">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+
             {data.map((row: any, index: any) => {
               // Get colored icon for category
               const getCategoryIcon = (category: string) => {
@@ -358,6 +359,11 @@ export function MyEventsHolidaysTable({ events }: MyEventsHolidaysTableProps) {
                 </div>
               )
             })}
+            {!!data && data.length === 0 && (
+              <div className="col-span-1 flex items-center justify-center text-slate-500 dark:text-slate-400">
+                <span className="text-sm">No upcoming events in your selected location.</span>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
