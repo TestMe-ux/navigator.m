@@ -234,7 +234,7 @@ export function PropertyHealthScoreWidget(props: any) {
       pendingFetchRef.current = false;
       fetchOtaAndRanks(); // defined below
     }
-  }, [startDate, endDate,selectedProperty?.sid]);
+  }, [startDate, endDate, selectedProperty?.sid]);
 
   useEffect(() => {
     if (!pendingFetchRef.current) return;
@@ -299,7 +299,7 @@ export function PropertyHealthScoreWidget(props: any) {
     } finally {
       isFetchingRef.current = false;
     }
-  }, [startDate, endDate, props?.parityData]); 
+  }, [startDate, endDate, props?.parityData]);
 
   useEffect(() => {
     if (!otaRankOnChannel || otaRankOnChannel.length === 0) return;
@@ -318,7 +318,7 @@ export function PropertyHealthScoreWidget(props: any) {
       if (!nameKey) continue;
       parityMap.set(nameKey, p);
     }
-
+    debugger;
     const merged = [
       ...otarankdata.map((a1: any) => {
         const key = String(a1.name ?? a1.channelName ?? a1.cid ?? '').toLowerCase().trim();
@@ -353,7 +353,9 @@ export function PropertyHealthScoreWidget(props: any) {
         !!cw && !(typeof cw === 'object' && Object.keys(cw).length === 0) &&
         !(cw?.parityScore <= 0);
 
-      const hasData = Array.isArray(item.data) ? item.data.length > 0 : !!item.data;
+      const hasData = Array.isArray(item.data)
+        ? item.data.some((d: any) => d?.propertyid === selectedProperty?.hmid)
+        : item.data?.propertyid === selectedProperty?.hmid;
       return hasChannelWisewin || hasData;
     });
 

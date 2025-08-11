@@ -223,7 +223,7 @@ export const countryCoordinates: Record<string, [number, number]> = {
   "Venezuela": [-66.589730, 6.423750],
   "British Virgin Islands": [-64.639968, 18.420695],
   "U.S. Virgin Islands": [-64.896335, 18.335765],
-  "Vietnam": [108.277199, 14.058324],
+  "Viet Nam": [108.277199, 14.058324],
   "Vanuatu": [166.959158, -15.376706],
   "Wallis and Futuna": [-176.193193, -13.768650],
   "Samoa": [-172.104629, -13.759029],
