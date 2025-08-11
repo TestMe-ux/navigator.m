@@ -17,23 +17,47 @@ import { useDateContext } from "@/components/date-context"
 import { GetDemandAIData, GetDemandAIPerCountryAverageData } from "@/lib/demand"
 import { getAllEvents } from "@/lib/events"
 import localStorageService from "@/lib/localstorage"
+import { getRateTrends } from "@/lib/rate"
+import { getChannels } from "@/lib/channels"
 
 export default function DemandPage() {
   const { startDate, endDate } = useDateContext();
   const [demandAIPerCountryAverageData, setDemandAIPerCountryAverageData] = useState<any>([])
   const [demandData, setDemandData] = useState<any>([])
   const [eventData, setEventData] = useState<any>({});
-  const selectedProperty:any = localStorageService.get('SelectedProperty')
+  const selectedProperty: any = localStorageService.get('SelectedProperty')
   const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0 })
+  const [rateData, setRateData] = useState(Object);
+  const [channelFilter, setChannelFilter] = useState<any>({ channelId: [], channelName: [] });
   useEffect(() => {
     if (!startDate || !endDate) return;
     Promise.all([
+      getChannelData(),
       getDemandAIPerCountryAverageData(),
       getDemandAIData(),
       getAllEventData(),
     ]);
-
   }, [startDate, endDate, selectedProperty?.sid]);
+
+  useEffect(() => {
+    if (!startDate ||
+      !endDate ||
+      !channelFilter?.channelId || channelFilter?.channelId.length === 0) return;
+    Promise.all([
+      getRateDate()
+    ]);
+  }, [startDate, endDate, channelFilter]);
+
+  const getChannelData = () => {
+    getChannels({ SID: selectedProperty?.sid })
+      .then((res) => {
+        console.log("Channels", res.body);
+        res.body.sort((a: any, b: any) => a.name.localeCompare(b.name))
+        const channelList = [...res.body];
+        setChannelFilter({ channelId: channelList.map(c => c.cid), channelName: channelList.map(c => c.name) })
+      }
+      )
+  }
   const getDemandAIData = () => {
     GetDemandAIData({ SID: selectedProperty?.sid, startDate: startDate?.toISOString().split('T')[0], endDate: endDate?.toISOString().split('T')[0] })
       .then((res) => {
@@ -98,7 +122,54 @@ export default function DemandPage() {
       })
       .catch((err) => console.error(err));
   }
+  const getRateDate = () => {
+    setRateData(Object);
+    var filtersValue = {
+      "SID": selectedProperty?.sid,
+      "channels": channelFilter.channelId,
+      "channelsText": channelFilter.channelName,
+      "checkInStartDate": startDate?.toISOString().split('T')[0],
+      "checkInEndDate": endDate?.toISOString().split('T')[0],
+      "LOS": null,
+      "guest": null,
+      "productTypeID": null,
+      "productTypeIDText": "All",
+      "inclusionID": [],
+      "inclusionIDText": ["All"],
+      "properties": [],
+      "restriction": null,
+      "qualification": null,
+      "promotion": null,
+      "restrictionText": "All",
+      "promotionText": "All",
+      "qualificationText": "All",
+      "subscriberPropertyID": selectedProperty?.hmid,
+      "subscriberName": selectedProperty?.name,
+      "mSIRequired": false,
+      "benchmarkRequired": true,
+      "compsetRatesRequired": true,
+      "propertiesText": [],
+      "isSecondary": false,
+    }
+    getRateTrends(filtersValue)
+      .then((res) => {
+        if (res.status) {
+          var CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
+            const allSubscriberRate = x.subscriberPropertyRate?.map((r: any) => parseInt(r.rate) > 0 ? parseInt(r.rate) : 0) || [];
+            const ty = allSubscriberRate.length
+              ? allSubscriberRate.reduce((sum: any, rate: any) => sum + rate, 0) / allSubscriberRate.length
+              : 0;
 
+            return { ...x, AvgData: ty };
+          });
+          res.body.pricePositioningEntites = CalulatedData;
+          console.log('Rate trends data:', res.body);
+          setRateData(res.body);
+          // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
+        }
+      })
+      .catch((err) => console.error(err));
+  }
   const handleDemandFiltersChange = (filters: any) => {
     console.log("🔍 Demand filters changed:", filters)
     // Handle demand filter changes here
@@ -128,7 +199,7 @@ export default function DemandPage() {
 
           {/* Summary Cards Section */}
           <section className="w-full">
-            <DemandSummaryCards  avgDemand={avgDemand} demandAIPerCountryAverageData={demandAIPerCountryAverageData}/>
+            <DemandSummaryCards avgDemand={avgDemand} demandAIPerCountryAverageData={demandAIPerCountryAverageData} />
           </section>
 
 
@@ -136,7 +207,7 @@ export default function DemandPage() {
           <section className="w-full">
             <Card className="card-elevated animate-fade-in">
               <CardContent className="p-3 md:p-4 lg:p-6 xl:p-8">
-                <EnhancedDemandTrendsChart events={eventData} demandData={demandData}/>
+                <EnhancedDemandTrendsChart events={eventData} demandData={demandData} rateData={rateData}/>
               </CardContent>
             </Card>
           </section>
