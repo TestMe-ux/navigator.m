@@ -506,7 +506,7 @@ export default function Home() {
 
       {/* Main Dashboard Content */}
       <main className="relative">
-        <div className="px-6 sm:px-8 lg:px-10 xl:px-12 py-6 space-y-4">
+        <div className="px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8 space-y-4">
           <div className="max-w-none mx-auto space-y-4">
 
             {/* Dashboard Header with Enhanced Typography */}

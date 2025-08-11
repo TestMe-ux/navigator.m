@@ -142,7 +142,7 @@ export default function OTARankingsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
-      <div className="p-6 space-y-6">
+      <div className="px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8 space-y-6">
         {/* Filter Bar */}
         <Card className="bg-card shadow-lg">
           <CardContent className="p-6">

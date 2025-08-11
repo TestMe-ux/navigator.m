@@ -236,7 +236,7 @@ export default function ParityMonitoringPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
-      <div className="flex-1 space-y-6 p-6">
+      <div className="flex-1 space-y-6 px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
