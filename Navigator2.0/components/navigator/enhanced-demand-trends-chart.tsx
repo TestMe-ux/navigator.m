@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -22,23 +22,29 @@ import { Button } from "@/components/ui/button"
 import { useTheme } from "next-themes"
 import { useDateContext } from "@/components/date-context"
 import { format, eachDayOfInterval, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachWeekOfInterval, eachMonthOfInterval, differenceInDays } from "date-fns"
+import { getRateTrends } from "@/lib/rate"
+import localStorageService from "@/lib/localstorage"
+import { useComparison } from "../comparison-context"
 
 type DatasetType = 'pricing' | 'travellers'
 type AggregationPeriod = 'day' | 'week' | 'month'
 
 // Generate trend data based on date range
-function generateTrendData(startDate: Date, endDate: Date, demandData: any) {
+function generateTrendData(startDate: Date, endDate: Date, demandData: any, rateData: any) {
   const days = eachDayOfInterval({ start: startDate, end: endDate })
-  console.log("Generating trend data from", demandData);
   const lowestDemandIndex = Math.max(...demandData?.optimaDemand.map((d: any) => d.demandIndex));
+  const compsetAvgDatas = rateData?.pricePositioningEntites
+    ?.find((x: any) => x.propertyType === 2)
+    ?.subscriberPropertyRate || [];
   return demandData?.optimaDemand.map((demandI: any, index: any) => {
+    const compsetAvgData = compsetAvgDatas.find((x: any) => x.checkInDateTime === demandI.checkinDate) || {};
     // Generate realistic data with some variation
     const checkinDate = parseISO(demandI.checkinDate);
     const baseDemand = Math.floor(1 + Math.sin(index * 0.3) * 1.2 + Math.random() * 1.5)
 
     const demandLevel = Math.max(1, Math.min(4, baseDemand))
     const hotelADR = demandI?.hotelADR ? demandI.hotelADR : 0
-    const marketADR = demandI?.marketADR ? demandI.marketADR : 0
+    const marketADR = Math.max(parseInt(compsetAvgData?.rate ?? "0", 10), 0);
     const airTravellers = demandI?.oagCapacity ? demandI.oagCapacity : 0
 
     // Generate variance percentages (realistic fluctuations)
@@ -507,12 +513,14 @@ const CustomLegend = ({
   )
 }
 
-export function EnhancedDemandTrendsChart({ events, demandData }: any) {
+export function EnhancedDemandTrendsChart({ events, demandData, rateData }: any) {
   const { theme } = useTheme()
   const { startDate, endDate, isLoading } = useDateContext()
   const [datasetType, setDatasetType] = useState<DatasetType>('pricing')
   const [aggregationPeriod, setAggregationPeriod] = useState<AggregationPeriod>('day')
   const [enabledDemandLevels, setEnabledDemandLevels] = useState<Set<number>>(new Set([1, 2, 3, 4]))
+
+
 
   // Toggle demand level visibility
   const handleDemandToggle = (level: number) => {
@@ -609,9 +617,9 @@ export function EnhancedDemandTrendsChart({ events, demandData }: any) {
       actualStartDate = new Date()
       actualEndDate = new Date(Date.now() + 29 * 24 * 60 * 60 * 1000)
     }
-    if (!demandData || demandData.length === 0) return [];
+    if (!demandData || demandData.length === 0 || !rateData || Object.keys(rateData).length === 0) return [];
     // Generate daily data first
-    const dailyData = generateTrendData(actualStartDate!, actualEndDate!, demandData)
+    const dailyData = generateTrendData(actualStartDate!, actualEndDate!, demandData, rateData)
 
     // Add event data to daily data
     const dailyDataWithEvents = generateChartEvents(dailyData)
@@ -625,16 +633,18 @@ export function EnhancedDemandTrendsChart({ events, demandData }: any) {
       default:
         return dailyDataWithEvents
     }
-  }, [startDate, endDate, aggregationPeriod, demandData])
+  }, [startDate, endDate, aggregationPeriod, demandData, rateData])
 
   // Calculate Y-axis domains dynamically
   const demandDomain = [0, 4]
 
   // Calculate actual price domain from data with robust error handling
-  const priceValues = trendData.flatMap(d => [d.hotelADR, d.marketADR]).filter(val => val != null && !isNaN(val) && val > 0)
+  const priceValues = trendData.flatMap(d => [d.hotelADR, d.marketADR]).filter(val => val != null && !isNaN(val))
   const minPrice = priceValues.length > 0 ? Math.min(...priceValues) : 70
   const maxPrice = priceValues.length > 0 ? Math.max(...priceValues) : 150
-  const priceDomain = [Math.max(0, minPrice - 10), maxPrice + 10]
+  const padding = Math.round((maxPrice - minPrice) * 0.05);
+  const priceDomain = [Math.max(0, minPrice - padding), maxPrice + padding];
+  // const priceDomain = [Math.max(0, minPrice - 10), maxPrice + 10]
 
   // Debug logging for price domain calculation
   console.log('🔍 PRICE DOMAIN DEBUG:', {
@@ -917,69 +927,55 @@ export function EnhancedDemandTrendsChart({ events, demandData }: any) {
               </Bar>
 
               {/* Pricing Lines - Enhanced Conditional Rendering with Full Debug */}
-              {datasetType === 'pricing' && (
-                <>
-                  {(() => {
-                    console.log('🚀 ENHANCED LINE RENDERING DEBUG:')
-                    console.log('  - Dataset type:', datasetType)
-                    console.log('  - Will render lines?', datasetType === 'pricing')
-                    console.log('  - Data sample for lines:', trendData.slice(0, 3).map(d => ({
-                      date: d.dateFormatted,
-                      hotelADR: d.hotelADR,
-                      marketADR: d.marketADR
-                    })))
-                    console.log('  - Price domain:', priceDomain)
-                    console.log('  - Colors:', { myPriceColor, marketAdrColor })
-                    return null
-                  })()}
 
-                  <Line
-                    yAxisId="secondary"
-                    type="monotone"
-                    dataKey="hotelADR"
-                    name="My ADR"
-                    stroke={myPriceColor}
-                    strokeWidth={8}
-                    connectNulls={false}
-                    isAnimationActive={false}
-                    dot={{
-                      r: 8,
-                      fill: myPriceColor,
-                      strokeWidth: 4,
-                      stroke: "#ffffff",
-                    }}
-                    activeDot={{
-                      r: 10,
-                      strokeWidth: 4,
-                      stroke: "#ffffff",
-                      fill: myPriceColor
-                    }}
-                  />
-                  <Line
-                    yAxisId="secondary"
-                    type="monotone"
-                    dataKey="marketADR"
-                    name="Market ADR"
-                    stroke={marketAdrColor}
-                    strokeWidth={8}
-                    strokeDasharray="12 6"
-                    connectNulls={false}
-                    isAnimationActive={false}
-                    dot={{
-                      r: 8,
-                      fill: marketAdrColor,
-                      strokeWidth: 4,
-                      stroke: "#ffffff",
-                    }}
-                    activeDot={{
-                      r: 10,
-                      strokeWidth: 4,
-                      stroke: "#ffffff",
-                      fill: marketAdrColor
-                    }}
-                  />
-                </>
-              )}
+              <Line
+                hide={datasetType !== 'pricing'}
+                yAxisId="secondary"
+                type="monotone"
+                dataKey="hotelADR"
+                name="My ADR"
+                stroke={myPriceColor}
+                strokeWidth={4}
+                connectNulls={false}
+                isAnimationActive={false}
+                dot={{
+                  r: 5,
+                  fill: myPriceColor,
+                  strokeWidth: 2,
+                  stroke: "#ffffff",
+                }}
+                activeDot={{
+                  r: 7,
+                  strokeWidth: 2,
+                  stroke: "#ffffff",
+                  fill: myPriceColor
+                }}
+              />
+              <Line
+                hide={datasetType !== 'pricing'}
+                yAxisId="secondary"
+                type="monotone"
+                dataKey="marketADR"
+                name="Market ADR"
+                stroke={marketAdrColor}
+                strokeWidth={4}
+                strokeDasharray="12 6"
+                connectNulls={false}
+                isAnimationActive={false}
+                dot={{
+                  r: 5,
+                  fill: marketAdrColor,
+                  strokeWidth: 2,
+                  stroke: "#ffffff",
+                }}
+                activeDot={{
+                  r: 7,
+                  strokeWidth: 2,
+                  stroke: "#ffffff",
+                  fill: marketAdrColor
+                }}
+              />
+
 
               {/* Travellers Line */}
               {datasetType === 'travellers' && (
