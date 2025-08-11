@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -13,7 +13,7 @@ import { TrendingUp, Filter, Download, ChevronDown, Eye, EyeOff, ArrowUp, ArrowD
 import { useDateContext } from "@/components/date-context"
 import { format, eachDayOfInterval, differenceInDays } from "date-fns"
 import localStorageService from "@/lib/localstorage"
-
+import { toPng } from "html-to-image";
 /**
  * Chart Data Configuration
  * Professional rate trends data with multiple channels and time periods
@@ -772,29 +772,29 @@ export function RateTrendsChart({ rateData }: any) {
   }, [disabledChannels, allSelectedChannels])
 
   // Custom tooltip position to keep it within chart bounds
-  const getTooltipPosition = useCallback((coordinate: { x: number, y: number }, viewBox: any) => {
-    if (!coordinate || !viewBox) return { x: 0, y: 0 }
+  // const getTooltipPosition = useCallback((coordinate: { x: number, y: number }, viewBox: any) => {
+  //   if (!coordinate || !viewBox) return { x: 0, y: 0 }
 
-    const tooltipWidth = 350 // max width from our tooltip
-    const tooltipHeight = 200 // estimated height
+  //   const tooltipWidth = 350 // max width from our tooltip
+  //   const tooltipHeight = 200 // estimated height
 
-    let x = coordinate.x
-    let y = coordinate.y
+  //   let x = coordinate.x
+  //   let y = coordinate.y
 
-    // Adjust x position to keep tooltip within chart
-    if (x + tooltipWidth > viewBox.width) {
-      x = coordinate.x - tooltipWidth
-    }
+  //   // Adjust x position to keep tooltip within chart
+  //   if (x + tooltipWidth > viewBox.width) {
+  //     x = coordinate.x - tooltipWidth
+  //   }
 
-    // Adjust y position to keep tooltip within chart
-    if (y - tooltipHeight < 0) {
-      y = coordinate.y + 20
-    } else {
-      y = coordinate.y - tooltipHeight - 10
-    }
+  //   // Adjust y position to keep tooltip within chart
+  //   if (y - tooltipHeight < 0) {
+  //     y = coordinate.y + 20
+  //   } else {
+  //     y = coordinate.y - tooltipHeight - 10
+  //   }
 
-    return { x, y }
-  }, [])
+  //   return { x, y }
+  // }, [])
 
   // Check if we have data
   const hasData = data.length > 0 && channelConfigs.length > 0
@@ -802,50 +802,137 @@ export function RateTrendsChart({ rateData }: any) {
 
 
   // Debug helper function - can be called from console
-  const debugState = useCallback(() => {
-    const allSelectedKeys = allSelectedChannels.map(channel => channel.key)
-    const visibleCount = allSelectedKeys.filter(key => legendVisibility[key]).length
-    const activeChannelKeys = chartChannels.map(channel => channel.key)
-    const disabledChannelKeys = disabledChannels.map(channel => channel.key)
+  // const debugState = useCallback(() => {
+  //   const allSelectedKeys = allSelectedChannels.map(channel => channel.key)
+  //   const visibleCount = allSelectedKeys.filter(key => legendVisibility[key]).length
+  //   const activeChannelKeys = chartChannels.map(channel => channel.key)
+  //   const disabledChannelKeys = disabledChannels.map(channel => channel.key)
 
-    return {
-      totalSelected: allSelectedKeys.length,
-      activeChannels: activeChannelKeys,
-      disabledChannels: disabledChannelKeys,
-      visibleLegends: visibleCount,
-      errorMessage,
-      legendVisibility,
-      channelVisibility
-    }
-  }, [allSelectedChannels, legendVisibility, chartChannels, disabledChannels, errorMessage, channelVisibility])
+  //   return {
+  //     totalSelected: allSelectedKeys.length,
+  //     activeChannels: activeChannelKeys,
+  //     disabledChannels: disabledChannelKeys,
+  //     visibleLegends: visibleCount,
+  //     errorMessage,
+  //     legendVisibility,
+  //     channelVisibility
+  //   }
+  // }, [allSelectedChannels, legendVisibility, chartChannels, disabledChannels, errorMessage, channelVisibility])
 
   // Make debug function available globally for troubleshooting
-  useEffect(() => {
-    (window as any).debugRateChart = debugState
-    return () => {
-      delete (window as any).debugRateChart
-    }
-  }, [debugState])
+  // useEffect(() => {
+  //   (window as any).debugRateChart = debugState
+  //   return () => {
+  //     delete (window as any).debugRateChart
+  //   }
+  // }, [debugState])
 
-  const getTrendIcon = (trend: 'stable' | 'up' | 'down') => {
-    switch (trend) {
-      case 'up': return <ArrowUp className="w-4 h-4 text-emerald-600" />
-      case 'down': return <ArrowDown className="w-4 h-4 text-red-600" />
-      default: return <Minus className="w-4 h-4 text-slate-600" />
-    }
-  }
+  // const getTrendIcon = (trend: 'stable' | 'up' | 'down') => {
+  //   switch (trend) {
+  //     case 'up': return <ArrowUp className="w-4 h-4 text-emerald-600" />
+  //     case 'down': return <ArrowDown className="w-4 h-4 text-red-600" />
+  //     default: return <Minus className="w-4 h-4 text-slate-600" />
+  //   }
+  // }
 
-  const getTrendBadge = (trend: 'stable' | 'up' | 'down') => {
-    const badgeClasses = {
-      up: 'badge-minimal bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
-      down: 'badge-minimal bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-      stable: 'badge-minimal bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
+  // const getTrendBadge = (trend: 'stable' | 'up' | 'down') => {
+  //   const badgeClasses = {
+  //     up: 'badge-minimal bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
+  //     down: 'badge-minimal bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+  //     stable: 'badge-minimal bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
+  //   }
+  //   return badgeClasses[trend]
+  // }
+  const cardRef = useRef<HTMLDivElement>(null);
+  const handleDownloadImageRate = () => {
+    console.log("upgrading the a Sum Insured", data);
+    if (cardRef.current) {
+      toPng(cardRef.current, { cacheBust: true })
+        .then((dataUrl) => {
+          const link = document.createElement("a");
+          link.download = 'RateShopping_Rate_' + selectedProperty?.sid + '_' + new Date().getTime() + ".png"; // File name
+          link.href = dataUrl;
+          link.click();
+        })
+        .catch((err) => {
+          console.error("Error generating image:", err);
+        });
     }
-    return badgeClasses[trend]
-  }
+  };
+  const formatDate = (timestamp: any) => {
+    const dateObj = new Date(timestamp);
+    const yyyy = dateObj.getFullYear();
+    const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const dd = String(dateObj.getDate()).padStart(2, "0");
+    return `${yyyy}/${mm}/${dd}`;
+  };
+
+  // Escape CSV fields if needed
+  const escapeCSVValue = (value: any) => {
+    if (typeof value === "string") {
+      if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+        return `"${value.replace(/"/g, '""')}"`;
+      }
+      return value;
+    }
+    return value ?? "";
+  };
+  const handleDownload = () => {
+    const headers = ["CheckinDate", "PropertyID", "PropertyName", "Rate"];
+
+    const rows = data.flatMap((entry) => {
+      const dateStr = escapeCSVValue(formatDate(entry.timestamp));
+
+      // Competitor rows
+      const competitorRows = Object.keys(entry)
+        .filter((key) => key.startsWith("competitor_") && !key.endsWith("_name"))
+        .map((key) => {
+          const id = key.replace("competitor_", "");
+          const nameKey = `competitor_${id}_name`;
+          return [
+            dateStr,
+            escapeCSVValue(id),
+            escapeCSVValue(entry[nameKey] || ""),
+            escapeCSVValue(entry[key]),
+          ];
+        });
+
+      // Extra "direct" row
+      competitorRows.push([
+        dateStr,
+        selectedProperty?.hmid,
+        selectedProperty?.name,
+        escapeCSVValue(entry.direct),
+      ]);
+
+      // Extra "avgCompset" row
+      competitorRows.push([
+        dateStr,
+        0,
+        "Avg Compset",
+        escapeCSVValue(entry.avgCompset),
+      ]);
+
+      return competitorRows;
+    });
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((r) => r.join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "competitor-data.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
-    <Card className="chart-container-minimal animate-fade-in bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700">
+    <Card ref={cardRef} className="chart-container-minimal animate-fade-in bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700">
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
@@ -955,8 +1042,8 @@ export function RateTrendsChart({ rateData }: any) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem>Export as Image</DropdownMenuItem>
-                <DropdownMenuItem>Export as CSV</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleDownloadImageRate()}>Export as Image</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleDownload()}>Export as CSV</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
