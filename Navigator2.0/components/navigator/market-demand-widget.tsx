@@ -102,12 +102,12 @@ export function MarketDemandWidget() {
             sumHotelADRMom += Number(element.moM_Overall_HotelADR)
           });
           setAvgDemand({
-            AverageDI: Math.round(Number((sumDI / demandDatas.length))),
-            AverageWow: Math.round(Number((sumWow / demandDatas.length))),
-            AverageMom: Math.round(Number((sumMom / demandDatas.length))),
-            AvrageHotelADR: Math.round(Number((sumHotelADR / demandDatas.length))),
-            AvrageHotelADRWow: Math.round(Number((sumHotelADRWow / demandDatas.length))),
-            AvrageHotelADRMom: Math.round(Number((sumHotelADRMom / demandDatas.length)))
+            AverageDI: Number((sumDI / demandDatas.length).toFixed(2)),
+            AverageWow: Number((sumWow / demandDatas.length).toFixed(2)),
+            AverageMom: Number((sumMom / demandDatas.length).toFixed(2)),
+            AvrageHotelADR: Number((sumHotelADR / demandDatas.length).toFixed(2)),
+            AvrageHotelADRWow: Number((sumHotelADRWow / demandDatas.length).toFixed(2)),
+            AvrageHotelADRMom: Number((sumHotelADRMom / demandDatas.length).toFixed(2))
           });
         }
       })
@@ -119,7 +119,7 @@ export function MarketDemandWidget() {
     })
       .then((res) => {
         if (res.status) {
-          setDemandAIPerCountryAverageData(res?.body[0]);
+          setDemandAIPerCountryAverageData(res?.body[0].filter((market: any) => market.averageTotalFlights !== 0));
           console.log("GetDemandAIPerCountryAverageData", res?.body[0]);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
