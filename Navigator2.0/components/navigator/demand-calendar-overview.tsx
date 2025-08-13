@@ -14,7 +14,7 @@ import {
   Users,
   Info
 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, conevrtDateforApi } from "@/lib/utils"
 import { GetDemandAIData } from "@/lib/demand"
 import localStorageService from "@/lib/localstorage"
 import { useDateContext } from "../date-context"
@@ -239,7 +239,7 @@ const generateCalendarEvents = (): CalendarEvent[] => {
  * Generate Calendar Days for Month
  * Creates calendar grid for a specific month (current month days only)
  */
-const generateMonthDays = (year: number, month: number, events: CalendarEvent[], today: Date,sid:number): CalendarDay[] => {
+const generateMonthDays = (year: number, month: number, events: CalendarEvent[], today: Date, sid: number): CalendarDay[] => {
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const firstDayOfMonth = new Date(year, month, 1).getDay()
   const startPadding = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1 // Monday = 0
@@ -272,7 +272,7 @@ const generateMonthDays = (year: number, month: number, events: CalendarEvent[],
   return days
 }
 const getDemandAIData = (monthStartDate: any, monthEndDate: any, sid: number) => {
-  GetDemandAIData({ SID: sid, startDate: monthStartDate?.toISOString().split('T')[0], endDate: monthEndDate?.toISOString().split('T')[0] })
+  GetDemandAIData({ SID: sid, startDate: conevrtDateforApi(monthStartDate.toString()), endDate: conevrtDateforApi(monthEndDate.toString()) })
     .then((res) => {
       if (res.status) {
         return res.body;
@@ -418,13 +418,13 @@ export function DemandCalendarOverview() {
 
   // Generate calendar data for current and next two months
   const today = new Date()
-  const currentMonthBase = generateMonthDays(currentDate.getFullYear(), currentDate.getMonth(), events, today,selectedProperty?.sid)
+  const currentMonthBase = generateMonthDays(currentDate.getFullYear(), currentDate.getMonth(), events, today, selectedProperty?.sid)
   const currentMonth = generateEventIcons(currentMonthBase)
   const nextMonthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
-  const nextMonthBase = generateMonthDays(nextMonthDate.getFullYear(), nextMonthDate.getMonth(), events, today,selectedProperty?.sid)
+  const nextMonthBase = generateMonthDays(nextMonthDate.getFullYear(), nextMonthDate.getMonth(), events, today, selectedProperty?.sid)
   const nextMonth = generateEventIcons(nextMonthBase)
   const thirdMonthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 1)
-  const thirdMonthBase = generateMonthDays(thirdMonthDate.getFullYear(), thirdMonthDate.getMonth(), events, today,selectedProperty?.sid)
+  const thirdMonthBase = generateMonthDays(thirdMonthDate.getFullYear(), thirdMonthDate.getMonth(), events, today, selectedProperty?.sid)
   const thirdMonth = generateEventIcons(thirdMonthBase)
 
   // Calculate statistics

@@ -33,6 +33,7 @@ import { GetParityData } from "@/lib/parity"
 import { getRateTrends } from "@/lib/rate"
 import localStorageService from "@/lib/localstorage"
 import { useDateContext } from "@/components/date-context"
+import { conevrtDateforApi } from "@/lib/utils"
 
 /**
  * Modern Quick Actions Configuration
@@ -221,7 +222,7 @@ export default function Home() {
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false)
   const [showCSATCard, setShowCSATCard] = useState(false)
   const [csatClosed, setCSATClosed] = useState(false)
-  const { startDate, endDate, setDateRange } = useDateContext()
+  const { startDate, endDate } = useDateContext()
   const [selectedProperty, setSelectedProperty] = useState<any>(localStorageService.get('SelectedProperty'))
   // Scroll detection for CSAT card
   const [parityData, setparityData] = useState(Object);
@@ -269,13 +270,14 @@ export default function Home() {
   }, [selectedComparison])
 
   const getRateDate = () => {
+    debugger;
     setRateData(Object);
     var filtersValue = {
       "SID": selectedProperty?.sid,
       "channels": channelFilter.channelId,
       "channelsText": channelFilter.channelName,
-      "checkInStartDate": startDate?.toISOString().split('T')[0],
-      "checkInEndDate": endDate?.toISOString().split('T')[0],
+      "checkInStartDate": conevrtDateforApi(startDate?.toString()),
+      "checkInEndDate": conevrtDateforApi(endDate?.toString()),
       "LOS": sideFilter?.lengthOfStay || null,
       "guest": sideFilter?.guest || null,
       "productTypeID": sideFilter?.roomTypes || null,
@@ -329,8 +331,8 @@ export default function Home() {
       "SID": selectedProperty?.sid,
       "channels": channelFilter.channelId,
       "channelsText": channelFilter.channelName,
-      "checkInStartDate": startDateComp?.toISOString().split('T')[0],
-      "checkInEndDate": endDateComp?.toISOString().split('T')[0],
+      "checkInStartDate": conevrtDateforApi(startDateComp.toString()),
+      "checkInEndDate": conevrtDateforApi(endDateComp.toString()),
       "LOS": sideFilter?.lengthOfStay || null,
       "guest": sideFilter?.guest || null,
       "productTypeID": sideFilter?.roomTypes || null,
@@ -376,8 +378,8 @@ export default function Home() {
     setparityData(Object);
     var filtersValue = {
       "sid": selectedProperty?.sid,
-      "checkInStartDate": startDate?.toISOString().split('T')[0],
-      "checkInEndDate": endDate?.toISOString().split('T')[0],
+      "checkInStartDate": conevrtDateforApi(startDate?.toString()),
+      "checkInEndDate": conevrtDateforApi(endDate?.toString()),
       "channelName": channelFilter.channelId,
       "guest": sideFilter?.guest || null,
       "los": sideFilter?.lengthOfStay || null,
@@ -435,8 +437,8 @@ export default function Home() {
       : new Date();
     var filtersValue = {
       "sid": selectedProperty?.sid,
-      "checkInStartDate": startDateComp?.toISOString().split('T')[0],
-      "checkInEndDate": endDateComp?.toISOString().split('T')[0],
+      "checkInStartDate": conevrtDateforApi(startDateComp.toString()),
+      "checkInEndDate": conevrtDateforApi(endDateComp.toString()),
       "channelName": channelFilter.channelId,
       "guest": sideFilter?.guest || null,
       "los": sideFilter?.lengthOfStay || null,
