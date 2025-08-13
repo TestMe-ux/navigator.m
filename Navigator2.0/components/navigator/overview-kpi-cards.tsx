@@ -424,7 +424,15 @@ function KPICard({ metric }: { metric: KPIMetric }) {
  */
 export function OverviewKpiCards(props: any) {
   const { startDate, endDate, isLoading: contextIsLoading } = useDateContext()
-  const [selectedProperty, setSelectedProperty] = useState<any>(localStorageService.get('SelectedProperty'))
+  const [selectedProperty, setSelectedProperty] = useState<any>(null)
+  
+  // Safely get selectedProperty on client side only
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const property = localStorageService.get('SelectedProperty')
+      setSelectedProperty(property)
+    }
+  }, [])
   const { selectedComparison } = useComparison()
   const metrics = useMemo(() => {
     // Use default dates if context dates aren't available

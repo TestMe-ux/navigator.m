@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { getOTAChannels, getOTARankOnAllChannel } from "@/lib/otarank"
 import { useDateContext } from "../date-context"
 import localStorageService from "@/lib/localstorage"
+import { useSelectedProperty } from "@/hooks/use-local-storage"
 
 interface ChannelData {
   name: string
@@ -202,7 +203,7 @@ const generateRevenueManagerInsights = (channels: ChannelData[]) => {
 }
 
 export function PropertyHealthScoreWidget(props: any) {
-  const [selectedProperty, setSelectedProperty] = useState<any>(localStorageService.get('SelectedProperty'))
+  const [selectedProperty] = useSelectedProperty()
   const pendingFetchRef = useRef(false);
   const lastDatesRef = useRef<{ start: string | null; end: string | null }>({ start: null, end: null });
   const isFetchingRef = useRef(false); // avoid overlapping requests
@@ -220,7 +221,7 @@ export function PropertyHealthScoreWidget(props: any) {
   const isEmptyObject = (obj: any) =>
     obj && Object.keys(obj).length === 0 && obj.constructor === Object;
   useEffect(() => {
-    if (!startDate || !endDate) return;
+    if (!startDate || !endDate || !selectedProperty?.sid) return;
 
     const startKey = startDate.toISOString();
     const endKey = endDate.toISOString();
@@ -234,7 +235,7 @@ export function PropertyHealthScoreWidget(props: any) {
       pendingFetchRef.current = false;
       fetchOtaAndRanks(); // defined below
     }
-  }, [startDate, endDate,selectedProperty?.sid]);
+  }, [startDate, endDate, selectedProperty]);
 
   useEffect(() => {
     if (!pendingFetchRef.current) return;

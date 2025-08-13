@@ -815,10 +815,51 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
     return <RateTrendGraph />
   }
 
-  // Tooltip component for pricing reasoning
+  // Enhanced Tooltip component with Today's New Logic for pricing reasoning
   const PricingTooltip = ({ day, children }: { day: CalendarDay, children: React.ReactNode }) => {
-    if (!day.isFuture || !day.reasoning) {
+    // Call Today's New Logic for rate trend calendar
+    const callTodaysNewLogic = () => {
+      const today = new Date()
+      const dayDate = new Date(day.year, day.month, day.date)
+      
+      // Normalize dates for accurate comparison
+      const todayNormalized = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+      const dayDateNormalized = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate())
+      
+      const isToday = todayNormalized.getTime() === dayDateNormalized.getTime()
+      const isPast = dayDateNormalized < todayNormalized
+      const isFuture = dayDateNormalized > todayNormalized
+      
+      return {
+        isToday,
+        isPast,
+        isFuture,
+        daysDifference: Math.ceil((dayDateNormalized.getTime() - todayNormalized.getTime()) / (1000 * 60 * 60 * 24))
+      }
+    }
+
+    const { isToday, isPast, isFuture } = callTodaysNewLogic()
+    
+    // Show tooltips for all days but with different styling based on today's logic
+    const hasReasoningToShow = day.isFuture && day.reasoning
+    const shouldShowTooltip = hasReasoningToShow || isToday || isPast
+
+    if (!shouldShowTooltip) {
       return <>{children}</>
+    }
+
+    // Enhanced tooltip positioning based on today's logic
+    const getTooltipSide = () => {
+      if (isToday) return "bottom" // Today gets bottom positioning for better visibility
+      return "top" // Standard top positioning for other days
+    }
+
+    // Enhanced background styling for today
+    const getTooltipBgClasses = () => {
+      if (isToday) {
+        return "max-w-sm p-4 bg-gradient-to-br from-blue-900 to-slate-900 text-white border-2 border-blue-400"
+      }
+      return "max-w-sm p-4 bg-slate-900 text-white"
     }
 
     return (
@@ -827,34 +868,65 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
           <TooltipTrigger asChild>
             {children}
           </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-sm p-4 bg-slate-900 text-white">
+          <TooltipContent side={getTooltipSide()} className={getTooltipBgClasses()}>
             <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${
-                  day.reasoning.confidence === 'high' ? 'bg-green-400' : 
-                  day.reasoning.confidence === 'medium' ? 'bg-yellow-400' : 'bg-red-400'
-                }`} />
-                <span className="font-semibold text-sm">{day.reasoning.strategy}</span>
+              {/* Today's Special Header */}
+              {isToday && (
+                <div className="flex items-center gap-2 text-blue-300 bg-blue-800/30 px-2 py-1 rounded mb-2">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-bold">TODAY'S RATE</span>
+                </div>
+              )}
+              
+              {/* Current Price Information */}
+              <div className={`flex items-center gap-2 ${isToday ? 'text-blue-200' : ''}`}>
+                <DollarSign className="w-4 h-4" />
+                <span className="font-semibold text-sm">Current: {day.currentPrice}</span>
               </div>
               
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-slate-300">Key Factors:</p>
-                <ul className="text-xs space-y-0.5">
-                  {day.reasoning.factors.map((factor, index) => (
-                    <li key={index} className="text-slate-200">• {factor}</li>
-                  ))}
-                </ul>
-              </div>
+              {/* Future Reasoning (if available) */}
+              {hasReasoningToShow && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${
+                      day.reasoning!.confidence === 'high' ? 'bg-green-400' : 
+                      day.reasoning!.confidence === 'medium' ? 'bg-yellow-400' : 'bg-red-400'
+                    }`} />
+                    <span className="font-semibold text-sm">{day.reasoning!.strategy}</span>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-slate-300">Key Factors:</p>
+                    <ul className="text-xs space-y-0.5">
+                      {day.reasoning!.factors.map((factor, index) => (
+                        <li key={index} className="text-slate-200">• {factor}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-700">
+                    <span className="text-xs font-medium text-slate-300">Expected Impact:</span>
+                    <span className="text-xs font-bold text-green-400">{day.reasoning!.impact}</span>
+                  </div>
+                  
+                  {day.reasoning!.eventInfluence && (
+                    <div className="flex items-center gap-1 text-xs text-purple-300">
+                      <Activity className="w-3 h-3" />
+                      <span>{day.reasoning!.eventInfluence}</span>
+                    </div>
+                  )}
+                </>
+              )}
               
-              <div className="flex items-center justify-between pt-2 border-t border-slate-700">
-                <span className="text-xs font-medium text-slate-300">Expected Impact:</span>
-                <span className="text-xs font-bold text-green-400">{day.reasoning.impact}</span>
-              </div>
-              
-              {day.reasoning.eventInfluence && (
-                <div className="flex items-center gap-1 text-xs text-purple-300">
-                  <Activity className="w-3 h-3" />
-                  <span>{day.reasoning.eventInfluence}</span>
+              {/* Past/Today Context */}
+              {(isToday || isPast) && !hasReasoningToShow && (
+                <div className="text-xs text-gray-300">
+                  {isToday && (
+                    <div className="text-blue-200">📍 Current active rate</div>
+                  )}
+                  {isPast && (
+                    <div className="text-gray-400">🕒 Historical rate</div>
+                  )}
                 </div>
               )}
             </div>

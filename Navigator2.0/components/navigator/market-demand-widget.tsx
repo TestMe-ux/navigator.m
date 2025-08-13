@@ -9,6 +9,7 @@ import { useDateContext } from "../date-context"
 import { GetDemandAIData, GetDemandAIPerCountryAverageData } from "@/lib/demand"
 import { getAllEvents } from "@/lib/events"
 import localStorageService from "@/lib/localstorage"
+import { useSelectedProperty } from "@/hooks/use-local-storage"
 const sourceMarketColors = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444"]
 // Local Dubai events - Extended list
 // const localEvents = [
@@ -49,17 +50,17 @@ export function MarketDemandWidget() {
   const [demandData, setDemandData] = useState<any>([])
   const [eventData, setEventData] = useState<any>({});
   const [demandAIPerCountryAverageData, setDemandAIPerCountryAverageData] = useState<any>([])
-  const [selectedProperty, setSelectedProperty] = useState<any>(localStorageService.get('SelectedProperty'))
+  const [selectedProperty] = useSelectedProperty()
   const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0 })
   useEffect(() => {
-    if (!startDate || !endDate) return;
+    if (!startDate || !endDate || !selectedProperty?.sid) return;
     Promise.all([
       getDemandAIPerCountryAverageData(),
       getDemandAIData(),
       getAllEventData(),
     ]);
 
-  }, [startDate, endDate, selectedProperty?.sid]);
+  }, [startDate, endDate, selectedProperty]);
   const getDemandAIData = () => {
     GetDemandAIData({ SID: selectedProperty?.sid, startDate: startDate?.toISOString().split('T')[0], endDate: endDate?.toISOString().split('T')[0] })
       .then((res) => {
@@ -116,7 +117,7 @@ export function MarketDemandWidget() {
     }
     getAllEvents(payload)
       .then((res) => {
-        if (res.status) {
+        if (res.status && res.body && res.body.eventDetails) {
           res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum)
           setEventData(res.body);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));

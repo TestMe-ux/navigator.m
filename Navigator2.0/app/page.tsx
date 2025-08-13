@@ -31,7 +31,7 @@ import {
 import { Suspense } from 'react'
 import { GetParityData } from "@/lib/parity"
 import { getRateTrends } from "@/lib/rate"
-import localStorageService from "@/lib/localstorage"
+import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { useDateContext } from "@/components/date-context"
 
 /**
@@ -222,7 +222,7 @@ export default function Home() {
   const [showCSATCard, setShowCSATCard] = useState(false)
   const [csatClosed, setCSATClosed] = useState(false)
   const { startDate, endDate, setDateRange } = useDateContext()
-  const [selectedProperty, setSelectedProperty] = useState<any>(localStorageService.get('SelectedProperty'))
+  const [selectedProperty] = useSelectedProperty()
   // Scroll detection for CSAT card
   const [parityData, setparityData] = useState(Object);
   const [parityDataComp, setParityDataComp] = useState(Object);
@@ -249,31 +249,31 @@ export default function Home() {
     }
     if (!startDate ||
       !endDate ||
-      !channelFilter?.channelId || channelFilter?.channelId.length === 0) return;
+      !selectedProperty?.sid) return;
     Promise.all([
       GetParityDatas(),
       getRateDate(),
       getCompRateData(),
       GetParityDatas_Comp()
     ]);
-  }, [hasTriggered, showCSATCard, csatClosed, startDate, endDate, channelFilter, compsetFilter, sideFilter])
+  }, [hasTriggered, showCSATCard, csatClosed, startDate, endDate, selectedProperty, channelFilter, compsetFilter, sideFilter])
 
   useEffect(() => {
     if (!startDate ||
       !endDate ||
-      !channelFilter?.channelId || channelFilter?.channelId.length === 0) return;
+      !selectedProperty?.sid) return;
     Promise.all([
       getCompRateData(),
       GetParityDatas_Comp()
     ]);
-  }, [selectedComparison])
+  }, [selectedComparison, startDate, endDate, selectedProperty, channelFilter])
 
   const getRateDate = () => {
     setRateData(Object);
     var filtersValue = {
       "SID": selectedProperty?.sid,
-      "channels": channelFilter.channelId,
-      "channelsText": channelFilter.channelName,
+      "channels": (channelFilter?.channelId?.length ?? 0) > 0 ? channelFilter.channelId : [-1],
+      "channelsText": (channelFilter?.channelName?.length ?? 0) > 0 ? channelFilter.channelName : ["All Channel"],
       "checkInStartDate": startDate?.toISOString().split('T')[0],
       "checkInEndDate": endDate?.toISOString().split('T')[0],
       "LOS": sideFilter?.lengthOfStay || null,
@@ -327,10 +327,10 @@ export default function Home() {
       : new Date();
     var filtersValue = {
       "SID": selectedProperty?.sid,
-      "channels": channelFilter.channelId,
-      "channelsText": channelFilter.channelName,
-      "checkInStartDate": startDateComp?.toISOString().split('T')[0],
-      "checkInEndDate": endDateComp?.toISOString().split('T')[0],
+      "channels": (channelFilter?.channelId?.length ?? 0) > 0 ? channelFilter.channelId : [-1],
+      "channelsText": (channelFilter?.channelName?.length ?? 0) > 0 ? channelFilter.channelName : ["All Channel"],
+      "checkInStartDate": startDateComp ? startDateComp.toISOString().split('T')[0] : null,
+      "checkInEndDate": endDateComp ? endDateComp.toISOString().split('T')[0] : null,
       "LOS": sideFilter?.lengthOfStay || null,
       "guest": sideFilter?.guest || null,
       "productTypeID": sideFilter?.roomTypes || null,
@@ -378,7 +378,7 @@ export default function Home() {
       "sid": selectedProperty?.sid,
       "checkInStartDate": startDate?.toISOString().split('T')[0],
       "checkInEndDate": endDate?.toISOString().split('T')[0],
-      "channelName": channelFilter.channelId,
+      "channelName": (channelFilter?.channelId?.length ?? 0) > 0 ? channelFilter.channelId : [-1],
       "guest": sideFilter?.guest || null,
       "los": sideFilter?.lengthOfStay || null,
       "promotion": sideFilter?.rateViewBy?.PromotionText === "All" ? null : sideFilter?.rateViewBy?.PromotionText,
@@ -437,7 +437,7 @@ export default function Home() {
       "sid": selectedProperty?.sid,
       "checkInStartDate": startDateComp?.toISOString().split('T')[0],
       "checkInEndDate": endDateComp?.toISOString().split('T')[0],
-      "channelName": channelFilter.channelId,
+      "channelName": (channelFilter?.channelId?.length ?? 0) > 0 ? channelFilter.channelId : [-1],
       "guest": sideFilter?.guest || null,
       "los": sideFilter?.lengthOfStay || null,
       "promotion": sideFilter?.rateViewBy?.Promotion || null,

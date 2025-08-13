@@ -14,7 +14,7 @@ interface ErrorBoundaryProps {
   fallback?: React.ComponentType<{ error?: Error; reset: () => void }>
 }
 
-export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundaryComponent extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props)
     this.state = { hasError: false }
@@ -89,4 +89,4 @@ function DefaultErrorFallback({ error, reset }: { error?: Error; reset: () => vo
   )
 }
 
-export default ErrorBoundary 
+export { ErrorBoundaryComponent as ErrorBoundary } 

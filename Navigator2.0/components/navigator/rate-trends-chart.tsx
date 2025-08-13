@@ -524,7 +524,15 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
  */
 export function RateTrendsChart({ rateData }: any) {
   const { startDate, endDate } = useDateContext()
-  const selectedProperty = localStorageService.get('SelectedProperty');
+  const [selectedProperty, setSelectedProperty] = useState<any>(null)
+  
+  // Safely get selectedProperty on client side only
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const property = localStorageService.get('SelectedProperty')
+      setSelectedProperty(property)
+    }
+  }, [])
 
   // Generate channel configs based on actual data
   const channelConfigs = useMemo(() => generateChannelConfigs(rateData), [rateData])

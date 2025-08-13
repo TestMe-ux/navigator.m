@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React, { useState, useEffect } from "react"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { TrendingUp, TrendingDown, Users, BarChart3, DollarSign, Info } from "lucide-react"
@@ -101,7 +101,15 @@ function SummaryCard({
 }
 
 export function DemandSummaryCards({ avgDemand,demandAIPerCountryAverageData }: any) {
-  const selectedProperty: any = localStorageService.get('SelectedProperty')
+  const [selectedProperty, setSelectedProperty] = useState<any>(null)
+  
+  // Safely get selectedProperty on client side only
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const property = localStorageService.get('SelectedProperty')
+      setSelectedProperty(property)
+    }
+  }, [])
   console.log("DemandSummaryCards - avgDemand:", demandAIPerCountryAverageData)
   const summaryData: SummaryCardProps[] = [
     {

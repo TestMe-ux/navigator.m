@@ -12,7 +12,8 @@ import { useComparison, ComparisonOption } from "@/components/comparison-context
 import { cn } from "@/lib/utils"
 import { getChannels } from "@/lib/channels"
 import localStorageService from "@/lib/localstorage"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSelectedProperty } from "@/hooks/use-local-storage"
 
 
 /**
@@ -83,7 +84,9 @@ interface FilterBarProps {
  * @version 3.0.0
  */
 export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
-  const [selectedProperty, setSelectedProperty] = useState<any>(localStorageService.get('SelectedProperty'))
+  const [selectedProperty] = useSelectedProperty()
+  
+
   const didFetch = React.useRef(false);
   const { startDate, endDate, setDateRange } = useDateContext()
   const { selectedComparison, setSelectedComparison, setChannelFilter, setCompsetFilter } = useComparison()
@@ -104,8 +107,13 @@ export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
       {} as Record<string, string>,
     ),
   )
+  // Reset didFetch when property changes
   React.useEffect(() => {
-    if (didFetch.current) return;
+    didFetch.current = false;
+  }, [selectedProperty?.sid]);
+
+  React.useEffect(() => {
+    if (!selectedProperty?.sid || didFetch.current) return;
 
     didFetch.current = true;
     getChannels({ SID: selectedProperty?.sid })
@@ -140,7 +148,7 @@ export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
       }
       )
       .catch((err) => console.error(err));
-  }, [selectedProperty?.sid]);
+  }, [selectedProperty]);
   // Channel multi-select state
 
   const compareOptions = [

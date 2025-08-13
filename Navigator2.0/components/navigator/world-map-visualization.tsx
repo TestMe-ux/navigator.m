@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from "react-simple-maps"
 import { Card, CardContent } from "@/components/ui/card"
 import { Building2, MapPin, Plus, Minus, RotateCcw } from "lucide-react"
@@ -69,7 +69,15 @@ interface TooltipData {
 }
 const sourceMarketColors = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444"]
 export function WorldMapVisualization({ demandAiAvg }: any) {
-  const [selectedProperty] = useState<any>(localStorageService.get('SelectedProperty'));
+  const [selectedProperty, setSelectedProperty] = useState<any>(null)
+  
+  // Safely get selectedProperty on client side only
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const property = localStorageService.get('SelectedProperty')
+      setSelectedProperty(property)
+    }
+  }, [])
   const hotelLocation = {
     name: selectedProperty?.name || "",
     coordinates: countryCoordinates[selectedProperty?.country] || [0, 0],

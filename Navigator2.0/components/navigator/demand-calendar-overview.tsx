@@ -46,6 +46,9 @@ interface CalendarDay {
   eventCategory?: string
   eventImpact?: string
   eventDateRange?: string
+  totalEvents?: number
+  displayedEvents?: string[]
+  isDisabled?: boolean
 }
 
 /**
@@ -69,39 +72,64 @@ const generateDemandLevel = (date: Date): CalendarDay['demandLevel'] => {
  * Returns styling for demand level cells (76% background opacity, 100% border opacity)
  * Uses 2-color shading: Light and Dark shades for better visual distinction
  */
-const getDemandStyling = (demandLevel: CalendarDay['demandLevel']) => {
-  switch (demandLevel) {
-    case 'low':
-      return {
-        bg: 'bg-blue-300/[76%]', // Light shade of Normal blue
-        border: 'border border-blue-300',
-        text: 'text-white'
-      }
-    case 'normal':
-      return {
-        bg: 'bg-blue-500/[76%]', // Original blue - unchanged
-        border: 'border border-blue-500',
-        text: 'text-white'
-      }
-    case 'elevated':
-      return {
-        bg: 'bg-red-300/[76%]', // Light shade of High red
-        border: 'border border-red-300',
-        text: 'text-white'
-      }
-    case 'high':
-      return {
-        bg: 'bg-red-600/[76%]', // Original red - unchanged
-        border: 'border border-red-600',
-        text: 'text-white'
-      }
-    default:
-      return {
-        bg: 'bg-blue-300/[76%]',
-        border: 'border border-blue-300',
-        text: 'text-white'
-      }
+const getDemandStyling = (demandLevel: CalendarDay['demandLevel'], isSelected = false, isDisabled = false) => {
+  const baseStyle = (() => {
+    switch (demandLevel) {
+      case 'low':
+        return {
+          bg: 'bg-blue-300/[76%]', // Light shade of Normal blue
+          border: 'border border-blue-300',
+          text: 'text-white',
+          day: 'bg-blue-300',
+          indicator: 'bg-blue-300'
+        }
+      case 'normal':
+        return {
+          bg: 'bg-blue-500/[76%]', // Original blue - unchanged
+          border: 'border border-blue-500',
+          text: 'text-white',
+          day: 'bg-blue-500',
+          indicator: 'bg-blue-500'
+        }
+      case 'elevated':
+        return {
+          bg: 'bg-red-300/[76%]', // Light shade of High red
+          border: 'border border-red-300',
+          text: 'text-white',
+          day: 'bg-red-300',
+          indicator: 'bg-red-300'
+        }
+      case 'high':
+        return {
+          bg: 'bg-red-600/[76%]', // Original red - unchanged
+          border: 'border border-red-600',
+          text: 'text-white',
+          day: 'bg-red-600',
+          indicator: 'bg-red-600'
+        }
+      default:
+        return {
+          bg: 'bg-blue-300/[76%]',
+          border: 'border border-blue-300',
+          text: 'text-white',
+          day: 'bg-blue-300',
+          indicator: 'bg-blue-300'
+        }
+    }
+  })()
+
+  if (isDisabled) {
+    return {
+      ...baseStyle,
+      bg: 'bg-white',
+      border: 'border border-gray-200',
+      text: 'text-gray-400',
+      day: 'bg-white',
+      indicator: 'bg-white'
+    }
   }
+
+  return baseStyle
 }
 
 /**
@@ -347,26 +375,71 @@ export function DemandCalendarOverview() {
       { name: 'Art Exhibition', category: 'Cultural', impact: 'Medium' },
       { name: 'Business Summit', category: 'Corporate', impact: 'High' },
       { name: 'Cultural Festival', category: 'Entertainment', impact: 'Very High' },
-      { name: 'Sports Event', category: 'Sports', impact: 'Medium' }
+      { name: 'Sports Event', category: 'Sports', impact: 'Medium' },
+      { name: 'Workshop Series', category: 'Education', impact: 'Medium' },
+      { name: 'Food Festival', category: 'Entertainment', impact: 'High' },
+      { name: 'Fashion Week', category: 'Fashion', impact: 'Very High' }
     ]
     
     return days.map(day => {
       if (!day) return day
       const hasIcon = randomDates.includes(day)
-      const eventIndex = hasIcon ? ((day.date.getDate() + seed + monthSeed) % eventData.length) : 0
-      const selectedEvent = eventData[eventIndex]
       
-      // Add date range for Sep 16 specifically
-      const isSep16 = hasIcon && day.date.getMonth() === 8 && day.date.getDate() === 16 // September is month 8
-      const dateRange = isSep16 ? '16 Sep - 18 Sep' : undefined
+      // Check if this day is part of the multi-day Art Exhibition (Sep 16-18)
+      const isArtExhibitionDates = day.date.getMonth() === 8 && // September is month 8
+        (day.date.getDate() === 16 || day.date.getDate() === 17 || day.date.getDate() === 18)
+      
+      if (hasIcon || isArtExhibitionDates) {
+        let dayEvents = []
+        let numEvents = 1
+        
+        if (isArtExhibitionDates) {
+          // Art Exhibition spans all three days
+          dayEvents = ['Art Exhibition']
+          
+          // Add other events if this day was already selected for events
+          if (hasIcon) {
+            const dayHash = day.date.getDate() + day.date.getMonth() * 31
+            const additionalEvents = ((dayHash + seed) % 3) + 1 // 1-3 additional events
+            
+            for (let i = 0; i < additionalEvents; i++) {
+              const eventIndex = (dayHash + seed + i * 3) % eventData.length
+              if (eventData[eventIndex].name !== 'Art Exhibition') {
+                dayEvents.push(eventData[eventIndex].name)
+              }
+            }
+          }
+          numEvents = dayEvents.length
+        } else {
+          // Regular event day
+          const dayHash = day.date.getDate() + day.date.getMonth() * 31
+          numEvents = ((dayHash + seed) % 4) + 1 // 1-4 events
+          
+          for (let i = 0; i < numEvents; i++) {
+            const eventIndex = (dayHash + seed + i * 3) % eventData.length
+            dayEvents.push(eventData[eventIndex].name)
+          }
+        }
+        
+        // Add date range for Art Exhibition dates
+        const dateRange = isArtExhibitionDates ? '16 Sep - 18 Sep' : undefined
+        
+        return {
+          ...day,
+          hasEventIcon: true,
+          eventName: dayEvents[0], // Show first event name
+          totalEvents: numEvents,
+          displayedEvents: dayEvents,
+          eventDateRange: dateRange
+        }
+      }
       
       return {
         ...day,
-        hasEventIcon: hasIcon,
-        eventName: hasIcon ? selectedEvent.name : undefined,
-        eventCategory: hasIcon ? selectedEvent.category : undefined,
-        eventImpact: hasIcon ? selectedEvent.impact : undefined,
-        eventDateRange: dateRange
+        hasEventIcon: false,
+        eventName: undefined,
+        totalEvents: 0,
+        displayedEvents: []
       }
     })
   }
@@ -388,27 +461,86 @@ export function DemandCalendarOverview() {
    * Navigate months
    */
   const navigateMonth = (direction: 'prev' | 'next') => {
+    const today = new Date()
+    const currentMonth = today.getMonth()
+    const currentYear = today.getFullYear()
+    
     setCurrentDate(prev => {
       const newDate = new Date(prev)
       if (direction === 'prev') {
+        // Don't allow going before current month
+        if (prev.getMonth() <= currentMonth && prev.getFullYear() <= currentYear) {
+          return prev // Don't change if already at current month or before
+        }
         newDate.setMonth(prev.getMonth() - 1)
       } else {
+        // Don't allow going beyond 1 month ahead from current month
+        const maxMonth = currentMonth + 1
+        const maxYear = currentYear + Math.floor(maxMonth / 12)
+        const normalizedMaxMonth = maxMonth % 12
+        
+        if (prev.getMonth() >= normalizedMaxMonth && prev.getFullYear() >= maxYear) {
+          return prev // Don't change if already at max month (1 month ahead)
+        }
         newDate.setMonth(prev.getMonth() + 1)
       }
       return newDate
     })
   }
   
-  // Generate calendar data for current and next two months
+  // Generate calendar data for current and next two months (total 3 months)
+  const todayForCalendar = new Date()
+  const maxAllowedDate = new Date(2025, 9, 25) // October 25, 2025 (month is 0-indexed)
+  
+  // Helper function to check if a date should be disabled
+  const isDateDisabled = (date: Date) => {
+    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    const todayOnly = new Date(todayForCalendar.getFullYear(), todayForCalendar.getMonth(), todayForCalendar.getDate())
+    const maxDateOnly = new Date(maxAllowedDate.getFullYear(), maxAllowedDate.getMonth(), maxAllowedDate.getDate())
+    
+    return dateOnly < todayOnly || dateOnly > maxDateOnly
+  }
+
+  // Check if navigation buttons should be disabled
   const today = new Date()
-  const currentMonthBase = generateMonthDays(currentDate.getFullYear(), currentDate.getMonth(), events, today)
-  const currentMonth = generateEventIcons(currentMonthBase)
+  const isPrevDisabled = currentDate.getMonth() <= today.getMonth() && currentDate.getFullYear() <= today.getFullYear()
+  
+  // Check if next month would have any enabled dates
+  const fourthMonthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 3, 1) // 4th month (3 months ahead)
+  const nextMonthYear = fourthMonthDate.getFullYear()
+  const nextMonthIndex = fourthMonthDate.getMonth()
+  
+  // Get the last day of the next month
+  const lastDayOfNextMonth = new Date(nextMonthYear, nextMonthIndex + 1, 0)
+  
+  // Check if any date in the next month would be enabled (not disabled)
+  let hasEnabledDatesInNextMonth = false
+  for (let day = 1; day <= lastDayOfNextMonth.getDate(); day++) {
+    const checkDate = new Date(nextMonthYear, nextMonthIndex, day)
+    if (!isDateDisabled(checkDate)) {
+      hasEnabledDatesInNextMonth = true
+      break
+    }
+  }
+  
+  const isNextDisabled = !hasEnabledDatesInNextMonth
+  
+  const currentMonthBase = generateMonthDays(currentDate.getFullYear(), currentDate.getMonth(), events, todayForCalendar)
+  const currentMonth = generateEventIcons(currentMonthBase.map(day => 
+    day ? { ...day, isDisabled: isDateDisabled(day.date) } : day
+  ))
+  
   const nextMonthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
-  const nextMonthBase = generateMonthDays(nextMonthDate.getFullYear(), nextMonthDate.getMonth(), events, today)
-  const nextMonth = generateEventIcons(nextMonthBase)
+  const nextMonthBase = generateMonthDays(nextMonthDate.getFullYear(), nextMonthDate.getMonth(), events, todayForCalendar)
+  const nextMonth = generateEventIcons(nextMonthBase.map(day => 
+    day ? { ...day, isDisabled: isDateDisabled(day.date) } : day
+  ))
+  
   const thirdMonthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 1)
-  const thirdMonthBase = generateMonthDays(thirdMonthDate.getFullYear(), thirdMonthDate.getMonth(), events, today)
-  const thirdMonth = generateEventIcons(thirdMonthBase)
+  const thirdMonthBase = generateMonthDays(thirdMonthDate.getFullYear(), thirdMonthDate.getMonth(), events, todayForCalendar)
+  const thirdMonth = generateEventIcons(thirdMonthBase.map(day => 
+    day ? { ...day, isDisabled: isDateDisabled(day.date) } : day
+  ))
   
   // Calculate statistics
   const totalEvents = events.length
@@ -457,17 +589,20 @@ export function DemandCalendarOverview() {
               <div className="flex items-center justify-between">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => navigateMonth('prev')}
-                      className="flex items-center justify-center w-8 h-8 p-0"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </Button>
+                    <div className="inline-block">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => navigateMonth('prev')}
+                        disabled={isPrevDisabled}
+                        className="flex items-center justify-center w-8 h-8 p-0"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </TooltipTrigger>
                   <TooltipContent className="bg-black text-white border-black">
-                    <p>Previous</p>
+                    <p>{isPrevDisabled ? "Previous Month Disabled" : "Previous"}</p>
                   </TooltipContent>
                 </Tooltip>
                 <h4 className="text-base md:text-lg lg:text-[15px] font-semibold text-foreground text-center">
@@ -502,65 +637,57 @@ export function DemandCalendarOverview() {
                   // Events are only shown as star icons, not in cell styling
                   const styling = isDemandHidden
                     ? getDefaultStyling()
-                    : {
-                        bg: getDemandStyling(day.demandLevel).bg,
-                        text: getDemandStyling(day.demandLevel).text,
-                        border: getDemandStyling(day.demandLevel).border,
-                        indicator: "",
-                        hover: "",
-                        shadow: ""
-                      }
+                    : getDemandStyling(day.demandLevel, isSelected, day.isDisabled)
                   
                   return (
                     <div
                       key={index}
                       className={cn(
-                        "relative h-8 md:h-10 lg:h-8 flex items-center justify-center text-xs md:text-sm lg:text-xs rounded-lg cursor-pointer group",
+                        "relative h-8 md:h-10 lg:h-8 flex items-center justify-center text-xs md:text-sm lg:text-xs rounded-lg transition-all duration-200",
+                        day.isDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:scale-105 group",
                         styling.bg,
                         styling.text,
                         styling.border,
-                        isSelected ? "ring-2 ring-yellow-400 ring-offset-2 z-10" : "",
-                        day.hasEventIcon ? "font-semibold" : "font-medium"
+                        isSelected && !day.isDisabled ? "ring-2 ring-yellow-400 ring-offset-2 z-10" : "",
+                        day.hasEventIcon && !day.isDisabled ? "font-semibold" : "font-medium"
                       )}
-                      onClick={() => handleDayClick(day)}
+                      onClick={() => !day.isDisabled && handleDayClick(day)}
                     >
                       <div className="flex items-center relative z-10" style={{ gap: '3px' }}>
                         <span>{day.dayNumber}</span>
-                        {day.hasEventIcon && (
+                        {day.hasEventIcon && !day.isDisabled && (
                           <Star className="w-3 h-3 text-amber-500 fill-amber-500" style={{ stroke: 'white', strokeWidth: '1px' }} />
                         )}
                       </div>
                       
-                      {/* Today indicator */}
-                      {day.isToday && (
+                      {/* Today indicator - only for enabled dates */}
+                      {day.isToday && !day.isDisabled && (
                         <div className="absolute inset-0 rounded-lg border-2 border-blue-500 animate-pulse" />
                       )}
                       
-                      {/* Enhanced Hover tooltip with demand and event details */}
-                      <div className={cn(
-                        "absolute px-3 py-2 bg-black/90 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20 whitespace-nowrap backdrop-blur-sm",
-                        // Position tooltip to the right for left columns (Mon, Tue, Wed) to avoid overlap
-                        day.dayName === 'Mon' || day.dayName === 'Tue' || day.dayName === 'Wed' 
-                          ? "left-full ml-2 top-1/2 transform -translate-y-1/2" 
-                          : "bottom-full mb-2 left-1/2 transform -translate-x-1/2"
-                      )}>
-                        <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                        <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
-                        {day.hasEventIcon && (
-                          <>
-                            <div className="border-t border-gray-600 my-1 pt-1">
-                              <div className="font-semibold text-amber-400 flex items-center gap-1">
-                                <Star className="w-3 h-3 fill-amber-400" />
-                                {day.eventName}
+                      {/* Enhanced Hover tooltip with demand and event details - only for enabled dates */}
+                      {!day.isDisabled && (
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20 whitespace-nowrap">
+                          <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                          <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
+                          {day.hasEventIcon && (
+                            <>
+                              <div className="border-t border-gray-600 my-1 pt-1">
+                                <div className="font-semibold text-amber-400 flex items-center gap-1">
+                                  <Star className="w-3 h-3 fill-amber-400" />
+                                  {day.eventName}
+                                </div>
+                                {day.eventDateRange && (
+                                  <div className="text-xs text-gray-300 mb-1">{day.eventDateRange}</div>
+                                )}
+                                {day.totalEvents && day.totalEvents > 1 && (
+                                  <div className="text-xs text-gray-300">+{day.totalEvents - 1} more</div>
+                                )}
                               </div>
-                              {day.eventDateRange && (
-                                <div className="text-xs text-gray-300 mb-1">{day.eventDateRange}</div>
-                              )}
-                              <div className="text-xs text-gray-300">{day.eventCategory} | {day.eventImpact} Impact</div>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -603,65 +730,57 @@ export function DemandCalendarOverview() {
                   // Events are only shown as star icons, not in cell styling
                   const styling = isDemandHidden
                     ? getDefaultStyling()
-                    : {
-                        bg: getDemandStyling(day.demandLevel).bg,
-                        text: getDemandStyling(day.demandLevel).text,
-                        border: getDemandStyling(day.demandLevel).border,
-                        indicator: "",
-                        hover: "",
-                        shadow: ""
-                      }
+                    : getDemandStyling(day.demandLevel, isSelected, day.isDisabled)
                   
                   return (
                     <div
                       key={index}
                       className={cn(
-                        "relative h-8 md:h-10 lg:h-8 flex items-center justify-center text-xs md:text-sm lg:text-xs rounded-lg cursor-pointer group",
+                        "relative h-8 md:h-10 lg:h-8 flex items-center justify-center text-xs md:text-sm lg:text-xs rounded-lg transition-all duration-200",
+                        day.isDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:scale-105 group",
                         styling.bg,
                         styling.text,
                         styling.border,
-                        isSelected ? "ring-2 ring-yellow-400 ring-offset-2 z-10" : "",
-                        day.hasEventIcon ? "font-semibold" : "font-medium"
+                        isSelected && !day.isDisabled ? "ring-2 ring-yellow-400 ring-offset-2 z-10" : "",
+                        day.hasEventIcon && !day.isDisabled ? "font-semibold" : "font-medium"
                       )}
-                      onClick={() => handleDayClick(day)}
+                      onClick={() => !day.isDisabled && handleDayClick(day)}
                     >
                       <div className="flex items-center relative z-10" style={{ gap: '3px' }}>
                         <span>{day.dayNumber}</span>
-                        {day.hasEventIcon && (
+                        {day.hasEventIcon && !day.isDisabled && (
                           <Star className="w-3 h-3 text-amber-500 fill-amber-500" style={{ stroke: 'white', strokeWidth: '1px' }} />
                         )}
                       </div>
                       
-                      {/* Today indicator */}
-                      {day.isToday && (
+                      {/* Today indicator - only for enabled dates */}
+                      {day.isToday && !day.isDisabled && (
                         <div className="absolute inset-0 rounded-lg border-2 border-blue-500 animate-pulse" />
                       )}
                       
-                      {/* Enhanced Hover tooltip with demand and event details */}
-                      <div className={cn(
-                        "absolute px-3 py-2 bg-black/90 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20 whitespace-nowrap backdrop-blur-sm",
-                        // Position tooltip to the right for left columns (Mon, Tue, Wed) to avoid overlap
-                        day.dayName === 'Mon' || day.dayName === 'Tue' || day.dayName === 'Wed' 
-                          ? "left-full ml-2 top-1/2 transform -translate-y-1/2" 
-                          : "bottom-full mb-2 left-1/2 transform -translate-x-1/2"
-                      )}>
-                        <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                        <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
-                        {day.hasEventIcon && (
-                          <>
-                            <div className="border-t border-gray-600 my-1 pt-1">
-                              <div className="font-semibold text-amber-400 flex items-center gap-1">
-                                <Star className="w-3 h-3 fill-amber-400" />
-                                {day.eventName}
+                      {/* Enhanced Hover tooltip with demand and event details - only for enabled dates */}
+                      {!day.isDisabled && (
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20 whitespace-nowrap">
+                          <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                          <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
+                          {day.hasEventIcon && (
+                            <>
+                              <div className="border-t border-gray-600 my-1 pt-1">
+                                <div className="font-semibold text-amber-400 flex items-center gap-1">
+                                  <Star className="w-3 h-3 fill-amber-400" />
+                                  {day.eventName}
+                                </div>
+                                {day.eventDateRange && (
+                                  <div className="text-xs text-gray-300 mb-1">{day.eventDateRange}</div>
+                                )}
+                                {day.totalEvents && day.totalEvents > 1 && (
+                                  <div className="text-xs text-gray-300">+{day.totalEvents - 1} more</div>
+                                )}
                               </div>
-                              {day.eventDateRange && (
-                                <div className="text-xs text-gray-300 mb-1">{day.eventDateRange}</div>
-                              )}
-                              <div className="text-xs text-gray-300">{day.eventCategory} | {day.eventImpact} Impact</div>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -677,17 +796,20 @@ export function DemandCalendarOverview() {
                 </h4>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => navigateMonth('next')}
-                      className="flex items-center justify-center w-8 h-8 p-0"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
+                    <div className="inline-block">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => navigateMonth('next')}
+                        disabled={isNextDisabled}
+                        className="flex items-center justify-center w-8 h-8 p-0"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </TooltipTrigger>
                   <TooltipContent className="bg-black text-white border-black">
-                    <p>Next</p>
+                    <p>{isNextDisabled ? "Disabled after 75 Days" : "Next"}</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
@@ -718,70 +840,62 @@ export function DemandCalendarOverview() {
                   // Events are only shown as star icons, not in cell styling
                   const styling = isDemandHidden
                     ? getDefaultStyling()
-                    : {
-                        bg: getDemandStyling(day.demandLevel).bg,
-                        text: getDemandStyling(day.demandLevel).text,
-                        border: getDemandStyling(day.demandLevel).border,
-                        indicator: "",
-                        hover: "",
-                        shadow: ""
-                      }
+                    : getDemandStyling(day.demandLevel, isSelected, day.isDisabled)
                   
                   return (
                     <div
                       key={index}
                       className={cn(
-                        "relative h-8 md:h-10 lg:h-8 flex items-center justify-center text-xs md:text-sm lg:text-xs rounded-lg cursor-pointer group",
+                        "relative h-8 md:h-10 lg:h-8 flex items-center justify-center text-xs md:text-sm lg:text-xs rounded-lg transition-all duration-200",
+                        day.isDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:scale-105 group",
                         styling.bg,
                         styling.text,
                         styling.border,
-                        isSelected ? "ring-2 ring-yellow-400 ring-offset-2 z-10" : "",
-                        day.hasEventIcon ? "font-semibold" : "font-medium"
+                        isSelected && !day.isDisabled ? "ring-2 ring-yellow-400 ring-offset-2 z-10" : "",
+                        day.hasEventIcon && !day.isDisabled ? "font-semibold" : "font-medium"
                       )}
-                      onClick={() => handleDayClick(day)}
+                      onClick={() => !day.isDisabled && handleDayClick(day)}
                     >
                       <div className="flex items-center relative z-10" style={{ gap: '3px' }}>
                         <span>{day.dayNumber}</span>
-                        {day.hasEventIcon && (
+                        {day.hasEventIcon && !day.isDisabled && (
                           <Star className="w-3 h-3 text-amber-500 fill-amber-500" style={{ stroke: 'white', strokeWidth: '1px' }} />
                         )}
                       </div>
                       
-                      {/* Today indicator */}
-                      {day.isToday && (
+                      {/* Today indicator - only for enabled dates */}
+                      {day.isToday && !day.isDisabled && (
                         <div className="absolute inset-0 rounded-lg border-2 border-blue-500 animate-pulse" />
                       )}
                       
-                      {/* Enhanced Hover tooltip with demand and event details */}
-                      <div className={cn(
-                        "absolute px-3 py-2 bg-black/90 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20 whitespace-nowrap backdrop-blur-sm",
-                        // Position tooltip to the right for left columns (Mon, Tue, Wed) to avoid overlap
-                        day.dayName === 'Mon' || day.dayName === 'Tue' || day.dayName === 'Wed' 
-                          ? "left-full ml-2 top-1/2 transform -translate-y-1/2" 
-                          : "bottom-full mb-2 left-1/2 transform -translate-x-1/2"
-                      )}>
-                        <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                        <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
-                        {day.hasEventIcon && (
-                          <>
-                            <div className="border-t border-gray-600 my-1 pt-1">
-                              <div className="font-semibold text-amber-400 flex items-center gap-1">
-                                <Star className="w-3 h-3 fill-amber-400" />
-                                {day.eventName}
+                      {/* Enhanced Hover tooltip with demand and event details - only for enabled dates */}
+                      {!day.isDisabled && (
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20 whitespace-nowrap">
+                          <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                          <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
+                          {day.hasEventIcon && (
+                            <>
+                              <div className="border-t border-gray-600 my-1 pt-1">
+                                <div className="font-semibold text-amber-400 flex items-center gap-1">
+                                  <Star className="w-3 h-3 fill-amber-400" />
+                                  {day.eventName}
+                                </div>
+                                {day.eventDateRange && (
+                                  <div className="text-xs text-gray-300 mb-1">{day.eventDateRange}</div>
+                                )}
+                                {day.totalEvents && day.totalEvents > 1 && (
+                                  <div className="text-xs text-gray-300">+{day.totalEvents - 1} more</div>
+                                )}
                               </div>
-                              {day.eventDateRange && (
-                                <div className="text-xs text-gray-300 mb-1">{day.eventDateRange}</div>
-                              )}
-                              <div className="text-xs text-gray-300">{day.eventCategory} | {day.eventImpact} Impact</div>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )
                 })}
               </div>
-                        </div>
+            </div>
           </div>
           
           {/* Demand Levels Legend - Clickable */}
@@ -829,6 +943,12 @@ export function DemandCalendarOverview() {
                   )
                 })
               })()}
+              
+              {/* Events/Holidays Legend */}
+              <div className="flex items-center gap-2 px-2 py-1" style={{ marginLeft: '43px' }}>
+                <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                <span className="text-slate-800 dark:text-slate-200 font-medium text-xs">Events/Holidays</span>
+              </div>
             </div>
           </div>
           
