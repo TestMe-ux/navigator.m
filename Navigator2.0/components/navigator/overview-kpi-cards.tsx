@@ -99,7 +99,7 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
       gradient: 'from-blue-500 to-blue-600',
       urgency: Math.abs(((avgAllSubscriberRate - avgAllSubscriberRate_Comp) / avgAllSubscriberRate_Comp) * 100) > 5 ? 'high' : 'medium',
       currencyCode: selectedProperty?.currencySymbol || '$',
-      comparisonText: selectedComparison ? selectedComparison === 7 ? 'Last 7 Days' : selectedComparison === 30 ? 'Last 30 Days' : 'Last Quarter' : 'N/A',
+      comparisonText: selectedComparison ?selectedComparison === 1 ? 'Yesterday': selectedComparison === 7 ? 'Last 7 Days' : selectedComparison === 28 ? 'Last 30 Days' : 'Last Quarter' : 'N/A',
     },
     {
       id: 'parity-status',
@@ -115,7 +115,7 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
       isImportant: true,
       gradient: parityBase > 95 ? 'from-emerald-500 to-emerald-600' : parityBase > 85 ? 'from-amber-500 to-amber-600' : 'from-red-500 to-red-600',
       urgency: parityBase < 85 ? 'critical' : parityBase < 95 ? 'high' : 'low',
-      comparisonText: selectedComparison ? selectedComparison === 7 ? 'Last 7 Days' : selectedComparison === 30 ? 'Last 30 Days' : 'Last Quarter' : 'N/A',
+      comparisonText: selectedComparison ?selectedComparison === 1 ? 'Yesterday': selectedComparison === 7 ? 'Last 7 Days' : selectedComparison === 28 ? 'Last 30 Days' : 'Last Quarter' : 'N/A',
     },
     {
       id: 'market-position',
@@ -132,7 +132,7 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
       gradient: 'from-purple-500 to-purple-600',
       urgency: indexOfSubscriber > 5 ? 'high' : 'medium',
       outOfIndex: rateData?.pricePositioningEntites?.length - 2 || 0,
-      comparisonText: selectedComparison ? selectedComparison === 7 ? 'Last 7 Days' : selectedComparison === 30 ? 'Last 30 Days' : 'Last Quarter' : 'N/A',
+      comparisonText: selectedComparison ?selectedComparison === 1 ? 'Yesterday': selectedComparison === 7 ? 'Last 7 Days' : selectedComparison === 28 ? 'Last 30 Days' : 'Last Quarter' : 'N/A',
     },
   ]
   // Include Events KPI only for current and future dates (revenue managers focus on actionable events)

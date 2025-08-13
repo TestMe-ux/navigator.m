@@ -13,6 +13,9 @@ import {
   isWithinInterval,
   addDays,
   subDays,
+  addYears,
+  isBefore,
+  isAfter,
 } from "date-fns"
 import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -119,7 +122,7 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
     if (newStartDate) {
       setCurrentMonth(newStartDate)
     }
-    
+
     // Auto-apply for non-custom ranges
     if (newMode !== "customRange" && newStartDate && newEndDate) {
       onChange?.(newStartDate, newEndDate)
@@ -152,7 +155,7 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
 
   const getDateRangeForMode = (mode: DateMode): string | null => {
     const today = new Date()
-    
+
     switch (mode) {
       case "next7days":
         return formatDateRange(today, addDays(today, 6))
@@ -175,6 +178,12 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
     { mode: "next30days" as DateMode, label: "Next 30 Days" },
     { mode: "customRange" as DateMode, label: "Custom Date Range" },
   ]
+  const minDate = new Date();
+  const maxDate = addYears(new Date(), 1);
+
+  // Navigation checks
+  // const canGoPrevMonth = () => ;
+  // const canGoNextMonth = () => !;
 
   const renderCalendarMonth = (monthDate: Date) => {
     const monthStart = startOfMonth(monthDate)
@@ -197,7 +206,10 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
     })
 
     const allDays = [...paddingDaysBefore, ...days, ...paddingDaysAfter]
-
+    const maxSelectableAfterStart =
+      selectedStartDate ? addDays(selectedStartDate, 90) : maxDate;
+    const minSelectableAfterStart =
+      selectedStartDate ? subDays(selectedStartDate, 90) : maxDate;
     return (
       <div className="flex-1">
         <div className="flex items-center justify-between mb-4">
@@ -206,6 +218,7 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
             size="icon"
             className="h-8 w-8"
             onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+            disabled={isBefore(endOfMonth(subMonths(currentMonth, 1)), minDate)}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -215,6 +228,7 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
             size="icon"
             className="h-8 w-8"
             onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+            disabled={isAfter(startOfMonth(addMonths(currentMonth, 1)), maxSelectableAfterStart) || isAfter(startOfMonth(addMonths(currentMonth, 1)), maxDate)}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -240,6 +254,20 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
               isWithinInterval(day, { start: selectedStartDate, end: selectedEndDate })
             const isToday = isSameDay(day, new Date())
 
+
+            let rangeMin = minDate;
+            let rangeMax = maxDate;
+            if (selectedStartDate) {
+              const before = addDays(selectedStartDate, -90);
+              const after = addDays(selectedStartDate, 90);
+              rangeMin = before < minDate ? minDate : before;
+              rangeMax = after > maxDate ? maxDate : after;
+            }
+
+            const isDisabled =
+              (isBefore(day, rangeMin) && !isSameDay(day, rangeMin)) ||
+              (isAfter(day, rangeMax) && !isSameDay(day, rangeMax)) ||
+              (!isCurrentMonth && mode === "customRange");
             return (
               <Button
                 key={index}
@@ -253,7 +281,8 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
                   (isSelected || isInRange) && "hover:bg-blue-700 hover:text-white",
                 )}
                 onClick={() => handleDateSelect(day)}
-                disabled={!isCurrentMonth && mode === "customRange"}
+                // disabled={!isCurrentMonth && mode === "customRange"}
+                disabled={isDisabled}
               >
                 {format(day, "d")}
               </Button>
@@ -268,18 +297,18 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
     if (selectedStartDate && selectedEndDate) {
       // Input field shows with year format like "01 Aug '25 - 07 Aug '25"
       const dateRangeText = `${format(selectedStartDate, "dd MMM ''yy")} - ${format(selectedEndDate, "dd MMM ''yy")}`
-      
+
       // Determine the label based on the current mode
       const today = new Date()
       const daysDiff = Math.round((selectedEndDate.getTime() - selectedStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-      
+
       // Check if it matches common patterns
       if (isSameDay(selectedStartDate, today)) {
         if (daysDiff === 7) return `Next 7 Days • ${dateRangeText}`
         if (daysDiff === 14) return `Next 14 Days • ${dateRangeText}`
         if (daysDiff === 30) return `Next 30 Days • ${dateRangeText}`
       }
-      
+
       // Default to just the date range for custom selections
       return dateRangeText
     } else if (selectedStartDate) {
@@ -308,7 +337,7 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
         <div className="flex">
           {/* Quick Date Options Sidebar */}
           <div className="w-56 border-r border-gray-200 p-4">
-                            <h4 className="font-semibold text-sm text-gray-700 mb-3">Check-in Date</h4>
+            <h4 className="font-semibold text-sm text-gray-700 mb-3">Check-in Date</h4>
             <div className="space-y-1">
               {quickDateOptions.map((option) => {
                 const dateRange = getDateRangeForMode(option.mode)
@@ -345,8 +374,8 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
                 <Button variant="outline" size="sm" onClick={handleCancel}>
                   Cancel
                 </Button>
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   onClick={handleApply}
                   disabled={!selectedStartDate || !selectedEndDate}
                 >

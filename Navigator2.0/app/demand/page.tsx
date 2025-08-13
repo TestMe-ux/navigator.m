@@ -26,8 +26,9 @@ export default function DemandPage() {
   const [demandData, setDemandData] = useState<any>([])
   const [eventData, setEventData] = useState<any>({});
   const selectedProperty: any = localStorageService.get('SelectedProperty')
-  const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0 })
+  const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0,AverageYoy:0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0,AvrageHotelADRYoy:0 })
   const [rateData, setRateData] = useState(Object);
+  const [filter, setFilter] = useState<any>({});
   const [channelFilter, setChannelFilter] = useState<any>({ channelId: [], channelName: [] });
   useEffect(() => {
     if (!startDate || !endDate) return;
@@ -68,24 +69,31 @@ export default function DemandPage() {
           let sumDI = 0;
           let sumWow = 0;
           let sumMom = 0;
+          let sumYoy= 0;
           let sumHotelADR = 0
           let sumHotelADRWow = 0
           let sumHotelADRMom = 0
+          let sumHotelADRYoy = 0
           demandDatas.forEach((element: any) => {
             sumDI += Number(element.demandIndex)
             sumWow += Number(element.woW_Overall_Demand_Index)
             sumMom += Number(element.moM_Overall_Demand_Index)
+            sumYoy += Number(element.yoY_Overall_Demand_Index)
             sumHotelADR += Number(element.hotelADR)
             sumHotelADRWow += Number(element.woW_Overall_HotelADR)
             sumHotelADRMom += Number(element.moM_Overall_HotelADR)
+            sumHotelADRMom += Number(element.moM_Overall_HotelADR)
+            sumHotelADRYoy+= Number(element.yoY_Overall_HotelADR)
           });
           setAvgDemand({
             AverageDI: Math.round(Number((sumDI / demandDatas.length))),
             AverageWow: Math.round(Number((sumWow / demandDatas.length))),
             AverageMom: Math.round(Number((sumMom / demandDatas.length))),
+            AverageYoy: Math.round(Number((sumYoy / demandDatas.length))),
             AvrageHotelADR: Math.round(Number((sumHotelADR / demandDatas.length))),
             AvrageHotelADRWow: Math.round(Number((sumHotelADRWow / demandDatas.length))),
-            AvrageHotelADRMom: Math.round(Number((sumHotelADRMom / demandDatas.length)))
+            AvrageHotelADRMom: Math.round(Number((sumHotelADRMom / demandDatas.length))),
+            AvrageHotelADRYoy: Math.round(Number((sumHotelADRYoy / demandDatas.length)))
           });
         }
       })
@@ -172,6 +180,7 @@ export default function DemandPage() {
   }
   const handleDemandFiltersChange = (filters: any) => {
     console.log("🔍 Demand filters changed:", filters)
+    setFilter(filters);
     // Handle demand filter changes here
   }
   return (
@@ -199,7 +208,7 @@ export default function DemandPage() {
 
           {/* Summary Cards Section */}
           <section className="w-full">
-            <DemandSummaryCards avgDemand={avgDemand} demandAIPerCountryAverageData={demandAIPerCountryAverageData} />
+            <DemandSummaryCards filter={filter} avgDemand={avgDemand} demandAIPerCountryAverageData={demandAIPerCountryAverageData} />
           </section>
 
 
@@ -207,7 +216,7 @@ export default function DemandPage() {
           <section className="w-full">
             <Card className="card-elevated animate-fade-in">
               <CardContent className="p-3 md:p-4 lg:p-6 xl:p-8">
-                <EnhancedDemandTrendsChart events={eventData} demandData={demandData} rateData={rateData}/>
+                <EnhancedDemandTrendsChart filter={filter} events={eventData} demandData={demandData} rateData={rateData} />
               </CardContent>
             </Card>
           </section>
