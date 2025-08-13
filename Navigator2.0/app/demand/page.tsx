@@ -19,6 +19,7 @@ import { getAllEvents } from "@/lib/events"
 import localStorageService from "@/lib/localstorage"
 import { getRateTrends } from "@/lib/rate"
 import { getChannels } from "@/lib/channels"
+import { conevrtDateforApi } from "@/lib/utils"
 
 export default function DemandPage() {
   const { startDate, endDate } = useDateContext();
@@ -26,7 +27,7 @@ export default function DemandPage() {
   const [demandData, setDemandData] = useState<any>([])
   const [eventData, setEventData] = useState<any>({});
   const selectedProperty: any = localStorageService.get('SelectedProperty')
-  const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0,AverageYoy:0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0,AvrageHotelADRYoy:0 })
+  const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AverageYoy: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0, AvrageHotelADRYoy: 0 })
   const [rateData, setRateData] = useState(Object);
   const [filter, setFilter] = useState<any>({});
   const [channelFilter, setChannelFilter] = useState<any>({ channelId: [], channelName: [] });
@@ -38,7 +39,7 @@ export default function DemandPage() {
       getDemandAIData(),
       getAllEventData(),
     ]);
-  }, [startDate, endDate, selectedProperty?.sid]);
+  }, [startDate, endDate]);
 
   useEffect(() => {
     if (!startDate ||
@@ -60,7 +61,7 @@ export default function DemandPage() {
       )
   }
   const getDemandAIData = () => {
-    GetDemandAIData({ SID: selectedProperty?.sid, startDate: startDate?.toISOString().split('T')[0], endDate: endDate?.toISOString().split('T')[0] })
+    GetDemandAIData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
       .then((res) => {
         if (res.status) {
           debugger;
@@ -69,7 +70,7 @@ export default function DemandPage() {
           let sumDI = 0;
           let sumWow = 0;
           let sumMom = 0;
-          let sumYoy= 0;
+          let sumYoy = 0;
           let sumHotelADR = 0
           let sumHotelADRWow = 0
           let sumHotelADRMom = 0
@@ -83,7 +84,7 @@ export default function DemandPage() {
             sumHotelADRWow += Number(element.woW_Overall_HotelADR)
             sumHotelADRMom += Number(element.moM_Overall_HotelADR)
             sumHotelADRMom += Number(element.moM_Overall_HotelADR)
-            sumHotelADRYoy+= Number(element.yoY_Overall_HotelADR)
+            sumHotelADRYoy += Number(element.yoY_Overall_HotelADR)
           });
           setAvgDemand({
             AverageDI: Math.round(Number((sumDI / demandDatas.length))),
@@ -100,7 +101,7 @@ export default function DemandPage() {
       .catch((err) => console.error(err));
   }
   const getDemandAIPerCountryAverageData = () => {
-    GetDemandAIPerCountryAverageData({ SID: selectedProperty?.sid, startDate: startDate?.toISOString().split('T')[0], endDate: endDate?.toISOString().split('T')[0] })
+    GetDemandAIPerCountryAverageData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
       .then((res) => {
         if (res.status) {
           setDemandAIPerCountryAverageData(res?.body[0]);
@@ -117,8 +118,8 @@ export default function DemandPage() {
       "SID": selectedProperty?.sid,
       "PageNumber": 1,
       "PageCount": 10,
-      "StartDate": startDate?.toISOString().split('T')[0],
-      "EndDate": endDate?.toISOString().split('T')[0]
+      "StartDate": conevrtDateforApi(startDate?.toString()),
+      "EndDate": conevrtDateforApi(endDate?.toString())
     }
     getAllEvents(payload)
       .then((res) => {
@@ -136,8 +137,8 @@ export default function DemandPage() {
       "SID": selectedProperty?.sid,
       "channels": channelFilter.channelId,
       "channelsText": channelFilter.channelName,
-      "checkInStartDate": startDate?.toISOString().split('T')[0],
-      "checkInEndDate": endDate?.toISOString().split('T')[0],
+      "checkInStartDate": conevrtDateforApi(startDate?.toString()),
+      "checkInEndDate": conevrtDateforApi(endDate?.toString()),
       "LOS": null,
       "guest": null,
       "productTypeID": null,

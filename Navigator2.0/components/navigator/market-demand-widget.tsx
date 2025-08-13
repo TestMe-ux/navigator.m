@@ -11,6 +11,7 @@ import { getAllEvents, getAllHoliday } from "@/lib/events"
 import localStorageService from "@/lib/localstorage"
 import { ComparisonOption, useComparison } from "../comparison-context"
 import { format } from "date-fns"
+import { conevrtDateforApi } from "@/lib/utils"
 const sourceMarketColors = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444"]
 // Local Dubai events - Extended list
 // const localEvents = [
@@ -49,7 +50,7 @@ const sourceMarketColors = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444
 export function MarketDemandWidget() {
   const fmtDate = (d: string) => format(new Date(d), "EEE, dd MMM - yyyy");
   const { selectedComparison } = useComparison()
-  const { startDate, endDate, setDateRange } = useDateContext();
+  const { startDate, endDate } = useDateContext();
   const [demandData, setDemandData] = useState<any>([])
   const [eventData, setEventData] = useState<any>({});
   const [holidaysData, setHolidays] = useState<any>({});
@@ -66,6 +67,7 @@ export function MarketDemandWidget() {
   const { avgDICompare, avgADRCompare, compareText } = compMap[selectedComparison as ComparisonOption] || { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Yesterday' };
   useEffect(() => {
     if (!startDate || !endDate) return;
+    console.log("selectedComparison", startDate, endDate);
     Promise.all([
       getDemandAIPerCountryAverageData(),
       getDemandAIData(),
@@ -73,13 +75,13 @@ export function MarketDemandWidget() {
       getAllHolidayData(),
     ]);
 
-  }, [startDate, endDate, selectedProperty?.sid]);
+  }, [startDate, endDate]);
   useEffect(() => {
-    console.log("selectedComparison", selectedComparison);
+    // console.log("selectedComparison", selectedComparison);
 
   }, [selectedComparison]);
   const getDemandAIData = () => {
-    GetDemandAIData({ SID: selectedProperty?.sid, startDate: startDate?.toISOString().split('T')[0], endDate: endDate?.toISOString().split('T')[0] })
+    GetDemandAIData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
       .then((res) => {
         if (res.status) {
           debugger;
@@ -112,7 +114,9 @@ export function MarketDemandWidget() {
       .catch((err) => console.error(err));
   }
   const getDemandAIPerCountryAverageData = () => {
-    GetDemandAIPerCountryAverageData({ SID: selectedProperty?.sid, startDate: startDate?.toISOString().split('T')[0], endDate: endDate?.toISOString().split('T')[0] })
+    GetDemandAIPerCountryAverageData({
+      SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString())
+    })
       .then((res) => {
         if (res.status) {
           setDemandAIPerCountryAverageData(res?.body[0]);
@@ -129,8 +133,8 @@ export function MarketDemandWidget() {
       "SID": selectedProperty?.sid,
       "PageNumber": 1,
       "PageCount": 500,
-      "StartDate": startDate?.toISOString().split('T')[0],
-      "EndDate": endDate?.toISOString().split('T')[0]
+      "StartDate": conevrtDateforApi(startDate?.toString()),
+      "EndDate": conevrtDateforApi(endDate?.toString())
     }
     getAllEvents(payload)
       .then((res) => {
@@ -149,8 +153,8 @@ export function MarketDemandWidget() {
       "Country": [selectedProperty?.country ?? ''],
       "City": [selectedProperty?.city ?? ''],
       "SID": selectedProperty?.sid,
-      "FromDate": startDate?.toISOString().split('T')[0],
-      "ToDate": endDate?.toISOString().split('T')[0],
+      "FromDate": conevrtDateforApi(startDate?.toString()),
+      "ToDate": conevrtDateforApi(endDate?.toString()),
       "Type": [],
       "Impact": [],
       "SearchType": ""

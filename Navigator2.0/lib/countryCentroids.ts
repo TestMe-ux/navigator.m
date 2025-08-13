@@ -184,7 +184,7 @@ export const countryCoordinates: Record<string, [number, number]> = {
   "Solomon Islands": [160.156194, -9.645710],
   "Seychelles": [55.491977, -4.679574],
   "Sudan": [30.217636, 12.862807],
-  "Sweden": [18.643501, 60.128161],
+  "Sweden": [16.643501, 64.128161], 
   "Singapore": [103.819836, 1.352083],
   "Saint Helena": [-5.717088, -15.965809],
   "Slovenia": [15.000000, 46.151241],

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { getOTAChannels, getOTARankOnAllChannel } from "@/lib/otarank"
 import { useDateContext } from "../date-context"
 import localStorageService from "@/lib/localstorage"
+import { conevrtDateforApi } from "@/lib/utils"
 
 interface ChannelData {
   name: string
@@ -222,8 +223,8 @@ export function PropertyHealthScoreWidget(props: any) {
   useEffect(() => {
     if (!startDate || !endDate) return;
 
-    const startKey = startDate.toISOString();
-    const endKey = endDate.toISOString();
+    const startKey = conevrtDateforApi(startDate.toString());
+    const endKey = conevrtDateforApi(endDate.toString());
 
     if (lastDatesRef.current.start === startKey && lastDatesRef.current.end === endKey) return;
 

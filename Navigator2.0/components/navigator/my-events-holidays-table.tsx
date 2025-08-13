@@ -229,8 +229,6 @@ export function MyEventsHolidaysTable({ events, holidaysData }: MyEventsHolidays
 
   // Take top 3
   const data = sorted.slice(0, 3) || [];
-
-  console.log("mergedEventandHoliday", data);
   // const data = events?.eventDetails?.slice(0, 3) || [] // Show top 3 events by impact
 
 
