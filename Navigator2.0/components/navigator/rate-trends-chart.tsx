@@ -925,7 +925,7 @@ export function RateTrendsChart({ rateData }: any) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", "competitor-data.csv");
+    link.setAttribute("download", 'RateShopping_Rate_' + selectedProperty?.sid + '_' + new Date().getTime()+".csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

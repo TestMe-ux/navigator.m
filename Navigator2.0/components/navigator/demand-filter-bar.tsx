@@ -28,8 +28,8 @@ interface FilterConfig {
 const demandFilters: FilterConfig[] = [
   {
     name: "Compare With",
-    defaultOption: "Last 7 Days",
-    options: ["Last 7 Days", "Last 30 Days", "Last Quarter"],
+    defaultOption: "WoW",
+    options: ["WoW", "MoM", "YoY"],
     icon: CalendarIcon,
     displayPrefix: "Vs.",
     dropdownLabel: "Compare with",

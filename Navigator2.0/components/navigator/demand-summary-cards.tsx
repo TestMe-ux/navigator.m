@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { TrendingUp, TrendingDown, Users, BarChart3, DollarSign, Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import localStorageService from "@/lib/localstorage"
+import { useState, useEffect } from "react"
 
 interface SummaryCardProps {
   title: string
@@ -17,6 +18,7 @@ interface SummaryCardProps {
   iconColorClass: string
   bgColorClass: string
   tooltipId: string
+  comparetext: string
 }
 
 /**
@@ -41,6 +43,7 @@ function SummaryCard({
   iconColorClass,
   bgColorClass,
   tooltipId,
+  comparetext
 }: SummaryCardProps) {
   return (
     <Card className="rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-md transition-all duration-200 group animate-fade-in">
@@ -87,10 +90,10 @@ function SummaryCard({
                 <TrendingDown className="w-4 h-4" />
               )}
               <span className="text-sm font-bold">
-                {trend}
+                {!!trend ? trend : ''}
               </span>
               <span className="text-xs text-slate-500 dark:text-slate-400">
-                vs last week
+                vs {!!comparetext ? comparetext : 'WoW'}
               </span>
             </div>
           )}
@@ -100,19 +103,37 @@ function SummaryCard({
   )
 }
 
-export function DemandSummaryCards({ avgDemand,demandAIPerCountryAverageData }: any) {
+export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverageData }: any) {
   const selectedProperty: any = localStorageService.get('SelectedProperty')
-  console.log("DemandSummaryCards - avgDemand:", demandAIPerCountryAverageData)
+  const [trendValue, setTrendValue] = useState(0);
+
+  useEffect(() => {
+    if (!avgDemand) return;
+
+    let newTrend;
+    newTrend = filter["Compare With"] === "WoW"
+      ? avgDemand?.AvrageHotelADRWow
+      : filter["Compare With"] === "MoM"
+        ? avgDemand?.AvrageHotelADRMom
+        : filter["Compare With"] === "YoY"
+          ? avgDemand?.AvrageHotelADRYoy
+          : avgDemand?.AvrageHotelADRWow;
+    console.log("newTrend", newTrend)
+    setTrendValue(newTrend);
+  }, [filter, avgDemand]);
+
+
   const summaryData: SummaryCardProps[] = [
     {
       title: "Avg. Market ADR",
       value: `\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E  ${avgDemand?.AvrageHotelADR?.toFixed(0)}`,
-      trend: `${avgDemand?.AvrageHotelADRWow}%`,
-      trendDirection: `${avgDemand?.AvrageHotelADRWow > 0 ? "up" : "down"}`,
+      trend: `${trendValue}%`,
+      trendDirection: `${trendValue > 0 ? "up" : "down"}`,
       icon: DollarSign,
       iconColorClass: "text-emerald-600 dark:text-emerald-400",
       bgColorClass: "bg-emerald-50 dark:bg-emerald-950",
       tooltipId: "avg-market-adr",
+      comparetext: filter["Compare With"]
     },
     {
       title: "Avg. Market RevPAR",
@@ -123,16 +144,18 @@ export function DemandSummaryCards({ avgDemand,demandAIPerCountryAverageData }: 
       iconColorClass: "text-blue-600 dark:text-blue-400",
       bgColorClass: "bg-blue-50 dark:bg-blue-950",
       tooltipId: "avg-market-revpar",
+      comparetext: filter["Compare With"]
     },
     {
       title: "Top Source Market",
       value: `${demandAIPerCountryAverageData[0]?.srcCountryName}`,
-      trend: "1.2%",
+      trend: "",
       trendDirection: "up",
       icon: Users,
       iconColorClass: "text-amber-600 dark:text-amber-400",
       bgColorClass: "bg-amber-50 dark:bg-amber-950",
       tooltipId: "top-source-market",
+      comparetext: filter["Compare With"]
     },
   ]
 
@@ -144,7 +167,7 @@ export function DemandSummaryCards({ avgDemand,demandAIPerCountryAverageData }: 
           <p className="text-sm text-slate-600 dark:text-slate-400">Key performance indicators and market positioning</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 lg:gap-6">
-          {summaryData.map((data) => (
+          {summaryData.filter((data) => data.value !== null && data.value !== undefined && data.value !== "undefined").map((data) => (
             <SummaryCard key={data.title} {...data} />
           ))}
         </div>

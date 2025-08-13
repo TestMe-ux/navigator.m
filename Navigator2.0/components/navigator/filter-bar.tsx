@@ -144,9 +144,10 @@ export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
   // Channel multi-select state
 
   const compareOptions = [
+    { id: 1 as ComparisonOption, label: "Yesterday" },
     { id: 7 as ComparisonOption, label: "Last 7 Days" },
-    { id: 30 as ComparisonOption, label: "Last 30 Days" },
-    { id: 90 as ComparisonOption, label: "Last Quarter" }
+    { id: 28 as ComparisonOption, label: "Last 28 Days" },
+    { id: 91 as ComparisonOption, label: "Last Quarter" }
   ]
 
   /**
