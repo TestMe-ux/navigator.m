@@ -104,43 +104,98 @@ const CUSTOM_EVENTS_KEY = 'events-calendar-custom-events'
 // Function to save custom events to localStorage
 const saveCustomEventsToStorage = (customEvents: Event[]) => {
   try {
-    const eventsWithTimestamp = customEvents.map(event => ({
+    // Ensure we only save custom events with proper timestamps
+    const eventsWithTimestamp = customEvents.filter(event => event.isCustom).map(event => ({
       ...event,
       createdAt: event.createdAt || Date.now()
     }))
-    localStorage.setItem(CUSTOM_EVENTS_KEY, JSON.stringify(eventsWithTimestamp))
-    console.log(`💾 Saved ${customEvents.length} custom events to localStorage`)
+    
+    const dataToSave = JSON.stringify(eventsWithTimestamp)
+    localStorage.setItem(CUSTOM_EVENTS_KEY, dataToSave)
+    console.log(`💾 Saved ${eventsWithTimestamp.length} custom events to localStorage`)
+    
+    // Verify the save was successful
+    const verification = localStorage.getItem(CUSTOM_EVENTS_KEY)
+    if (!verification) {
+      throw new Error('Failed to verify localStorage save')
+    }
   } catch (error) {
     console.error('Failed to save custom events to localStorage:', error)
+    // Try to notify user if localStorage is not available
+    if (error instanceof DOMException && error.code === 22) {
+      console.warn('localStorage quota exceeded or disabled')
+    }
   }
 }
 
 // Function to load custom events from localStorage
 const loadCustomEventsFromStorage = (): Event[] => {
   try {
+    // Check if localStorage is available
+    if (typeof localStorage === 'undefined') {
+      console.warn('localStorage is not available')
+      return []
+    }
+    
     const stored = localStorage.getItem(CUSTOM_EVENTS_KEY)
-    if (!stored) {
+    if (!stored || stored === 'null' || stored === 'undefined') {
       console.log('📂 No custom events found in localStorage')
       return []
     }
     
-    const events = JSON.parse(stored) as (Event & { createdAt: number })[]
+    let events: (Event & { createdAt: number })[]
+    try {
+      events = JSON.parse(stored)
+    } catch (parseError) {
+      console.error('Failed to parse stored events, clearing localStorage:', parseError)
+      localStorage.removeItem(CUSTOM_EVENTS_KEY)
+      return []
+    }
+    
+    // Ensure events is an array
+    if (!Array.isArray(events)) {
+      console.error('Stored events is not an array, clearing localStorage')
+      localStorage.removeItem(CUSTOM_EVENTS_KEY)
+      return []
+    }
+    
     const threeDaysAgo = Date.now() - (3 * 24 * 60 * 60 * 1000) // 3 days in milliseconds
     
-    // Filter out events older than 3 days
-    const validEvents = events.filter(event => event.createdAt > threeDaysAgo)
+    // Filter out events older than 3 days and ensure they have required properties
+    const validEvents = events.filter(event => {
+      // Check if event has required properties
+      if (!event.id || !event.name || !event.isCustom) {
+        console.warn('Invalid event found, skipping:', event)
+        return false
+      }
+      
+      // Check if event is within 3-day window
+      const createdAt = event.createdAt || 0
+      return createdAt > threeDaysAgo
+    })
+    
     const expiredCount = events.length - validEvents.length
     
     // Save back the filtered events to clean up expired ones
     if (validEvents.length !== events.length) {
-      localStorage.setItem(CUSTOM_EVENTS_KEY, JSON.stringify(validEvents))
-      console.log(`🗑️ Cleaned up ${expiredCount} expired events (older than 3 days)`)
+      try {
+        localStorage.setItem(CUSTOM_EVENTS_KEY, JSON.stringify(validEvents))
+        console.log(`🗑️ Cleaned up ${expiredCount} expired events (older than 3 days)`)
+      } catch (saveError) {
+        console.error('Failed to save cleaned events:', saveError)
+      }
     }
     
     console.log(`📂 Loaded ${validEvents.length} custom events from localStorage`)
     return validEvents
   } catch (error) {
     console.error('Failed to load custom events from localStorage:', error)
+    // Clear corrupted data
+    try {
+      localStorage.removeItem(CUSTOM_EVENTS_KEY)
+    } catch (clearError) {
+      console.error('Failed to clear corrupted localStorage data:', clearError)
+    }
     return []
   }
 }
@@ -1133,9 +1188,6 @@ const EventTooltip = ({ children, event, isVisible, day, currentDate }: {
 
   // Get calendar date with today's logic styling
   const getCalendarDate = () => {
-    if (isToday) {
-      return `TODAY - ${formatSingleDate(event.startDate)}`
-    }
     return formatSingleDate(event.startDate)
   }
 
@@ -1170,30 +1222,30 @@ const EventTooltip = ({ children, event, isVisible, day, currentDate }: {
       // Priority positioning to prevent overlaps
       // Today's events get priority positioning with extra space
       if (isToday) {
-        // For today's events, prefer positions with most space
-        if (isTopRow && !isBottomRow) return 'bottom' // Prefer bottom for today if not in last row
-        if (isBottomRow && !isTopRow) return 'top'   // Prefer top for today if not in first row
+        // For today's events, prioritize edge positioning for first/last week
         if (isLeftEdge && !isRightEdge) return 'right' // Right for left edge if not also right edge
         if (isRightEdge && !isLeftEdge) return 'left'  // Left for right edge if not also left edge
+        if (isTopRow && !isBottomRow) return 'bottom' // Prefer bottom for today if not in last row
+        if (isBottomRow && !isTopRow) return 'top'   // Prefer top for today if not in first row
         if (isMiddleDay) return 'top'                  // Top for middle days to avoid horizontal overlap
         return 'bottom'                                // Default bottom for today
       }
       
       // Smart positioning for upcoming events (within 7 days)
       if (isFuture && daysDifference <= 7) {
-        // Give upcoming events better positioning
-        if (isTopRow) return 'bottom'
-        if (isBottomRow) return 'top'
+        // Give upcoming events better positioning, prioritize edge positioning
         if (isLeftEdge) return 'right'
         if (isRightEdge) return 'left'
+        if (isTopRow) return 'bottom'
+        if (isBottomRow) return 'top'
         return 'top' // Prefer top for upcoming events
       }
       
-      // Standard positioning for other days
-      if (isTopRow) return 'bottom'
-      if (isBottomRow) return 'top'
+      // Standard positioning for other days - prioritize edge positioning for consistency
       if (isLeftEdge) return 'right'
       if (isRightEdge) return 'left'
+      if (isTopRow) return 'bottom'
+      if (isBottomRow) return 'top'
       return 'top' // Default position
     }
     
@@ -1242,11 +1294,8 @@ const EventTooltip = ({ children, event, isVisible, day, currentDate }: {
     }
   }
 
-  // Enhanced background styling for today's events
+  // Background styling for all events (consistent)
   const getTooltipBgClasses = () => {
-    if (isToday) {
-      return "bg-gradient-to-br from-blue-900 to-slate-900 border-2 border-blue-400"
-    }
     return "bg-slate-900 border border-slate-700"
   }
 
@@ -1265,36 +1314,18 @@ const EventTooltip = ({ children, event, isVisible, day, currentDate }: {
           
           {/* Tooltip Content */}
           <div className="space-y-2">
-            {/* Calendar Date at Top with Today's Logic */}
-            <div className={cn(
-              "text-sm font-medium mb-1",
-              isToday ? "text-blue-300 font-bold" : "text-white"
-            )}>
+            {/* Calendar Date at Top */}
+            <div className="text-sm font-medium mb-1 text-white">
               {getCalendarDate()}
             </div>
             
-            {/* Today's Special Indicator */}
-            {isToday && (
-              <div className="flex items-center gap-2 text-xs text-blue-200 bg-blue-800/30 px-2 py-1 rounded">
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                <span>Happening Today</span>
-              </div>
-            )}
+
             
             {/* Event Details */}
-            <div className={cn(
-              "pt-2",
-              isToday ? "border-t border-blue-400" : "border-t border-gray-600"
-            )}>
+            <div className="pt-2 border-t border-gray-600">
               <div className="flex items-center gap-2 mb-1">
-                <Star className={cn(
-                  "h-3 w-3",
-                  isToday ? "text-blue-300" : "text-yellow-400"
-                )} />
-                <span className={cn(
-                  "text-sm font-medium",
-                  isToday ? "text-blue-300" : "text-yellow-400"
-                )}>{event.name}</span>
+                <Star className="h-3 w-3 text-yellow-400" />
+                <span className="text-sm font-medium text-yellow-400 truncate" title={event.name}>{event.name}</span>
               </div>
               
               {/* Date Range (only for multi-day events) */}
@@ -1308,27 +1339,9 @@ const EventTooltip = ({ children, event, isVisible, day, currentDate }: {
                 {event.category.charAt(0).toUpperCase() + event.category.slice(1)} Event
               </div>
               
-              {/* Today's Additional Context */}
-              {isToday && (
-                <div className="mt-2 text-xs text-blue-200 bg-blue-900/30 px-2 py-1 rounded">
-                  <span className="font-medium">📍 Active now</span>
-                </div>
-              )}
+
               
-              {/* Future/Past Context based on Today's Logic */}
-              {!isToday && (
-                <div className="mt-1 text-xs">
-                  {isPast && (
-                    <span className="text-gray-400">🕒 Past event</span>
-                  )}
-                  {isFuture && daysDifference <= 7 && (
-                    <span className="text-green-300">🔜 Upcoming in {daysDifference} day{daysDifference !== 1 ? 's' : ''}</span>
-                  )}
-                  {isFuture && daysDifference > 7 && (
-                    <span className="text-gray-300">📅 Future event</span>
-                  )}
-                </div>
-              )}
+
             </div>
           </div>
         </div>
@@ -1406,9 +1419,40 @@ export default function EventsCalendarPage() {
 
   // Initialize events with sample events and stored custom events
   useEffect(() => {
-    const storedCustomEvents = loadCustomEventsFromStorage()
-    const combinedEvents = [...sampleEvents, ...storedCustomEvents]
-    setEvents(combinedEvents)
+    const initializeEvents = () => {
+      try {
+        const storedCustomEvents = loadCustomEventsFromStorage()
+        const combinedEvents = [...sampleEvents, ...storedCustomEvents]
+        setEvents(combinedEvents)
+        console.log(`🚀 Initialized with ${sampleEvents.length} sample events and ${storedCustomEvents.length} custom events`)
+      } catch (error) {
+        console.error('Failed to initialize events:', error)
+        // Fallback to just sample events
+        setEvents(sampleEvents)
+      }
+    }
+    
+    // Initialize immediately
+    initializeEvents()
+    
+    // Also try to reload after a short delay in case of timing issues
+    const timeoutId = setTimeout(() => {
+      const storedCustomEvents = loadCustomEventsFromStorage()
+      
+      if (storedCustomEvents.length > 0) {
+        setEvents(prev => {
+          const currentCustomCount = prev.filter(e => e.isCustom).length
+          
+          if (currentCustomCount !== storedCustomEvents.length) {
+            console.log('🔄 Reloading events due to count mismatch')
+            return [...sampleEvents, ...storedCustomEvents]
+          }
+          return prev
+        })
+      }
+    }, 500)
+    
+    return () => clearTimeout(timeoutId)
   }, [])
 
   // Simulate data loading with progress tracking (only on first load)
@@ -1576,19 +1620,17 @@ export default function EventsCalendarPage() {
 
   const [enabledEventTypes, setEnabledEventTypes] = useState<{
     bookmarked: boolean;
-    suggested: boolean;
     holidays: boolean;
     conferences: boolean;
     social: boolean;
   }>({
-    bookmarked: true, // This now includes suggested events by default
-    suggested: true, // Enabled by default to show suggested events
+    bookmarked: true,
     holidays: true,
     conferences: true, // For business conferences
     social: true, // For social events
   })
 
-  const toggleEventType = (type: 'bookmarked' | 'suggested' | 'holidays' | 'conferences' | 'social') => {
+  const toggleEventType = (type: 'bookmarked' | 'holidays' | 'conferences' | 'social') => {
     setEnabledEventTypes(prev => ({
       ...prev,
       [type]: !prev[type]
@@ -1682,7 +1724,7 @@ export default function EventsCalendarPage() {
     name: "",
     startDate: "",
     endDate: "",
-    category: "conference" as "conference" | "tradeshow" | "workshop" | "social" | "holidays",
+    category: "conference" as "conference" | "tradeshow" | "workshop" | "social",
     country: "",
     city: "",
     description: "",
@@ -1867,16 +1909,15 @@ export default function EventsCalendarPage() {
     let filtered = events.filter((event) => {
       // Check each event type independently and only show if enabled
       
-      // Status-based filtering (bookmarked/suggested)
+      // Status-based filtering (bookmarked)
       if (event.status === "bookmarked" && enabledEventTypes.bookmarked) return true
-      if (event.status === "suggested" && enabledEventTypes.suggested) return true
       
       // Type-based filtering (holidays)  
       if (event.type === "holiday" && enabledEventTypes.holidays) return true
       
       // For other events, show them by default for now (since we don't have legend buttons for them yet)
       // But we need to make sure they don't conflict with status-based filtering
-      if (event.status !== "bookmarked" && event.status !== "suggested" && event.type !== "holiday") {
+      if (event.status !== "bookmarked" && event.type !== "holiday") {
         return true // Show other events by default
       }
       
@@ -1887,18 +1928,18 @@ export default function EventsCalendarPage() {
   }, [events, enabledEventTypes])
 
   const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
     "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
   ]
 
 
@@ -1985,16 +2026,22 @@ export default function EventsCalendarPage() {
   }
 
   const toggleBookmark = (eventId: string) => {
-    setEvents((prev) =>
-      prev.map((event) =>
+    setEvents((prev) => {
+      const updatedEvents = prev.map((event) =>
         event.id === eventId
           ? {
               ...event,
               status: (event.status === "bookmarked" || event.status === "suggested") ? "available" : "bookmarked",
             }
           : event,
-      ),
-    )
+      )
+      
+      // Save only custom events to localStorage
+      const customEvents = updatedEvents.filter(e => e.isCustom)
+      saveCustomEventsToStorage(customEvents)
+      
+      return updatedEvents
+    })
   }
 
   const getEventsForDate = useCallback((day: number) => {
@@ -2007,7 +2054,7 @@ export default function EventsCalendarPage() {
     })
   }, [currentDate, filteredEvents])
 
-  // Get events for calendar display - multi-day events only show on start date
+  // Get events for calendar display - show events on all days from start to end date
   const getEventsForCalendarDisplay = useCallback((day: number) => {
     const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
     return filteredEvents.filter((event) => {
@@ -2015,12 +2062,7 @@ export default function EventsCalendarPage() {
       const eventEnd = new Date(event.endDate + "T23:59:59")
       const checkDate = new Date(dateStr + "T12:00:00")
       
-      // For multi-day events, only show on start date
-      if (isMultiDayEvent(event)) {
-        return checkDate.toDateString() === eventStart.toDateString()
-      }
-      
-      // For single-day events, show normally
+      // Show events on all days from start to end date (inclusive)
       return checkDate >= eventStart && checkDate <= eventEnd
     })
   }, [currentDate, filteredEvents])
@@ -2057,13 +2099,13 @@ export default function EventsCalendarPage() {
   const getStatusColor = (status: Event["status"]) => {
     switch (status) {
       case "bookmarked":
-        return "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800 hover:bg-blue-500 hover:text-white hover:border-blue-500 dark:hover:bg-blue-500 dark:hover:text-white dark:hover:border-blue-500 transition-colors cursor-pointer"
+        return "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800 hover:bg-blue-400 hover:text-white hover:border-blue-400 dark:hover:bg-blue-400 dark:hover:text-white dark:hover:border-blue-400 transition-colors cursor-default"
       case "suggested":
-        return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800 hover:bg-blue-500 hover:text-white hover:border-blue-500 dark:hover:bg-blue-500 dark:hover:text-white dark:hover:border-blue-500 transition-colors cursor-pointer"
+        return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800 hover:bg-blue-400 hover:text-white hover:border-blue-400 dark:hover:bg-blue-400 dark:hover:text-white dark:hover:border-blue-400 transition-colors cursor-default"
       case "available":
-        return "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-950 dark:text-gray-300 dark:border-gray-800 hover:bg-blue-500 hover:text-white hover:border-blue-500 dark:hover:bg-blue-500 dark:hover:text-white dark:hover:border-blue-500 transition-colors cursor-pointer"
+        return "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-950 dark:text-gray-300 dark:border-gray-800 hover:bg-blue-400 hover:text-white hover:border-blue-400 dark:hover:bg-blue-400 dark:hover:text-white dark:hover:border-blue-400 transition-colors cursor-default"
       default:
-        return "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-950 dark:text-gray-300 dark:border-gray-800 hover:bg-blue-500 hover:text-white hover:border-blue-500 dark:hover:bg-blue-500 dark:hover:text-white dark:hover:border-blue-500 transition-colors cursor-pointer"
+        return "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-950 dark:text-gray-300 dark:border-gray-800 hover:bg-blue-400 hover:text-white hover:border-blue-400 dark:hover:bg-blue-400 dark:hover:text-white dark:hover:border-blue-400 transition-colors cursor-default"
     }
   }
 
@@ -2330,12 +2372,7 @@ export default function EventsCalendarPage() {
             >
               {day}
             </span>
-            {/* Today indicator */}
-            {isToday && (
-              <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                TODAY
-              </div>
-            )}
+
 
           </div>
 
@@ -2372,11 +2409,7 @@ export default function EventsCalendarPage() {
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-[11px] truncate">{event.name}</div>
                       </div>
-                      {isMultiDayEvent(event) && (
-                        <div className="text-[11px] font-semibold text-gray-600 dark:text-gray-400 ml-1 shrink-0">
-                          ({getEventDuration(event)}D)
-                    </div>
-                      )}
+
                         </div>
                       </div>
                     </EventTooltip>
@@ -2436,11 +2469,10 @@ export default function EventsCalendarPage() {
           {/* Fixed Table Header */}
           <div className="sticky top-0 z-10 bg-background border-b">
             <div className="grid grid-cols-12 gap-4 px-4 py-3 text-sm font-medium text-muted-foreground">
-              <div className="col-span-5">Event Name</div>
-              <div className="col-span-1 text-center">Status</div>
-              <div className="col-span-2 text-center">Date Range</div>
-              <div className="col-span-2 text-center">Type</div>
-              <div className="col-span-2 text-center">Actions</div>
+              <div className="col-span-6">Event Name</div>
+              <div className="col-span-2 text-left">Date Range</div>
+              <div className="col-span-2 text-left">Type</div>
+              <div className="col-span-2">Actions</div>
             </div>
           </div>
 
@@ -2480,7 +2512,7 @@ export default function EventsCalendarPage() {
                     onClick={() => setSelectedEvent(event)}
                   >
                     {/* Event Name */}
-                    <div className="col-span-5">
+                    <div className="col-span-6">
                       <h3 className="text-sm font-medium text-foreground truncate mb-1" title={event.name}>
                         {event.name}
                       </h3>
@@ -2489,33 +2521,18 @@ export default function EventsCalendarPage() {
                       </p>
                     </div>
 
-                    {/* Status */}
-                    <div className="col-span-1 flex justify-center">
-                      <div className="flex flex-col items-center gap-1">
-                        {event.status === "bookmarked" && <Star className="h-4 w-4 fill-current text-green-600" />}
-                        {event.status === "suggested" && <Star className="h-4 w-4 fill-current text-blue-600" />}
-                        {event.type === "holiday" && <Sparkles className="h-4 w-4 text-purple-600" />}
-                        <Badge 
-                          variant="outline" 
-                          className={cn("text-xs px-1.5 py-0.5", getStatusColor(event.status))}
-                        >
-                          {event.status === "available" ? "Available" : event.status}
-                        </Badge>
-                      </div>
-                        </div>
-
                     {/* Date Range */}
-                    <div className="col-span-2 text-center">
+                    <div className="col-span-2 text-left">
                       <div className="text-xs text-muted-foreground">
                         {event.startDate === event.endDate ? (
-                                                      <div className="flex flex-col items-center">
+                                                      <div className="flex flex-col items-start">
                               <span>Single day</span>
                               <span className="text-xs font-medium">
                                 {formatSingleDate(event.startDate)}
                               </span>
                         </div>
                         ) : (
-                          <div className="flex flex-col items-center">
+                          <div className="flex flex-col items-start">
                             <span>Multi-day</span>
                             <span className="text-xs font-medium">
                               {formatDateRange(event.startDate, event.endDate)}
@@ -2526,7 +2543,7 @@ export default function EventsCalendarPage() {
                   </div>
 
                     {/* Type */}
-                    <div className="col-span-2 flex justify-center">
+                    <div className="col-span-2 flex justify-start">
                       <Badge 
                         variant="secondary" 
                         className="text-xs px-2 py-1 capitalize"
@@ -2536,63 +2553,67 @@ export default function EventsCalendarPage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="col-span-2 flex justify-center gap-1">
+                    <div className="col-span-2 flex justify-start gap-1">
+                      {/* Bookmark button */}
+                      <div className="relative group">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleBookmark(event.id)
+                          }}
+                          className="h-8 w-8 p-0"
+                        >
+                          <BookmarkIcon
+                            className={cn("h-4 w-4", (event.status === "bookmarked" || event.status === "suggested") ? "fill-current text-green-600" : "")}
+                          />
+                        </Button>
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                          {(event.status === "bookmarked" || event.status === "suggested") ? "Remove Bookmark" : "Bookmark Event"}
+                        </div>
+                      </div>
+
+
+
                       {/* Edit and Delete buttons for custom events */}
                       {event.isCustom && (
                         <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleEditEvent(event)
-                            }}
-                            className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
-                            title="Edit Event"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              showDeleteConfirmation(event.id)
-                            }}
-                            className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
-                            title="Delete Event"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="relative group">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleEditEvent(event)
+                              }}
+                              className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                              Edit
+                            </div>
+                          </div>
+                          
+                          <div className="relative group">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                showDeleteConfirmation(event.id)
+                              }}
+                              className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                              Delete
+                            </div>
+                          </div>
                         </>
                       )}
-                      
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          toggleBookmark(event.id)
-                        }}
-                        className="h-8 w-8 p-0"
-                        title="Toggle bookmark"
-                      >
-                        <BookmarkIcon
-                          className={cn("h-4 w-4", (event.status === "bookmarked" || event.status === "suggested") ? "fill-current text-green-600" : "")}
-                        />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setSelectedEvent(event)
-                        }}
-                        className="h-8 w-8 p-0"
-                        title="View details"
-                      >
-                        <AlertCircle className="h-4 w-4" />
-                      </Button>
                     </div>
                 </div>
               ))}
@@ -2643,31 +2664,11 @@ export default function EventsCalendarPage() {
                   </Tooltip>
                 </TooltipProvider>
                 
-                <h1 className="text-lg font-medium text-foreground px-2">
+                <h1 className="text-base font-medium text-foreground px-2">
                   {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
                 </h1>
                 
-                {/* Today's Navigation Button - Call Today's New Logic */}
-                {!isViewingTodaysMonth() && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={navigateToToday}
-                          className="mx-2 bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 hover:text-blue-800 transition-all duration-200"
-                        >
-                          <CalendarIcon className="h-4 w-4 mr-1" />
-                          Today
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="bg-slate-800 text-white border-slate-700">
-                        <p className="text-xs">Go to current month with today's enhanced logic</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
+
                 
                 <TooltipProvider>
                   <Tooltip>
@@ -2877,20 +2878,21 @@ export default function EventsCalendarPage() {
                     variant="outline"
                     className="px-4 gap-3 bg-green-50 hover:bg-green-100 border-green-300 text-green-700 dark:bg-green-950 dark:hover:bg-green-900 dark:border-green-800 dark:text-green-300"
                   >
-                    <BookmarkIcon className="h-4 w-4" />
-                    <span>Bookmark Event</span>
+                    <BookmarkIcon className="h-4 w-4 xl:inline hidden" />
+                    <span className="xl:inline hidden">Bookmark Event</span>
+                    <span className="xl:hidden inline">Bookmark</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[calc(85vh-50px)] pb-16">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-3">
+                <DialogContent className="max-w-4xl h-[600px] min-h-[500px] flex flex-col">
+                  <DialogHeader className="flex-shrink-0">
+                    <DialogTitle className="flex items-center gap-3 text-lg">
                       <BookmarkIcon className="h-5 w-5 text-green-600" />
                       Bookmark Events
                     </DialogTitle>
                   </DialogHeader>
 
                   {/* Bookmark Modal Filters */}
-                  <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
+                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg flex-shrink-0">
                     {/* Search Input */}
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -2906,67 +2908,67 @@ export default function EventsCalendarPage() {
                     <div className="relative">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" className="w-52 justify-between">
+                          <Button variant="outline" className="w-48 h-10 justify-between text-sm hover:bg-white">
                             <div className="flex items-center gap-2">
-                              <Globe className="h-4 w-4" />
+                              <Globe className="h-3 w-3" />
                               <span>{getBookmarkCategoryDisplayText()}</span>
                             </div>
-                            <ChevronDown className="h-4 w-4 opacity-50" />
+                            <ChevronDown className="h-3 w-3 opacity-50" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-48 p-4">
-                          <div className="space-y-2">
-                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
+                        <DropdownMenuContent className="w-48 p-3">
+                          <div className="space-y-1.5">
+                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={bookmarkCategoryFilter.includes("all")}
                                 onChange={() => handleCategorySelection("all")}
-                                className="rounded"
+                                className="rounded h-3.5 w-3.5"
                               />
                               <span>All</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
+                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={bookmarkCategoryFilter.includes("conference")}
                                 onChange={() => handleCategorySelection("conference")}
-                                className="rounded"
+                                className="rounded h-3.5 w-3.5"
                               />
                               <span>Conference</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
+                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={bookmarkCategoryFilter.includes("tradeshow")}
                                 onChange={() => handleCategorySelection("tradeshow")}
-                                className="rounded"
+                                className="rounded h-3.5 w-3.5"
                               />
                               <span>Trade Shows</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
+                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={bookmarkCategoryFilter.includes("workshop")}
                                 onChange={() => handleCategorySelection("workshop")}
-                                className="rounded"
+                                className="rounded h-3.5 w-3.5"
                               />
                               <span>Workshop</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
+                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={bookmarkCategoryFilter.includes("social")}
                                 onChange={() => handleCategorySelection("social")}
-                                className="rounded"
+                                className="rounded h-3.5 w-3.5"
                               />
                               <span>Social</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
+                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={bookmarkCategoryFilter.includes("holidays")}
                                 onChange={() => handleCategorySelection("holidays")}
-                                className="rounded"
+                                className="rounded h-3.5 w-3.5"
                               />
                               <span>Holidays</span>
                             </label>
@@ -2979,58 +2981,59 @@ export default function EventsCalendarPage() {
                     <div className="relative">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" className="w-48 justify-between">
+                          <Button variant="outline" className="w-44 h-10 justify-between text-sm hover:bg-white">
                             <div className="flex items-center gap-2">
-                              <Check className="h-4 w-4" />
+                              <Check className="h-3 w-3" />
                               <span>{getBookmarkTypeDisplayText()}</span>
                             </div>
-                            <ChevronDown className="h-4 w-4 opacity-50" />
+                            <ChevronDown className="h-3 w-3 opacity-50" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-48 p-4">
-                          <div className="space-y-2">
-                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
+                        <DropdownMenuContent className="w-48 p-3">
+                          <div className="space-y-1.5">
+                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={bookmarkTypeFilter.includes("all")}
                                 onChange={() => handleTypeSelection("all")}
-                                className="rounded"
+                                className="rounded h-3.5 w-3.5"
                               />
                               <span>All</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
+                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={bookmarkTypeFilter.includes("bookmarked")}
                                 onChange={() => handleTypeSelection("bookmarked")}
-                                className="rounded"
+                                className="rounded h-3.5 w-3.5"
                               />
                               <span>Bookmarked</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
+                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={bookmarkTypeFilter.includes("holidays")}
                                 onChange={() => handleTypeSelection("holidays")}
-                                className="rounded"
+                                className="rounded h-3.5 w-3.5"
                               />
                               <span>Holidays</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
+                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={bookmarkTypeFilter.includes("suggested")}
                                 onChange={() => handleTypeSelection("suggested")}
-                                className="rounded"
+                                className="rounded h-3.5 w-3.5"
                               />
                               <span>Suggested</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
+
+                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={bookmarkTypeFilter.includes("available")}
                                 onChange={() => handleTypeSelection("available")}
-                                className="rounded"
+                                className="rounded h-3.5 w-3.5"
                               />
                               <span>Available</span>
                             </label>
@@ -3041,8 +3044,8 @@ export default function EventsCalendarPage() {
                   </div>
 
                   {/* Events List */}
-                  <ScrollArea className="max-h-[calc(20rem+30px)]">
-                    <div className="space-y-2">
+                  <ScrollArea className="flex-1 pr-2">
+                    <div className="space-y-2 py-2">
                       {getFilteredBookmarkEvents.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-[20rem] text-center">
                           <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
@@ -3060,26 +3063,33 @@ export default function EventsCalendarPage() {
                         <div
                           key={event.id}
                           className={cn(
-                            "flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors",
+                            "flex items-center justify-between p-3 border rounded-lg hover:bg-accent transition-colors",
                             (event.status === "bookmarked" || event.status === "suggested") && "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800",
                           )}
                         >
                           <div className="flex items-center gap-3">
                             <div>
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-medium">{event.name}</h3>
-                                {event.status === "bookmarked" && (
-                                  <Star className="h-4 w-4 fill-current text-green-600" />
-                                )}
-                                {event.type === "holiday" && <Sparkles className="h-4 w-4 text-purple-600" />}
+                              <div className="flex items-start gap-2">
+                                <h3 className="text-sm font-medium leading-snug flex-1">{event.name}</h3>
+                                <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+                                  {event.status === "bookmarked" && (
+                                    <Star className="h-3 w-3 fill-current text-green-600" />
+                                  )}
+                                  {event.type === "holiday" && <Sparkles className="h-3 w-3 text-purple-600" />}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                <span>{event.startDate}</span>
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                <span>
+                                  {event.startDate === event.endDate 
+                                    ? formatSingleDate(event.startDate)
+                                    : formatDateRange(event.startDate, event.endDate)
+                                  }
+                                </span>
                               </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge className={cn("border", getStatusColor(event.status))}>
+                            <Badge className={cn("border text-xs", getStatusColor(event.status))}>
                               {event.status === "available" ? "Available" : event.status}
                             </Badge>
                             
@@ -3093,35 +3103,36 @@ export default function EventsCalendarPage() {
                                     handleEditEvent(event)
                                     setIsBookmarkModalOpen(false)
                                   }}
-                                  className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
+                                  className="h-7 w-7 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
                                   title="Edit Event"
                                 >
-                                  <Edit className="h-4 w-4" />
+                                  <Edit className="h-3 w-3" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => showDeleteConfirmation(event.id)}
-                                  className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                                  className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
                                   title="Delete Event"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-3 w-3" />
                                 </Button>
                               </div>
                             )}
                             
                             <Button
                               variant={(event.status === "bookmarked" || event.status === "suggested") ? "default" : "outline"}
+                              size="sm"
                               onClick={() => toggleBookmark(event.id)}
                               className={cn(
-                                "px-4 gap-3",
+                                "px-3 gap-2 text-xs",
                                 (event.status === "bookmarked" || event.status === "suggested")
                                   ? "bg-green-600 hover:bg-green-700"
                                   : "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
                               )}
                             >
                               <BookmarkIcon
-                                className={cn("h-4 w-4", (event.status === "bookmarked" || event.status === "suggested") && "fill-current")}
+                                className={cn("h-3 w-3", (event.status === "bookmarked" || event.status === "suggested") && "fill-current")}
                               />
                               {(event.status === "bookmarked" || event.status === "suggested") ? "Bookmarked" : "Bookmark"}
                             </Button>
@@ -3132,11 +3143,11 @@ export default function EventsCalendarPage() {
                     </div>
                   </ScrollArea>
 
-                  <div className="flex items-center justify-between pt-8 border-t">
-                    <div className="text-sm text-muted-foreground">
+                  <div className="flex items-center justify-between pt-3 border-t flex-shrink-0">
+                    <div className="text-xs text-muted-foreground">
                       {events.filter((e) => e.status === "bookmarked").length} events bookmarked
                     </div>
-                    <Button onClick={() => setIsBookmarkModalOpen(false)} className="px-4">Done</Button>
+                    <Button onClick={() => setIsBookmarkModalOpen(false)} className="px-4 py-2 text-sm">Done</Button>
                   </div>
                 </DialogContent>
               </Dialog>
@@ -3147,8 +3158,9 @@ export default function EventsCalendarPage() {
                     variant="outline"
                     className="px-4 gap-3 bg-blue-600 hover:bg-blue-700 hover:text-white border-blue-600 text-white dark:bg-blue-600 dark:hover:bg-blue-700 dark:hover:text-white dark:border-blue-600 dark:text-white"
                   >
-                    <Plus className="h-4 w-4 text-white" />
-                    <span>Add Event</span>
+                    <Plus className="h-4 w-4 text-white xl:inline hidden" />
+                    <span className="xl:inline hidden">Add Event</span>
+                    <span className="xl:hidden inline">Add</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl">
@@ -3162,13 +3174,19 @@ export default function EventsCalendarPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="name">Event Name *</Label>
-                        <Input
-                          id="name"
-                          value={newEvent.name}
-                          onChange={(e) => setNewEvent((prev) => ({ ...prev, name: e.target.value }))}
-                          placeholder="Enter event name"
-                          className="mt-1"
-                        />
+                        <div className="relative">
+                          <Input
+                            id="name"
+                            value={newEvent.name}
+                            onChange={(e) => setNewEvent((prev) => ({ ...prev, name: e.target.value }))}
+                            placeholder="Enter event name"
+                            className="mt-1 pr-12"
+                            maxLength={35}
+                          />
+                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground">
+                            {newEvent.name.length}/35
+                          </div>
+                        </div>
                       </div>
 
                       <div>
@@ -3230,18 +3248,7 @@ export default function EventsCalendarPage() {
                                   <span>Social</span>
                                 </div>
                               </SelectItem>
-                              <SelectItem 
-                                value="holidays"
-                                className={cn(
-                                  "flex items-center gap-2 cursor-pointer pl-3 [&>span:first-child]:hidden",
-                                  newEvent.category === "holidays" ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
-                                )}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <Sparkles className="h-4 w-4" />
-                                  <span>Holidays</span>
-                                </div>
-                              </SelectItem>
+
                             </SelectContent>
                           </Select>
                         </div>
@@ -3274,7 +3281,14 @@ export default function EventsCalendarPage() {
                                 onSelect={(date) => {
                                   if (date) {
                                     const formattedDate = format(date, "yyyy-MM-dd")
-                                    setNewEvent((prev) => ({ ...prev, startDate: formattedDate }))
+                                    setNewEvent((prev) => {
+                                      const newState = { ...prev, startDate: formattedDate }
+                                      // Clear end date only if it's before the new start date (not equal)
+                                      if (prev.endDate && new Date(prev.endDate) < date) {
+                                        newState.endDate = ""
+                                      }
+                                      return newState
+                                    })
                                     setIsStartDateOpen(false)
                                   }
                                 }}
@@ -3309,12 +3323,22 @@ export default function EventsCalendarPage() {
                               <Calendar
                                 mode="single"
                                 selected={newEvent.endDate ? new Date(newEvent.endDate) : undefined}
+                                defaultMonth={newEvent.startDate ? new Date(newEvent.startDate) : undefined}
                                 onSelect={(date) => {
                                   if (date) {
                                     const formattedDate = format(date, "yyyy-MM-dd")
                                     setNewEvent((prev) => ({ ...prev, endDate: formattedDate }))
                                     setIsEndDateOpen(false)
                                   }
+                                }}
+                                disabled={(date) => {
+                                  if (!newEvent.startDate) return false
+                                  const startDate = new Date(newEvent.startDate)
+                                  // Normalize dates to compare only date part (not time)
+                                  const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+                                  const compareStartDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+                                  // Allow same date (>=) but disable dates before start date
+                                  return compareDate < compareStartDate
                                 }}
                                 initialFocus
                               />
@@ -3392,16 +3416,14 @@ export default function EventsCalendarPage() {
                       <div className="col-span-2">
                         <Label htmlFor="description">Description</Label>
                         <div className="mt-1">
-                          <Textarea
+                          <Input
                             id="description"
                             value={newEvent.description}
                             onChange={(e) => handleDescriptionChange(e.target.value)}
                             placeholder="Describe the event..."
                             className={cn(
-                              "resize-none",
                               descriptionError ? "border-red-500 focus-visible:ring-red-500" : ""
                             )}
-                            rows={3}
                             maxLength={250}
                           />
                           <div className="flex justify-between items-center mt-1">
@@ -3456,6 +3478,7 @@ export default function EventsCalendarPage() {
                           onChange={(e) => setNewEvent((prev) => ({ ...prev, name: e.target.value }))}
                           placeholder="Enter event name"
                           className="mt-1"
+                          maxLength={35}
                         />
                       </div>
 
@@ -3518,18 +3541,7 @@ export default function EventsCalendarPage() {
                                   <span>Social</span>
                                 </div>
                               </SelectItem>
-                              <SelectItem 
-                                value="holidays"
-                                className={cn(
-                                  "flex items-center gap-2 cursor-pointer pl-3 [&>span:first-child]:hidden",
-                                  newEvent.category === "holidays" ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
-                                )}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <Sparkles className="h-4 w-4" />
-                                  <span>Holidays</span>
-                                </div>
-                              </SelectItem>
+
                             </SelectContent>
                           </Select>
                         </div>
@@ -3562,7 +3574,14 @@ export default function EventsCalendarPage() {
                                 onSelect={(date) => {
                                   if (date) {
                                     const formattedDate = format(date, "yyyy-MM-dd")
-                                    setNewEvent((prev) => ({ ...prev, startDate: formattedDate }))
+                                    setNewEvent((prev) => {
+                                      const newState = { ...prev, startDate: formattedDate }
+                                      // Clear end date only if it's before the new start date (not equal)
+                                      if (prev.endDate && new Date(prev.endDate) < date) {
+                                        newState.endDate = ""
+                                      }
+                                      return newState
+                                    })
                                   }
                                 }}
                                 initialFocus
@@ -3596,11 +3615,21 @@ export default function EventsCalendarPage() {
                               <Calendar
                                 mode="single"
                                 selected={newEvent.endDate ? new Date(newEvent.endDate) : undefined}
+                                defaultMonth={newEvent.startDate ? new Date(newEvent.startDate) : undefined}
                                 onSelect={(date) => {
                                   if (date) {
                                     const formattedDate = format(date, "yyyy-MM-dd")
                                     setNewEvent((prev) => ({ ...prev, endDate: formattedDate }))
                                   }
+                                }}
+                                disabled={(date) => {
+                                  if (!newEvent.startDate) return false
+                                  const startDate = new Date(newEvent.startDate)
+                                  // Normalize dates to compare only date part (not time)
+                                  const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+                                  const compareStartDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+                                  // Allow same date (>=) but disable dates before start date
+                                  return compareDate < compareStartDate
                                 }}
                                 initialFocus
                               />
@@ -3676,16 +3705,14 @@ export default function EventsCalendarPage() {
                       <div className="col-span-2">
                         <Label htmlFor="edit-description">Description</Label>
                         <div className="mt-1">
-                          <Textarea
+                          <Input
                             id="edit-description"
                             value={newEvent.description}
                             onChange={(e) => handleDescriptionChange(e.target.value)}
                             placeholder="Describe the event..."
                             className={cn(
-                              "resize-none",
                               descriptionError ? "border-red-500 focus-visible:ring-red-500" : ""
                             )}
-                            rows={3}
                             maxLength={250}
                           />
                           <div className="flex justify-between items-center mt-1">
@@ -3728,7 +3755,7 @@ export default function EventsCalendarPage() {
       {/* Main Content */}
       <div className="px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8">
         {/* Legend and View Toggle - No Container */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 xl:px-0 px-[5%]">
           {/* Legend Items - Clickable toggles */}
           <div className="flex items-center gap-2">
             <button
@@ -3760,22 +3787,7 @@ export default function EventsCalendarPage() {
                 enabledEventTypes.holidays ? "text-muted-foreground" : "text-muted-foreground/60"
               )}>Holidays</span>
             </button>
-            <button
-              onClick={() => toggleEventType('suggested')}
-              className={cn(
-                "flex items-center gap-2 px-3 py-1 rounded-md transition-all duration-200 hover:text-foreground",
-                enabledEventTypes.suggested ? "opacity-100" : "opacity-60"
-              )}
-            >
-              <div className={cn(
-                "w-3 h-3 rounded-full transition-all duration-200",
-                enabledEventTypes.suggested ? "bg-blue-500" : "bg-gray-400"
-              )}></div>
-              <span className={cn(
-                "text-sm transition-all duration-200",
-                enabledEventTypes.suggested ? "text-muted-foreground" : "text-muted-foreground/60"
-              )}>Suggested</span>
-            </button>
+
           </div>
           
           {/* View Toggle - Right Aligned */}
@@ -3826,7 +3838,7 @@ export default function EventsCalendarPage() {
           </TooltipProvider>
         </div>
         {isLoading ? (
-          <Card className="overflow-hidden shadow-lg">
+          <Card className="overflow-hidden shadow-lg xl:w-full w-[90%] mx-auto">
             {/* Loading Header */}
             <div className="grid grid-cols-7 border-b border-border bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
@@ -3852,7 +3864,7 @@ export default function EventsCalendarPage() {
             </div>
           </Card>
         ) : viewMode === "calendar" ? (
-          <Card className="overflow-hidden shadow-lg">
+          <Card className="overflow-hidden shadow-lg xl:w-full w-[90%] mx-auto">
             {/* Calendar Header */}
             <div className="grid grid-cols-7 border-b border-border bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => (
@@ -3902,21 +3914,21 @@ export default function EventsCalendarPage() {
                 >
                   <div className="flex items-center gap-4">
 
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-foreground">{event.name}</h3>
-                        {(event.status === "bookmarked" || event.status === "suggested") && <Star className="h-4 w-4 fill-current text-green-600" />}
-                        {event.type === "holiday" && <Sparkles className="h-4 w-4 text-purple-600" />}
+                    <div className="text-left">
+                      <div>
+                        <h3 className="font-semibold text-foreground leading-snug text-left">
+                          {event.name}
+                          {(event.status === "bookmarked" || event.status === "suggested") && <Star className="h-4 w-4 fill-current text-green-600 inline ml-1" />}
+                          {event.type === "holiday" && <Sparkles className="h-4 w-4 text-purple-600 inline ml-1" />}
+                        </h3>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1 text-left">
                         <div className="flex items-center gap-0.5">
                           <Clock className="h-3 w-3" />
                           {event.startDate === event.endDate ? formatSingleDate(event.startDate) : formatDateRange(event.startDate, event.endDate)}
                         </div>
-
                       </div>
-                      <p className="text-sm text-muted-foreground mt-2">{event.description}</p>
+                      <p className="text-sm text-muted-foreground mt-2 text-left">{event.description}</p>
                     </div>
                   </div>
 
@@ -3924,18 +3936,23 @@ export default function EventsCalendarPage() {
                     <Badge className={cn("border", getStatusColor(event.status))}>
                       {event.status === "available" ? "Available" : event.status}
                     </Badge>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        toggleBookmark(event.id)
-                      }}
-                    >
-                      <BookmarkIcon
-                        className={cn("h-4 w-4", (event.status === "bookmarked" || event.status === "suggested") ? "fill-current text-green-600" : "")}
-                      />
-                    </Button>
+                    <div className="relative group">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleBookmark(event.id)
+                        }}
+                      >
+                        <BookmarkIcon
+                          className={cn("h-4 w-4", (event.status === "bookmarked" || event.status === "suggested") ? "fill-current text-green-600" : "")}
+                        />
+                      </Button>
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                        {(event.status === "bookmarked" || event.status === "suggested") ? "Remove Bookmark" : "Bookmark Event"}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -3963,63 +3980,26 @@ export default function EventsCalendarPage() {
         <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">{selectedEvent.flag}</span>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      {selectedEvent.name}
-                      {selectedEvent.status === "bookmarked" && <Star className="h-5 w-5 fill-current text-green-600" />}
-                      {selectedEvent.type === "holiday" && <Sparkles className="h-5 w-5 text-purple-600" />}
-                    </div>
-                    <Badge className={cn("mt-1", getStatusColor(selectedEvent.status))}>
-                      {selectedEvent.status === "available" ? "Available" : selectedEvent.status}
-                    </Badge>
+              <DialogTitle className="text-left">
+                <div className="mb-3">
+                  <div className="leading-relaxed break-words">
+                    {selectedEvent.name}
+                    {selectedEvent.status === "bookmarked" && <Star className="h-5 w-5 fill-current text-green-600 inline ml-2" />}
+                    {selectedEvent.type === "holiday" && <Sparkles className="h-5 w-5 text-purple-600 inline ml-2" />}
                   </div>
                 </div>
-                
-                {/* Edit and Delete icons for custom events */}
-                {selectedEvent.isCustom && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        handleEditEvent(selectedEvent)
-                        setSelectedEvent(null)
-                      }}
-                      className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
-                      title="Edit Event"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        showDeleteConfirmation(selectedEvent.id)
-                        setSelectedEvent(null)
-                      }}
-                      className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
-                      title="Delete Event"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
+                <Badge className={cn(getStatusColor(selectedEvent.status))}>
+                  {selectedEvent.status === "available" ? "Available" : selectedEvent.status}
+                </Badge>
               </DialogTitle>
             </DialogHeader>
 
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-2 text-muted-foreground">
-                                      <CalendarIcon className="h-4 w-4" />
-                    <span>
-                      {formatDateRange(selectedEvent.startDate, selectedEvent.endDate)}
-                    </span>
+                  <CalendarIcon className="h-4 w-4" />
+                  {formatDateRange(selectedEvent.startDate, selectedEvent.endDate)}
                 </div>
-
-
 
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <AlertCircle className="h-4 w-4" />
@@ -4034,33 +4014,72 @@ export default function EventsCalendarPage() {
                 </div>
               )}
 
-              <div className="flex items-center justify-end pt-4 border-t">
-                {selectedEvent.status !== "available" ? (
-                  <Button
-                    variant={(selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") ? "default" : "outline"}
-                    onClick={() => toggleBookmark(selectedEvent.id)}
-                    className={cn(
-                      "px-4 gap-3",
-                      (selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested")
-                        ? "bg-green-600 hover:bg-green-700"
-                        : "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
-                    )}
-                  >
-                    <BookmarkIcon
-                      className={cn("h-4 w-4", (selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") && "fill-current")}
-                    />
-                    {(selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") ? "Remove Bookmark" : "Bookmark Event"}
-                  </Button>
+              <div className="flex items-center justify-between pt-4 border-t">
+                {/* Edit and Delete buttons for custom events */}
+                {selectedEvent.isCustom ? (
+                  <div className="flex items-center gap-2">
+                    <div className="relative group">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          handleEditEvent(selectedEvent)
+                          setSelectedEvent(null)
+                        }}
+                        className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                        Edit Event
+                      </div>
+                    </div>
+                    <div className="relative group">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => showDeleteConfirmation(selectedEvent.id)}
+                        className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                        Delete Event
+                      </div>
+                    </div>
+                  </div>
                 ) : (
-                  <Button
-                    variant="outline"
-                    onClick={() => toggleBookmark(selectedEvent.id)}
-                    className="px-4 gap-3 hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
-                  >
-                    <BookmarkIcon className="h-4 w-4" />
-                    Bookmark Event
-                  </Button>
+                  <div></div>
                 )}
+                
+                <div className="flex items-center gap-2">
+                  {selectedEvent.status !== "available" ? (
+                    <Button
+                      variant={(selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") ? "default" : "outline"}
+                      onClick={() => toggleBookmark(selectedEvent.id)}
+                      className={cn(
+                        "px-4 gap-3",
+                        (selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested")
+                          ? "bg-green-600 hover:bg-green-700"
+                          : "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
+                      )}
+                    >
+                      <BookmarkIcon
+                        className={cn("h-4 w-4", (selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") && "fill-current")}
+                      />
+                      {(selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") ? "Remove Bookmark" : "Bookmark Event"}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      onClick={() => toggleBookmark(selectedEvent.id)}
+                      className="px-4 gap-3 hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
+                    >
+                      <BookmarkIcon className="h-4 w-4" />
+                      Bookmark Event
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </DialogContent>

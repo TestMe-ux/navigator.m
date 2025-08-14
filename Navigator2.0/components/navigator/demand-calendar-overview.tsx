@@ -653,7 +653,7 @@ export function DemandCalendarOverview() {
                       )}
                       onClick={() => !day.isDisabled && handleDayClick(day)}
                     >
-                      <div className="flex items-center relative z-10" style={{ gap: '3px' }}>
+                      <div className="flex items-center relative z-0" style={{ gap: '3px' }}>
                         <span>{day.dayNumber}</span>
                         {day.hasEventIcon && !day.isDisabled && (
                           <Star className="w-3 h-3 text-amber-500 fill-amber-500" style={{ stroke: 'white', strokeWidth: '1px' }} />
@@ -667,7 +667,7 @@ export function DemandCalendarOverview() {
                       
                       {/* Enhanced Hover tooltip with demand and event details - only for enabled dates */}
                       {!day.isDisabled && (
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20 whitespace-nowrap">
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
                           <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                           <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
                           {day.hasEventIcon && (
@@ -746,7 +746,7 @@ export function DemandCalendarOverview() {
                       )}
                       onClick={() => !day.isDisabled && handleDayClick(day)}
                     >
-                      <div className="flex items-center relative z-10" style={{ gap: '3px' }}>
+                      <div className="flex items-center relative z-0" style={{ gap: '3px' }}>
                         <span>{day.dayNumber}</span>
                         {day.hasEventIcon && !day.isDisabled && (
                           <Star className="w-3 h-3 text-amber-500 fill-amber-500" style={{ stroke: 'white', strokeWidth: '1px' }} />
@@ -760,7 +760,7 @@ export function DemandCalendarOverview() {
                       
                       {/* Enhanced Hover tooltip with demand and event details - only for enabled dates */}
                       {!day.isDisabled && (
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20 whitespace-nowrap">
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
                           <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                           <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
                           {day.hasEventIcon && (
@@ -856,7 +856,7 @@ export function DemandCalendarOverview() {
                       )}
                       onClick={() => !day.isDisabled && handleDayClick(day)}
                     >
-                      <div className="flex items-center relative z-10" style={{ gap: '3px' }}>
+                      <div className="flex items-center relative z-0" style={{ gap: '3px' }}>
                         <span>{day.dayNumber}</span>
                         {day.hasEventIcon && !day.isDisabled && (
                           <Star className="w-3 h-3 text-amber-500 fill-amber-500" style={{ stroke: 'white', strokeWidth: '1px' }} />
@@ -870,7 +870,7 @@ export function DemandCalendarOverview() {
                       
                       {/* Enhanced Hover tooltip with demand and event details - only for enabled dates */}
                       {!day.isDisabled && (
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20 whitespace-nowrap">
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
                           <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                           <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
                           {day.hasEventIcon && (
