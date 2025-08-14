@@ -43,7 +43,7 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
   const myRateDatas = rateData?.pricePositioningEntites
     ?.find((x: any) => x.propertyType === 0)
     ?.subscriberPropertyRate || [];
-  const suffix = suffixMap[filter["Compare With"]] || "woW";
+  const suffix = suffixMap[filter] || "wow";
 
   return demandData?.optimaDemand.map((demandI: any, index: any) => {
 

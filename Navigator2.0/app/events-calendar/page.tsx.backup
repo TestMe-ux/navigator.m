@@ -48,36 +48,17 @@ import { Calendar } from "@/components/ui/calendar"
 
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { getAllEvents } from "@/lib/events"
 import { useDateContext } from "@/components/date-context"
-import { format, getDaysInMonth } from "date-fns"
+import { format } from "date-fns"
 
-// Helper functions for consistent date formatting
-const formatSingleDate = (dateString: string | Date) => {
+// Helper function to format dates consistently as "02 Aug '25"
+const formatEventDate = (dateString: string | Date) => {
   const date = typeof dateString === 'string' ? new Date(dateString) : dateString
   return format(date, "dd MMM ''yy")
-}
-
-const formatDateRange = (startDate: string | Date, endDate: string | Date) => {
-  const start = typeof startDate === 'string' ? new Date(startDate) : startDate
-  const end = typeof endDate === 'string' ? new Date(endDate) : endDate
-  
-  if (start.toDateString() === end.toDateString()) {
-    return formatSingleDate(start)
-  }
-  
-  const startFormatted = format(start, "dd MMM")
-  const endFormatted = format(end, "dd MMM ''yy")
-  return `${startFormatted} – ${endFormatted}`
-}
-
-const formatListHeader = (dateString: string) => {
-  const date = new Date(dateString)
-  return format(date, "EEEE, d MMM yyyy")
 }
 
 interface Event {
@@ -104,98 +85,36 @@ const CUSTOM_EVENTS_KEY = 'events-calendar-custom-events'
 // Function to save custom events to localStorage
 const saveCustomEventsToStorage = (customEvents: Event[]) => {
   try {
-    // Ensure we only save custom events with proper timestamps
-    const eventsWithTimestamp = customEvents.filter(event => event.isCustom).map(event => ({
+    const eventsWithTimestamp = customEvents.map(event => ({
       ...event,
       createdAt: event.createdAt || Date.now()
     }))
-    
-    const dataToSave = JSON.stringify(eventsWithTimestamp)
-    localStorage.setItem(CUSTOM_EVENTS_KEY, dataToSave)
-    console.log(`💾 Saved ${eventsWithTimestamp.length} custom events to localStorage`)
-    
-    // Verify the save was successful
-    const verification = localStorage.getItem(CUSTOM_EVENTS_KEY)
-    if (!verification) {
-      throw new Error('Failed to verify localStorage save')
-    }
+    localStorage.setItem(CUSTOM_EVENTS_KEY, JSON.stringify(eventsWithTimestamp))
   } catch (error) {
     console.error('Failed to save custom events to localStorage:', error)
-    // Try to notify user if localStorage is not available
-    if (error instanceof DOMException && error.code === 22) {
-      console.warn('localStorage quota exceeded or disabled')
-    }
   }
 }
 
 // Function to load custom events from localStorage
 const loadCustomEventsFromStorage = (): Event[] => {
   try {
-    // Check if localStorage is available
-    if (typeof localStorage === 'undefined') {
-      console.warn('localStorage is not available')
-      return []
-    }
-    
     const stored = localStorage.getItem(CUSTOM_EVENTS_KEY)
-    if (!stored || stored === 'null' || stored === 'undefined') {
-      console.log('📂 No custom events found in localStorage')
-      return []
-    }
+    if (!stored) return []
     
-    let events: (Event & { createdAt: number })[]
-    try {
-      events = JSON.parse(stored)
-    } catch (parseError) {
-      console.error('Failed to parse stored events, clearing localStorage:', parseError)
-      localStorage.removeItem(CUSTOM_EVENTS_KEY)
-      return []
-    }
-    
-    // Ensure events is an array
-    if (!Array.isArray(events)) {
-      console.error('Stored events is not an array, clearing localStorage')
-      localStorage.removeItem(CUSTOM_EVENTS_KEY)
-      return []
-    }
-    
+    const events = JSON.parse(stored) as (Event & { createdAt: number })[]
     const threeDaysAgo = Date.now() - (3 * 24 * 60 * 60 * 1000) // 3 days in milliseconds
     
-    // Filter out events older than 3 days and ensure they have required properties
-    const validEvents = events.filter(event => {
-      // Check if event has required properties
-      if (!event.id || !event.name || !event.isCustom) {
-        console.warn('Invalid event found, skipping:', event)
-        return false
-      }
-      
-      // Check if event is within 3-day window
-      const createdAt = event.createdAt || 0
-      return createdAt > threeDaysAgo
-    })
-    
-    const expiredCount = events.length - validEvents.length
+    // Filter out events older than 3 days
+    const validEvents = events.filter(event => event.createdAt > threeDaysAgo)
     
     // Save back the filtered events to clean up expired ones
     if (validEvents.length !== events.length) {
-      try {
-        localStorage.setItem(CUSTOM_EVENTS_KEY, JSON.stringify(validEvents))
-        console.log(`🗑️ Cleaned up ${expiredCount} expired events (older than 3 days)`)
-      } catch (saveError) {
-        console.error('Failed to save cleaned events:', saveError)
-      }
+      localStorage.setItem(CUSTOM_EVENTS_KEY, JSON.stringify(validEvents))
     }
     
-    console.log(`📂 Loaded ${validEvents.length} custom events from localStorage`)
     return validEvents
   } catch (error) {
     console.error('Failed to load custom events from localStorage:', error)
-    // Clear corrupted data
-    try {
-      localStorage.removeItem(CUSTOM_EVENTS_KEY)
-    } catch (clearError) {
-      console.error('Failed to clear corrupted localStorage data:', clearError)
-    }
     return []
   }
 }
@@ -1137,7 +1056,7 @@ const sampleEvents: Event[] = [
 
 
 
-// Custom Event Tooltip Component with Today's New Logic
+// Custom Event Tooltip Component
 const EventTooltip = ({ children, event, isVisible, day, currentDate }: { 
   children: React.ReactNode; 
   event: Event; 
@@ -1145,50 +1064,18 @@ const EventTooltip = ({ children, event, isVisible, day, currentDate }: {
   day: number;
   currentDate: Date;
 }) => {
-  // Call Today's New Logic - Enhanced date detection and special handling
-  const callTodaysNewLogic = () => {
-    const today = new Date()
-    const eventDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
-    
-    // Normalize dates for accurate comparison
-    const todayNormalized = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-    const eventDateNormalized = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate())
-    
-    const isToday = todayNormalized.getTime() === eventDateNormalized.getTime()
-    const isPast = eventDateNormalized < todayNormalized
-    const isFuture = eventDateNormalized > todayNormalized
-    
-    return {
-      isToday,
-      isPast,
-      isFuture,
-      daysDifference: Math.ceil((eventDateNormalized.getTime() - todayNormalized.getTime()) / (1000 * 60 * 60 * 24))
-    }
-  }
-
-  const { isToday, isPast, isFuture, daysDifference } = callTodaysNewLogic()
-
-  // Calculate adaptive width based on event name length and today's logic
+  // Calculate adaptive width based on event name length
   const getTooltipWidth = () => {
     const nameLength = event.name.length
-    // Wider tooltips for today's events for better visibility
-    if (isToday) {
-      if (nameLength <= 15) return "w-56"      // 224px for today's short names
-      if (nameLength <= 25) return "w-72"      // 288px for today's medium names  
-      if (nameLength <= 35) return "w-80"      // 320px for today's long names
-      return "w-96"                            // 384px for today's very long names
-    }
-    
-    // Standard width for other days
     if (nameLength <= 15) return "w-48"      // 192px for short names
     if (nameLength <= 25) return "w-64"      // 256px for medium names  
     if (nameLength <= 35) return "w-80"      // 320px for long names
     return "w-96"                            // 384px for very long names
   }
 
-  // Get calendar date with today's logic styling
+  // Get calendar date (event start date)
   const getCalendarDate = () => {
-    return formatSingleDate(event.startDate)
+    return formatEventDate(event.startDate)
   }
 
   // Format date range for multi-day events only
@@ -1198,87 +1085,43 @@ const EventTooltip = ({ children, event, isVisible, day, currentDate }: {
       return ""
     } else {
       // Multi-day event - show range
-      return formatDateRange(event.startDate, event.endDate)
+      const startFormatted = formatEventDate(event.startDate)
+      const endFormatted = formatEventDate(event.endDate)
+      return `${startFormatted} - ${endFormatted}`
     }
   }
 
-  // Enhanced tooltip position calculation with viewport awareness and overlap prevention
+  // Determine tooltip position based on calendar cell location
   const getTooltipPosition = () => {
     const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
     const dayOfWeek = firstDayOfMonth.getDay() // 0 = Sunday, 6 = Saturday
     const currentDayOfWeek = (dayOfWeek + day - 1) % 7
     const weekNumber = Math.floor((dayOfWeek + day - 1) / 7)
-    const totalWeeks = Math.ceil((getDaysInMonth(currentDate) + firstDayOfMonth.getDay()) / 7)
     
-    // Enhanced edge detection
+    // Determine position
     const isLeftEdge = currentDayOfWeek === 0 || currentDayOfWeek === 1 // Sunday or Monday
     const isRightEdge = currentDayOfWeek === 5 || currentDayOfWeek === 6 // Friday or Saturday  
     const isTopRow = weekNumber === 0 // First week
-    const isBottomRow = weekNumber >= totalWeeks - 1 // Last week
-    const isMiddleDay = currentDayOfWeek >= 2 && currentDayOfWeek <= 4 // Tuesday to Thursday
     
-    // Viewport boundary awareness - check available space
-    const getViewportAwarePosition = () => {
-      // Priority positioning to prevent overlaps
-      // Today's events get priority positioning with extra space
-      if (isToday) {
-        // For today's events, prioritize edge positioning for first/last week
-        if (isLeftEdge && !isRightEdge) return 'right' // Right for left edge if not also right edge
-        if (isRightEdge && !isLeftEdge) return 'left'  // Left for right edge if not also left edge
-        if (isTopRow && !isBottomRow) return 'bottom' // Prefer bottom for today if not in last row
-        if (isBottomRow && !isTopRow) return 'top'   // Prefer top for today if not in first row
-        if (isMiddleDay) return 'top'                  // Top for middle days to avoid horizontal overlap
-        return 'bottom'                                // Default bottom for today
-      }
-      
-      // Smart positioning for upcoming events (within 7 days)
-      if (isFuture && daysDifference <= 7) {
-        // Give upcoming events better positioning, prioritize edge positioning
-        if (isLeftEdge) return 'right'
-        if (isRightEdge) return 'left'
-        if (isTopRow) return 'bottom'
-        if (isBottomRow) return 'top'
-        return 'top' // Prefer top for upcoming events
-      }
-      
-      // Standard positioning for other days - prioritize edge positioning for consistency
-      if (isLeftEdge) return 'right'
-      if (isRightEdge) return 'left'
-      if (isTopRow) return 'bottom'
-      if (isBottomRow) return 'top'
-      return 'top' // Default position
-    }
-    
-    return getViewportAwarePosition()
+    if (isTopRow) return 'bottom'
+    if (isLeftEdge) return 'right'
+    if (isRightEdge) return 'left'
+    return 'top' // Default position
   }
 
   const position = getTooltipPosition()
 
-  // Enhanced position classes with better spacing and overlap prevention
   const getPositionClasses = () => {
-    const baseSpacing = isToday ? 3 : 2 // More spacing for today's tooltips
-    const zIndex = isToday ? 'z-[70]' : 'z-[60]' // Higher z-index for today's tooltips
-    
     switch (position) {
       case 'bottom':
-        return `top-full left-1/2 transform -translate-x-1/2 mt-${baseSpacing} ${zIndex}`
+        return "top-full left-1/2 transform -translate-x-1/2 mt-2"
       case 'left':
-        return `right-full top-1/2 transform -translate-y-1/2 mr-${baseSpacing} ${zIndex}`
+        return "right-full top-1/2 transform -translate-y-1/2 mr-2"
       case 'right':
-        return `left-full top-1/2 transform -translate-y-1/2 ml-${baseSpacing} ${zIndex}`
+        return "left-full top-1/2 transform -translate-y-1/2 ml-2"
       default: // 'top'
-        return `bottom-full left-1/2 transform -translate-x-1/2 mb-${baseSpacing} ${zIndex}`
+        return "bottom-full left-1/2 transform -translate-x-1/2 mb-2"
     }
-  }
-
-  // Get tooltip container z-index for proper layering
-  const getTooltipZIndex = () => {
-    // Today's tooltips get highest priority
-    if (isToday) return 'z-[80]'
-    // Future events within a week get medium priority  
-    if (isFuture && daysDifference <= 7) return 'z-[65]'
-    // All other tooltips get base priority
-    return 'z-[60]'
   }
 
   const getArrowClasses = () => {
@@ -1294,20 +1137,14 @@ const EventTooltip = ({ children, event, isVisible, day, currentDate }: {
     }
   }
 
-  // Background styling for all events (consistent)
-  const getTooltipBgClasses = () => {
-    return "bg-slate-900 border border-slate-700"
-  }
-
   return (
     <div className="relative inline-block w-full">
       {children}
       {isVisible && (
         <div className={cn(
-          "absolute pt-3 pb-3 pl-3 pr-3 text-white rounded-lg shadow-xl pointer-events-none",
+          "absolute z-50 pt-3 pb-3 pl-3 pr-0 bg-slate-900 text-white rounded-lg shadow-xl border border-slate-700 pointer-events-none",
           getTooltipWidth(),
-          getPositionClasses(),
-          getTooltipBgClasses()
+          getPositionClasses()
         )}>
           {/* Arrow */}
           <div className={getArrowClasses()}></div>
@@ -1315,17 +1152,15 @@ const EventTooltip = ({ children, event, isVisible, day, currentDate }: {
           {/* Tooltip Content */}
           <div className="space-y-2">
             {/* Calendar Date at Top */}
-            <div className="text-sm font-medium mb-1 text-white">
+            <div className="text-sm font-medium text-white mb-1">
               {getCalendarDate()}
             </div>
             
-
-            
             {/* Event Details */}
-            <div className="pt-2 border-t border-gray-600">
+            <div className="border-t border-gray-600 pt-2">
               <div className="flex items-center gap-2 mb-1">
                 <Star className="h-3 w-3 text-yellow-400" />
-                <span className="text-sm font-medium text-yellow-400 truncate" title={event.name}>{event.name}</span>
+                <span className="text-sm font-medium text-yellow-400">{event.name}</span>
               </div>
               
               {/* Date Range (only for multi-day events) */}
@@ -1338,10 +1173,6 @@ const EventTooltip = ({ children, event, isVisible, day, currentDate }: {
               <div className="text-xs text-gray-300">
                 {event.category.charAt(0).toUpperCase() + event.category.slice(1)} Event
               </div>
-              
-
-              
-
             </div>
           </div>
         </div>
@@ -1352,14 +1183,7 @@ const EventTooltip = ({ children, event, isVisible, day, currentDate }: {
 
 export default function EventsCalendarPage() {
   const { startDate, endDate } = useDateContext()
-  
-  // Initialize calendar to show current month (today's logic)
-  const [currentDate, setCurrentDate] = useState(() => {
-    const today = new Date()
-    // Check if we should show August 2025 (which has sample events) or current month
-    const isCurrentMonthInFuture = today < new Date(2025, 7, 1)
-    return isCurrentMonthInFuture ? new Date(2025, 7, 1) : today
-  })
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 7, 1)) // August 2025 - has events
   const [events, setEvents] = useState<Event[]>([])
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([])
   const [isAddEventOpen, setIsAddEventOpen] = useState(false)
@@ -1368,9 +1192,10 @@ export default function EventsCalendarPage() {
   const [isDayViewOpen, setIsDayViewOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
+  const [searchQuery, setSearchQuery] = useState("")
   const [bookmarkSearchQuery, setBookmarkSearchQuery] = useState("")
   const [bookmarkCategoryFilter, setBookmarkCategoryFilter] = useState<string[]>(["all", "conference", "tradeshow", "workshop", "social", "holidays"])
-  const [bookmarkTypeFilter, setBookmarkTypeFilter] = useState<string[]>(["all", "bookmarked", "holidays", "suggested", "available"])
+  const [bookmarkTypeFilter, setBookmarkTypeFilter] = useState<string[]>(["all", "bookmarked", "holidays", "suggested"])
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [hoveredEvent, setHoveredEvent] = useState<string | null>(null)
   const [tooltipPosition, setTooltipPosition] = useState<{x: number, y: number}>({x: 0, y: 0})
@@ -1387,20 +1212,14 @@ export default function EventsCalendarPage() {
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar")
   const [isLoading, setIsLoading] = useState(false)
   const [apiEvents, setApiEvents] = useState<any[]>([])
-  const [loadingProgress, setLoadingProgress] = useState(0)
-  const [loadingCycle, setLoadingCycle] = useState(1)
 
   // Country dropdown state
   const [isCountryOpen, setIsCountryOpen] = useState(false)
   const [selectedCountry, setSelectedCountry] = useState("United States")
-  const [countrySearchQuery, setCountrySearchQuery] = useState("")
-  const [isCountrySearchFocused, setIsCountrySearchFocused] = useState(false)
   
   // City dropdown state
   const [isCityOpen, setIsCityOpen] = useState(false)
   const [selectedCity, setSelectedCity] = useState("New York")
-  const [citySearchQuery, setCitySearchQuery] = useState("")
-  const [isCitySearchFocused, setIsCitySearchFocused] = useState(false)
 
   // Category dropdown state
   const [isCategoryOpen, setIsCategoryOpen] = useState(false)
@@ -1419,90 +1238,10 @@ export default function EventsCalendarPage() {
 
   // Initialize events with sample events and stored custom events
   useEffect(() => {
-    const initializeEvents = () => {
-      try {
-        const storedCustomEvents = loadCustomEventsFromStorage()
-        const combinedEvents = [...sampleEvents, ...storedCustomEvents]
-        setEvents(combinedEvents)
-        console.log(`🚀 Initialized with ${sampleEvents.length} sample events and ${storedCustomEvents.length} custom events`)
-      } catch (error) {
-        console.error('Failed to initialize events:', error)
-        // Fallback to just sample events
-        setEvents(sampleEvents)
-      }
-    }
-    
-    // Initialize immediately
-    initializeEvents()
-    
-    // Also try to reload after a short delay in case of timing issues
-    const timeoutId = setTimeout(() => {
-      const storedCustomEvents = loadCustomEventsFromStorage()
-      
-      if (storedCustomEvents.length > 0) {
-        setEvents(prev => {
-          const currentCustomCount = prev.filter(e => e.isCustom).length
-          
-          if (currentCustomCount !== storedCustomEvents.length) {
-            console.log('🔄 Reloading events due to count mismatch')
-            return [...sampleEvents, ...storedCustomEvents]
-          }
-          return prev
-        })
-      }
-    }, 500)
-    
-    return () => clearTimeout(timeoutId)
+    const storedCustomEvents = loadCustomEventsFromStorage()
+    const combinedEvents = [...sampleEvents, ...storedCustomEvents]
+    setEvents(combinedEvents)
   }, [])
-
-  // Simulate data loading with progress tracking (only on first load)
-  useEffect(() => {
-    // Only show loading for initial load, not every re-render
-    if (events.length > 0) return;
-    
-    const simulateLoading = () => {
-      setIsLoading(true)
-      setLoadingProgress(0)
-      
-      // Progress interval
-      const progressInterval = setInterval(() => {
-        setLoadingProgress((prev) => {
-          const increment = Math.floor(Math.random() * 9) + 3 // 3-11% increment
-          const newProgress = prev + increment
-          
-          if (newProgress >= 100) {
-            setLoadingCycle(prevCycle => prevCycle + 1)
-            return 0
-          }
-          
-          return newProgress
-        })
-      }, 80)
-      
-      // Simulate API call completion after 1-2 seconds (shorter for better UX)
-      const loadingTimeout = setTimeout(() => {
-        clearInterval(progressInterval)
-        setLoadingProgress(100)
-        
-        // Show completion for 300ms before hiding
-        setTimeout(() => {
-          setIsLoading(false)
-          setLoadingProgress(0)
-        }, 300)
-      }, 2000) // 2 seconds
-      
-      return () => {
-        clearInterval(progressInterval)
-        clearTimeout(loadingTimeout)
-      }
-    }
-    
-    // Only trigger loading on component mount when there are no events
-    const cleanup = simulateLoading()
-    return cleanup
-  }, [])
-
-
 
   // Category options
   const categoryData = [
@@ -1620,39 +1359,29 @@ export default function EventsCalendarPage() {
 
   const [enabledEventTypes, setEnabledEventTypes] = useState<{
     bookmarked: boolean;
+    suggested: boolean;
     holidays: boolean;
     conferences: boolean;
     social: boolean;
   }>({
-    bookmarked: true,
+    bookmarked: true, // This now includes suggested events by default
+    suggested: true, // Enabled by default to show suggested events
     holidays: true,
     conferences: true, // For business conferences
     social: true, // For social events
   })
 
-  const toggleEventType = (type: 'bookmarked' | 'holidays' | 'conferences' | 'social') => {
+  const toggleEventType = (type: 'bookmarked' | 'suggested' | 'holidays' | 'conferences' | 'social') => {
     setEnabledEventTypes(prev => ({
       ...prev,
       [type]: !prev[type]
     }))
   }
 
-  // Filter country options based on search query
-  const filteredCountryOptions = countryOptions.filter(option =>
-    option.label.toLowerCase().includes(countrySearchQuery.toLowerCase())
-  )
-
-  // Filter city options based on search query
-  const filteredCityOptions = cityOptions[selectedCountry as keyof typeof cityOptions]?.filter(option =>
-    option.label.toLowerCase().includes(citySearchQuery.toLowerCase())
-  ) || []
-
   // Handle country selection
   const handleCountrySelect = useCallback((country: string) => {
     setSelectedCountry(country)
     setIsCountryOpen(false)
-    setCountrySearchQuery("") // Clear search when selecting
-    setIsCountrySearchFocused(false) // Clear focus state
     
     // Auto-select first city of the new country
     const cities = cityOptions[country as keyof typeof cityOptions]
@@ -1667,8 +1396,6 @@ export default function EventsCalendarPage() {
   const handleCitySelect = useCallback((city: string) => {
     setSelectedCity(city)
     setIsCityOpen(false)
-    setCitySearchQuery("") // Clear search when selecting
-    setIsCitySearchFocused(false) // Clear focus state
     console.log(`🏙️ City changed: ${city}`)
   }, [])
 
@@ -1724,7 +1451,7 @@ export default function EventsCalendarPage() {
     name: "",
     startDate: "",
     endDate: "",
-    category: "conference" as "conference" | "tradeshow" | "workshop" | "social",
+    category: "conference" as "conference" | "tradeshow" | "workshop" | "social" | "holidays",
     country: "",
     city: "",
     description: "",
@@ -1907,17 +1634,54 @@ export default function EventsCalendarPage() {
   // Filter events based on current view and enabled event types
   useEffect(() => {
     let filtered = events.filter((event) => {
+      // Search filter
+      if (searchQuery.trim() !== "") {
+        const query = searchQuery.toLowerCase()
+        const matchesSearch = 
+          event.name.toLowerCase().includes(query) ||
+          event.description.toLowerCase().includes(query) ||
+          event.location.toLowerCase().includes(query) ||
+          event.country?.toLowerCase().includes(query)
+        
+        if (!matchesSearch) return false
+      }
+
+      // Category filter
+      if (!selectedCategories.includes("All")) {
+        const categoryMatch = selectedCategories.some(category => {
+          const categoryLower = category.toLowerCase()
+          return event.type.toLowerCase() === categoryLower || 
+                 (categoryLower === "trade shows" && event.type.toLowerCase() === "tradeshow") ||
+                 (categoryLower === "workshop" && event.type.toLowerCase() === "workshop") ||
+                 (categoryLower === "social" && event.type.toLowerCase() === "social") ||
+                 (categoryLower === "holidays" && event.type.toLowerCase() === "holiday") ||
+                 (categoryLower === "conference" && event.type.toLowerCase() === "conference")
+        })
+        if (!categoryMatch) return false
+      }
+
+      // Country filter
+      if (selectedCountry !== "All Countries" && event.country !== selectedCountry) {
+        return false
+      }
+
+      // City filter  
+      if (selectedCity !== "All Cities" && !event.location.includes(selectedCity)) {
+        return false
+      }
+      
       // Check each event type independently and only show if enabled
       
-      // Status-based filtering (bookmarked)
+      // Status-based filtering (bookmarked/suggested)
       if (event.status === "bookmarked" && enabledEventTypes.bookmarked) return true
+      if (event.status === "suggested" && enabledEventTypes.suggested) return true
       
       // Type-based filtering (holidays)  
       if (event.type === "holiday" && enabledEventTypes.holidays) return true
       
       // For other events, show them by default for now (since we don't have legend buttons for them yet)
       // But we need to make sure they don't conflict with status-based filtering
-      if (event.status !== "bookmarked" && event.type !== "holiday") {
+      if (event.status !== "bookmarked" && event.status !== "suggested" && event.type !== "holiday") {
         return true // Show other events by default
       }
       
@@ -1925,24 +1689,26 @@ export default function EventsCalendarPage() {
     })
 
     setFilteredEvents(filtered)
-  }, [events, enabledEventTypes])
+  }, [events, enabledEventTypes, searchQuery, selectedCategories, selectedCountry, selectedCity])
 
   const monthNames = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
+    "January",
+    "February",
+    "March",
+    "April",
     "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
   ]
 
-
+  const getDaysInMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+  }
 
   const getFirstDayOfMonth = (date: Date) => {
     const firstDay = new Date(date.getFullYear(), date.getMonth(), 1).getDay()
@@ -1959,28 +1725,6 @@ export default function EventsCalendarPage() {
       }
       return newDate
     })
-  }
-
-  // Navigate to today's month - call today's new logic
-  const navigateToToday = () => {
-    const today = new Date()
-    setCurrentDate(new Date(today.getFullYear(), today.getMonth(), 1))
-    
-    // Flash effect to highlight today's action
-    const todayElement = document.querySelector(`[data-today="true"]`)
-    if (todayElement) {
-      todayElement.classList.add('animate-pulse')
-      setTimeout(() => {
-        todayElement.classList.remove('animate-pulse')
-      }, 2000)
-    }
-  }
-
-  // Check if current view is showing today's month
-  const isViewingTodaysMonth = () => {
-    const today = new Date()
-    return currentDate.getFullYear() === today.getFullYear() && 
-           currentDate.getMonth() === today.getMonth()
   }
 
   const handleAddEvent = () => {
@@ -2026,22 +1770,16 @@ export default function EventsCalendarPage() {
   }
 
   const toggleBookmark = (eventId: string) => {
-    setEvents((prev) => {
-      const updatedEvents = prev.map((event) =>
+    setEvents((prev) =>
+      prev.map((event) =>
         event.id === eventId
           ? {
               ...event,
               status: (event.status === "bookmarked" || event.status === "suggested") ? "available" : "bookmarked",
             }
           : event,
-      )
-      
-      // Save only custom events to localStorage
-      const customEvents = updatedEvents.filter(e => e.isCustom)
-      saveCustomEventsToStorage(customEvents)
-      
-      return updatedEvents
-    })
+      ),
+    )
   }
 
   const getEventsForDate = useCallback((day: number) => {
@@ -2054,7 +1792,7 @@ export default function EventsCalendarPage() {
     })
   }, [currentDate, filteredEvents])
 
-  // Get events for calendar display - show events on all days from start to end date
+  // Get events for calendar display - multi-day events only show on start date
   const getEventsForCalendarDisplay = useCallback((day: number) => {
     const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
     return filteredEvents.filter((event) => {
@@ -2062,7 +1800,12 @@ export default function EventsCalendarPage() {
       const eventEnd = new Date(event.endDate + "T23:59:59")
       const checkDate = new Date(dateStr + "T12:00:00")
       
-      // Show events on all days from start to end date (inclusive)
+      // For multi-day events, only show on start date
+      if (isMultiDayEvent(event)) {
+        return checkDate.toDateString() === eventStart.toDateString()
+      }
+      
+      // For single-day events, show normally
       return checkDate >= eventStart && checkDate <= eventEnd
     })
   }, [currentDate, filteredEvents])
@@ -2099,13 +1842,13 @@ export default function EventsCalendarPage() {
   const getStatusColor = (status: Event["status"]) => {
     switch (status) {
       case "bookmarked":
-        return "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800 hover:bg-blue-400 hover:text-white hover:border-blue-400 dark:hover:bg-blue-400 dark:hover:text-white dark:hover:border-blue-400 transition-colors cursor-default"
+        return "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800 hover:bg-blue-500 hover:text-white hover:border-blue-500 dark:hover:bg-blue-500 dark:hover:text-white dark:hover:border-blue-500 transition-colors cursor-pointer"
       case "suggested":
-        return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800 hover:bg-blue-400 hover:text-white hover:border-blue-400 dark:hover:bg-blue-400 dark:hover:text-white dark:hover:border-blue-400 transition-colors cursor-default"
+        return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800 hover:bg-blue-500 hover:text-white hover:border-blue-500 dark:hover:bg-blue-500 dark:hover:text-white dark:hover:border-blue-500 transition-colors cursor-pointer"
       case "available":
-        return "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-950 dark:text-gray-300 dark:border-gray-800 hover:bg-blue-400 hover:text-white hover:border-blue-400 dark:hover:bg-blue-400 dark:hover:text-white dark:hover:border-blue-400 transition-colors cursor-default"
+        return "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-950 dark:text-gray-300 dark:border-gray-800 hover:bg-blue-500 hover:text-white hover:border-blue-500 dark:hover:bg-blue-500 dark:hover:text-white dark:hover:border-blue-500 transition-colors cursor-pointer"
       default:
-        return "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-950 dark:text-gray-300 dark:border-gray-800 hover:bg-blue-400 hover:text-white hover:border-blue-400 dark:hover:bg-blue-400 dark:hover:text-white dark:hover:border-blue-400 transition-colors cursor-default"
+        return "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-950 dark:text-gray-300 dark:border-gray-800 hover:bg-blue-500 hover:text-white hover:border-blue-500 dark:hover:bg-blue-500 dark:hover:text-white dark:hover:border-blue-500 transition-colors cursor-pointer"
     }
   }
 
@@ -2200,7 +1943,7 @@ export default function EventsCalendarPage() {
     if (!bookmarkTypeFilter.includes("all")) {
       filtered = filtered.filter((event) => {
         return bookmarkTypeFilter.some(type => {
-          if (type === "bookmarked" || type === "suggested" || type === "available") {
+          if (type === "bookmarked" || type === "suggested") {
             return event.status === type
           } else {
             return event.type === type
@@ -2272,7 +2015,7 @@ export default function EventsCalendarPage() {
         if (prev.includes("all")) {
           return [] // Unselect all
         } else {
-          return ["all", "bookmarked", "holidays", "suggested", "available"] // Select all
+          return ["all", "bookmarked", "holidays", "suggested"] // Select all
         }
       }
       
@@ -2288,7 +2031,7 @@ export default function EventsCalendarPage() {
         newSelection = [...newSelection, type]
         
         // If all individual types are now selected, add "all"
-        if (newSelection.length === 4) {
+        if (newSelection.length === 3) {
           newSelection = ["all", ...newSelection]
         }
       }
@@ -2299,7 +2042,7 @@ export default function EventsCalendarPage() {
 
   // Get display text for bookmark type filter
   const getBookmarkTypeDisplayText = () => {
-    if (bookmarkTypeFilter.includes("all") || bookmarkTypeFilter.length === 4) {
+    if (bookmarkTypeFilter.includes("all") || bookmarkTypeFilter.length === 3) {
       return "All Events"
     }
     if (bookmarkTypeFilter.length === 1) {
@@ -2307,7 +2050,6 @@ export default function EventsCalendarPage() {
       if (type === "bookmarked") return "Bookmarked"
       if (type === "holidays") return "Holidays"
       if (type === "suggested") return "Suggested"
-      if (type === "available") return "Available"
       return type.charAt(0).toUpperCase() + type.slice(1)
     }
     return `${bookmarkTypeFilter.length} Types`
@@ -2323,7 +2065,7 @@ export default function EventsCalendarPage() {
 
     // Empty cells for days before the first day of the month
     for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="h-[89px] sm:h-[110px] border border-border/30 bg-muted/30"></div>)
+      days.push(<div key={`empty-${i}`} className="h-[80px] sm:h-[100px] md:h-[120px] border border-border/30 bg-muted/30"></div>)
     }
 
     // Days of the month
@@ -2339,20 +2081,15 @@ export default function EventsCalendarPage() {
       const limitedSingleDayEvents = limitedEvents.filter(event => !isMultiDayEvent(event))
       const hasMoreEvents = totalEvents.length > 1
       
-      // Enhanced today detection with Call Today's New Logic
-      const today = new Date()
-      const cellDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
-      const todayNormalized = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-      const cellDateNormalized = new Date(cellDate.getFullYear(), cellDate.getMonth(), cellDate.getDate())
-      const isToday = todayNormalized.getTime() === cellDateNormalized.getTime()
+      const isToday =
+        new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString()
 
       days.push(
         <div
           key={day}
-          data-today={isToday}
           className={cn(
-            "h-[89px] sm:h-[110px] border border-border bg-card p-1 sm:p-1.5 hover:bg-accent/50 transition-all cursor-pointer group relative",
-            isToday && "border-2 border-blue-500 bg-gradient-to-br from-blue-50/50 to-blue-100/30 dark:from-blue-950/50 dark:to-blue-900/30 shadow-lg ring-1 ring-blue-200 dark:ring-blue-800",
+            "h-[80px] sm:h-[100px] md:h-[120px] border border-border bg-card p-1 sm:p-2 hover:bg-accent/50 transition-all cursor-pointer group relative touch-manipulation",
+            isToday && "border-2 border-blue-500 bg-blue-50/30 dark:bg-blue-950/30",
             dayEvents.length > 0 && "hover:shadow-md",
           )}
           onClick={() => handleDateClick(day)}
@@ -2366,13 +2103,12 @@ export default function EventsCalendarPage() {
           >
             <span
               className={cn(
-                "w-6 h-6 flex items-center justify-center rounded-full transition-all",
-                isToday && "bg-blue-500 text-white font-bold animate-pulse shadow-md ring-2 ring-blue-300",
+                "w-6 h-6 flex items-center justify-center rounded-full",
+                isToday && "bg-blue-500 text-white font-bold",
               )}
             >
               {day}
             </span>
-
 
           </div>
 
@@ -2409,7 +2145,11 @@ export default function EventsCalendarPage() {
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-[11px] truncate">{event.name}</div>
                       </div>
-
+                      {isMultiDayEvent(event) && (
+                        <div className="text-[11px] font-semibold text-gray-600 dark:text-gray-400 ml-1 shrink-0">
+                          ({getEventDuration(event)}D)
+                    </div>
+                      )}
                         </div>
                       </div>
                     </EventTooltip>
@@ -2468,11 +2208,16 @@ export default function EventsCalendarPage() {
         <div className="relative">
           {/* Fixed Table Header */}
           <div className="sticky top-0 z-10 bg-background border-b">
-            <div className="grid grid-cols-12 gap-4 px-4 py-3 text-sm font-medium text-muted-foreground">
-              <div className="col-span-6">Event Name</div>
-              <div className="col-span-2 text-left">Date Range</div>
-              <div className="col-span-2 text-left">Type</div>
-              <div className="col-span-2">Actions</div>
+            <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-3 text-sm font-medium text-muted-foreground">
+              <div className="col-span-5">Event Name</div>
+              <div className="col-span-1 text-center">Status</div>
+              <div className="col-span-2 text-center">Date Range</div>
+              <div className="col-span-2 text-center">Type</div>
+              <div className="col-span-2 text-center">Actions</div>
+            </div>
+            {/* Mobile Header */}
+            <div className="md:hidden px-4 py-3 text-sm font-medium text-muted-foreground">
+              Events
             </div>
           </div>
 
@@ -2495,7 +2240,11 @@ export default function EventsCalendarPage() {
                       <div className="flex items-center gap-2">
                         <CalendarIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                         <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                          {formatListHeader(date)}
+                          {new Date(date).toLocaleDateString("en-US", {
+                            weekday: "long",
+                            day: "numeric",
+                            month: "long",
+                          })} '{new Date(date).getFullYear().toString().slice(-2)}
                         </span>
                         <span className="text-xs text-blue-600 dark:text-blue-400 ml-12">
                           {events.length} event{events.length !== 1 ? 's' : ''}
@@ -2508,11 +2257,13 @@ export default function EventsCalendarPage() {
               {events.map((event) => (
                                   <div
                     key={event.id}
-                    className="grid grid-cols-12 gap-4 px-4 py-3 cursor-pointer items-center"
+                  className="cursor-pointer hover:bg-accent/50 transition-all touch-manipulation"
                     onClick={() => setSelectedEvent(event)}
                   >
+                  {/* Desktop Layout */}
+                  <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-3 items-center">
                     {/* Event Name */}
-                    <div className="col-span-6">
+                    <div className="col-span-5">
                       <h3 className="text-sm font-medium text-foreground truncate mb-1" title={event.name}>
                         {event.name}
                       </h3>
@@ -2521,21 +2272,36 @@ export default function EventsCalendarPage() {
                       </p>
                     </div>
 
+                    {/* Status */}
+                    <div className="col-span-1 flex justify-center">
+                      <div className="flex flex-col items-center gap-1">
+                        {event.status === "bookmarked" && <Star className="h-4 w-4 fill-current text-green-600" />}
+                        {event.status === "suggested" && <Star className="h-4 w-4 fill-current text-blue-600" />}
+                        {event.type === "holiday" && <Sparkles className="h-4 w-4 text-purple-600" />}
+                        <Badge 
+                          variant="outline" 
+                          className={cn("text-xs px-1.5 py-0.5", getStatusColor(event.status))}
+                        >
+                          {event.status === "available" ? "Available" : event.status}
+                        </Badge>
+                      </div>
+                        </div>
+
                     {/* Date Range */}
-                    <div className="col-span-2 text-left">
+                    <div className="col-span-2 text-center">
                       <div className="text-xs text-muted-foreground">
                         {event.startDate === event.endDate ? (
-                                                      <div className="flex flex-col items-start">
-                              <span>Single day</span>
-                              <span className="text-xs font-medium">
-                                {formatSingleDate(event.startDate)}
-                              </span>
-                        </div>
+                          <div className="flex flex-col items-center">
+                            <span>Single day</span>
+                            <span className="text-xs font-medium">
+                              {formatEventDate(event.startDate)}
+                            </span>
+                      </div>
                         ) : (
-                          <div className="flex flex-col items-start">
+                          <div className="flex flex-col items-center">
                             <span>Multi-day</span>
                             <span className="text-xs font-medium">
-                              {formatDateRange(event.startDate, event.endDate)}
+                              {formatEventDate(event.startDate)} - {formatEventDate(event.endDate)}
                             </span>
                           </div>
                         )}
@@ -2543,7 +2309,7 @@ export default function EventsCalendarPage() {
                   </div>
 
                     {/* Type */}
-                    <div className="col-span-2 flex justify-start">
+                    <div className="col-span-2 flex justify-center">
                       <Badge 
                         variant="secondary" 
                         className="text-xs px-2 py-1 capitalize"
@@ -2553,33 +2319,112 @@ export default function EventsCalendarPage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="col-span-2 flex justify-start gap-1">
-                      {/* Bookmark button */}
-                      <div className="relative group">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            toggleBookmark(event.id)
-                          }}
-                          className="h-8 w-8 p-0"
-                        >
-                          <BookmarkIcon
-                            className={cn("h-4 w-4", (event.status === "bookmarked" || event.status === "suggested") ? "fill-current text-green-600" : "")}
-                          />
-                        </Button>
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                          {(event.status === "bookmarked" || event.status === "suggested") ? "Remove Bookmark" : "Bookmark Event"}
-                        </div>
-                      </div>
-
-
-
+                    <div className="col-span-2 flex justify-center gap-1">
                       {/* Edit and Delete buttons for custom events */}
                       {event.isCustom && (
                         <>
-                          <div className="relative group">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleEditEvent(event)
+                            }}
+                            className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
+                            title="Edit Event"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              showDeleteConfirmation(event.id)
+                            }}
+                            className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                            title="Delete Event"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                      
+                    <Button
+                      variant="ghost"
+                        size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleBookmark(event.id)
+                      }}
+                        className="h-8 w-8 p-0"
+                        title="Toggle bookmark"
+                    >
+                      <BookmarkIcon
+                        className={cn("h-4 w-4", (event.status === "bookmarked" || event.status === "suggested") ? "fill-current text-green-600" : "")}
+                      />
+                    </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSelectedEvent(event)
+                        }}
+                        className="h-8 w-8 p-0"
+                        title="View details"
+                      >
+                        <AlertCircle className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Mobile Layout */}
+                  <div className="md:hidden px-4 py-3">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-medium text-foreground truncate">
+                          {event.name}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          {event.status === "bookmarked" && <Star className="h-4 w-4 fill-current text-green-600" />}
+                          {event.status === "suggested" && <Star className="h-4 w-4 fill-current text-blue-600" />}
+                          {event.type === "holiday" && <Sparkles className="h-4 w-4 text-purple-600" />}
+                        </div>
+                      </div>
+                      
+                      <p className="text-xs text-muted-foreground">
+                        {event.description}
+                      </p>
+                      
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant="secondary" 
+                            className="text-xs px-2 py-1 capitalize"
+                          >
+                            {event.type}
+                          </Badge>
+                          <Badge 
+                            variant="outline" 
+                            className={cn("text-xs px-1.5 py-0.5", getStatusColor(event.status))}
+                          >
+                            {event.status === "available" ? "Available" : event.status}
+                          </Badge>
+                        </div>
+                        
+                        <div className="text-muted-foreground">
+                          {event.startDate === event.endDate ? 
+                            formatEventDate(event.startDate) :
+                            `${formatEventDate(event.startDate)} - ${formatEventDate(event.endDate)}`
+                          }
+                        </div>
+                      </div>
+                      
+                      {/* Mobile Actions */}
+                      <div className="flex items-center justify-end gap-2 pt-2">
+                        {event.isCustom && (
+                          <>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -2587,16 +2432,11 @@ export default function EventsCalendarPage() {
                                 e.stopPropagation()
                                 handleEditEvent(event)
                               }}
-                              className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
+                              className="h-10 w-10 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950 min-h-[44px] touch-manipulation"
+                              title="Edit Event"
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                              Edit
-                            </div>
-                          </div>
-                          
-                          <div className="relative group">
                             <Button
                               variant="ghost"
                               size="sm"
@@ -2604,17 +2444,31 @@ export default function EventsCalendarPage() {
                                 e.stopPropagation()
                                 showDeleteConfirmation(event.id)
                               }}
-                              className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                              className="h-10 w-10 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 min-h-[44px] touch-manipulation"
+                              title="Delete Event"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
-                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                              Delete
-                            </div>
-                          </div>
-                        </>
-                      )}
+                          </>
+                        )}
+                        
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleBookmark(event.id)
+                          }}
+                          className="h-10 w-10 p-0 min-h-[44px] touch-manipulation"
+                          title="Toggle bookmark"
+                        >
+                          <BookmarkIcon
+                            className={cn("h-4 w-4", (event.status === "bookmarked" || event.status === "suggested") ? "fill-current text-green-600" : "")}
+                          />
+                        </Button>
+                      </div>
                     </div>
+                  </div>
                 </div>
               ))}
                     </div>
@@ -2628,33 +2482,20 @@ export default function EventsCalendarPage() {
     )
   }
 
-  // Show loading state when data is being fetched
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
-        <GlobalProgressBar />
-        <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8 xl:py-10">
-          <div className="max-w-7xl xl:max-w-none mx-auto">
-            <LoadingSkeleton type="events" showCycleCounter={true} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800 overflow-x-hidden">
       {/* Enhanced Header */}
       <div className="bg-background border-b border-border sticky top-0 z-40 shadow-sm">
-        <div className="px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-8">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8 w-full sm:w-auto">
-              <div className="flex items-center gap-4">
+        <div className="px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-3 sm:py-4">
+          <div className="flex flex-col gap-4 sm:gap-6 md:gap-8">
+            {/* Top Row: Month Navigation */}
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2 sm:gap-4">
                 <div className="flex items-center gap-1">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" onClick={() => navigateMonth("prev")} className="hover:bg-primary/10">
+                      <Button variant="ghost" size="sm" onClick={() => navigateMonth("prev")} className="hover:bg-primary/10 h-9 w-9 sm:h-10 sm:w-10">
                         <ChevronLeft className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
@@ -2663,17 +2504,14 @@ export default function EventsCalendarPage() {
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-                
-                <h1 className="text-base font-medium text-foreground px-2">
-                  {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+                  <h1 className="text-base sm:text-lg font-medium text-foreground px-2 min-w-0">
+                    <span className="hidden sm:inline">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</span>
+                    <span className="sm:hidden">{monthNames[currentDate.getMonth()].slice(0, 3)} '{currentDate.getFullYear().toString().slice(-2)}</span>
                 </h1>
-                
-
-                
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" onClick={() => navigateMonth("next")} className="hover:bg-primary/10">
+                      <Button variant="ghost" size="sm" onClick={() => navigateMonth("next")} className="hover:bg-primary/10 h-9 w-9 sm:h-10 sm:w-10">
                         <ChevronRight className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
@@ -2684,26 +2522,36 @@ export default function EventsCalendarPage() {
                 </TooltipProvider>
               </div>
 
+              {/* Add Event Button - Moved to top row on mobile */}
+              <div className="flex items-center gap-2">
+                <Button 
+                  size="sm" 
+                  onClick={() => setIsAddEventOpen(true)}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm h-9 px-3 sm:h-10 sm:px-4"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Add Event</span>
+                  <span className="sm:hidden">Add</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Second Row: Location Filters */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 w-full">
                 {/* Country Dropdown */}
-                <div className="shrink-0">
-                  <Popover open={isCountryOpen} onOpenChange={(open) => {
-                    setIsCountryOpen(open)
-                    if (!open) {
-                      setCountrySearchQuery("") // Clear search when closing
-                      setIsCountrySearchFocused(false) // Reset focus state
-                    }
-                  }}>
+              <div className="w-full sm:w-auto sm:min-w-[180px]">
+                  <Popover open={isCountryOpen} onOpenChange={setIsCountryOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700 min-w-0 max-w-[180px]"
+                      className="w-full sm:w-auto h-10 gap-2 px-3 sm:px-4 font-medium transition-all duration-200 shadow-sm hover:shadow-md hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700 justify-start"
                       >
                         <Globe className="w-4 h-4 shrink-0" />
-                        <span className="truncate max-w-[100px] font-semibold">
+                      <span className="truncate font-semibold">
                           {selectedCountry}
                         </span>
-                        <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
+                      <ChevronDown className="w-4 h-4 opacity-70 shrink-0 ml-auto" />
                   </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 z-[60]" align="start">
@@ -2711,31 +2559,17 @@ export default function EventsCalendarPage() {
                         {/* Country Options Sidebar */}
                         <div className="w-56 p-4">
                           <h4 className="font-semibold text-sm text-gray-700 mb-3">Select Country</h4>
-                          <Input
-                            placeholder="Search"
-                            value={countrySearchQuery}
-                            onChange={(e) => setCountrySearchQuery(e.target.value)}
-                            className="mb-3 h-8 text-sm border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-0 focus:ring-offset-0 focus:outline-none focus:border-gray-300 dark:focus:border-gray-600"
-                            autoFocus={false}
-                            onClick={(e) => {
-                              e.stopPropagation() // Prevent event bubbling to parent popover
-                              setIsCountrySearchFocused(true)
-                              e.target.focus()
-                            }}
-                            onFocus={() => setIsCountrySearchFocused(true)}
-                            onBlur={() => setIsCountrySearchFocused(false)}
-                          />
                           <ScrollArea className={cn(
                             "space-y-1",
-                            filteredCountryOptions.length > 8 ? "h-64" : "h-auto"
+                            countryOptions.length > 8 ? "h-64" : "h-auto"
                           )}>
                             <div className="space-y-1 pr-3">
-                              {filteredCountryOptions.map((option) => (
+                              {countryOptions.map((option) => (
                                 <Button
                                   key={option.id}
                                   variant={selectedCountry === option.label ? "default" : "ghost"}
                                   size="sm"
-                                  className="w-full justify-start text-left h-auto py-2 px-3"
+                                className="w-full justify-start text-left h-auto py-2 px-3 min-h-[44px]"
                                   onClick={() => handleCountrySelect(option.label)}
                                 >
                                   <span className="text-sm mr-2">{option.flag}</span>
@@ -2756,25 +2590,19 @@ export default function EventsCalendarPage() {
                     </div>
 
                 {/* City Dropdown */}
-                <div className="shrink-0">
-                  <Popover open={isCityOpen} onOpenChange={(open) => {
-                    setIsCityOpen(open)
-                    if (!open) {
-                      setCitySearchQuery("") // Clear search when closing
-                      setIsCitySearchFocused(false) // Reset focus state
-                    }
-                  }}>
+              <div className="w-full sm:w-auto sm:min-w-[160px]">
+                  <Popover open={isCityOpen} onOpenChange={setIsCityOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700 min-w-0 max-w-[160px]"
+                        className="w-full sm:w-auto h-10 gap-2 px-3 sm:px-4 font-medium transition-all duration-200 shadow-sm hover:shadow-md hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700 justify-start"
                       >
                         <MapPin className="w-4 h-4 shrink-0" />
-                        <span className="truncate max-w-[80px] font-semibold">
+                        <span className="truncate font-semibold">
                           {selectedCity}
                         </span>
-                        <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
+                        <ChevronDown className="w-4 h-4 opacity-70 shrink-0 ml-auto" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 z-[60]" align="start">
@@ -2782,27 +2610,13 @@ export default function EventsCalendarPage() {
                         {/* City Options Sidebar */}
                         <div className="w-44 p-4">
                           <h4 className="font-semibold text-sm text-gray-700 mb-3">Select City</h4>
-                          <Input
-                            placeholder="Search"
-                            value={citySearchQuery}
-                            onChange={(e) => setCitySearchQuery(e.target.value)}
-                            className="mb-3 h-8 text-sm border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-0 focus:ring-offset-0 focus:outline-none focus:border-gray-300 dark:focus:border-gray-600"
-                            autoFocus={false}
-                            onClick={(e) => {
-                              e.stopPropagation() // Prevent event bubbling to parent popover
-                              setIsCitySearchFocused(true)
-                              e.target.focus()
-                            }}
-                            onFocus={() => setIsCitySearchFocused(true)}
-                            onBlur={() => setIsCitySearchFocused(false)}
-                          />
                           <div className="space-y-1">
-                            {filteredCityOptions.map((option) => (
+                            {cityOptions[selectedCountry as keyof typeof cityOptions]?.map((option) => (
                               <Button
                                 key={option.id}
                                 variant={selectedCity === option.label ? "default" : "ghost"}
                                 size="sm"
-                                className="w-full justify-start text-left h-auto py-2 px-3"
+                                className="w-full justify-start text-left h-auto py-2 px-3 min-h-[44px]"
                                 onClick={() => handleCitySelect(option.label)}
                               >
                                 <span className={cn(
@@ -2821,19 +2635,19 @@ export default function EventsCalendarPage() {
                     </div>
 
                 {/* Category Dropdown */}
-                <div className="shrink-0">
+              <div className="w-full sm:w-auto sm:min-w-[180px]">
                   <DropdownMenu open={isCategoryOpen} onOpenChange={setIsCategoryOpen}>
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700 min-w-0 max-w-[180px]"
+                      className="w-full sm:w-auto h-10 gap-2 px-3 sm:px-4 font-medium transition-all duration-200 shadow-sm hover:shadow-md hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700 justify-start"
                       >
                         <Globe className="w-4 h-4 shrink-0" />
-                        <span className="truncate max-w-[100px] font-semibold">
+                      <span className="truncate font-semibold">
                           {getCategoryDisplayText()}
                         </span>
-                        <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
+                      <ChevronDown className="w-4 h-4 opacity-70 shrink-0 ml-auto" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-auto p-0 shadow-xl border-slate-200 dark:border-slate-700 z-[60]">
@@ -2844,11 +2658,11 @@ export default function EventsCalendarPage() {
                             {categoryData?.map((option) => (
                               <label
                                 key={option.id}
-                                className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
+                                className="py-3 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer min-h-[44px]"
                               >
                                 <input
                                   type="checkbox"
-                                  className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
+                                  className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none mr-3 cursor-pointer"
                                   checked={selectedCategories.includes(option.name)}
                                   onChange={() => handleCategorySelect(option.name)}
                                 />
@@ -2866,33 +2680,44 @@ export default function EventsCalendarPage() {
                 </div>
               </div>
 
-
+            {/* Third Row: Search and Actions */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
+              {/* Search Input */}
+              <div className="flex-1 max-w-sm">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search events..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 h-10"
+                  />
+                </div>
             </div>
-
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
 
               {/* Bookmark Event Button */}
               <Dialog open={isBookmarkModalOpen} onOpenChange={setIsBookmarkModalOpen}>
                 <DialogTrigger asChild>
                   <Button
                     variant="outline"
-                    className="px-4 gap-3 bg-green-50 hover:bg-green-100 border-green-300 text-green-700 dark:bg-green-950 dark:hover:bg-green-900 dark:border-green-800 dark:text-green-300"
+                    size="sm"
+                    className="h-10 px-3 sm:px-4 gap-2 bg-green-50 hover:bg-green-100 border-green-300 text-green-700 dark:bg-green-950 dark:hover:bg-green-900 dark:border-green-800 dark:text-green-300 min-h-[44px]"
                   >
-                    <BookmarkIcon className="h-4 w-4 xl:inline hidden" />
-                    <span className="xl:inline hidden">Bookmark Event</span>
-                    <span className="xl:hidden inline">Bookmark</span>
+                    <BookmarkIcon className="h-4 w-4" />
+                    <span className="hidden sm:inline">Bookmark Event</span>
+                    <span className="sm:hidden">Bookmark</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-4xl h-[600px] min-h-[500px] flex flex-col">
-                  <DialogHeader className="flex-shrink-0">
-                    <DialogTitle className="flex items-center gap-3 text-lg">
+                <DialogContent className="max-w-4xl max-h-[calc(85vh-50px)] pb-16">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-3">
                       <BookmarkIcon className="h-5 w-5 text-green-600" />
                       Bookmark Events
                     </DialogTitle>
                   </DialogHeader>
 
                   {/* Bookmark Modal Filters */}
-                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg flex-shrink-0">
+                  <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
                     {/* Search Input */}
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -2908,67 +2733,67 @@ export default function EventsCalendarPage() {
                     <div className="relative">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" className="w-48 h-10 justify-between text-sm hover:bg-white">
+                          <Button variant="outline" className="w-52 justify-between">
                             <div className="flex items-center gap-2">
-                              <Globe className="h-3 w-3" />
+                              <Globe className="h-4 w-4" />
                               <span>{getBookmarkCategoryDisplayText()}</span>
                             </div>
-                            <ChevronDown className="h-3 w-3 opacity-50" />
+                            <ChevronDown className="h-4 w-4 opacity-50" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-48 p-3">
-                          <div className="space-y-1.5">
-                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
+                        <DropdownMenuContent className="w-48 p-4">
+                          <div className="space-y-2">
+                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
                               <input
                                 type="checkbox"
                                 checked={bookmarkCategoryFilter.includes("all")}
                                 onChange={() => handleCategorySelection("all")}
-                                className="rounded h-3.5 w-3.5"
+                                className="rounded"
                               />
                               <span>All</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
+                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
                               <input
                                 type="checkbox"
                                 checked={bookmarkCategoryFilter.includes("conference")}
                                 onChange={() => handleCategorySelection("conference")}
-                                className="rounded h-3.5 w-3.5"
+                                className="rounded"
                               />
                               <span>Conference</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
+                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
                               <input
                                 type="checkbox"
                                 checked={bookmarkCategoryFilter.includes("tradeshow")}
                                 onChange={() => handleCategorySelection("tradeshow")}
-                                className="rounded h-3.5 w-3.5"
+                                className="rounded"
                               />
                               <span>Trade Shows</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
+                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
                               <input
                                 type="checkbox"
                                 checked={bookmarkCategoryFilter.includes("workshop")}
                                 onChange={() => handleCategorySelection("workshop")}
-                                className="rounded h-3.5 w-3.5"
+                                className="rounded"
                               />
                               <span>Workshop</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
+                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
                               <input
                                 type="checkbox"
                                 checked={bookmarkCategoryFilter.includes("social")}
                                 onChange={() => handleCategorySelection("social")}
-                                className="rounded h-3.5 w-3.5"
+                                className="rounded"
                               />
                               <span>Social</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
+                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
                               <input
                                 type="checkbox"
                                 checked={bookmarkCategoryFilter.includes("holidays")}
                                 onChange={() => handleCategorySelection("holidays")}
-                                className="rounded h-3.5 w-3.5"
+                                className="rounded"
                               />
                               <span>Holidays</span>
                             </label>
@@ -2981,61 +2806,51 @@ export default function EventsCalendarPage() {
                     <div className="relative">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" className="w-44 h-10 justify-between text-sm hover:bg-white">
+                          <Button variant="outline" className="w-48 justify-between">
                             <div className="flex items-center gap-2">
-                              <Check className="h-3 w-3" />
+                              <Check className="h-4 w-4" />
                               <span>{getBookmarkTypeDisplayText()}</span>
                             </div>
-                            <ChevronDown className="h-3 w-3 opacity-50" />
+                            <ChevronDown className="h-4 w-4 opacity-50" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-48 p-3">
-                          <div className="space-y-1.5">
-                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
+                        <DropdownMenuContent className="w-48 p-4">
+                          <div className="space-y-2">
+                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
                               <input
                                 type="checkbox"
                                 checked={bookmarkTypeFilter.includes("all")}
                                 onChange={() => handleTypeSelection("all")}
-                                className="rounded h-3.5 w-3.5"
+                                className="rounded"
                               />
                               <span>All</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
+                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
                               <input
                                 type="checkbox"
                                 checked={bookmarkTypeFilter.includes("bookmarked")}
                                 onChange={() => handleTypeSelection("bookmarked")}
-                                className="rounded h-3.5 w-3.5"
+                                className="rounded"
                               />
                               <span>Bookmarked</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
+                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
                               <input
                                 type="checkbox"
                                 checked={bookmarkTypeFilter.includes("holidays")}
                                 onChange={() => handleTypeSelection("holidays")}
-                                className="rounded h-3.5 w-3.5"
+                                className="rounded"
                               />
                               <span>Holidays</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
+                            <label className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-white">
                               <input
                                 type="checkbox"
                                 checked={bookmarkTypeFilter.includes("suggested")}
                                 onChange={() => handleTypeSelection("suggested")}
-                                className="rounded h-3.5 w-3.5"
+                                className="rounded"
                               />
                               <span>Suggested</span>
-                            </label>
-
-                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
-                              <input
-                                type="checkbox"
-                                checked={bookmarkTypeFilter.includes("available")}
-                                onChange={() => handleTypeSelection("available")}
-                                className="rounded h-3.5 w-3.5"
-                              />
-                              <span>Available</span>
                             </label>
                           </div>
                         </DropdownMenuContent>
@@ -3044,8 +2859,8 @@ export default function EventsCalendarPage() {
                   </div>
 
                   {/* Events List */}
-                  <ScrollArea className="flex-1 pr-2">
-                    <div className="space-y-2 py-2">
+                  <ScrollArea className="max-h-[calc(20rem+30px)]">
+                    <div className="space-y-2">
                       {getFilteredBookmarkEvents.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-[20rem] text-center">
                           <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
@@ -3063,33 +2878,26 @@ export default function EventsCalendarPage() {
                         <div
                           key={event.id}
                           className={cn(
-                            "flex items-center justify-between p-3 border rounded-lg hover:bg-accent transition-colors",
+                            "flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors",
                             (event.status === "bookmarked" || event.status === "suggested") && "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800",
                           )}
                         >
                           <div className="flex items-center gap-3">
                             <div>
-                              <div className="flex items-start gap-2">
-                                <h3 className="text-sm font-medium leading-snug flex-1">{event.name}</h3>
-                                <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
-                                  {event.status === "bookmarked" && (
-                                    <Star className="h-3 w-3 fill-current text-green-600" />
-                                  )}
-                                  {event.type === "holiday" && <Sparkles className="h-3 w-3 text-purple-600" />}
-                                </div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-medium">{event.name}</h3>
+                                {event.status === "bookmarked" && (
+                                  <Star className="h-4 w-4 fill-current text-green-600" />
+                                )}
+                                {event.type === "holiday" && <Sparkles className="h-4 w-4 text-purple-600" />}
                               </div>
-                              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                                <span>
-                                  {event.startDate === event.endDate 
-                                    ? formatSingleDate(event.startDate)
-                                    : formatDateRange(event.startDate, event.endDate)
-                                  }
-                                </span>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <span>{event.startDate}</span>
                               </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge className={cn("border text-xs", getStatusColor(event.status))}>
+                            <Badge className={cn("border", getStatusColor(event.status))}>
                               {event.status === "available" ? "Available" : event.status}
                             </Badge>
                             
@@ -3103,36 +2911,35 @@ export default function EventsCalendarPage() {
                                     handleEditEvent(event)
                                     setIsBookmarkModalOpen(false)
                                   }}
-                                  className="h-7 w-7 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
+                                  className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
                                   title="Edit Event"
                                 >
-                                  <Edit className="h-3 w-3" />
+                                  <Edit className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => showDeleteConfirmation(event.id)}
-                                  className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                                  className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
                                   title="Delete Event"
                                 >
-                                  <Trash2 className="h-3 w-3" />
+                                  <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
                             )}
                             
                             <Button
                               variant={(event.status === "bookmarked" || event.status === "suggested") ? "default" : "outline"}
-                              size="sm"
                               onClick={() => toggleBookmark(event.id)}
                               className={cn(
-                                "px-3 gap-2 text-xs",
+                                "px-4 gap-3",
                                 (event.status === "bookmarked" || event.status === "suggested")
                                   ? "bg-green-600 hover:bg-green-700"
                                   : "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
                               )}
                             >
                               <BookmarkIcon
-                                className={cn("h-3 w-3", (event.status === "bookmarked" || event.status === "suggested") && "fill-current")}
+                                className={cn("h-4 w-4", (event.status === "bookmarked" || event.status === "suggested") && "fill-current")}
                               />
                               {(event.status === "bookmarked" || event.status === "suggested") ? "Bookmarked" : "Bookmark"}
                             </Button>
@@ -3143,50 +2950,46 @@ export default function EventsCalendarPage() {
                     </div>
                   </ScrollArea>
 
-                  <div className="flex items-center justify-between pt-3 border-t flex-shrink-0">
-                    <div className="text-xs text-muted-foreground">
+                  <div className="flex items-center justify-between pt-8 border-t">
+                    <div className="text-sm text-muted-foreground">
                       {events.filter((e) => e.status === "bookmarked").length} events bookmarked
                     </div>
-                    <Button onClick={() => setIsBookmarkModalOpen(false)} className="px-4 py-2 text-sm">Done</Button>
+                    <Button onClick={() => setIsBookmarkModalOpen(false)} className="px-4">Done</Button>
                   </div>
                 </DialogContent>
               </Dialog>
+            </div>
+          </div>
+        </div>
+      </div>
 
-              <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}>
-                <DialogTrigger asChild>
-                  <Button 
-                    variant="outline"
-                    className="px-4 gap-3 bg-blue-600 hover:bg-blue-700 hover:text-white border-blue-600 text-white dark:bg-blue-600 dark:hover:bg-blue-700 dark:hover:text-white dark:border-blue-600 dark:text-white"
-                  >
-                    <Plus className="h-4 w-4 text-white xl:inline hidden" />
-                    <span className="xl:inline hidden">Add Event</span>
-                    <span className="xl:hidden inline">Add</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-primary" />
-                      Create New Event
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="name">Event Name *</Label>
-                        <div className="relative">
-                          <Input
-                            id="name"
-                            value={newEvent.name}
-                            onChange={(e) => setNewEvent((prev) => ({ ...prev, name: e.target.value }))}
-                            placeholder="Enter event name"
-                            className="mt-1 pr-12"
-                            maxLength={35}
-                          />
-                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground">
-                            {newEvent.name.length}/35
-                          </div>
-                        </div>
+
+      {/* Main Content */}
+      <div className="px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-3 sm:py-4 md:py-6 lg:py-8 overflow-x-hidden">
+        {/* Legend and View Toggle */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mb-4 sm:mb-6">
+          {/* Legend Items - Clickable toggles */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <button
+              onClick={() => toggleEventType('bookmarked')}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md transition-all duration-200 hover:text-foreground min-h-[44px] touch-manipulation",
+                enabledEventTypes.bookmarked ? "opacity-100" : "opacity-40"
+              )}
+            >
+              <div className={cn(
+                "w-3 h-3 rounded-full transition-all duration-200",
+                enabledEventTypes.bookmarked ? "bg-green-500" : "bg-gray-300"
+              )}></div>
+              <span className="text-sm text-muted-foreground">Bookmarked</span>
+            </button>
+                        <Input
+                          id="name"
+                          value={newEvent.name}
+                          onChange={(e) => setNewEvent((prev) => ({ ...prev, name: e.target.value }))}
+                          placeholder="Enter event name"
+                          className="mt-1 h-11"
+                        />
                       </div>
 
                       <div>
@@ -3248,7 +3051,18 @@ export default function EventsCalendarPage() {
                                   <span>Social</span>
                                 </div>
                               </SelectItem>
-
+                              <SelectItem 
+                                value="holidays"
+                                className={cn(
+                                  "flex items-center gap-2 cursor-pointer pl-3 [&>span:first-child]:hidden",
+                                  newEvent.category === "holidays" ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
+                                )}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Sparkles className="h-4 w-4" />
+                                  <span>Holidays</span>
+                                </div>
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -3268,9 +3082,9 @@ export default function EventsCalendarPage() {
                               >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                 {newEvent.startDate ? (
-                                  format(new Date(newEvent.startDate), "dd/MM/yyyy")
+                                  formatEventDate(newEvent.startDate)
                                 ) : (
-                                  <span>dd/mm/yyyy</span>
+                                  <span>Select date</span>
                                 )}
                               </Button>
                             </PopoverTrigger>
@@ -3281,14 +3095,7 @@ export default function EventsCalendarPage() {
                                 onSelect={(date) => {
                                   if (date) {
                                     const formattedDate = format(date, "yyyy-MM-dd")
-                                    setNewEvent((prev) => {
-                                      const newState = { ...prev, startDate: formattedDate }
-                                      // Clear end date only if it's before the new start date (not equal)
-                                      if (prev.endDate && new Date(prev.endDate) < date) {
-                                        newState.endDate = ""
-                                      }
-                                      return newState
-                                    })
+                                    setNewEvent((prev) => ({ ...prev, startDate: formattedDate }))
                                     setIsStartDateOpen(false)
                                   }
                                 }}
@@ -3313,9 +3120,9 @@ export default function EventsCalendarPage() {
                               >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                 {newEvent.endDate ? (
-                                  format(new Date(newEvent.endDate), "dd/MM/yyyy")
+                                  formatEventDate(newEvent.endDate)
                                 ) : (
-                                  <span>dd/mm/yyyy</span>
+                                  <span>Select date</span>
                                 )}
                               </Button>
                             </PopoverTrigger>
@@ -3323,7 +3130,6 @@ export default function EventsCalendarPage() {
                               <Calendar
                                 mode="single"
                                 selected={newEvent.endDate ? new Date(newEvent.endDate) : undefined}
-                                defaultMonth={newEvent.startDate ? new Date(newEvent.startDate) : undefined}
                                 onSelect={(date) => {
                                   if (date) {
                                     const formattedDate = format(date, "yyyy-MM-dd")
@@ -3331,24 +3137,16 @@ export default function EventsCalendarPage() {
                                     setIsEndDateOpen(false)
                                   }
                                 }}
-                                disabled={(date) => {
-                                  if (!newEvent.startDate) return false
-                                  const startDate = new Date(newEvent.startDate)
-                                  // Normalize dates to compare only date part (not time)
-                                  const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-                                  const compareStartDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
-                                  // Allow same date (>=) but disable dates before start date
-                                  return compareDate < compareStartDate
-                                }}
                                 initialFocus
                               />
                             </PopoverContent>
                           </Popover>
                         </div>
                       </div>
+                    </div>
 
-
-
+                    {/* Location Fields */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="country">Country *</Label>
                         <div className="mt-1">
@@ -3356,7 +3154,7 @@ export default function EventsCalendarPage() {
                             value={newEventCountry}
                             onValueChange={handleNewEventCountrySelect}
                           >
-                            <SelectTrigger className="w-full">
+                            <SelectTrigger className="w-full h-11">
                               <SelectValue placeholder="Select a country" />
                             </SelectTrigger>
                             <SelectContent className="max-h-60">
@@ -3366,7 +3164,7 @@ export default function EventsCalendarPage() {
                                     key={option.id} 
                                     value={option.label}
                                     className={cn(
-                                      "flex items-center gap-2 cursor-pointer pl-3 [&>span:first-child]:hidden",
+                                      "flex items-center gap-2 cursor-pointer pl-3 [&>span:first-child]:hidden min-h-[44px]",
                                       newEventCountry === option.label ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
                                     )}
                                   >
@@ -3390,7 +3188,7 @@ export default function EventsCalendarPage() {
                             onValueChange={handleNewEventCitySelect}
                             disabled={!newEventCountry}
                           >
-                            <SelectTrigger className="w-full [&>svg]:hidden">
+                            <SelectTrigger className="w-full h-11 [&>svg]:hidden">
                               <SelectValue placeholder={newEventCountry ? "Select a city" : "Select country first"} />
                             </SelectTrigger>
                             <SelectContent className="max-h-60" hideScrollButtons={true}>
@@ -3400,7 +3198,7 @@ export default function EventsCalendarPage() {
                                     key={option.id} 
                                     value={option.label}
                                     className={cn(
-                                      "cursor-pointer pl-3 [&>span:first-child]:hidden",
+                                      "cursor-pointer pl-3 [&>span:first-child]:hidden min-h-[44px]",
                                       newEventCity === option.label ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
                                     )}
                                   >
@@ -3412,18 +3210,22 @@ export default function EventsCalendarPage() {
                           </Select>
                         </div>
                       </div>
+                    </div>
 
-                      <div className="col-span-2">
-                        <Label htmlFor="description">Description</Label>
+                    {/* Description Field */}
+                    <div>
+                      <Label htmlFor="description">Description</Label>
                         <div className="mt-1">
-                          <Input
+                          <Textarea
                             id="description"
                             value={newEvent.description}
                             onChange={(e) => handleDescriptionChange(e.target.value)}
                             placeholder="Describe the event..."
                             className={cn(
+                              "resize-none",
                               descriptionError ? "border-red-500 focus-visible:ring-red-500" : ""
                             )}
+                            rows={3}
                             maxLength={250}
                           />
                           <div className="flex justify-between items-center mt-1">
@@ -3440,19 +3242,19 @@ export default function EventsCalendarPage() {
 
                     <div className="flex justify-end gap-3 pt-4 border-t">
                       <Button variant="outline" onClick={() => {
-                        setIsStartDateOpen(false)
-                        setIsEndDateOpen(false)
-                        setDescriptionError("")
-                        setIsAddEventOpen(false)
-                      }} className="px-4">
-                        Cancel
+                          setIsStartDateOpen(false)
+                          setIsEndDateOpen(false)
+                          setDescriptionError("")
+                          setIsAddEventOpen(false)
+                        }} className="px-4 h-11 min-h-[44px] touch-manipulation">
+                          Cancel
                       </Button>
                       <Button
-                        onClick={handleAddEvent}
-                        disabled={!newEvent.name || !newEvent.startDate || !newEvent.endDate || !newEvent.country || !newEvent.city || !!descriptionError}
-                        className="px-4 bg-primary hover:bg-primary/90"
-                      >
-                        Save
+                          onClick={handleAddEvent}
+                          disabled={!newEvent.name || !newEvent.startDate || !newEvent.endDate || !newEvent.country || !newEvent.city || descriptionError}
+                          className="px-4 h-11 min-h-[44px] touch-manipulation bg-primary hover:bg-primary/90"
+                        >
+                          Save
                       </Button>
                     </div>
                   </div>
@@ -3468,8 +3270,8 @@ export default function EventsCalendarPage() {
                       Edit Event
                     </DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-6 overflow-y-auto max-h-[70vh]">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="edit-name">Event Name *</Label>
                         <Input
@@ -3477,8 +3279,7 @@ export default function EventsCalendarPage() {
                           value={newEvent.name}
                           onChange={(e) => setNewEvent((prev) => ({ ...prev, name: e.target.value }))}
                           placeholder="Enter event name"
-                          className="mt-1"
-                          maxLength={35}
+                          className="mt-1 h-11"
                         />
                       </div>
 
@@ -3486,7 +3287,7 @@ export default function EventsCalendarPage() {
                         <Label htmlFor="edit-category">Category *</Label>
                         <div className="mt-1">
                           <Select
-                            value={newEvent.category}
+                          value={newEvent.category}
                             onValueChange={(value) => setNewEvent((prev) => ({ ...prev, category: value as typeof newEvent.category }))}
                           >
                             <SelectTrigger className="w-full [&>svg]:hidden">
@@ -3541,10 +3342,21 @@ export default function EventsCalendarPage() {
                                   <span>Social</span>
                                 </div>
                               </SelectItem>
-
+                              <SelectItem 
+                                value="holidays"
+                                className={cn(
+                                  "flex items-center gap-2 cursor-pointer pl-3 [&>span:first-child]:hidden",
+                                  newEvent.category === "holidays" ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
+                                )}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Sparkles className="h-4 w-4" />
+                                  <span>Holidays</span>
+                                </div>
+                              </SelectItem>
                             </SelectContent>
                           </Select>
-                        </div>
+                              </div>
                       </div>
 
                       <div>
@@ -3561,9 +3373,9 @@ export default function EventsCalendarPage() {
                               >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                 {newEvent.startDate ? (
-                                  format(new Date(newEvent.startDate), "dd/MM/yyyy")
+                                  formatEventDate(newEvent.startDate)
                                 ) : (
-                                  <span>dd/mm/yyyy</span>
+                                  <span>Select date</span>
                                 )}
                               </Button>
                             </PopoverTrigger>
@@ -3574,14 +3386,7 @@ export default function EventsCalendarPage() {
                                 onSelect={(date) => {
                                   if (date) {
                                     const formattedDate = format(date, "yyyy-MM-dd")
-                                    setNewEvent((prev) => {
-                                      const newState = { ...prev, startDate: formattedDate }
-                                      // Clear end date only if it's before the new start date (not equal)
-                                      if (prev.endDate && new Date(prev.endDate) < date) {
-                                        newState.endDate = ""
-                                      }
-                                      return newState
-                                    })
+                                    setNewEvent((prev) => ({ ...prev, startDate: formattedDate }))
                                   }
                                 }}
                                 initialFocus
@@ -3605,9 +3410,9 @@ export default function EventsCalendarPage() {
                               >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                 {newEvent.endDate ? (
-                                  format(new Date(newEvent.endDate), "dd/MM/yyyy")
+                                  formatEventDate(newEvent.endDate)
                                 ) : (
-                                  <span>dd/mm/yyyy</span>
+                                  <span>Select date</span>
                                 )}
                               </Button>
                             </PopoverTrigger>
@@ -3615,21 +3420,11 @@ export default function EventsCalendarPage() {
                               <Calendar
                                 mode="single"
                                 selected={newEvent.endDate ? new Date(newEvent.endDate) : undefined}
-                                defaultMonth={newEvent.startDate ? new Date(newEvent.startDate) : undefined}
                                 onSelect={(date) => {
                                   if (date) {
                                     const formattedDate = format(date, "yyyy-MM-dd")
                                     setNewEvent((prev) => ({ ...prev, endDate: formattedDate }))
                                   }
-                                }}
-                                disabled={(date) => {
-                                  if (!newEvent.startDate) return false
-                                  const startDate = new Date(newEvent.startDate)
-                                  // Normalize dates to compare only date part (not time)
-                                  const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-                                  const compareStartDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
-                                  // Allow same date (>=) but disable dates before start date
-                                  return compareDate < compareStartDate
                                 }}
                                 initialFocus
                               />
@@ -3689,7 +3484,7 @@ export default function EventsCalendarPage() {
                                     key={option.id} 
                                     value={option.label}
                                     className={cn(
-                                      "cursor-pointer pl-3 [&>span:first-child]:hidden",
+                                      "cursor-pointer pl-3 [&>span:first-child]:hidden min-h-[44px]",
                                       newEventCity === option.label ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
                                     )}
                                   >
@@ -3705,14 +3500,16 @@ export default function EventsCalendarPage() {
                       <div className="col-span-2">
                         <Label htmlFor="edit-description">Description</Label>
                         <div className="mt-1">
-                          <Input
+                        <Textarea
                             id="edit-description"
-                            value={newEvent.description}
+                          value={newEvent.description}
                             onChange={(e) => handleDescriptionChange(e.target.value)}
-                            placeholder="Describe the event..."
+                          placeholder="Describe the event..."
                             className={cn(
+                              "resize-none",
                               descriptionError ? "border-red-500 focus-visible:ring-red-500" : ""
                             )}
+                          rows={3}
                             maxLength={250}
                           />
                           <div className="flex justify-between items-center mt-1">
@@ -3729,17 +3526,17 @@ export default function EventsCalendarPage() {
 
                     <div className="flex justify-end gap-3 pt-4 border-t">
                       <Button variant="outline" onClick={() => {
-                        setIsEditEventOpen(false)
-                        setDescriptionError("")
-                      }} className="px-4">
+                          setIsEditEventOpen(false)
+                          setDescriptionError("")
+                        }} className="px-4 h-11 min-h-[44px] touch-manipulation">
                         Cancel
                       </Button>
                       <Button
-                        onClick={handleSaveEditedEvent}
-                        disabled={!newEvent.name || !newEvent.startDate || !newEvent.endDate || !newEvent.country || !newEvent.city || !!descriptionError}
-                        className="px-4 bg-primary hover:bg-primary/90"
-                      >
-                        Save Changes
+                          onClick={handleSaveEditedEvent}
+                          disabled={!newEvent.name || !newEvent.startDate || !newEvent.endDate || !newEvent.country || !newEvent.city || descriptionError}
+                          className="px-4 h-11 min-h-[44px] touch-manipulation bg-primary hover:bg-primary/90"
+                        >
+                          Save Changes
                       </Button>
                     </div>
                   </div>
@@ -3753,15 +3550,15 @@ export default function EventsCalendarPage() {
 
 
       {/* Main Content */}
-      <div className="px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8">
-        {/* Legend and View Toggle - No Container */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 xl:px-0 px-[5%]">
+      <div className="px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-3 sm:py-4 md:py-6 lg:py-8 overflow-x-hidden">
+        {/* Legend and View Toggle */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mb-4 sm:mb-6">
           {/* Legend Items - Clickable toggles */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button
               onClick={() => toggleEventType('bookmarked')}
               className={cn(
-                "flex items-center gap-2 px-3 py-1 rounded-md transition-all duration-200 hover:text-foreground",
+                "flex items-center gap-2 px-3 py-2 rounded-md transition-all duration-200 hover:text-foreground min-h-[44px] touch-manipulation",
                 enabledEventTypes.bookmarked ? "opacity-100" : "opacity-40"
               )}
             >
@@ -3774,7 +3571,7 @@ export default function EventsCalendarPage() {
             <button
               onClick={() => toggleEventType('holidays')}
               className={cn(
-                "flex items-center gap-2 px-3 py-1 rounded-md transition-all duration-200 hover:text-foreground",
+                "flex items-center gap-2 px-3 py-2 rounded-md transition-all duration-200 hover:text-foreground min-h-[44px] touch-manipulation",
                 enabledEventTypes.holidays ? "opacity-100" : "opacity-60"
               )}
             >
@@ -3787,15 +3584,27 @@ export default function EventsCalendarPage() {
                 enabledEventTypes.holidays ? "text-muted-foreground" : "text-muted-foreground/60"
               )}>Holidays</span>
             </button>
-
+            <button
+              onClick={() => toggleEventType('suggested')}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md transition-all duration-200 hover:text-foreground min-h-[44px] touch-manipulation",
+                enabledEventTypes.suggested ? "opacity-100" : "opacity-60"
+              )}
+            >
+              <div className={cn(
+                "w-3 h-3 rounded-full transition-all duration-200",
+                enabledEventTypes.suggested ? "bg-blue-500" : "bg-gray-400"
+              )}></div>
+              <span className={cn(
+                "text-sm transition-all duration-200",
+                enabledEventTypes.suggested ? "text-muted-foreground" : "text-muted-foreground/60"
+              )}>Suggested</span>
+            </button>
           </div>
-          
-          {/* View Toggle - Right Aligned */}
-          <TooltipProvider>
-            <div className="flex items-center gap-2">
-              
               
               {/* View Toggle */}
+          <TooltipProvider>
+            <div className="flex items-center justify-center sm:justify-end">
               <div className="flex items-center border border-border rounded-lg overflow-hidden">
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -3804,11 +3613,12 @@ export default function EventsCalendarPage() {
                       size="sm"
                       onClick={() => setViewMode("calendar")}
                       className={cn(
-                        "h-8 px-3 rounded-none border-r-0 border-b-0",
+                        "h-10 px-4 rounded-none border-r-0 border-b-0 min-h-[44px] touch-manipulation",
                         viewMode === "calendar" ? "border-r-0 border-b-0" : "border-r-0 border-b-0 hover:border-r-0 hover:border-b-0"
                       )}
                     >
-                      <CalendarLucide className="h-4 w-4" />
+                      <CalendarLucide className="h-4 w-4 mr-2 sm:mr-0" />
+                      <span className="sm:hidden">Calendar</span>
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
@@ -3822,11 +3632,12 @@ export default function EventsCalendarPage() {
                       size="sm"
                       onClick={() => setViewMode("list")}
                       className={cn(
-                        "h-8 px-3 rounded-none border-l-0 border-t-0",
+                        "h-10 px-4 rounded-none border-l-0 border-t-0 min-h-[44px] touch-manipulation",
                         viewMode === "list" ? "border-l-0 border-t-0" : "border-l-0 border-t-0 hover:border-l-0 hover:border-t-0"
                       )}
                     >
-                      <List className="h-4 w-4" />
+                      <List className="h-4 w-4 mr-2 sm:mr-0" />
+                      <span className="sm:hidden">List</span>
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
@@ -3838,7 +3649,7 @@ export default function EventsCalendarPage() {
           </TooltipProvider>
         </div>
         {isLoading ? (
-          <Card className="overflow-hidden shadow-lg xl:w-full w-[90%] mx-auto">
+          <Card className="overflow-hidden shadow-lg">
             {/* Loading Header */}
             <div className="grid grid-cols-7 border-b border-border bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
@@ -3855,22 +3666,22 @@ export default function EventsCalendarPage() {
             {/* Loading Calendar Body */}
             <div className="grid grid-cols-7">
               {Array.from({ length: 35 }, (_, i) => (
-                <div key={i} className="h-[89px] sm:h-[110px] border border-border/30 p-4">
-                  <Skeleton className="h-4 w-6 mb-2" />
-                  <Skeleton className="h-3 w-full mb-1" />
-                  <Skeleton className="h-3 w-3/4" />
+                <div key={i} className="h-[80px] sm:h-[100px] md:h-[120px] border border-border/30 p-2 sm:p-3 md:p-4">
+                  <Skeleton className="h-3 sm:h-4 w-4 sm:w-6 mb-1 sm:mb-2" />
+                  <Skeleton className="h-2 sm:h-3 w-full mb-1" />
+                  <Skeleton className="h-2 sm:h-3 w-3/4" />
                 </div>
               ))}
             </div>
           </Card>
         ) : viewMode === "calendar" ? (
-          <Card className="overflow-hidden shadow-lg xl:w-full w-[90%] mx-auto">
+          <Card className="overflow-hidden shadow-lg">
             {/* Calendar Header */}
             <div className="grid grid-cols-7 border-b border-border bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => (
                 <div
                   key={day}
-                  className="p-1.5 sm:p-3 text-center font-medium text-gray-600 dark:text-gray-400 border-r border-border last:border-r-0"
+                  className="p-2 sm:p-3 text-center font-medium text-gray-600 dark:text-gray-400 border-r border-border last:border-r-0"
                 >
                   <span className="hidden sm:inline text-xs">{["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][index]}</span>
                   <span className="sm:hidden text-xs">{day}</span>
@@ -3893,7 +3704,12 @@ export default function EventsCalendarPage() {
             <DialogTitle className="flex items-center gap-3">
               <CalendarIcon className="h-5 w-5 text-primary" />
               Events for{" "}
-              {selectedDate ? formatListHeader(selectedDate.toISOString()) : ""}
+              {selectedDate?.toLocaleDateString("en-US", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
             </DialogTitle>
           </DialogHeader>
 
@@ -3914,21 +3730,21 @@ export default function EventsCalendarPage() {
                 >
                   <div className="flex items-center gap-4">
 
-                    <div className="text-left">
-                      <div>
-                        <h3 className="font-semibold text-foreground leading-snug text-left">
-                          {event.name}
-                          {(event.status === "bookmarked" || event.status === "suggested") && <Star className="h-4 w-4 fill-current text-green-600 inline ml-1" />}
-                          {event.type === "holiday" && <Sparkles className="h-4 w-4 text-purple-600 inline ml-1" />}
-                        </h3>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-foreground">{event.name}</h3>
+                        {(event.status === "bookmarked" || event.status === "suggested") && <Star className="h-4 w-4 fill-current text-green-600" />}
+                        {event.type === "holiday" && <Sparkles className="h-4 w-4 text-purple-600" />}
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1 text-left">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+
                         <div className="flex items-center gap-0.5">
                           <Clock className="h-3 w-3" />
-                          {event.startDate === event.endDate ? formatSingleDate(event.startDate) : formatDateRange(event.startDate, event.endDate)}
+                          {event.startDate === event.endDate ? "Single day" : `${event.startDate} - ${event.endDate}`}
                         </div>
+
                       </div>
-                      <p className="text-sm text-muted-foreground mt-2 text-left">{event.description}</p>
+                      <p className="text-sm text-muted-foreground mt-2">{event.description}</p>
                     </div>
                   </div>
 
@@ -3936,23 +3752,18 @@ export default function EventsCalendarPage() {
                     <Badge className={cn("border", getStatusColor(event.status))}>
                       {event.status === "available" ? "Available" : event.status}
                     </Badge>
-                    <div className="relative group">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          toggleBookmark(event.id)
-                        }}
-                      >
-                        <BookmarkIcon
-                          className={cn("h-4 w-4", (event.status === "bookmarked" || event.status === "suggested") ? "fill-current text-green-600" : "")}
-                        />
-                      </Button>
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                        {(event.status === "bookmarked" || event.status === "suggested") ? "Remove Bookmark" : "Bookmark Event"}
-                      </div>
-                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleBookmark(event.id)
+                      }}
+                    >
+                      <BookmarkIcon
+                        className={cn("h-4 w-4", (event.status === "bookmarked" || event.status === "suggested") ? "fill-current text-green-600" : "")}
+                      />
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -3980,17 +3791,50 @@ export default function EventsCalendarPage() {
         <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle className="text-left">
-                <div className="mb-3">
-                  <div className="leading-relaxed break-words">
+              <DialogTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                <span className="text-2xl">{selectedEvent.flag}</span>
+                <div>
+                  <div className="flex items-center gap-2">
                     {selectedEvent.name}
-                    {selectedEvent.status === "bookmarked" && <Star className="h-5 w-5 fill-current text-green-600 inline ml-2" />}
-                    {selectedEvent.type === "holiday" && <Sparkles className="h-5 w-5 text-purple-600 inline ml-2" />}
+                    {selectedEvent.status === "bookmarked" && <Star className="h-5 w-5 fill-current text-green-600" />}
+                    {selectedEvent.type === "holiday" && <Sparkles className="h-5 w-5 text-purple-600" />}
                   </div>
+                  <Badge className={cn("mt-1", getStatusColor(selectedEvent.status))}>
+                    {selectedEvent.status === "available" ? "Available" : selectedEvent.status}
+                  </Badge>
                 </div>
-                <Badge className={cn(getStatusColor(selectedEvent.status))}>
-                  {selectedEvent.status === "available" ? "Available" : selectedEvent.status}
-                </Badge>
+                </div>
+                
+                {/* Edit and Delete icons for custom events */}
+                {selectedEvent.isCustom && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        handleEditEvent(selectedEvent)
+                        setSelectedEvent(null)
+                      }}
+                      className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
+                      title="Edit Event"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        showDeleteConfirmation(selectedEvent.id)
+                        setSelectedEvent(null)
+                      }}
+                      className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                      title="Delete Event"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
               </DialogTitle>
             </DialogHeader>
 
@@ -3998,8 +3842,12 @@ export default function EventsCalendarPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <CalendarIcon className="h-4 w-4" />
-                  {formatDateRange(selectedEvent.startDate, selectedEvent.endDate)}
+                  <span>
+                    {formatEventDate(selectedEvent.startDate)} - {formatEventDate(selectedEvent.endDate)}
+                  </span>
                 </div>
+
+
 
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <AlertCircle className="h-4 w-4" />
@@ -4014,72 +3862,33 @@ export default function EventsCalendarPage() {
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-4 border-t">
-                {/* Edit and Delete buttons for custom events */}
-                {selectedEvent.isCustom ? (
-                  <div className="flex items-center gap-2">
-                    <div className="relative group">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          handleEditEvent(selectedEvent)
-                          setSelectedEvent(null)
-                        }}
-                        className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                        Edit Event
-                      </div>
-                    </div>
-                    <div className="relative group">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => showDeleteConfirmation(selectedEvent.id)}
-                        className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                        Delete Event
-                      </div>
-                    </div>
-                  </div>
+              <div className="flex items-center justify-end pt-4 border-t">
+                {selectedEvent.status !== "available" ? (
+                  <Button
+                    variant={(selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") ? "default" : "outline"}
+                    onClick={() => toggleBookmark(selectedEvent.id)}
+                    className={cn(
+                      "px-4 gap-3",
+                      (selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested")
+                        ? "bg-green-600 hover:bg-green-700"
+                        : "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
+                    )}
+                  >
+                    <BookmarkIcon
+                      className={cn("h-4 w-4", (selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") && "fill-current")}
+                    />
+                    {(selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") ? "Remove Bookmark" : "Bookmark Event"}
+                  </Button>
                 ) : (
-                  <div></div>
+                  <Button
+                    variant="outline"
+                    onClick={() => toggleBookmark(selectedEvent.id)}
+                    className="px-4 gap-3 hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
+                  >
+                    <BookmarkIcon className="h-4 w-4" />
+                    Bookmark Event
+                  </Button>
                 )}
-                
-                <div className="flex items-center gap-2">
-                  {selectedEvent.status !== "available" ? (
-                    <Button
-                      variant={(selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") ? "default" : "outline"}
-                      onClick={() => toggleBookmark(selectedEvent.id)}
-                      className={cn(
-                        "px-4 gap-3",
-                        (selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested")
-                          ? "bg-green-600 hover:bg-green-700"
-                          : "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
-                      )}
-                    >
-                      <BookmarkIcon
-                        className={cn("h-4 w-4", (selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") && "fill-current")}
-                      />
-                      {(selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") ? "Remove Bookmark" : "Bookmark Event"}
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      onClick={() => toggleBookmark(selectedEvent.id)}
-                      className="px-4 gap-3 hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
-                    >
-                      <BookmarkIcon className="h-4 w-4" />
-                      Bookmark Event
-                    </Button>
-                  )}
-                </div>
               </div>
             </div>
           </DialogContent>
@@ -4098,21 +3907,364 @@ export default function EventsCalendarPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setIsDeleteDialogOpen(false)
-              setEventToDelete(null)
-            }}>
+            <AlertDialogCancel 
+              onClick={() => {
+                setIsDeleteDialogOpen(false)
+                setEventToDelete(null)
+              }}
+              className="h-11 min-h-[44px] touch-manipulation"
+            >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => eventToDelete && handleDeleteEvent(eventToDelete.id)}
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              className="h-11 min-h-[44px] touch-manipulation bg-red-600 hover:bg-red-700 focus:ring-red-600"
             >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Add Event Modal */}
+      <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Create New Event
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 overflow-y-auto max-h-[70vh]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="name">Event Name *</Label>
+                <Input
+                  id="name"
+                  value={newEvent.name}
+                  onChange={(e) => setNewEvent((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter event name"
+                  className="mt-1 h-11"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="category">Category *</Label>
+                <div className="mt-1">
+                  <Select
+                    value={newEvent.category}
+                    onValueChange={(value) => setNewEvent((prev) => ({ ...prev, category: value as any }))}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent hideScrollButtons={true}>
+                      <SelectItem value="conference">
+                        <div className="flex items-center gap-2">
+                          <Presentation className="h-4 w-4" />
+                          <span>Conference</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="tradeshow">
+                        <div className="flex items-center gap-2">
+                          <Building className="h-4 w-4" />
+                          <span>Trade Shows</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="workshop">
+                        <div className="flex items-center gap-2">
+                          <GraduationCap className="h-4 w-4" />
+                          <span>Workshop</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="social">
+                        <div className="flex items-center gap-2">
+                          <PartyPopper className="h-4 w-4" />
+                          <span>Social</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="holidays">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="h-4 w-4" />
+                          <span>Holidays</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="startDate">Start Date *</Label>
+                <div className="mt-1">
+                  <Popover open={isStartDateOpen} onOpenChange={setIsStartDateOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !newEvent.startDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {newEvent.startDate ? (
+                          formatEventDate(newEvent.startDate)
+                        ) : (
+                          <span>Select date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={newEvent.startDate ? new Date(newEvent.startDate) : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            const formattedDate = format(date, "yyyy-MM-dd")
+                            setNewEvent((prev) => ({ ...prev, startDate: formattedDate }))
+                            setIsStartDateOpen(false)
+                          }
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="endDate">End Date *</Label>
+                <div className="mt-1">
+                  <Popover open={isEndDateOpen} onOpenChange={setIsEndDateOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !newEvent.endDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {newEvent.endDate ? (
+                          formatEventDate(newEvent.endDate)
+                        ) : (
+                          <span>Select date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={newEvent.endDate ? new Date(newEvent.endDate) : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            const formattedDate = format(date, "yyyy-MM-dd")
+                            setNewEvent((prev) => ({ ...prev, endDate: formattedDate }))
+                            setIsEndDateOpen(false)
+                          }
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="country">Country *</Label>
+                <div className="mt-1">
+                  <Select
+                    value={newEventCountry}
+                    onValueChange={handleNewEventCountrySelect}
+                  >
+                    <SelectTrigger className="w-full h-11">
+                      <SelectValue placeholder="Select a country" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      <ScrollArea className="h-60">
+                        {countryOptions.map((option) => (
+                          <SelectItem 
+                            key={option.id} 
+                            value={option.label}
+                            className="min-h-[44px]"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm">{option.flag}</span>
+                              <span>{option.label}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </ScrollArea>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="city">City *</Label>
+                <div className="mt-1">
+                  <Select
+                    value={newEventCity}
+                    onValueChange={handleNewEventCitySelect}
+                    disabled={!newEventCountry}
+                  >
+                    <SelectTrigger className="w-full h-11">
+                      <SelectValue placeholder={newEventCountry ? "Select a city" : "Select country first"} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60" hideScrollButtons={true}>
+                      <ScrollArea className="h-60">
+                        {newEventCountry && cityOptions[newEventCountry as keyof typeof cityOptions]?.map((option) => (
+                          <SelectItem 
+                            key={option.id} 
+                            value={option.label}
+                            className="min-h-[44px]"
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </ScrollArea>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <div className="mt-1">
+                <Textarea
+                  id="description"
+                  value={newEvent.description}
+                  onChange={(e) => handleDescriptionChange(e.target.value)}
+                  placeholder="Describe the event..."
+                  className={cn(
+                    "resize-none",
+                    descriptionError ? "border-red-500 focus-visible:ring-red-500" : ""
+                  )}
+                  rows={3}
+                  maxLength={250}
+                />
+                <div className="flex justify-between items-center mt-1">
+                  <div className="text-xs text-muted-foreground">
+                    {newEvent.description.length}/250 characters
+                  </div>
+                  {descriptionError && (
+                    <div className="text-xs text-red-500">{descriptionError}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button variant="outline" onClick={() => {
+                setIsStartDateOpen(false)
+                setIsEndDateOpen(false)
+                setDescriptionError("")
+                setIsAddEventOpen(false)
+              }} className="px-4 h-11 min-h-[44px] touch-manipulation">
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAddEvent}
+                disabled={!newEvent.name || !newEvent.startDate || !newEvent.endDate || !newEvent.country || !newEvent.city || descriptionError}
+                className="px-4 h-11 min-h-[44px] touch-manipulation bg-primary hover:bg-primary/90"
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Event Modal */}
+      <Dialog open={isEditEventOpen} onOpenChange={setIsEditEventOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5 text-primary" />
+              Edit Event
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 overflow-y-auto max-h-[70vh]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-name">Event Name *</Label>
+                <Input
+                  id="edit-name"
+                  value={newEvent.name}
+                  onChange={(e) => setNewEvent((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter event name"
+                  className="mt-1 h-11"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="edit-category">Category *</Label>
+                <div className="mt-1">
+                  <Select
+                    value={newEvent.category}
+                    onValueChange={(value) => setNewEvent((prev) => ({ ...prev, category: value as any }))}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent hideScrollButtons={true}>
+                      <SelectItem value="conference">
+                        <div className="flex items-center gap-2">
+                          <Presentation className="h-4 w-4" />
+                          <span>Conference</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="tradeshow">
+                        <div className="flex items-center gap-2">
+                          <Building className="h-4 w-4" />
+                          <span>Trade Shows</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="workshop">
+                        <div className="flex items-center gap-2">
+                          <GraduationCap className="h-4 w-4" />
+                          <span>Workshop</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="social">
+                        <div className="flex items-center gap-2">
+                          <PartyPopper className="h-4 w-4" />
+                          <span>Social</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="holidays">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="h-4 w-4" />
+                          <span>Holidays</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button variant="outline" onClick={() => {
+                setIsEditEventOpen(false)
+                setDescriptionError("")
+              }} className="px-4 h-11 min-h-[44px] touch-manipulation">
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveEditedEvent}
+                disabled={!newEvent.name || !newEvent.startDate || !newEvent.endDate || !newEvent.country || !newEvent.city || descriptionError}
+                className="px-4 h-11 min-h-[44px] touch-manipulation bg-primary hover:bg-primary/90"
+              >
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

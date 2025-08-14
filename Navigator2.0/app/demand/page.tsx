@@ -1,7 +1,12 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
-import { CardDescription } from "@/components/ui/card"
+import React, { useEffect, useState, useCallback, useMemo } from "react"
+import { addDays } from "date-fns"
+import { Card, CardContent } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertTriangle } from "lucide-react"
+import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
 
 import { DemandFilterBar } from "@/components/navigator/demand-filter-bar"
 import { DemandCalendarOverview } from "@/components/navigator/demand-calendar-overview"
@@ -9,10 +14,6 @@ import { EnhancedDemandTrendsChart } from "@/components/navigator/enhanced-deman
 import { DemandHeader } from "@/components/navigator/demand-header"
 import { DemandSummaryCards } from "@/components/navigator/demand-summary-cards"
 import { MyEventsHolidaysTable } from "@/components/navigator/my-events-holidays-table"
-
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, Calendar, BarChart3, Activity, Users, Target, Globe, Zap } from "lucide-react"
 import { useDateContext } from "@/components/date-context"
 import { GetDemandAIData, GetDemandAIPerCountryAverageData } from "@/lib/demand"
 import { getAllEvents } from "@/lib/events"
@@ -20,17 +21,32 @@ import localStorageService from "@/lib/localstorage"
 import { getRateTrends } from "@/lib/rate"
 import { getChannels } from "@/lib/channels"
 import { conevrtDateforApi } from "@/lib/utils"
+import { useSelectedProperty } from "@/hooks/use-local-storage"
 
 export default function DemandPage() {
-  const { startDate, endDate } = useDateContext();
+  const { startDate, endDate, setDateRange } = useDateContext();
   const [demandAIPerCountryAverageData, setDemandAIPerCountryAverageData] = useState<any>([])
   const [demandData, setDemandData] = useState<any>([])
   const [eventData, setEventData] = useState<any>({});
-  const selectedProperty: any = localStorageService.get('SelectedProperty')
+  const [selectedProperty] = useSelectedProperty()
   const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AverageYoy: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0, AvrageHotelADRYoy: 0 })
-  const [rateData, setRateData] = useState(Object);
-  const [filter, setFilter] = useState<any>({});
+  const [isInitialized, setIsInitialized] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [loadingCycle, setLoadingCycle] = useState(1)
+ const [rateData, setRateData] = useState(Object);
+  const [filter, setFilter] = useState<any>("wow");
   const [channelFilter, setChannelFilter] = useState<any>({ channelId: [], channelName: [] });
+  // Initialize demand page with Next 15 Days default
+  useEffect(() => {
+    if (!isInitialized) {
+      const today = new Date()
+      const fifteenDaysFromNow = addDays(today, 14)
+      setDateRange(today, fifteenDaysFromNow)
+      setIsInitialized(true)
+    }
+  }, [setDateRange, isInitialized])
+
   useEffect(() => {
     if (!startDate || !endDate) return;
     Promise.all([
@@ -39,9 +55,9 @@ export default function DemandPage() {
       getDemandAIData(),
       getAllEventData(),
     ]);
-  }, [startDate, endDate]);
 
-  useEffect(() => {
+  }, [startDate, endDate, selectedProperty?.sid]);
+   useEffect(() => {
     if (!startDate ||
       !endDate ||
       !channelFilter?.channelId || channelFilter?.channelId.length === 0) return;
@@ -184,10 +200,26 @@ export default function DemandPage() {
     setFilter(filters);
     // Handle demand filter changes here
   }
+
+
+  // Show loading state when data is being fetched
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
+        <GlobalProgressBar />
+        <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8 xl:py-10">
+          <div className="max-w-7xl xl:max-w-none mx-auto">
+            <LoadingSkeleton type="demand" showCycleCounter={true} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
       {/* Enhanced Demand Filter Bar with Sticky Positioning */}
-      <div className="sticky top-0 z-50 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-all duration-200 min-h-[80px]">
+      <div className="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
         <DemandFilterBar onFiltersChange={handleDemandFiltersChange} />
       </div>
 
