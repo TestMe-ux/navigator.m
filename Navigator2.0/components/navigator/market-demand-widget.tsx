@@ -7,8 +7,11 @@ import { WorldMapVisualization, sourceMarkets } from "./world-map-visualization"
 import { useEffect, useState } from "react"
 import { useDateContext } from "../date-context"
 import { GetDemandAIData, GetDemandAIPerCountryAverageData } from "@/lib/demand"
-import { getAllEvents } from "@/lib/events"
+import { getAllEvents, getAllHoliday } from "@/lib/events"
 import localStorageService from "@/lib/localstorage"
+import { ComparisonOption, useComparison } from "../comparison-context"
+import { format } from "date-fns"
+import { conevrtDateforApi } from "@/lib/utils"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 const sourceMarketColors = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444"]
 // Local Dubai events - Extended list
@@ -46,23 +49,40 @@ const sourceMarketColors = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444
 // ]
 
 export function MarketDemandWidget() {
-  const { startDate, endDate, setDateRange } = useDateContext();
+  const fmtDate = (d: string) => format(new Date(d), "EEE, dd MMM - yyyy");
+  const { selectedComparison } = useComparison()
+  const { startDate, endDate } = useDateContext();
   const [demandData, setDemandData] = useState<any>([])
   const [eventData, setEventData] = useState<any>({});
+  const [holidaysData, setHolidays] = useState<any>({});
   const [demandAIPerCountryAverageData, setDemandAIPerCountryAverageData] = useState<any>([])
   const [selectedProperty] = useSelectedProperty()
   const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0 })
+  type AvgDemandType = typeof avgDemand;
+  const compMap: Record<ComparisonOption, { avgDICompare: keyof AvgDemandType; avgADRCompare: keyof AvgDemandType, compareText: string }> = {
+    1: { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Yesterday' },
+    7: { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Last 7 Days' },
+    28: { avgDICompare: "AverageMom", avgADRCompare: "AvrageHotelADRMom", compareText: 'Last 28 Days' },
+    91: { avgDICompare: "AverageMom", avgADRCompare: "AvrageHotelADRMom", compareText: 'Last Quarter' },
+  };
+  const { avgDICompare, avgADRCompare, compareText } = compMap[selectedComparison as ComparisonOption] || { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Yesterday' };
   useEffect(() => {
     if (!startDate || !endDate || !selectedProperty?.sid) return;
+    console.log("selectedComparison", startDate, endDate);
     Promise.all([
       getDemandAIPerCountryAverageData(),
       getDemandAIData(),
       getAllEventData(),
+      getAllHolidayData(),
     ]);
 
-  }, [startDate, endDate, selectedProperty]);
+  }, [startDate, endDate]);
+  useEffect(() => {
+    // console.log("selectedComparison", selectedComparison);
+
+  }, [selectedComparison]);
   const getDemandAIData = () => {
-    GetDemandAIData({ SID: selectedProperty?.sid, startDate: startDate?.toISOString().split('T')[0], endDate: endDate?.toISOString().split('T')[0] })
+    GetDemandAIData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
       .then((res) => {
         if (res.status) {
           debugger;
@@ -83,22 +103,24 @@ export function MarketDemandWidget() {
             sumHotelADRMom += Number(element.moM_Overall_HotelADR)
           });
           setAvgDemand({
-            AverageDI: Math.round(Number((sumDI / demandDatas.length))),
-            AverageWow: Math.round(Number((sumWow / demandDatas.length))),
-            AverageMom: Math.round(Number((sumMom / demandDatas.length))),
-            AvrageHotelADR: Math.round(Number((sumHotelADR / demandDatas.length))),
-            AvrageHotelADRWow: Math.round(Number((sumHotelADRWow / demandDatas.length))),
-            AvrageHotelADRMom: Math.round(Number((sumHotelADRMom / demandDatas.length)))
+            AverageDI: Number((sumDI / demandDatas.length).toFixed(2)),
+            AverageWow: Number((sumWow / demandDatas.length).toFixed(2)),
+            AverageMom: Number((sumMom / demandDatas.length).toFixed(2)),
+            AvrageHotelADR: Number((sumHotelADR / demandDatas.length).toFixed(2)),
+            AvrageHotelADRWow: Number((sumHotelADRWow / demandDatas.length).toFixed(2)),
+            AvrageHotelADRMom: Number((sumHotelADRMom / demandDatas.length).toFixed(2))
           });
         }
       })
       .catch((err) => console.error(err));
   }
   const getDemandAIPerCountryAverageData = () => {
-    GetDemandAIPerCountryAverageData({ SID: selectedProperty?.sid, startDate: startDate?.toISOString().split('T')[0], endDate: endDate?.toISOString().split('T')[0] })
+    GetDemandAIPerCountryAverageData({
+      SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString())
+    })
       .then((res) => {
         if (res.status) {
-          setDemandAIPerCountryAverageData(res?.body[0]);
+          setDemandAIPerCountryAverageData(res?.body[0].filter((market: any) => market.averageTotalFlights !== 0));
           console.log("GetDemandAIPerCountryAverageData", res?.body[0]);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
@@ -111,15 +133,51 @@ export function MarketDemandWidget() {
       "City": [selectedProperty?.city ?? ''],
       "SID": selectedProperty?.sid,
       "PageNumber": 1,
-      "PageCount": 10,
-      "StartDate": startDate?.toISOString().split('T')[0],
-      "EndDate": endDate?.toISOString().split('T')[0]
+      "PageCount": 500,
+      "StartDate": conevrtDateforApi(startDate?.toString()),
+      "EndDate": conevrtDateforApi(endDate?.toString())
     }
     getAllEvents(payload)
       .then((res) => {
         if (res.status && res.body && res.body.eventDetails) {
           res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum)
           setEventData(res.body);
+          console.log("Events", res.body);
+          // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
+        }
+      })
+      .catch((err) => console.error(err));
+  }
+  const getAllHolidayData = () => {
+    // var filters = { "Type": [], "Impact": [], "SearchType": "" };
+    var payload = {
+      "Country": [selectedProperty?.country ?? ''],
+      "City": [selectedProperty?.city ?? ''],
+      "SID": selectedProperty?.sid,
+      "FromDate": conevrtDateforApi(startDate?.toString()),
+      "ToDate": conevrtDateforApi(endDate?.toString()),
+      "Type": [],
+      "Impact": [],
+      "SearchType": ""
+    }
+    getAllHoliday(payload)
+      .then((res) => {
+        if (res.status) {
+          // console.log("Events", eventData);
+          var holidays = [...res.body[0].holidayDetail]
+          const holiday = holidays.map(x =>
+          ({
+            "eventName": x.holidayName,
+            "displayDate": fmtDate(x.holidayDispalyDate),
+            "eventType": 'holiday',
+            "eventColor": 'Holiday',
+            "eventTo": x.holidayDispalyDate
+          })
+          )
+          // console.log("Holidyas", holiday);
+          setHolidays(holiday)
+          // res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum)
+          // setEventData(res.body);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
       })
@@ -153,11 +211,11 @@ export function MarketDemandWidget() {
               <div className="text-xl font-bold text-foreground">{avgDemand?.AverageDI}</div>
               <div className="flex items-center gap-1">
                 <span className={`text-sm font-medium px-1.5 py-0.5 rounded
-                  ${avgDemand?.AverageWow > 0 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' :
+                  ${avgDemand?.[avgDICompare] > 0 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' :
                     'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 '}`}>
-                  {avgDemand?.AverageWow}%
+                  {avgDemand?.[avgDICompare]}%
                 </span>
-                <span className="text-sm text-muted-foreground">vs. Yesterday</span>
+                <span className="text-sm text-muted-foreground">vs. {compareText}</span>
               </div>
             </div>
           </div>
@@ -172,11 +230,11 @@ export function MarketDemandWidget() {
               <div className="text-xl font-bold text-foreground">{`\u200E${selectedProperty?.currencySymbol ?? '$'}\u200E ${avgDemand?.AvrageHotelADR}`}</div>
               <div className="flex items-center gap-1">
                 <span className={`text-sm font-medium px-1.5 py-0.5 rounded
-                  ${avgDemand?.AvrageHotelADRWow > 0 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' :
+                  ${avgDemand?.[avgADRCompare] > 0 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' :
                     'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 '}`}>
-                  {avgDemand?.AvrageHotelADRWow}%
+                  {avgDemand?.[avgADRCompare]}%
                 </span>
-                <span className="text-sm text-muted-foreground">vs. Yesterday</span>
+                <span className="text-sm text-muted-foreground">vs. {compareText}</span>
               </div>
             </div>
           </div>
@@ -193,7 +251,7 @@ export function MarketDemandWidget() {
                 <span className="text-red-600 dark:text-red-400 text-sm font-medium bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded">
                   -2.3%
                 </span>
-                <span className="text-sm text-muted-foreground">vs. Yesterday</span>
+                <span className="text-sm text-muted-foreground">vs. {compareText}</span>
               </div>
             </div>
           </div>
@@ -210,7 +268,7 @@ export function MarketDemandWidget() {
                 <span className="text-emerald-600 dark:text-emerald-400 text-sm font-medium bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded">
                   +4.2%
                 </span>
-                <span className="text-sm text-muted-foreground">vs. Yesterday</span>
+                <span className="text-sm text-muted-foreground">vs. {compareText}</span>
               </div>
             </div>
           </div>
@@ -253,7 +311,7 @@ export function MarketDemandWidget() {
 
               {/* Events Section - Full Width Below Map */}
               <div className="w-full pb-6">
-                <MyEventsHolidaysTable events={eventData} />
+                <MyEventsHolidaysTable events={eventData} holidaysData={holidaysData} />
               </div>
             </div>
 

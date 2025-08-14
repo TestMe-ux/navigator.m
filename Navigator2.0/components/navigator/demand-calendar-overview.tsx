@@ -6,15 +6,18 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
-  Calendar, 
-  ChevronLeft, 
+  Calendar,
+  ChevronLeft,
   ChevronRight,
   Star,
   MapPin,
   Users,
   Info
 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, conevrtDateforApi } from "@/lib/utils"
+import { GetDemandAIData } from "@/lib/demand"
+import localStorageService from "@/lib/localstorage"
+import { useDateContext } from "../date-context"
 
 /**
  * Calendar Event Interface
@@ -59,7 +62,7 @@ const generateDemandLevel = (date: Date): CalendarDay['demandLevel'] => {
   const seed = date.getTime() / (1000 * 60 * 60 * 24) // Days since epoch
   const random = Math.sin(seed) * 10000
   const value = random - Math.floor(random)
-  
+
   // Define demand level probabilities (4 levels)
   if (value < 0.25) return 'low'
   if (value < 0.5) return 'normal'
@@ -158,11 +161,11 @@ const getEventStyling = (events: CalendarEvent[], isToday: boolean = false, isSe
       shadow: ""
     }
   }
-  
+
   // Get highest impact event for styling priority
   const impacts = ["high", "elevated", "normal", "low"] as const
   const highestImpact = impacts.find(level => events.some(e => e.impact === level)) || "low"
-  
+
   // Impact-based styling with 76% background opacity and 100% border opacity
   // Using 2-color shading system
   switch (highestImpact) {
@@ -213,10 +216,10 @@ const getEventStyling = (events: CalendarEvent[], isToday: boolean = false, isSe
 const generateCalendarEvents = (): CalendarEvent[] => {
   try {
     console.log('📅 Generating calendar events for Dubai market (3 months)')
-    
+
     const today = new Date()
     const events: CalendarEvent[] = []
-    
+
     // Dubai-specific events with realistic dates
     const eventTemplates = [
       { title: "GITEX Technology Week", type: "conference" as const, impact: "high" as const, location: "Dubai World Trade Centre" },
@@ -235,12 +238,12 @@ const generateCalendarEvents = (): CalendarEvent[] => {
       { title: "Dubai Design Week", type: "cultural" as const, impact: "normal" as const, location: "Design District" },
       { title: "FinTech Summit Middle East", type: "business" as const, impact: "elevated" as const, location: "DIFC" }
     ]
-    
+
     // Generate events for next 90 days
     for (let i = 1; i <= 90; i++) {
       const eventDate = new Date(today)
       eventDate.setDate(today.getDate() + i)
-      
+
       // Add events with realistic frequency (about 25% of days have events)
       if (Math.random() > 0.75) {
         const template = eventTemplates[Math.floor(Math.random() * eventTemplates.length)]
@@ -250,10 +253,10 @@ const generateCalendarEvents = (): CalendarEvent[] => {
         })
       }
     }
-    
+
     console.log('✅ Calendar events generated:', events.length, 'events over 3 months')
     return events
-    
+
   } catch (error) {
     console.error('❌ Error generating calendar events:', error)
     return []
@@ -264,22 +267,24 @@ const generateCalendarEvents = (): CalendarEvent[] => {
  * Generate Calendar Days for Month
  * Creates calendar grid for a specific month (current month days only)
  */
-const generateMonthDays = (year: number, month: number, events: CalendarEvent[], today: Date): CalendarDay[] => {
+const generateMonthDays = (year: number, month: number, events: CalendarEvent[], today: Date, sid: number): CalendarDay[] => {
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const firstDayOfMonth = new Date(year, month, 1).getDay()
   const startPadding = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1 // Monday = 0
-  
+  const monthStartDate = new Date(year, month, 1)
+  const monthEndDate = new Date(year, month, daysInMonth)
+  // const dat = getDemandAIData(monthStartDate, monthEndDate,sid);
   const days: CalendarDay[] = []
-  
+
   // Add empty cells for proper day alignment
   for (let i = 0; i < startPadding; i++) {
     days.push(null as any) // Empty placeholder for alignment
   }
-  
+
   // Add current month days only
   for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(year, month, day)
-    
+
     days.push({
       date,
       dayNumber: day,
@@ -291,10 +296,19 @@ const generateMonthDays = (year: number, month: number, events: CalendarEvent[],
       demandLevel: generateDemandLevel(date)
     })
   }
-  
+
   return days
 }
-
+const getDemandAIData = (monthStartDate: any, monthEndDate: any, sid: number) => {
+  GetDemandAIData({ SID: sid, startDate: conevrtDateforApi(monthStartDate.toString()), endDate: conevrtDateforApi(monthEndDate.toString()) })
+    .then((res) => {
+      if (res.status) {
+        return res.body;
+        // setDemandData(res.body);
+      }
+    })
+    .catch((err) => console.error(err));
+}
 /**
  * Enhanced 3-Month Calendar Overview Component
  * 
@@ -311,20 +325,23 @@ const generateMonthDays = (year: number, month: number, events: CalendarEvent[],
  * @returns Compact calendar overview component
  */
 export function DemandCalendarOverview() {
+  const { startDate, endDate } = useDateContext();
+  const [demandData, setDemandData] = useState<any>([])
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [currentDate, setCurrentDate] = useState(new Date())
   const [isClient, setIsClient] = useState(false)
   const [hiddenDemandLevels, setHiddenDemandLevels] = useState<Set<CalendarDay['demandLevel']>>(
     new Set(['low', 'normal'])
   )
-  
+  const selectedProperty: any = localStorageService.get('SelectedProperty')
+
   const events = useMemo(() => [], []) // Events are now only shown as star icons
-  
+
   // Handle client-side hydration
   useEffect(() => {
     setIsClient(true)
   }, [])
-  
+
   /**
    * Handle demand level legend click to toggle visibility
    */
@@ -354,21 +371,21 @@ export function DemandCalendarOverview() {
    */
   const generateEventIcons = (days: CalendarDay[]): CalendarDay[] => {
     const currentMonthDays = days.filter(day => day?.isCurrentMonth)
-    
+
     // Use deterministic selection based on month/year
     const monthSeed = currentMonthDays[0]?.date.getMonth() ?? 0
     const yearSeed = currentMonthDays[0]?.date.getFullYear() ?? 2025
     const seed = monthSeed + yearSeed * 12
-    
+
     // Deterministic selection of 3 dates
     const selectedIndices = [
       (seed + 3) % currentMonthDays.length,
       (seed + 7) % currentMonthDays.length,
       (seed + 11) % currentMonthDays.length
     ].filter((value, index, self) => self.indexOf(value) === index) // Remove duplicates
-    
+
     const randomDates = selectedIndices.map(i => currentMonthDays[i])
-    
+
     const eventData = [
       { name: 'Tech Conference', category: 'Technology', impact: 'High' },
       { name: 'Trade Show', category: 'Business', impact: 'Very High' },
@@ -380,7 +397,7 @@ export function DemandCalendarOverview() {
       { name: 'Food Festival', category: 'Entertainment', impact: 'High' },
       { name: 'Fashion Week', category: 'Fashion', impact: 'Very High' }
     ]
-    
+
     return days.map(day => {
       if (!day) return day
       const hasIcon = randomDates.includes(day)
@@ -456,7 +473,7 @@ export function DemandCalendarOverview() {
       setSelectedDay(day.date)
     }
   }
-  
+
   /**
    * Navigate months
    */
@@ -546,9 +563,9 @@ export function DemandCalendarOverview() {
   const totalEvents = events.length
   const upcomingEvents = events.filter(e => e.date >= today).length
   const highImpactEvents = events.filter(e => e.impact === 'high').length
-  
+
   console.log('📊 Calendar statistics:', { totalEvents, upcomingEvents, highImpactEvents })
-  
+
   // Loading state
   if (!isClient) {
     return (
@@ -568,17 +585,17 @@ export function DemandCalendarOverview() {
       </section>
     )
   }
-  
+
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-  
+
   return (
     <TooltipProvider>
       <section className="w-full bg-gradient-to-r from-slate-50/80 to-blue-50/60 dark:from-slate-900/80 dark:to-slate-800/60 border-b border-slate-200/50 dark:border-slate-700/50">
         <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-3 lg:py-4">
           <div className="max-w-7xl mx-auto">
-          
 
-          
+
+
 
           
           {/* Three Month Calendar Grid - Responsive View */}

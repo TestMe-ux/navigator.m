@@ -33,7 +33,8 @@ interface EventData {
 }
 
 interface MyEventsHolidaysTableProps {
-  events?: any
+  events?: any,
+  holidaysData?: any
 }
 
 /**
@@ -48,7 +49,7 @@ interface MyEventsHolidaysTableProps {
  * Events page Category dropdown filter as requested.
  */
 
-export function MyEventsHolidaysTable({ events }: MyEventsHolidaysTableProps) {
+export function MyEventsHolidaysTable({ events, holidaysData }: MyEventsHolidaysTableProps) {
   const [hoveredRow, setHoveredRow] = useState<number | null>(null)
 
   // Format date according to requirements
@@ -325,7 +326,21 @@ export function MyEventsHolidaysTable({ events }: MyEventsHolidaysTableProps) {
   //   const bImpact = parseInt(b.impact.percentage.replace('+', '').replace('%', ''))
   //   return bImpact - aImpact
   // })
-  const data = events?.eventDetails?.slice(0, 3) || [] // Show top 3 events by impact
+  const mergedEventandHoliday = [
+    ...(Array.isArray(events?.eventDetails) ? events.eventDetails : []),
+    ...(Array.isArray(holidaysData) ? holidaysData : [])
+  ];
+
+  // Sort descending by eventFrom date
+  const sorted = mergedEventandHoliday.sort((a, b) => {
+    const dateA = new Date(a.eventFrom).getTime();
+    const dateB = new Date(b.eventFrom).getTime();
+    return dateB - dateA; // latest first
+  });
+
+  // Take top 3
+  const data = sorted.slice(0, 3) || [];
+  // const data = events?.eventDetails?.slice(0, 3) || [] // Show top 3 events by impact
 
   // Static icons from Events page Category dropdown - Use fixed icons for each widget position
   const getStaticCategoryIcon = (widgetIndex: number) => {
@@ -340,6 +355,8 @@ export function MyEventsHolidaysTable({ events }: MyEventsHolidaysTableProps) {
         return <Calendar className="w-5 h-5 text-slate-600" />
     }
   }
+
+  // Static color scheme for each widget position - Matches Events page Category colors
 
   // Static color scheme for each widget position - Matches Events page Category colors
   const getStaticCategoryColors = (widgetIndex: number) => {
