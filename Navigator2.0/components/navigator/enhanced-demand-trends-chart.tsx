@@ -97,74 +97,49 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
 }
 
 // Generate events for chart dates (similar to calendar logic)
-function generateChartEvents(trendData: any[]) {
-  const eventTemplates = [
-    { title: "GITEX Technology Week", category: "Technology", impact: "High", location: "Dubai World Trade Centre" },
-    { title: "Dubai Shopping Festival", category: "Festival", impact: "High", location: "Dubai Mall" },
-    { title: "Arab Health Exhibition", category: "Healthcare", impact: "High", location: "DWTC" },
-    { title: "Business Leadership Summit", category: "Business", impact: "High", location: "Burj Al Arab" },
-    { title: "Dubai Marathon", category: "Sports", impact: "High", location: "Dubai Marina" },
-    { title: "Art Dubai Fair", category: "Cultural", impact: "Medium", location: "Madinat Jumeirah" },
-    { title: "Dubai Food Festival", category: "Culinary", impact: "Medium", location: "Various Locations" },
-    { title: "Global Education Summit", category: "Education", impact: "Medium", location: "JW Marriott" }
-  ]
+function generateChartEvents(trendData: any[], events: any) {
+  debugger
+  const eventsData = Array.isArray(events?.eventDetails) ? events.eventDetails : [];
 
-  return trendData.map((dataPoint, index) => {
-    const totalDays = trendData.length
+  return trendData.map((dataPoint) => {
+    const dataDate = new Date(dataPoint.fullDate);
 
-    // Skip first and last 3 items from having events to avoid crowding at edges
-    const isNearEdges = index < 3 || index >= totalDays - 3
+    // Find the first matching event where dataDate is between eventFrom and eventTo
+    const matchingEvent = eventsData.find((event:any) => {
+      const fromDate = new Date(event.eventFrom);
+      const toDate = new Date(event.eventTo);
 
-    if (isNearEdges) {
-      return {
-        ...dataPoint,
-        hasEvent: false,
-        eventData: null
-      }
-    }
+      return dataDate >= fromDate && dataDate <= toDate;
+    });
 
-    // Reduce event frequency based on total period length
-    let eventFrequency = 4 // Default: 1 in 4 chance (25%)
-    if (totalDays > 45) {
-      eventFrequency = 6 // For longer periods: 1 in 6 chance (~17%)
-    }
-    if (totalDays > 90) {
-      eventFrequency = 8 // For very long periods: 1 in 8 chance (~12%)
-    }
-
-    // Use deterministic logic to assign events with reduced frequency
-    const dateHash = dataPoint.fullDate.getDate() + dataPoint.fullDate.getMonth() * 31
-    const hasEvent = (dateHash + index) % eventFrequency === 0
-
-    if (hasEvent) {
-      const eventIndex = (dateHash + index) % eventTemplates.length
-      const selectedEvent = eventTemplates[eventIndex]
-
+    if (matchingEvent) {
       return {
         ...dataPoint,
         hasEvent: true,
         eventData: {
-          title: selectedEvent.title,
-          category: selectedEvent.category,
-          impact: selectedEvent.impact,
-          location: selectedEvent.location,
-          date: dataPoint.fullDate.toLocaleDateString('en-US', {
+          title: matchingEvent.eventName,
+          category: matchingEvent.formattedEventType || matchingEvent.eventType,
+          impact: matchingEvent.eventImpact,
+          location: matchingEvent.eventLocation || `${matchingEvent.eventCity}, ${matchingEvent.eventCountry}`,
+          date: matchingEvent.displayDate || dataDate.toLocaleDateString('en-US', {
             weekday: 'long',
             year: 'numeric',
             month: 'long',
             day: 'numeric'
-          })
+          }),
+          imageUrl: matchingEvent.imageUrl
         }
-      }
+      };
     }
 
     return {
       ...dataPoint,
       hasEvent: false,
       eventData: null
-    }
-  })
+    };
+  });
 }
+
 
 // Aggregate daily data into weeks
 function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
@@ -641,10 +616,11 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
     }
     if (!demandData || demandData.length === 0 || !rateData || Object.keys(rateData).length === 0) return [];
     // Generate daily data first
+    debugger;
     const dailyData = generateTrendData(actualStartDate!, actualEndDate!, demandData, rateData, filter)
 
     // Add event data to daily data
-    const dailyDataWithEvents = generateChartEvents(dailyData)
+    const dailyDataWithEvents = generateChartEvents(dailyData, events)
 
     // Apply aggregation based on selected period
     switch (aggregationPeriod) {

@@ -14,7 +14,6 @@ import {
   Calendar
 } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Console } from "console"
 
 interface EventData {
   name: string
@@ -34,187 +33,6 @@ interface MyEventsHolidaysTableProps {
 
 export function MyEventsHolidaysTable({ events, holidaysData }: MyEventsHolidaysTableProps) {
   const [hoveredRow, setHoveredRow] = useState<number | null>(null)
-
-  // Default events data if none provided
-  // const defaultData = [
-  //   {
-  //     name: "Dubai Shopping Festival",
-  //     dates: "15 Jul - 30 Aug",
-  //     category: "retail",
-  //     impact: {
-  //       percentage: "+35%",
-  //       level: "high",
-  //       calculation: "Based on historical data: 120,000 visitors × 2.1% hotel booking rate × average stay 3.2 nights = +35% occupancy increase"
-  //     }
-  //   },
-  //   {
-  //     name: "Dubai Jazz Festival",
-  //     dates: "Fri 18 Jul - Sun 20 Jul",
-  //     category: "cultural",
-  //     impact: {
-  //       percentage: "+18%",
-  //       level: "high",
-  //       calculation: "Based on historical data: 25,000 visitors × 1.2% hotel booking rate × average stay 2.5 nights = +18% occupancy increase"
-  //     }
-  //   },
-  //   {
-  //     name: "Battle of the Boyne (Regional Holiday)",
-  //     dates: "Mon 14 Jul",
-  //     category: "holiday",
-  //     impact: {
-  //       percentage: "+12%",
-  //       level: "low",
-  //       calculation: "Based on historical data: 15,000 visitors × 0.8% hotel booking rate × average stay 2.1 nights = +12% occupancy increase"
-  //     }
-  //   },
-  //   {
-  //     name: "Independence Day Weekend",
-  //     dates: "Thu 4 Jul - Sun 7 Jul",
-  //     category: "holiday",
-  //     impact: {
-  //       percentage: "+22%",
-  //       level: "high",
-  //       calculation: "Major US holiday driving premium travel demand to Dubai with extended weekend stays"
-  //     }
-  //   },
-  //   {
-  //     name: "Behdiekhlam (Regional Holiday)",
-  //     dates: "Mon 14 Jul",
-  //     category: "religious",
-  //     impact: {
-  //       percentage: "+5%",
-  //       level: "low",
-  //       calculation: "Based on historical data: 8,500 visitors × 0.6% hotel booking rate × average stay 1.8 nights = +5% occupancy increase"
-  //     }
-  //   },
-  //   {
-  //     name: "Dubai International Film Festival",
-  //     dates: "Wed 10 Jul - Tue 16 Jul",
-  //     category: "cultural",
-  //     impact: {
-  //       percentage: "+15%",
-  //       level: "medium",
-  //       calculation: "International film festival attracting industry professionals and cinema enthusiasts"
-  //     }
-  //   },
-  //   {
-  //     name: "Formula 1 Abu Dhabi GP Weekend",
-  //     dates: "Fri 22 Nov - Sun 24 Nov",
-  //     category: "sports",
-  //     impact: {
-  //       percentage: "+28%",
-  //       level: "high",
-  //       calculation: "Major F1 event driving high-end tourism with premium accommodation demand"
-  //     }
-  //   },
-  //   {
-  //     name: "Mawlid al-Nabi (Prophet's Birthday)",
-  //     dates: "Sat 15 Sep",
-  //     category: "religious",
-  //     impact: {
-  //       percentage: "+8%",
-  //       level: "low",
-  //       calculation: "Islamic religious holiday increasing regional travel and family visits"
-  //     }
-  //   },
-  //   {
-  //     name: "Art Dubai International Fair",
-  //     dates: "Mon 11 Mar - Thu 14 Mar",
-  //     category: "business",
-  //     impact: {
-  //       percentage: "+6%",
-  //       level: "low",
-  //       calculation: "Contemporary art fair attracting collectors and art enthusiasts to Dubai"
-  //     }
-  //   },
-  //   {
-  //     name: "Dubai New Year's Eve Celebrations",
-  //     dates: "Mon 31 Dec - Tue 1 Jan",
-  //     category: "social",
-  //     impact: {
-  //       percentage: "+45%",
-  //       level: "high",
-  //       calculation: "Peak tourism period with world-famous fireworks and celebrations driving maximum demand"
-  //     }
-  //   },
-  //   {
-  //     name: "Global Village Festival",
-  //     dates: "Sat 2 Nov - Sun 5 May",
-  //     category: "cultural",
-  //     impact: {
-  //       percentage: "+25%",
-  //       level: "high",
-  //       calculation: "Major cultural attraction bringing international visitors for extended stays"
-  //     }
-  //   },
-  //   {
-  //     name: "Dubai Food Festival",
-  //     dates: "Fri 23 Feb - Sun 17 Mar",
-  //     category: "cultural",
-  //     impact: {
-  //       percentage: "+20%",
-  //       level: "high",
-  //       calculation: "Culinary event attracting food enthusiasts and international chefs"
-  //     }
-  //   },
-  //   {
-  //     name: "GITEX Technology Week",
-  //     dates: "Mon 14 Oct - Fri 18 Oct",
-  //     category: "business",
-  //     impact: {
-  //       percentage: "+16%",
-  //       level: "medium",
-  //       calculation: "Major technology conference bringing business travelers from around the world"
-  //     }
-  //   },
-  //   {
-  //     name: "Dubai World Cup",
-  //     dates: "Sat 30 Mar",
-  //     category: "sports",
-  //     impact: {
-  //       percentage: "+30%",
-  //       level: "high",
-  //       calculation: "World's richest horse race attracting high-end tourism and VIP guests"
-  //     }
-  //   },
-  //   {
-  //     name: "Ramadan Season",
-  //     dates: "Mon 10 Mar - Tue 9 Apr",
-  //     category: "religious",
-  //     impact: {
-  //       percentage: "+14%",
-  //       level: "medium",
-  //       calculation: "Holy month bringing regional visitors and special Iftar experiences"
-  //     }
-  //   },
-  //   {
-  //     name: "Dubai Airshow",
-  //     dates: "Mon 13 Nov - Fri 17 Nov",
-  //     category: "business",
-  //     impact: {
-  //       percentage: "+9%",
-  //       level: "low",
-  //       calculation: "Aviation industry event with moderate business traveler impact"
-  //     }
-  //   },
-  //   {
-  //     name: "National Day Celebrations",
-  //     dates: "Sat 2 Dec",
-  //     category: "holiday",
-  //     impact: {
-  //       percentage: "+7%",
-  //       level: "low",
-  //       calculation: "UAE National Day bringing regional visitors for short stays"
-  //     }
-  //   }
-  // ]
-
-  // Sort events by impact percentage (highest first) to show top events
-  // const allData = (events?.eventDetails).sort((a: any, b: any) => {
-  //   const aImpact = parseInt(a.impact.percentage.replace('+', '').replace('%', ''))
-  //   const bImpact = parseInt(b.impact.percentage.replace('+', '').replace('%', ''))
-  //   return bImpact - aImpact
-  // })
   const mergedEventandHoliday = [
     ...(Array.isArray(events?.eventDetails) ? events.eventDetails : []),
     ...(Array.isArray(holidaysData) ? holidaysData : [])
@@ -224,12 +42,12 @@ export function MyEventsHolidaysTable({ events, holidaysData }: MyEventsHolidays
   const sorted = mergedEventandHoliday.sort((a, b) => {
     const dateA = new Date(a.eventFrom).getTime();
     const dateB = new Date(b.eventFrom).getTime();
-    return dateB - dateA; // latest first
+    return dateA - dateB; // latest first
   });
 
   // Take top 3
   const data = sorted.slice(0, 3) || [];
-  // const data = events?.eventDetails?.slice(0, 3) || [] // Show top 3 events by impact
+  
 
 
 
