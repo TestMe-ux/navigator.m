@@ -1,7 +1,9 @@
 class LocalStorageService {
   set<T>(key: string, value: T): void {
     try {
-      localStorage.setItem(key, JSON.stringify(value));
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(key, JSON.stringify(value));
+      }
     } catch (error) {
       console.error("Error saving to localStorage", error);
     }
@@ -9,8 +11,11 @@ class LocalStorageService {
 
   get<T>(key: string): T | null {
     try {
-      const data = localStorage.getItem(key);
-      return data ? (JSON.parse(data) as T) : null;
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const data = localStorage.getItem(key);
+        return data ? (JSON.parse(data) as T) : null;
+      }
+      return null;
     } catch (error) {
       console.error("Error reading from localStorage", error);
       return null;
@@ -18,11 +23,23 @@ class LocalStorageService {
   }
 
   remove(key: string): void {
-    localStorage.removeItem(key);
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.removeItem(key);
+      }
+    } catch (error) {
+      console.error("Error removing from localStorage", error);
+    }
   }
 
   clear(): void {
-    localStorage.clear();
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.clear();
+      }
+    } catch (error) {
+      console.error("Error clearing localStorage", error);
+    }
   }
 }
 

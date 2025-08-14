@@ -78,8 +78,6 @@ export function MarketDemandWidget() {
 
   }, [startDate, endDate]);
   useEffect(() => {
-    // console.log("selectedComparison", selectedComparison);
-
   }, [selectedComparison]);
   const getDemandAIData = () => {
     GetDemandAIData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
@@ -121,7 +119,6 @@ export function MarketDemandWidget() {
       .then((res) => {
         if (res.status) {
           setDemandAIPerCountryAverageData(res?.body[0].filter((market: any) => market.averageTotalFlights !== 0));
-          console.log("GetDemandAIPerCountryAverageData", res?.body[0]);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
       })
@@ -142,7 +139,6 @@ export function MarketDemandWidget() {
         if (res.status && res.body && res.body.eventDetails) {
           res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum)
           setEventData(res.body);
-          console.log("Events", res.body);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
       })
@@ -163,7 +159,6 @@ export function MarketDemandWidget() {
     getAllHoliday(payload)
       .then((res) => {
         if (res.status) {
-          // console.log("Events", eventData);
           var holidays = [...res.body[0].holidayDetail]
           const holiday = holidays.map(x =>
           ({
@@ -174,7 +169,6 @@ export function MarketDemandWidget() {
             "eventTo": x.holidayDispalyDate
           })
           )
-          // console.log("Holidyas", holiday);
           setHolidays(holiday)
           // res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum)
           // setEventData(res.body);

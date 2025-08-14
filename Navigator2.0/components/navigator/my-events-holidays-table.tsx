@@ -19,7 +19,6 @@ import {
   Globe
 } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Console } from "console"
 
 interface EventData {
   name: string
@@ -335,12 +334,12 @@ export function MyEventsHolidaysTable({ events, holidaysData }: MyEventsHolidays
   const sorted = mergedEventandHoliday.sort((a, b) => {
     const dateA = new Date(a.eventFrom).getTime();
     const dateB = new Date(b.eventFrom).getTime();
-    return dateB - dateA; // latest first
+    return dateA - dateB; // latest first
   });
 
   // Take top 3
   const data = sorted.slice(0, 3) || [];
-  // const data = events?.eventDetails?.slice(0, 3) || [] // Show top 3 events by impact
+  
 
   // Static icons from Events page Category dropdown - Use fixed icons for each widget position
   const getStaticCategoryIcon = (widgetIndex: number) => {
