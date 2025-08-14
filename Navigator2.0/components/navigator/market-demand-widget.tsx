@@ -12,6 +12,7 @@ import localStorageService from "@/lib/localstorage"
 import { ComparisonOption, useComparison } from "../comparison-context"
 import { format } from "date-fns"
 import { conevrtDateforApi } from "@/lib/utils"
+import { useSelectedProperty } from "@/hooks/use-local-storage"
 const sourceMarketColors = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444"]
 // Local Dubai events - Extended list
 // const localEvents = [
@@ -55,7 +56,7 @@ export function MarketDemandWidget() {
   const [eventData, setEventData] = useState<any>({});
   const [holidaysData, setHolidays] = useState<any>({});
   const [demandAIPerCountryAverageData, setDemandAIPerCountryAverageData] = useState<any>([])
-  const [selectedProperty, setSelectedProperty] = useState<any>(localStorageService.get('SelectedProperty'))
+  const [selectedProperty] = useSelectedProperty()
   const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0 })
   type AvgDemandType = typeof avgDemand;
   const compMap: Record<ComparisonOption, { avgDICompare: keyof AvgDemandType; avgADRCompare: keyof AvgDemandType, compareText: string }> = {
@@ -66,7 +67,7 @@ export function MarketDemandWidget() {
   };
   const { avgDICompare, avgADRCompare, compareText } = compMap[selectedComparison as ComparisonOption] || { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Yesterday' };
   useEffect(() => {
-    if (!startDate || !endDate) return;
+    if (!startDate || !endDate || !selectedProperty?.sid) return;
     console.log("selectedComparison", startDate, endDate);
     Promise.all([
       getDemandAIPerCountryAverageData(),
@@ -138,7 +139,7 @@ export function MarketDemandWidget() {
     }
     getAllEvents(payload)
       .then((res) => {
-        if (res.status) {
+        if (res.status && res.body && res.body.eventDetails) {
           res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum)
           setEventData(res.body);
           console.log("Events", res.body);

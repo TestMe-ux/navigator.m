@@ -49,7 +49,15 @@ interface FilterSidebarProps {
 }
 
 export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, losGuest }: FilterSidebarProps) {
-  const [selectedProperty, setSelectedProperty] = React.useState<any>(localStorageService.get('SelectedProperty'))
+  const [selectedProperty, setSelectedProperty] = React.useState<any>(null)
+  
+  // Safely get selectedProperty on client side only
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const property = localStorageService.get('SelectedProperty')
+      setSelectedProperty(property)
+    }
+  }, [])
   const [filters, setFilters] = React.useState<FilterValue>({
     ...defaultFilters,
     ...initialFilters,

@@ -38,7 +38,7 @@ export function Header() {
   // Hooks for navigation and state management
   const didFetch = useRef(false);
   const pathname = usePathname()
-  const [selectedHotel, setSelectedHotel] = useState<any>([])
+  const [selectedHotel, setSelectedHotel] = useState<any>(null)
   const [hotelOptions, setHotelOptions] = useState<any>([])
   const [hotelSearch, setHotelSearch] = useState("")
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -46,8 +46,7 @@ export function Header() {
 
 
   useEffect(() => {
-
-    if (didFetch.current) return;
+    if (didFetch.current || typeof window === 'undefined') return;
 
     didFetch.current = true;
     const selectedProperty = localStorageService.get('SelectedProperty');
@@ -62,8 +61,15 @@ export function Header() {
       .then((res) => {
         if (res.status) {
           localStorageService.set('Properties', res.body);
-          localStorageService.set('SelectedProperty', res.body[0]);
-          setSelectedHotel(res.body[0]);
+          
+          // Find Alhambra Hotel in the properties list, fallback to first property if not found
+          const alhambraHotel = res.body.find((property: any) => 
+            property.name && property.name.toLowerCase().includes('alhambra')
+          );
+          const defaultProperty = alhambraHotel || res.body[0];
+          
+          localStorageService.set('SelectedProperty', defaultProperty);
+          setSelectedHotel(defaultProperty);
           setHotelOptions(res.body)
           // setotachannel(res.body);
           // getOTARankOnAllChannels(res.body);
@@ -89,16 +95,15 @@ export function Header() {
    * Memoized for performance optimization
    */
   const filteredHotels = useMemo(() => {
-    localStorageService.get('Properties')
-    if (!hotelSearch.trim()) return localStorageService.get('Properties')
+    if (!hotelSearch.trim()) return hotelOptions
 
     const searchLower = hotelSearch.toLowerCase()
     return hotelOptions.filter((hotel: any) =>
-      hotel.name.toLowerCase().includes(searchLower) ||
-      hotel.city.toLowerCase().includes(searchLower) ||
-      hotel.country.toLowerCase().includes(searchLower)
+      hotel?.name?.toLowerCase().includes(searchLower) ||
+      hotel?.city?.toLowerCase().includes(searchLower) ||
+      hotel?.country?.toLowerCase().includes(searchLower)
     )
-  }, [hotelSearch])
+  }, [hotelSearch, hotelOptions])
 
   /**
    * Handle hotel selection with debugging
@@ -111,8 +116,8 @@ export function Header() {
       setHotelSearch("");
       console.log(`🏨 Hotel selected: ${hotel.name} (ID: ${hotel?.hmid})`);
 
-      // Trigger API calls after hotel selection
-      // This will force the main page to re-fetch data with the new hotel's SID
+      // Trigger a page reload to ensure all components get the updated property data
+      // This is necessary because some components rely on localStorage and need a full refresh
       window.location.reload();
 
     } catch (error) {
@@ -234,8 +239,8 @@ export function Header() {
                       className="text-sm text-blue-100 hover:text-white hover:bg-white/10 max-w-[200px] sm:max-w-[280px] flex items-center text-left transition-all duration-200"
                     >
                       <div className="flex flex-col items-start max-w-full">
-                        <span className="truncate text-white font-medium">{truncateText(selectedHotel.name, 35)}</span>
-                        <span className="truncate text-xs text-blue-200">{selectedHotel.city},{selectedHotel.country}</span>
+                        <span className="truncate text-white font-medium">{truncateText(selectedHotel?.name || 'Select Hotel', 35)}</span>
+                        <span className="truncate text-xs text-blue-200">{selectedHotel?.city || 'City'}, {selectedHotel?.country || 'Country'}</span>
                       </div>
                       <ChevronDown className="ml-2 h-4 w-4 flex-shrink-0" />
                     </Button>
@@ -277,10 +282,10 @@ export function Header() {
                         >
                           <div className="flex flex-col gap-1 w-full">
                             <div className="flex items-center justify-between">
-                              <span className="font-medium text-sm truncate">{hotel.name}</span>
+                              <span className="font-medium text-sm truncate">{hotel?.name || 'Unknown Hotel'}</span>
                             </div>
                             <div className="flex items-center justify-between text-xs text-muted-foreground">
-                              <span>{hotel.city},{hotel.country}</span>
+                              <span>{hotel?.city || 'City'}, {hotel?.country || 'Country'}</span>
                             </div>
                           </div>
                         </DropdownMenuItem>

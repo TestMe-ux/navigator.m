@@ -1,12 +1,12 @@
 "use client"
 
-import type React from "react"
+import React, { useState, useEffect } from "react"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { TrendingUp, TrendingDown, Users, BarChart3, DollarSign, Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import localStorageService from "@/lib/localstorage"
-import { useState, useEffect } from "react"
+
 
 interface SummaryCardProps {
   title: string
@@ -109,13 +109,13 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
 
   useEffect(() => {
     if (!avgDemand) return;
-
+    console.log("Filter sumarry card", filter)
     let newTrend;
-    newTrend = filter["Compare With"] === "WoW"
+    newTrend = filter === "wow"
       ? avgDemand?.AvrageHotelADRWow
-      : filter["Compare With"] === "MoM"
+      : filter === "mom"
         ? avgDemand?.AvrageHotelADRMom
-        : filter["Compare With"] === "YoY"
+        : filter === "yoy"
           ? avgDemand?.AvrageHotelADRYoy
           : avgDemand?.AvrageHotelADRWow;
     console.log("newTrend", newTrend)
@@ -133,7 +133,7 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
       iconColorClass: "text-emerald-600 dark:text-emerald-400",
       bgColorClass: "bg-emerald-50 dark:bg-emerald-950",
       tooltipId: "avg-market-adr",
-      comparetext: filter["Compare With"]
+      comparetext: filter
     },
     {
       title: "Avg. Market RevPAR",
@@ -144,7 +144,7 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
       iconColorClass: "text-blue-600 dark:text-blue-400",
       bgColorClass: "bg-blue-50 dark:bg-blue-950",
       tooltipId: "avg-market-revpar",
-      comparetext: filter["Compare With"]
+      comparetext: filter
     },
     {
       title: "Top Source Market",
@@ -155,7 +155,7 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
       iconColorClass: "text-amber-600 dark:text-amber-400",
       bgColorClass: "bg-amber-50 dark:bg-amber-950",
       tooltipId: "top-source-market",
-      comparetext: filter["Compare With"]
+      comparetext: filter
     },
   ]
 

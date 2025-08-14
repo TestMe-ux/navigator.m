@@ -315,18 +315,18 @@ export function DemandCalendarMonthView() {
               )}
               onClick={() => handleDayClick(day)}
             >
-              <span className="relative z-10">{day.date.getDate()}</span>
+              <span className="relative z-0">{day.date.getDate()}</span>
               
               {/* Opportunity indicator */}
               {day.hasOpportunity && (
-                <div className="absolute top-1 right-1">
+                <div className="absolute top-1 right-1 z-0">
                   <Sparkles className="w-3 h-3 text-amber-500" />
                 </div>
               )}
               
               {/* Change direction indicator */}
               {day.changeDirection && (
-                <div className="absolute top-1 left-1">
+                <div className="absolute top-1 left-1 z-0">
                   {day.changeDirection === "up" ? (
                     <TrendingUp className="w-3 h-3 text-green-500" />
                   ) : (
@@ -337,13 +337,13 @@ export function DemandCalendarMonthView() {
               
               {/* Demand level indicator dot */}
               {day.isCurrentMonth && (
-                <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2">
+                <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 z-0">
                   <div className={cn("w-2 h-2 rounded-full", styling.indicator)} />
                 </div>
               )}
               
               {/* Tooltip on hover */}
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20 whitespace-nowrap">
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
                 <div className="font-semibold">{day.date.toLocaleDateString()}</div>
                 <div className="capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
                 {day.searches && <div>{day.searches.toLocaleString()} searches</div>}

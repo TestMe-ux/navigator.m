@@ -6,7 +6,7 @@ import { FilterSidebar } from "@/components/filter-sidebar"
 import { LayoutContent } from "@/components/layout-content"
 import { ThemeProvider } from "@/components/theme-provider"
 import { DateProvider } from "@/components/date-context"
-import ErrorBoundary from "@/components/error-boundary"
+import { ErrorBoundary } from "@/components/error-boundary"
 import { Toaster } from "@/components/ui/toaster"
 import { ComparisonProvider } from "@/components/comparison-context"
 

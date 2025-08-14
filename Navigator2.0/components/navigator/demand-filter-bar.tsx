@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
-import { ChevronDown, Filter, MapPin, TrendingUp, CalendarIcon } from "lucide-react"
-import { EnhancedDatePicker } from "@/components/enhanced-date-picker"
+import { ChevronDown, Filter, MapPin, TrendingUp, CalendarIcon, Calendar } from "lucide-react"
+import { DemandDatePicker } from "@/components/demand-date-picker"
 import { useDateContext } from "@/components/date-context"
+import { useComparison, ComparisonOption } from "@/components/comparison-context"
 import { cn } from "@/lib/utils"
 
 /**
@@ -23,25 +24,9 @@ interface FilterConfig {
 }
 
 /**
- * Demand-specific filter configuration
+ * Demand-specific filter configuration (Compare With removed as it's now handled by context)
  */
-const demandFilters: FilterConfig[] = [
-  {
-    name: "Compare With",
-    defaultOption: "WoW",
-    options: ["WoW", "MoM", "YoY"],
-    icon: CalendarIcon,
-    displayPrefix: "Vs.",
-    dropdownLabel: "Compare with",
-  },
-  {
-    name: "Location",
-    defaultOption: "Dubai Marina",
-    options: ["Dubai Marina", "Dubai Downtown", "Dubai Airport", "Dubai Mall Area", "Palm Jumeirah"],
-    icon: MapPin,
-    dropdownLabel: "City",
-  },
-]
+const demandFilters: FilterConfig[] = []
 
 interface DemandFilterBarProps {
   onFiltersChange?: (filters: Record<string, string>) => void
@@ -61,6 +46,15 @@ interface DemandFilterBarProps {
  */
 export function DemandFilterBar({ onFiltersChange }: DemandFilterBarProps) {
   const { startDate, endDate, setDateRange } = useDateContext()
+  const [ selectedComparison, setSelectedComparison ] = React.useState("wow")
+  const [isCompareOpen, setIsCompareOpen] = React.useState(false)
+
+  // Set default comparison to WoW for demand page
+  React.useEffect(() => {
+    if (!selectedComparison || !compareOptions.find(opt => opt.id === selectedComparison)) {
+      setSelectedComparison("wow")
+    }
+  }, [selectedComparison, setSelectedComparison])
   const [selectedFilters, setSelectedFilters] = React.useState(() =>
     demandFilters.reduce(
       (acc, filter) => {
@@ -70,6 +64,13 @@ export function DemandFilterBar({ onFiltersChange }: DemandFilterBarProps) {
       {} as Record<string, string>,
     ),
   )
+
+  // Compare options for Demand page
+  const compareOptions = [
+    { id: "wow", label: "Week on Week (WoW)", shortLabel: "WoW" },
+    { id: "mom", label: "Month on Month (MoM)", shortLabel: "MoM" },
+    { id: "yoy", label: "Year on Year (YoY)", shortLabel: "YoY" }
+  ]
 
   /**
    * Handle filter selection changes
@@ -88,6 +89,15 @@ export function DemandFilterBar({ onFiltersChange }: DemandFilterBarProps) {
     setDateRange(start, end)
     console.log('📅 Date range changed:', { start, end })
   }, [setDateRange])
+
+  /**
+   * Handle compare option selection
+   */
+  const handleCompareOptionSelect = React.useCallback((option: any) => {
+    setSelectedComparison(option)
+    setIsCompareOpen(false)
+    console.log(`📊 Compare option changed: ${option}`)
+  }, [setSelectedComparison])
 
   /**
    * Get active (non-default) filters count
@@ -110,11 +120,55 @@ export function DemandFilterBar({ onFiltersChange }: DemandFilterBarProps) {
               
               {/* Date Range Picker */}
               <div className="shrink-0">
-                <EnhancedDatePicker
+                <DemandDatePicker
                   startDate={startDate || undefined}
                   endDate={endDate || undefined}
                   onChange={handleDateRangeChange}
                 />
+              </div>
+
+              {/* Compare With Dropdown - Replicated from Overview */}
+              <div className="shrink-0">
+                <Popover open={isCompareOpen} onOpenChange={setIsCompareOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700 min-w-0 max-w-[160px]"
+                    >
+                      <Calendar className="w-4 h-4 shrink-0" />
+                      <span className="truncate max-w-[80px] font-semibold">
+                        Vs. {compareOptions.find(opt => opt.id === selectedComparison)?.shortLabel || "WoW"}
+                      </span>
+                      <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 z-[60]" align="start">
+                    <div className="flex">
+                      {/* Compare Options Sidebar */}
+                      <div className="w-60 p-4">
+                        <h4 className="font-semibold text-sm text-gray-700 mb-3">Compare with</h4>
+                        <div className="space-y-1">
+                          {compareOptions.map((option) => (
+                            <Button
+                              key={option.id}
+                              variant={selectedComparison === option.id ? "default" : "ghost"}
+                              size="sm"
+                              className="w-full justify-start text-left h-auto py-2 px-3"
+                              onClick={() => handleCompareOptionSelect(option.id)}
+                            >
+                              <span className={cn(
+                                "text-sm font-medium",
+                                selectedComparison === option.id ? "text-white" : "text-foreground"
+                              )}>
+                                {option.label}
+                              </span>
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* Demand-specific Filters */}
@@ -141,7 +195,7 @@ export function DemandFilterBar({ onFiltersChange }: DemandFilterBarProps) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-auto p-0">
-                        <div className="w-44 p-4">
+                        <div className="w-64 p-4">
                           {filter.dropdownLabel && (
                             <h4 className="font-semibold text-sm text-gray-700 mb-3">
                               {filter.dropdownLabel}
