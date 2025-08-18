@@ -185,32 +185,34 @@ export function DemandCalendarOverview({ eventData, holidayData }: any) {
     setIsClient(true)
   }, [])
 
-  const fetchDemandData = useCallback(async () => {
+  const fetchDemandData = () => {
     const today = new Date()
     const endDates = new Date(today)
     endDates.setDate(today.getDate() + 75) // 75 days from today
     const currentSID = selectedProperty?.sid
     try {
-      const response = await GetDemandAIData({
+      GetDemandAIData({
         SID: currentSID,
         startDate: conevrtDateforApi(today.toString()),
         endDate: conevrtDateforApi(endDates.toString())
+      }).then((response: any) => {
+        debugger;
+        if (response.status && response.body?.optimaDemand) {
+          setDemandData(response.body.optimaDemand)
+          console.log('✅ Demand data fetched:', response.body.optimaDemand.length, 'days')
+        }
       })
-
-      if (response.status && response.body?.optimaDemand) {
-        setDemandData(response.body.optimaDemand)
-        console.log('✅ Demand data fetched:', response.body.optimaDemand.length, 'days')
-      }
     } catch (error) {
       console.error('❌ Error fetching demand data:', error)
       throw error // Re-throw to be caught by the parent
     }
-  }, [selectedProperty?.sid])
+  }
 
 
 
   // Fetch demand data for 75 days - only once when component mounts or SID changes
   useEffect(() => {
+    debugger;
     const currentSID = selectedProperty?.sid
 
     // Only fetch if we have a SID and haven't fetched for this SID yet
