@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -22,34 +22,54 @@ import { Button } from "@/components/ui/button"
 import { useTheme } from "next-themes"
 import { useDemandDateContext } from "@/components/demand-date-context"
 import { format, eachDayOfInterval, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachWeekOfInterval, eachMonthOfInterval, differenceInDays } from "date-fns"
+import { getRateTrends } from "@/lib/rate"
+import localStorageService from "@/lib/localstorage"
+import { useComparison } from "../comparison-context"
 
 type DatasetType = 'pricing' | 'travellers'
 type AggregationPeriod = 'day' | 'week' | 'month'
+const suffixMap: Record<string, string> = {
+  WoW: "woW",
+  MoM: "moM",
+  YoY: "yoY",
+};
 
+// Helper to safely get value with dynamic key
+const getValue = (obj: any, key: string) => obj?.[key] ?? 0;
 // Generate trend data based on date range
-function generateTrendData(startDate: Date, endDate: Date, demandData: any) {
+function generateTrendData(startDate: Date, endDate: Date, demandData: any, rateData: any, filter: any) {
   const days = eachDayOfInterval({ start: startDate, end: endDate })
-  console.log("Generating trend data from", demandData);
   const lowestDemandIndex = Math.max(...demandData?.optimaDemand.map((d: any) => d.demandIndex));
+  const myRateDatas = rateData?.pricePositioningEntites
+    ?.find((x: any) => x.propertyType === 0)
+    ?.subscriberPropertyRate || [];
+  const suffix = suffixMap[filter] || "wow";
+
   return demandData?.optimaDemand.map((demandI: any, index: any) => {
+
+    const myRateData = myRateDatas.find((x: any) => x.checkInDateTime === demandI.checkinDate) || {};
     // Generate realistic data with some variation
     const checkinDate = parseISO(demandI.checkinDate);
     const baseDemand = Math.floor(1 + Math.sin(index * 0.3) * 1.2 + Math.random() * 1.5)
 
-    const demandLevel = Math.max(1, Math.min(4, baseDemand))
-    const hotelADR = demandI?.hotelADR ? demandI.hotelADR : 0
-    const marketADR = demandI?.marketADR ? demandI.marketADR : 0
-    const airTravellers = demandI?.oagCapacity ? demandI.oagCapacity : 0
 
+    const marketADR = demandI?.hotelADR ? demandI.hotelADR : 0
+    const hotelADR = Math.max(parseInt(myRateData?.rate ?? "0", 10), 0);
+    const airTravellers = demandI?.oagCapacity ? demandI.oagCapacity : 0
+    const myPriceVariance = getValue(demandI, `${suffix}_Overall_HotelADR`);
+    const marketADRVariance = getValue(demandI, `${suffix}_Overall_HotelADR`);
+    const airTravellersVariance = getValue(demandI, `${suffix}_Overall_OAGCapacity`);
+    const demandVariance = getValue(demandI, `${suffix}_Overall_Demand_Index`);
     // Generate variance percentages (realistic fluctuations)
-    const myPriceVariance = demandI?.woW_Overall_HotelADR ? demandI.woW_Overall_HotelADR : 0
-    const marketADRVariance = demandI?.woW_Overall_HotelADR ? demandI.woW_Overall_HotelADR : 0
-    const airTravellersVariance = demandI?.woW_Overall_OAGCapacity ? demandI.woW_Overall_OAGCapacity : 0
-    const demandVariance = demandI?.woW_Overall_Demand_Index ? demandI.woW_Overall_Demand_Index : 0
+    // const myPriceVariance = demandI?.woW_Overall_HotelADR ? demandI.woW_Overall_HotelADR : 0
+    // const marketADRVariance = demandI?.woW_Overall_HotelADR ? demandI.woW_Overall_HotelADR : 0
+    // const airTravellersVariance = demandI?.woW_Overall_OAGCapacity ? demandI.woW_Overall_OAGCapacity : 0
+    // const demandVariance = demandI?.woW_Overall_Demand_Index ? demandI.woW_Overall_Demand_Index : 0
 
     // Generate demand index (0-100 scale) - adjusted for 4 levels
     const demandIndex = demandI?.demandIndex ?? 0 // Convert 1-4 to 0-100 scale
-
+    const demandLevel = getDemandLevelKey(demandIndex);
+    // const demandLevel = demandLevelMap[levelKey];
     const dayFormat = format(checkinDate, "d MMM")
     const dateFormatted = format(checkinDate, "MMM d")
     const inboundAirline = demandI?.inboundAirline ? demandI.inboundAirline : [];
@@ -246,7 +266,12 @@ const demandLevelMap: { [key: number]: string } = {
   3: "Elevated",
   4: "High",
 }
-
+function getDemandLevelKey(demandIndex: number): number {
+  if (demandIndex < 25) return 1;        // Low
+  if (demandIndex < 50) return 2;        // Normal
+  if (demandIndex < 75) return 3;        // Elevated
+  return 4;                              // High
+}
 // Custom tooltip component
 const CustomTooltip = ({ active, payload, label, datasetType }: any & { datasetType: DatasetType }) => {
   if (active && payload && payload.length) {
@@ -368,12 +393,14 @@ const CustomLegend = ({
   datasetType,
   onDatasetChange,
   enabledDemandLevels,
-  onDemandToggle
+  onDemandToggle,
+  enabledAirtravels
 }: {
   datasetType: DatasetType
   onDatasetChange: (value: DatasetType) => void
   enabledDemandLevels: Set<number>
   onDemandToggle: (level: number) => void
+  enabledAirtravels: false
 }) => {
   const demandColors = [
     { level: "Low", color: "#93c5fd", demandLevel: 1 },         // Blue-300 (light shade of Normal)
@@ -475,7 +502,7 @@ const CustomLegend = ({
         </div>
 
         {/* Air Travellers Dataset Option */}
-        <div className="flex items-center gap-3">
+        {!enabledAirtravels ? (<div className="flex items-center gap-3">
           <RadioGroup
             value={datasetType}
             onValueChange={(value) => onDatasetChange(value as DatasetType)}
@@ -489,7 +516,7 @@ const CustomLegend = ({
 
           <div className="flex items-center gap-2">
             <div className="w-4 h-0.5 bg-purple-600" />
-            <span className="text-slate-800 dark:text-slate-200 font-medium">Air Travellers</span>
+            <span className="text-slate-800 dark:text-slate-200 font-medium">Air Travellers {enabledAirtravels}</span>
             <UITooltip>
               <TooltipTrigger asChild>
                 <Info className="w-3 h-3 text-muted-foreground hover:text-foreground cursor-help transition-colors" />
@@ -501,18 +528,21 @@ const CustomLegend = ({
               </TooltipContent>
             </UITooltip>
           </div>
-        </div>
+        </div>) : ''}
+
       </div>
     </div>
   )
 }
 
-export function EnhancedDemandTrendsChart({ events, demandData }: any) {
+export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData }: any) {
   const { theme } = useTheme()
   const { startDate, endDate, isLoading } = useDemandDateContext()
   const [datasetType, setDatasetType] = useState<DatasetType>('pricing')
   const [aggregationPeriod, setAggregationPeriod] = useState<AggregationPeriod>('day')
   const [enabledDemandLevels, setEnabledDemandLevels] = useState<Set<number>>(new Set([1, 2, 3, 4]))
+  const enabledAirtravels = demandData?.ischatgptData ?? false;
+
 
   // Toggle demand level visibility
   const handleDemandToggle = (level: number) => {
@@ -609,9 +639,9 @@ export function EnhancedDemandTrendsChart({ events, demandData }: any) {
       actualStartDate = new Date()
       actualEndDate = new Date(Date.now() + 29 * 24 * 60 * 60 * 1000)
     }
-    if (!demandData || demandData.length === 0) return [];
+    if (!demandData || demandData.length === 0 || !rateData || Object.keys(rateData).length === 0) return [];
     // Generate daily data first
-    const dailyData = generateTrendData(actualStartDate!, actualEndDate!, demandData)
+    const dailyData = generateTrendData(actualStartDate!, actualEndDate!, demandData, rateData, filter)
 
     // Add event data to daily data
     const dailyDataWithEvents = generateChartEvents(dailyData)
@@ -625,16 +655,18 @@ export function EnhancedDemandTrendsChart({ events, demandData }: any) {
       default:
         return dailyDataWithEvents
     }
-  }, [startDate, endDate, aggregationPeriod, demandData])
+  }, [startDate, endDate, aggregationPeriod, demandData, rateData, filter])
 
   // Calculate Y-axis domains dynamically
   const demandDomain = [0, 4]
 
   // Calculate actual price domain from data with robust error handling
-  const priceValues = trendData.flatMap(d => [d.hotelADR, d.marketADR]).filter(val => val != null && !isNaN(val) && val > 0)
+  const priceValues = trendData.flatMap(d => [d.hotelADR, d.marketADR]).filter(val => val != null && !isNaN(val))
   const minPrice = priceValues.length > 0 ? Math.min(...priceValues) : 70
   const maxPrice = priceValues.length > 0 ? Math.max(...priceValues) : 150
-  const priceDomain = [Math.max(0, minPrice - 10), maxPrice + 10]
+  const padding = Math.round((maxPrice - minPrice) * 0.05);
+  const priceDomain = [Math.max(0, minPrice - padding), maxPrice + padding];
+  // const priceDomain = [Math.max(0, minPrice - 10), maxPrice + 10]
 
   // Debug logging for price domain calculation
   console.log('🔍 PRICE DOMAIN DEBUG:', {
@@ -917,69 +949,55 @@ export function EnhancedDemandTrendsChart({ events, demandData }: any) {
               </Bar>
 
               {/* Pricing Lines - Enhanced Conditional Rendering with Full Debug */}
-              {datasetType === 'pricing' && (
-                <>
-                  {(() => {
-                    console.log('🚀 ENHANCED LINE RENDERING DEBUG:')
-                    console.log('  - Dataset type:', datasetType)
-                    console.log('  - Will render lines?', datasetType === 'pricing')
-                    console.log('  - Data sample for lines:', trendData.slice(0, 3).map(d => ({
-                      date: d.dateFormatted,
-                      hotelADR: d.hotelADR,
-                      marketADR: d.marketADR
-                    })))
-                    console.log('  - Price domain:', priceDomain)
-                    console.log('  - Colors:', { myPriceColor, marketAdrColor })
-                    return null
-                  })()}
 
-                  <Line
-                    yAxisId="secondary"
-                    type="monotone"
-                    dataKey="hotelADR"
-                    name="My ADR"
-                    stroke={myPriceColor}
-                    strokeWidth={8}
-                    connectNulls={false}
-                    isAnimationActive={false}
-                    dot={{
-                      r: 8,
-                      fill: myPriceColor,
-                      strokeWidth: 4,
-                      stroke: "#ffffff",
-                    }}
-                    activeDot={{
-                      r: 10,
-                      strokeWidth: 4,
-                      stroke: "#ffffff",
-                      fill: myPriceColor
-                    }}
-                  />
-                  <Line
-                    yAxisId="secondary"
-                    type="monotone"
-                    dataKey="marketADR"
-                    name="Market ADR"
-                    stroke={marketAdrColor}
-                    strokeWidth={8}
-                    strokeDasharray="12 6"
-                    connectNulls={false}
-                    isAnimationActive={false}
-                    dot={{
-                      r: 8,
-                      fill: marketAdrColor,
-                      strokeWidth: 4,
-                      stroke: "#ffffff",
-                    }}
-                    activeDot={{
-                      r: 10,
-                      strokeWidth: 4,
-                      stroke: "#ffffff",
-                      fill: marketAdrColor
-                    }}
-                  />
-                </>
-              )}
+              <Line
+                hide={datasetType !== 'pricing'}
+                yAxisId="secondary"
+                type="monotone"
+                dataKey="hotelADR"
+                name="My ADR"
+                stroke={myPriceColor}
+                strokeWidth={4}
+                connectNulls={false}
+                isAnimationActive={false}
+                dot={{
+                  r: 5,
+                  fill: myPriceColor,
+                  strokeWidth: 2,
+                  stroke: "#ffffff",
+                }}
+                activeDot={{
+                  r: 7,
+                  strokeWidth: 2,
+                  stroke: "#ffffff",
+                  fill: myPriceColor
+                }}
+              />
+              <Line
+                hide={datasetType !== 'pricing'}
+                yAxisId="secondary"
+                type="monotone"
+                dataKey="marketADR"
+                name="Market ADR"
+                stroke={marketAdrColor}
+                strokeWidth={4}
+                strokeDasharray="12 6"
+                connectNulls={false}
+                isAnimationActive={false}
+                dot={{
+                  r: 5,
+                  fill: marketAdrColor,
+                  strokeWidth: 2,
+                  stroke: "#ffffff",
+                }}
+                activeDot={{
+                  r: 7,
+                  strokeWidth: 2,
+                  stroke: "#ffffff",
+                  fill: marketAdrColor
+                }}
+              />
+
 
               {/* Travellers Line */}
               {datasetType === 'travellers' && (
@@ -1135,6 +1153,7 @@ export function EnhancedDemandTrendsChart({ events, demandData }: any) {
             onDatasetChange={setDatasetType}
             enabledDemandLevels={enabledDemandLevels}
             onDemandToggle={handleDemandToggle}
+            enabledAirtravels={enabledAirtravels}
           />
         </div>
       </div>

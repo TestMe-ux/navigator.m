@@ -46,13 +46,13 @@ interface DemandFilterBarProps {
  */
 export function DemandFilterBar({ onFiltersChange }: DemandFilterBarProps) {
   const { startDate, endDate, setDateRange } = useDemandDateContext()
-  const { selectedComparison, setSelectedComparison } = useComparison()
+  const [ selectedComparison, setSelectedComparison ] = React.useState("wow")
   const [isCompareOpen, setIsCompareOpen] = React.useState(false)
 
   // Set default comparison to WoW for demand page
   React.useEffect(() => {
     if (!selectedComparison || !compareOptions.find(opt => opt.id === selectedComparison)) {
-      setSelectedComparison("wow" as ComparisonOption)
+      setSelectedComparison("wow")
     }
   }, [selectedComparison, setSelectedComparison])
   const [selectedFilters, setSelectedFilters] = React.useState(() =>
@@ -67,9 +67,9 @@ export function DemandFilterBar({ onFiltersChange }: DemandFilterBarProps) {
 
   // Compare options for Demand page
   const compareOptions = [
-    { id: "wow" as ComparisonOption, label: "Week on Week (WoW)", shortLabel: "WoW" },
-    { id: "mom" as ComparisonOption, label: "Month on Month (MoM)", shortLabel: "MoM" },
-    { id: "yoy" as ComparisonOption, label: "Year on Year (YoY)", shortLabel: "YoY" }
+    { id: "wow", label: "Week on Week (WoW)", shortLabel: "WoW" },
+    { id: "mom", label: "Month on Month (MoM)", shortLabel: "MoM" },
+    { id: "yoy", label: "Year on Year (YoY)", shortLabel: "YoY" }
   ]
 
   /**
@@ -93,7 +93,7 @@ export function DemandFilterBar({ onFiltersChange }: DemandFilterBarProps) {
   /**
    * Handle compare option selection
    */
-  const handleCompareOptionSelect = React.useCallback((option: ComparisonOption) => {
+  const handleCompareOptionSelect = React.useCallback((option: any) => {
     setSelectedComparison(option)
     setIsCompareOpen(false)
     console.log(`📊 Compare option changed: ${option}`)

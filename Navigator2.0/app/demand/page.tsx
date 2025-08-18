@@ -18,6 +18,9 @@ import { useDemandDateContext, DemandDateProvider } from "@/components/demand-da
 import { GetDemandAIData, GetDemandAIPerCountryAverageData } from "@/lib/demand"
 import { getAllEvents } from "@/lib/events"
 import localStorageService from "@/lib/localstorage"
+import { getRateTrends } from "@/lib/rate"
+import { getChannels } from "@/lib/channels"
+import { conevrtDateforApi } from "@/lib/utils"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 
 function DemandPageContent() {
@@ -26,12 +29,14 @@ function DemandPageContent() {
   const [demandData, setDemandData] = useState<any>([])
   const [eventData, setEventData] = useState<any>({});
   const [selectedProperty] = useSelectedProperty()
-  const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0 })
+  const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AverageYoy: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0, AvrageHotelADRYoy: 0 })
   const [isInitialized, setIsInitialized] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [loadingCycle, setLoadingCycle] = useState(1)
-
+ const [rateData, setRateData] = useState(Object);
+  const [filter, setFilter] = useState<any>("wow");
+  const [channelFilter, setChannelFilter] = useState<any>({ channelId: [], channelName: [] });
   // Initialize demand page with Next 15 Days default
   useEffect(() => {
     if (!isInitialized) {
@@ -43,59 +48,36 @@ function DemandPageContent() {
   }, [setDateRange, isInitialized])
 
   useEffect(() => {
-    if (!startDate || !endDate || !selectedProperty?.sid || !isInitialized) return;
-    
-    // Start loading only for initial load or significant data changes
-    const shouldShowLoading = !demandData.length && !demandAIPerCountryAverageData.length;
-    
-    if (shouldShowLoading) {
-      setIsLoading(true);
-      setLoadingProgress(0);
-      
-      // Progress interval
-      const progressInterval = setInterval(() => {
-        setLoadingProgress((prev) => {
-          const increment = Math.floor(Math.random() * 9) + 3; // 3-11% increment
-          const newProgress = prev + increment;
-          
-          if (newProgress >= 100) {
-            setLoadingCycle(prevCycle => prevCycle + 1);
-            return 0;
-          }
-          
-          return newProgress;
-        });
-      }, 80);
-      
-      // Simulate 2-second loading with progress animation
-      setTimeout(() => {
-        Promise.all([
-          getDemandAIPerCountryAverageData(),
-          getDemandAIData(),
-          getAllEventData(),
-        ]).finally(() => {
-          clearInterval(progressInterval);
-          setLoadingProgress(100);
-          
-          // Show completion for 500ms before hiding  
-          setTimeout(() => {
-            setIsLoading(false);
-            setLoadingProgress(0);
-          }, 500);
-        });
-      }, 2000);
-    } else {
-      // Just fetch data without showing loading screen
-      Promise.all([
-        getDemandAIPerCountryAverageData(),
-        getDemandAIData(),
-        getAllEventData(),
-      ]);
-    }
+    if (!startDate || !endDate) return;
+    Promise.all([
+      getChannelData(),
+      getDemandAIPerCountryAverageData(),
+      getDemandAIData(),
+      getAllEventData(),
+    ]);
 
-  }, [startDate, endDate, selectedProperty, isInitialized]);
+  }, [startDate, endDate, selectedProperty?.sid]);
+   useEffect(() => {
+    if (!startDate ||
+      !endDate ||
+      !channelFilter?.channelId || channelFilter?.channelId.length === 0) return;
+    Promise.all([
+      getRateDate()
+    ]);
+  }, [startDate, endDate, channelFilter]);
+
+  const getChannelData = () => {
+    getChannels({ SID: selectedProperty?.sid })
+      .then((res) => {
+        console.log("Channels", res.body);
+        res.body.sort((a: any, b: any) => a.name.localeCompare(b.name))
+        const channelList = [...res.body];
+        setChannelFilter({ channelId: channelList.map(c => c.cid), channelName: channelList.map(c => c.name) })
+      }
+      )
+  }
   const getDemandAIData = () => {
-    GetDemandAIData({ SID: selectedProperty?.sid, startDate: startDate?.toISOString().split('T')[0], endDate: endDate?.toISOString().split('T')[0] })
+    GetDemandAIData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
       .then((res) => {
         if (res.status) {
           debugger;
@@ -104,31 +86,38 @@ function DemandPageContent() {
           let sumDI = 0;
           let sumWow = 0;
           let sumMom = 0;
+          let sumYoy = 0;
           let sumHotelADR = 0
           let sumHotelADRWow = 0
           let sumHotelADRMom = 0
+          let sumHotelADRYoy = 0
           demandDatas.forEach((element: any) => {
             sumDI += Number(element.demandIndex)
             sumWow += Number(element.woW_Overall_Demand_Index)
             sumMom += Number(element.moM_Overall_Demand_Index)
+            sumYoy += Number(element.yoY_Overall_Demand_Index)
             sumHotelADR += Number(element.hotelADR)
             sumHotelADRWow += Number(element.woW_Overall_HotelADR)
             sumHotelADRMom += Number(element.moM_Overall_HotelADR)
+            sumHotelADRMom += Number(element.moM_Overall_HotelADR)
+            sumHotelADRYoy += Number(element.yoY_Overall_HotelADR)
           });
           setAvgDemand({
             AverageDI: Math.round(Number((sumDI / demandDatas.length))),
             AverageWow: Math.round(Number((sumWow / demandDatas.length))),
             AverageMom: Math.round(Number((sumMom / demandDatas.length))),
+            AverageYoy: Math.round(Number((sumYoy / demandDatas.length))),
             AvrageHotelADR: Math.round(Number((sumHotelADR / demandDatas.length))),
             AvrageHotelADRWow: Math.round(Number((sumHotelADRWow / demandDatas.length))),
-            AvrageHotelADRMom: Math.round(Number((sumHotelADRMom / demandDatas.length)))
+            AvrageHotelADRMom: Math.round(Number((sumHotelADRMom / demandDatas.length))),
+            AvrageHotelADRYoy: Math.round(Number((sumHotelADRYoy / demandDatas.length)))
           });
         }
       })
       .catch((err) => console.error(err));
   }
   const getDemandAIPerCountryAverageData = () => {
-    GetDemandAIPerCountryAverageData({ SID: selectedProperty?.sid, startDate: startDate?.toISOString().split('T')[0], endDate: endDate?.toISOString().split('T')[0] })
+    GetDemandAIPerCountryAverageData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
       .then((res) => {
         if (res.status) {
           setDemandAIPerCountryAverageData(res?.body[0]);
@@ -145,8 +134,8 @@ function DemandPageContent() {
       "SID": selectedProperty?.sid,
       "PageNumber": 1,
       "PageCount": 10,
-      "StartDate": startDate?.toISOString().split('T')[0],
-      "EndDate": endDate?.toISOString().split('T')[0]
+      "StartDate": conevrtDateforApi(startDate?.toString()),
+      "EndDate": conevrtDateforApi(endDate?.toString())
     }
     getAllEvents(payload)
       .then((res) => {
@@ -158,9 +147,57 @@ function DemandPageContent() {
       })
       .catch((err) => console.error(err));
   }
+  const getRateDate = () => {
+    setRateData(Object);
+    var filtersValue = {
+      "SID": selectedProperty?.sid,
+      "channels": channelFilter.channelId,
+      "channelsText": channelFilter.channelName,
+      "checkInStartDate": conevrtDateforApi(startDate?.toString()),
+      "checkInEndDate": conevrtDateforApi(endDate?.toString()),
+      "LOS": null,
+      "guest": null,
+      "productTypeID": null,
+      "productTypeIDText": "All",
+      "inclusionID": [],
+      "inclusionIDText": ["All"],
+      "properties": [],
+      "restriction": null,
+      "qualification": null,
+      "promotion": null,
+      "restrictionText": "All",
+      "promotionText": "All",
+      "qualificationText": "All",
+      "subscriberPropertyID": selectedProperty?.hmid,
+      "subscriberName": selectedProperty?.name,
+      "mSIRequired": false,
+      "benchmarkRequired": true,
+      "compsetRatesRequired": true,
+      "propertiesText": [],
+      "isSecondary": false,
+    }
+    getRateTrends(filtersValue)
+      .then((res) => {
+        if (res.status) {
+          var CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
+            const allSubscriberRate = x.subscriberPropertyRate?.map((r: any) => parseInt(r.rate) > 0 ? parseInt(r.rate) : 0) || [];
+            const ty = allSubscriberRate.length
+              ? allSubscriberRate.reduce((sum: any, rate: any) => sum + rate, 0) / allSubscriberRate.length
+              : 0;
 
+            return { ...x, AvgData: ty };
+          });
+          res.body.pricePositioningEntites = CalulatedData;
+          console.log('Rate trends data:', res.body);
+          setRateData(res.body);
+          // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
+        }
+      })
+      .catch((err) => console.error(err));
+  }
   const handleDemandFiltersChange = (filters: any) => {
     console.log("🔍 Demand filters changed:", filters)
+    setFilter(filters);
     // Handle demand filter changes here
   }
 
@@ -204,7 +241,7 @@ function DemandPageContent() {
 
           {/* Summary Cards Section */}
           <section className="w-full">
-            <DemandSummaryCards  avgDemand={avgDemand} demandAIPerCountryAverageData={demandAIPerCountryAverageData}/>
+            <DemandSummaryCards filter={filter} avgDemand={avgDemand} demandAIPerCountryAverageData={demandAIPerCountryAverageData} />
           </section>
 
 
@@ -212,7 +249,7 @@ function DemandPageContent() {
           <section className="w-full">
             <Card className="card-elevated animate-fade-in">
               <CardContent className="p-3 md:p-4 lg:p-6 xl:p-8">
-                <EnhancedDemandTrendsChart events={eventData} demandData={demandData}/>
+                <EnhancedDemandTrendsChart filter={filter} events={eventData} demandData={demandData} rateData={rateData} />
               </CardContent>
             </Card>
           </section>

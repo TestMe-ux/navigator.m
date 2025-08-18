@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useMemo } from "react"
 
-export type ComparisonOption = 7 | 30 | 90
+export type ComparisonOption = 1 | 7 | 28 | 91
 export type ChannelSelection = { channelId?: number[] | []; channelName?: any[] | [] };
 export type CompsetSelection = true | false;
 export type SideFilterSelection = any;
@@ -26,8 +26,8 @@ export function ComparisonProvider({ children }: { children: ReactNode }) {
   const [sideFilter, setSideFilter] = useState<CompsetSelection>(Object);
 
   const value = useMemo(
-    () => ({ channelFilter, setChannelFilter, selectedComparison, setSelectedComparison,compsetFilter, setCompsetFilter,sideFilter, setSideFilter }),
-    [channelFilter, selectedComparison,compsetFilter,sideFilter]
+    () => ({ channelFilter, setChannelFilter, selectedComparison, setSelectedComparison, compsetFilter, setCompsetFilter, sideFilter, setSideFilter }),
+    [channelFilter, selectedComparison, compsetFilter, sideFilter]
   );
 
   return (
