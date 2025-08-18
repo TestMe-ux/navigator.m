@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge"
 import { ChevronDown, Filter, MapPin, TrendingUp, CalendarIcon, Calendar } from "lucide-react"
 import { DemandDatePicker } from "@/components/demand-date-picker"
-import { useDateContext } from "@/components/date-context"
+import { useDemandDateContext } from "@/components/demand-date-context"
 import { useComparison, ComparisonOption } from "@/components/comparison-context"
 import { cn } from "@/lib/utils"
 
@@ -45,7 +45,7 @@ interface DemandFilterBarProps {
  * @component
  */
 export function DemandFilterBar({ onFiltersChange }: DemandFilterBarProps) {
-  const { startDate, endDate, setDateRange } = useDateContext()
+  const { startDate, endDate, setDateRange } = useDemandDateContext()
   const [selectedComparison, setSelectedComparison] = React.useState("wow")
   const [isCompareOpen, setIsCompareOpen] = React.useState(false)
 

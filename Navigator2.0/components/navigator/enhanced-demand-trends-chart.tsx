@@ -21,7 +21,7 @@ import { ChevronDown, LineChart, Users, Download, Star, Info } from "lucide-reac
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { useTheme } from "next-themes"
-import { useDateContext } from "@/components/date-context"
+import { useDemandDateContext } from "@/components/demand-date-context"
 import { format, eachDayOfInterval, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachWeekOfInterval, eachMonthOfInterval, differenceInDays } from "date-fns"
 import { getRateTrends } from "@/lib/rate"
 import localStorageService from "@/lib/localstorage"
@@ -519,7 +519,7 @@ const CustomLegend = ({
 
 export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData, rateCompData }: any) {
   const { theme } = useTheme()
-  const { startDate, endDate, isLoading } = useDateContext()
+  const { startDate, endDate, isLoading } = useDemandDateContext()
   const [datasetType, setDatasetType] = useState<DatasetType>('pricing')
   const [aggregationPeriod, setAggregationPeriod] = useState<AggregationPeriod>('day')
   const [enabledDemandLevels, setEnabledDemandLevels] = useState<Set<number>>(new Set([1, 2, 3, 4]))
