@@ -138,7 +138,7 @@ export function MarketDemandWidget() {
       .then((res) => {
         if (res.status && res.body && res.body.eventDetails) {
           res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum)
-          setEventData(res.body);
+          setEventData(res.body?.eventDetails);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
       })

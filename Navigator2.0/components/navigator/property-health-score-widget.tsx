@@ -348,7 +348,7 @@ export function PropertyHealthScoreWidget(props: any) {
         parityRaw: a2,
       })),
     ];
-
+debugger;
     const filtered = merged.filter(item => {
       const cw = item.channelWisewinMeetLoss;
       const hasChannelWisewin =

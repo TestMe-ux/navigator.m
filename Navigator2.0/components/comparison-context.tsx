@@ -20,8 +20,8 @@ interface ComparisonContextType {
 const ComparisonContext = createContext<ComparisonContextType | undefined>(undefined)
 
 export function ComparisonProvider({ children }: { children: ReactNode }) {
-  const [selectedComparison, setSelectedComparison] = useState<ComparisonOption>(7)
-  const [channelFilter, setChannelFilter] = useState<ChannelSelection>({ channelId: [-1], channelName: ["All Channel"] });
+  const [selectedComparison, setSelectedComparison] = useState<ComparisonOption>(1)
+  const [channelFilter, setChannelFilter] = useState<ChannelSelection>({ channelId: [], channelName: [] });
   const [compsetFilter, setCompsetFilter] = useState<CompsetSelection>(false);
   const [sideFilter, setSideFilter] = useState<CompsetSelection>(Object);
 

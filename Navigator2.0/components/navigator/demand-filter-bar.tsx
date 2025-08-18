@@ -46,7 +46,7 @@ interface DemandFilterBarProps {
  */
 export function DemandFilterBar({ onFiltersChange }: DemandFilterBarProps) {
   const { startDate, endDate, setDateRange } = useDemandDateContext()
-  const [ selectedComparison, setSelectedComparison ] = React.useState("wow")
+  const [selectedComparison, setSelectedComparison] = React.useState("wow")
   const [isCompareOpen, setIsCompareOpen] = React.useState(false)
 
   // Set default comparison to WoW for demand page
@@ -96,8 +96,9 @@ export function DemandFilterBar({ onFiltersChange }: DemandFilterBarProps) {
   const handleCompareOptionSelect = React.useCallback((option: any) => {
     setSelectedComparison(option)
     setIsCompareOpen(false)
+    onFiltersChange?.(option)
     console.log(`📊 Compare option changed: ${option}`)
-  }, [setSelectedComparison])
+  }, [setSelectedComparison,onFiltersChange])
 
   /**
    * Get active (non-default) filters count
@@ -107,17 +108,17 @@ export function DemandFilterBar({ onFiltersChange }: DemandFilterBarProps) {
   }, [selectedFilters])
 
   return (
-    <div 
+    <div
       className="bg-transparent"
       data-component-name="DemandFilterBar"
     >
       <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16">
         <div className="max-w-7xl xl:max-w-none mx-auto">
           <div className="flex items-center justify-between py-4 gap-4">
-            
+
             {/* Left Section - Primary Filters */}
             <div className="flex items-center gap-4 flex-1 min-w-0">
-              
+
               {/* Date Range Picker */}
               <div className="shrink-0">
                 <DemandDatePicker
@@ -234,7 +235,7 @@ export function DemandFilterBar({ onFiltersChange }: DemandFilterBarProps) {
                   {getActiveFiltersCount} filter{getActiveFiltersCount !== 1 ? 's' : ''} active
                 </Badge>
               )}
-              
+
               {/* Clear Filters Button */}
               {getActiveFiltersCount > 0 && (
                 <Button
