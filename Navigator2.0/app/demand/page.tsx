@@ -14,14 +14,14 @@ import { EnhancedDemandTrendsChart } from "@/components/navigator/enhanced-deman
 import { DemandHeader } from "@/components/navigator/demand-header"
 import { DemandSummaryCards } from "@/components/navigator/demand-summary-cards"
 import { MyEventsHolidaysTable } from "@/components/navigator/my-events-holidays-table"
-import { useDateContext } from "@/components/date-context"
+import { useDemandDateContext, DemandDateProvider } from "@/components/demand-date-context"
 import { GetDemandAIData, GetDemandAIPerCountryAverageData } from "@/lib/demand"
 import { getAllEvents } from "@/lib/events"
 import localStorageService from "@/lib/localstorage"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 
-export default function DemandPage() {
-  const { startDate, endDate, setDateRange } = useDateContext();
+function DemandPageContent() {
+  const { startDate, endDate, setDateRange } = useDemandDateContext();
   const [demandAIPerCountryAverageData, setDemandAIPerCountryAverageData] = useState<any>([])
   const [demandData, setDemandData] = useState<any>([])
   const [eventData, setEventData] = useState<any>({});
@@ -227,5 +227,13 @@ export default function DemandPage() {
 
 
     </div>
+  )
+}
+
+export default function DemandPage() {
+  return (
+    <DemandDateProvider>
+      <DemandPageContent />
+    </DemandDateProvider>
   )
 }
