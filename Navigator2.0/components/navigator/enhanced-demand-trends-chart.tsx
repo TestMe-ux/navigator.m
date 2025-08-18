@@ -39,6 +39,7 @@ const suffixMap: Record<string, string> = {
 const getValue = (obj: any, key: string) => obj?.[key] ?? 0;
 // Generate trend data based on date range
 function generateTrendData(startDate: Date, endDate: Date, demandData: any, rateData: any, filter: any, rateCompData: any) {
+  debugger;
   const days = eachDayOfInterval({ start: startDate, end: endDate })
   const lowestDemandIndex = Math.max(...demandData?.optimaDemand.map((d: any) => d.demandIndex));
   const myRateDatas = rateData?.pricePositioningEntites
@@ -50,7 +51,6 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
   const suffix = suffixMap[filter] || "wow";
   const selectedComparison = filter === "wow" ? 7 : filter === "mom" ? 30 : filter === "yoy" ? 365 : 7;
   return demandData?.optimaDemand.map((demandI: any, index: any) => {
-    debugger;
     const myRateData = myRateDatas.find((x: any) => x.checkInDateTime === demandI.checkinDate) || {};
     const comparisonDateStr = format(subDays(demandI.checkinDate, selectedComparison), 'yyyy-MM-dd') + 'T00:00:00';
     const myCompRateData = myCompRateDatas.find((x: any) => x.checkInDateTime === comparisonDateStr) || {};
@@ -62,8 +62,11 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
     const marketADR = demandI?.hotelADR ? demandI.hotelADR : 0
     const hotelADR = Math.max(parseInt(myRateData?.rate ?? "0", 10), 0);
     const airTravellers = demandI?.oagCapacity ? demandI.oagCapacity : 0
-    const compRate = Math.max(parseInt(myCompRateData?.rate ?? "0", 10), 1); // avoid divide by 0
-    const myPriceVariance = (((hotelADR - compRate) / compRate) * 100).toFixed(2); // Calculate variance as percentage
+    const compRate = Number(myCompRateData?.rate);
+    const myPriceVariance =
+      !isNaN(compRate) && compRate > 0
+        ? Number((((hotelADR - compRate) / compRate) * 100).toFixed(2))
+        : 0;
     const marketADRVariance = getValue(demandI, `${suffix}_Overall_HotelADR`);
     const airTravellersVariance = getValue(demandI, `${suffix}_Overall_OAGCapacity`);
     const demandVariance = getValue(demandI, `${suffix}_Overall_Demand_Index`);
@@ -105,7 +108,6 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
 
 // Generate events for chart dates (similar to calendar logic)
 function generateChartEvents(trendData: any[], events: any) {
-  debugger
   const eventsData = Array.isArray(events) ? events : [];
 
   return trendData.map((dataPoint) => {
@@ -623,7 +625,6 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
     }
     if (!demandData || demandData.length === 0 || !rateData || Object.keys(rateData).length === 0 || !rateCompData || Object.keys(rateCompData).length === 0) return [];
     // Generate daily data first
-    debugger;
     const dailyData = generateTrendData(actualStartDate!, actualEndDate!, demandData, rateData, filter, rateCompData)
 
     // Add event data to daily data

@@ -62,7 +62,6 @@ export function Header() {
     GetSIDListforUser({ UserID: 50986 })
       .then((res) => {
         if (res.status) {
-          debugger;
           localStorageService.set('Properties', res.body);
 
           // Find Alhambra Hotel in the properties list, fallback to first property if not found
@@ -74,7 +73,6 @@ export function Header() {
           localStorageService.set('SelectedProperty', defaultProperty);
           setSelectedHotel(defaultProperty);
           setHotelOptions(res.body)
-          debugger
           // setotachannel(res.body);
           // getOTARankOnAllChannels(res.body);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));

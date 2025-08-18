@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState, useCallback, useMemo } from "react"
+import React, { useEffect, useState, useCallback, useMemo, use } from "react"
 import { addDays, format } from "date-fns"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -53,42 +53,39 @@ function DemandPageContent() {
   }, [setDateRange, isInitialized])
 
   useEffect(() => {
-    if (!startDate || !endDate || !selectedProperty?.sid || !isInitialized) return;
-    const shouldShowLoading = !demandData.length && !demandAIPerCountryAverageData.length;
-    if (shouldShowLoading) {
-      setIsLoading(true);
-      setLoadingProgress(0);
+    if (!startDate || !endDate || !selectedProperty?.sid) return;
 
-      // Progress interval
-      const progressInterval = setInterval(() => {
-        setLoadingProgress((prev) => {
-          const increment = Math.floor(Math.random() * 9) + 3; // 3-11% increment
-          const newProgress = prev + increment;
+    setIsLoading(true);
+    setLoadingProgress(0);
 
-          if (newProgress >= 100) {
-            setLoadingCycle(prevCycle => prevCycle + 1);
-            return 0;
-          }
+    // Progress interval
+    const progressInterval = setInterval(() => {
+      setLoadingProgress((prev) => {
+        const increment = Math.floor(Math.random() * 9) + 3; // 3-11% increment
+        const newProgress = prev + increment;
 
-          return newProgress;
-        });
-      }, 80);
+        if (newProgress >= 100) {
+          setLoadingCycle(prevCycle => prevCycle + 1);
+          return 0;
+        }
 
-      Promise.all([
-        getChannelData(),
-        getDemandAIPerCountryAverageData(),
-        getDemandAIData(),
-        getAllEventData(),
-        getAllHolidayData(),
-      ]).finally(() => {
-        clearInterval(progressInterval);
-        setLoadingProgress(100); // finish instantly
-        setTimeout(() => {
-          setIsLoading(false);
-          setLoadingProgress(0); // reset for next load
-        }, 300); // brief delay so user sees 100%
+        return newProgress;
       });
-    }
+    }, 80);
+
+    Promise.all([
+      getChannelData(),
+      getDemandAIPerCountryAverageData(),
+      getDemandAIData(),
+    ]).finally(() => {
+      clearInterval(progressInterval);
+      setLoadingProgress(100); // finish instantly
+      setTimeout(() => {
+        setIsLoading(false);
+        setLoadingProgress(0); // reset for next load
+      }, 300); // brief delay so user sees 100%
+    });
+
 
   }, [startDate, endDate, selectedProperty?.sid]);
   useEffect(() => {
@@ -108,6 +105,13 @@ function DemandPageContent() {
       getCompRateData()
     ]);
   }, [filter]);
+  useEffect(() => {
+    if (!selectedProperty?.sid) return;
+    Promise.all([
+      getAllEventData(),
+      getAllHolidayData()
+    ]);
+  }, [selectedProperty?.sid]);
 
   const getChannelData = () => {
     getChannels({ SID: selectedProperty?.sid })
@@ -123,7 +127,6 @@ function DemandPageContent() {
     GetDemandAIData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
       .then((res) => {
         if (res.status) {
-          debugger;
           setDemandData(res.body);
           var demandDatas = res.body.optimaDemand
           let sumDI = 0;
@@ -165,7 +168,7 @@ function DemandPageContent() {
   const getDemandAIPerCountryAverageData = () => {
     GetDemandAIPerCountryAverageData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
       .then((res) => {
-        if (res.status) {
+        if (res.status) { 
           setDemandAIPerCountryAverageData(res?.body[0]);
           console.log("GetDemandAIPerCountryAverageData", res?.body[0]);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
@@ -179,7 +182,7 @@ function DemandPageContent() {
     endDates.setDate(today.getDate() + 75)
     var payload = {
       "Country": [selectedProperty?.country ?? ''],
-      "City": [],
+      "City": [selectedProperty?.city ?? ''],
       "SID": selectedProperty?.sid,
       "PageNumber": 1,
       "PageCount": 500,
@@ -189,7 +192,6 @@ function DemandPageContent() {
     getAllEvents(payload)
       .then((res) => {
         if (res.status) {
-          debugger
           res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum)
           setAllEventData(res.body);
           const start = startDate ? new Date(startDate) : new Date();
