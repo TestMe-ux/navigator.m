@@ -49,25 +49,56 @@ function DemandPageContent() {
 
   useEffect(() => {
     if (!startDate || !endDate) return;
-    Promise.all([
-      getChannelData(),
-      getDemandAIPerCountryAverageData(),
-      getDemandAIData(),
-      getAllEventData(),
-    ]);
-
+    
+    const fetchData = async () => {
+      setIsLoading(true);
+      setLoadingProgress(0);
+      
+      try {
+        await Promise.all([
+          getChannelData(),
+          getDemandAIPerCountryAverageData(),
+          getDemandAIData(),
+          getAllEventData(),
+        ]);
+      } finally {
+        // Show completion for 300ms before hiding
+        setTimeout(() => {
+          setIsLoading(false);
+          setLoadingProgress(0);
+        }, 300);
+      }
+    };
+    
+    fetchData();
   }, [startDate, endDate, selectedProperty?.sid]);
    useEffect(() => {
     if (!startDate ||
       !endDate ||
       !channelFilter?.channelId || channelFilter?.channelId.length === 0) return;
-    Promise.all([
-      getRateDate()
-    ]);
+    
+    const fetchRateData = async () => {
+      setIsLoading(true);
+      setLoadingProgress(0);
+      
+      try {
+        await Promise.all([
+          getRateDate()
+        ]);
+      } finally {
+        // Show completion for 300ms before hiding
+        setTimeout(() => {
+          setIsLoading(false);
+          setLoadingProgress(0);
+        }, 300);
+      }
+    };
+    
+    fetchRateData();
   }, [startDate, endDate, channelFilter]);
 
   const getChannelData = () => {
-    getChannels({ SID: selectedProperty?.sid })
+    return getChannels({ SID: selectedProperty?.sid })
       .then((res) => {
         console.log("Channels", res.body);
         res.body.sort((a: any, b: any) => a.name.localeCompare(b.name))
@@ -77,7 +108,7 @@ function DemandPageContent() {
       )
   }
   const getDemandAIData = () => {
-    GetDemandAIData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
+    return GetDemandAIData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
       .then((res) => {
         if (res.status) {
           debugger;
@@ -117,7 +148,7 @@ function DemandPageContent() {
       .catch((err) => console.error(err));
   }
   const getDemandAIPerCountryAverageData = () => {
-    GetDemandAIPerCountryAverageData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
+    return GetDemandAIPerCountryAverageData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
       .then((res) => {
         if (res.status) {
           setDemandAIPerCountryAverageData(res?.body[0]);
@@ -137,7 +168,7 @@ function DemandPageContent() {
       "StartDate": conevrtDateforApi(startDate?.toString()),
       "EndDate": conevrtDateforApi(endDate?.toString())
     }
-    getAllEvents(payload)
+    return getAllEvents(payload)
       .then((res) => {
         if (res.status) {
           res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum)
@@ -176,7 +207,7 @@ function DemandPageContent() {
       "propertiesText": [],
       "isSecondary": false,
     }
-    getRateTrends(filtersValue)
+    return getRateTrends(filtersValue)
       .then((res) => {
         if (res.status) {
           var CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
