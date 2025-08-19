@@ -53,7 +53,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import { getAllEvents, getEventCitiesCountryList } from "@/lib/events"
+import { getAllEvents, saveEvents,deleteEvents, getEventCitiesCountryList } from "@/lib/events"
 import { useDateContext } from "@/components/date-context"
 import { format, getDaysInMonth } from "date-fns"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
@@ -2032,7 +2032,8 @@ export default function EventsCalendarPage() {
   }
 
   // Handle edit event
-  const handleEditEvent = (event: Event) => {
+  const handleEditEvent = async (event: Event) => {
+    debugger
     setEditingEvent(event)
     setNewEvent({
       name: event.name,
@@ -2043,6 +2044,26 @@ export default function EventsCalendarPage() {
       city: event.location.split(", ")[0] || "",
       description: event.description,
     })
+
+    try {
+      // const response = await updateEvent(editingEvent.id, updatedEvent);
+      // const result = await response.json();
+
+      // if (result.status) {
+      //   //Update state with new event
+      //   setEvents((prev) =>
+      //     prev.map((e) => (e.id === editingEvent.id ? result.data ?? updatedEvent : e))
+      //   );
+
+      //   setMessage("Event updated successfully!");
+      //   setIsEditEventOpen(false);
+      // } else {
+      //   setMessage("Failed to update event: " + (result.message || ""));
+      // }
+    } catch (error) {
+      console.error("Error updating event:", error);
+      setMessage("Something went wrong while updating event!");
+    }
     setNewEventCountry(event.country || "")
     setNewEventCity(event.location.split(", ")[0] || "")
     setIsEditEventOpen(true)
@@ -2068,16 +2089,34 @@ export default function EventsCalendarPage() {
   }
 
   // Handle delete event after confirmation
-  const handleDeleteEvent = (eventId: string) => {
-    setEvents((prev) => {
-      const updatedEvents = prev.filter((event) => event.id !== eventId)
-      // Save only custom events to localStorage
-      const customEvents = updatedEvents.filter(e => e.isCustom)
-      saveCustomEventsToStorage(customEvents)
-      return updatedEvents
-    })
-    setIsDeleteDialogOpen(false)
-    setEventToDelete(null)
+  const handleDeleteEvent = async (eventId: any) => {
+
+    try {
+      const response = await deleteEvents(eventId);
+      const result = await response.json();
+
+      if (result.status) {
+        //delete  state with new event   
+        
+        setMessage("Event deleted successfully!");
+        setIsDeleteDialogOpen(false);
+      } else {
+        setMessage("Failed to delete  event: " + (result.message || ""));
+      }
+    } catch (error) {
+      console.error("Error delete  event:", error);
+      setMessage("Something went wrong while delete  event!");
+    }
+
+    // setEvents((prev) => {
+    //   const updatedEvents = prev.filter((event) => event.id !== eventId)
+    //   // Save only custom events to localStorage
+    //   const customEvents = updatedEvents.filter(e => e.isCustom)
+    //   saveCustomEventsToStorage(customEvents)
+    //   return updatedEvents
+    // })
+    // setIsDeleteDialogOpen(false)
+    // setEventToDelete(null)
   }
 
   // Handle save edited event
@@ -2351,7 +2390,66 @@ export default function EventsCalendarPage() {
     })
   }
 
-  const handleAddEvent = () => {
+  
+
+  // Update month picker year when currentDate changes
+  useEffect(() => {
+    setMonthPickerYear(currentDate.getFullYear())
+  }, [currentDate])
+
+  // Get date restrictions for month picker
+  const getDateRestrictions = () => {
+    const currentYear = new Date().getFullYear()
+    const nextYear = currentYear + 1
+
+    return {
+      minYear: currentYear,
+      maxYear: nextYear,
+      minMonth: 0, // January of current year
+      maxMonth: 11 // December of next year
+    }
+  }
+
+  // Check if a month is selectable
+  const isMonthSelectable = (month: number, year: number) => {
+    const restrictions = getDateRestrictions()
+    const currentYear = new Date().getFullYear()
+
+    if (year < restrictions.minYear || year > restrictions.maxYear) {
+      return false
+    }
+
+    // For current year, can select from January onwards
+    if (year === currentYear) {
+      return month >= 0 // January onwards
+    }
+
+    // For next year, can select all months
+    if (year === currentYear + 1) {
+      return true
+    }
+
+    return false
+  }
+
+  // Month picker year navigation
+  const navigateMonthPickerYear = (direction: "prev" | "next") => {
+    const restrictions = getDateRestrictions()
+    setMonthPickerYear(prev => {
+      if (direction === "prev" && prev > restrictions.minYear) {
+        return prev - 1
+      }
+      if (direction === "next" && prev < restrictions.maxYear) {
+        return prev + 1
+      }
+      return prev
+    })
+  }
+
+  const [message, setMessage] = useState<string>("");
+
+  const handleAddEvent = async () => {
+
     const event: Event = {
       id: Date.now().toString(),
       name: newEvent.name,
@@ -2366,7 +2464,43 @@ export default function EventsCalendarPage() {
       country: newEvent.country,
       isCustom: true,
       createdAt: Date.now(),
+    };
+    let addEventObj = {
+      EventType: event.type,
+      EventImpact: 1,
+      EventTo: event.endDate,
+      EventFrom: event.startDate,
+      EventLocation: event.location,
+      EventDescription: event.description,
+      EventName: event.name,
+      Charge: "Free",
+      Sid: 17535,
+      RepeatsBy: "50986",
+      IsCustom: true,
+      IsRepeat: false,
+      Latitude: 51.52937650320423,
+      Longitude: -0.12381210923194885
+
     }
+
+    try {
+      //Call backend API
+      const response: any = await saveEvents(addEventObj)
+      const result = await response.json();
+      if (result.status) {
+        //body response   ===>>  action: 1 eventId: 14717 isCustom: true
+        //success (similar to Angular if(response.status))
+        setEvents((prev) => [...prev, result.data ?? event]);
+        setMessage("Event added successfully!");
+      } else {
+        setMessage("Failed to add event: " + (result.message || ""));
+      }
+    } catch (error) {
+      console.error("Error inserting event:", error);
+      setMessage("Something went wrong!");
+    }
+
+
 
     setEvents((prev) => {
       const updatedEvents = [...prev, event]
