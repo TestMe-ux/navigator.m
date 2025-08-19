@@ -380,62 +380,6 @@ function DemandPageContent() {
       })
       .catch((err) => console.error(err));
   }
-  const getCompRateData = () => {
-    setRateCompData(Object);
-    const selectedComparison = filter === "wow" ? 7 : filter === "mom" ? 30 : filter === "yoy" ? 365 : 7;
-    var startDateComp = startDate
-      ? new Date(startDate.getTime() + (-selectedComparison * 24 * 60 * 60 * 1000))
-      : new Date();
-    var endDateComp = endDate
-      ? new Date(endDate.getTime() + (-selectedComparison * 24 * 60 * 60 * 1000))
-      : new Date();
-    var filtersValue = {
-      "SID": selectedProperty?.sid,
-      "channels": channelFilter.channelId,
-      "channelsText": channelFilter.channelName,
-      "checkInStartDate": conevrtDateforApi(startDateComp?.toString()),
-      "checkInEndDate": conevrtDateforApi(endDateComp?.toString()),
-      "LOS": null,
-      "guest": null,
-      "productTypeID": null,
-      "productTypeIDText": "All",
-      "inclusionID": [],
-      "inclusionIDText": ["All"],
-      "properties": [],
-      "restriction": null,
-      "qualification": null,
-      "promotion": null,
-      "restrictionText": "All",
-      "promotionText": "All",
-      "qualificationText": "All",
-      "subscriberPropertyID": selectedProperty?.hmid,
-      "subscriberName": selectedProperty?.name,
-      "mSIRequired": false,
-      "benchmarkRequired": true,
-      "compsetRatesRequired": true,
-      "propertiesText": [],
-      "isSecondary": false,
-    }
-    getRateTrends(filtersValue)
-      .then((res) => {
-        if (res.status) {
-          var CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
-            const allSubscriberRate = x.subscriberPropertyRate?.map((r: any) => parseInt(r.rate) > 0 ? parseInt(r.rate) : 0) || [];
-            const ty = allSubscriberRate.length
-              ? allSubscriberRate.reduce((sum: any, rate: any) => sum + rate, 0) / allSubscriberRate.length
-              : 0;
-
-            return { ...x, AvgData: ty };
-          });
-          res.body.pricePositioningEntites = CalulatedData;
-          console.log('Rate trends data Comp:', res.body);
-          setRateCompData(res.body);
-          // setLosGuest({ "Los": res.body?.losList, "Guest": res.body?.guestList });
-          // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
-        }
-      })
-      .catch((err) => console.error(err));
-  }
   const handleDemandFiltersChange = (filters: any) => {
     console.log("🔍 Demand filters changed:", filters)
     setFilter(filters);
