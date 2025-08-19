@@ -57,7 +57,7 @@ export function MarketDemandWidget() {
   const [holidaysData, setHolidays] = useState<any>({});
   const [demandAIPerCountryAverageData, setDemandAIPerCountryAverageData] = useState<any>([])
   const [selectedProperty] = useSelectedProperty()
-  const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0, AvrageRevPAR:0, AvrageOccupancy: 0 });
+  const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0, AvrageRevPAR: 0, AvrageOccupancy: 0 });
   type AvgDemandType = typeof avgDemand;
   const compMap: Record<ComparisonOption, { avgDICompare: keyof AvgDemandType; avgADRCompare: keyof AvgDemandType, compareText: string }> = {
     1: { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Yesterday' },
@@ -240,38 +240,41 @@ export function MarketDemandWidget() {
           </div>
 
           {/* Market RevPAR */}
-          <div className="p-6 space-y-3 bg-muted/40 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-              <span className="text-sm font-medium text-foreground/80">Market RevPAR</span>
-            </div>
-            <div className="space-y-1">
-              <div className="text-xl font-bold text-foreground">{avgDemand?.AvrageRevPAR}</div>
-              <div className="flex items-center gap-1">
-                <span className="text-red-600 dark:text-red-400 text-sm font-medium bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded">
-                  -2.3%
-                </span>
-                <span className="text-sm text-muted-foreground">vs. {compareText}</span>
+          {avgDemand?.AvrageRevPAR > 0 && (
+            <div className="p-6 space-y-3 bg-muted/40 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                <span className="text-sm font-medium text-foreground/80">Market RevPAR</span>
               </div>
-            </div>
-          </div>
+              <div className="space-y-1">
+                <div className="text-xl font-bold text-foreground">{avgDemand?.AvrageRevPAR}</div>
+                <div className="flex items-center gap-1">
+                  <span className="text-red-600 dark:text-red-400 text-sm font-medium bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded">
+                    0%
+                  </span>
+                  <span className="text-sm text-muted-foreground">vs. {compareText}</span>
+                </div>
+              </div>
+            </div>)}
 
           {/* Market Occupancy */}
-          <div className="p-6 space-y-3 bg-muted/40 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              <span className="text-sm font-medium text-foreground/80">Market Occupancy</span>
-            </div>
-            <div className="space-y-1">
-              <div className="text-xl font-bold text-foreground">{avgDemand?.AvrageOccupancy}%</div>
-              <div className="flex items-center gap-1">
-                <span className="text-emerald-600 dark:text-emerald-400 text-sm font-medium bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded">
-                  +4.2%
-                </span>
-                <span className="text-sm text-muted-foreground">vs. {compareText}</span>
+          {avgDemand?.AvrageOccupancy > 0 && (
+            <div className="p-6 space-y-3 bg-muted/40 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <span className="text-sm font-medium text-foreground/80">Market Occupancy</span>
+              </div>
+              <div className="space-y-1">
+                <div className="text-xl font-bold text-foreground">{avgDemand?.AvrageOccupancy}%</div>
+                <div className="flex items-center gap-1">
+                  <span className="text-emerald-600 dark:text-emerald-400 text-sm font-medium bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded">
+                    0%
+                  </span>
+                  <span className="text-sm text-muted-foreground">vs. {compareText}</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Source Markets Section with Events Subsection */}

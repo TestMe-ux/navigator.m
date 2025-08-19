@@ -12,4 +12,5 @@ export class Constants {
     public static readonly API_GET_GetAllEvents = "Events/GetAllEvents";
     public static readonly API_GetRateTrend = "RateTrend/GetPricePositioning"
     public static readonly API_GET_GetAllHoliday = "Events/GetALLHolidayList";
+    public static readonly API_GET_GetEventCitiesCountryList = "Events/FetchEventCitiesCountryList";
 }
