@@ -238,7 +238,6 @@ export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
   }, [])
 
   const onOpenChangeSelect = (open: any) => {
-    debugger
     if (!open) {
       // Reset channel filter when dropdown closes
       setChannelFilter({ channelId: selectedChannels, channelName: [] })

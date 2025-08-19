@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { Card } from "@/components/ui/card"
+import { subDays } from "date-fns"
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
@@ -29,25 +30,30 @@ import { useComparison } from "../comparison-context"
 type DatasetType = 'pricing' | 'travellers'
 type AggregationPeriod = 'day' | 'week' | 'month'
 const suffixMap: Record<string, string> = {
-  WoW: "woW",
-  MoM: "moM",
-  YoY: "yoY",
+  wow: "woW",
+  mom: "moM",
+  yoy: "yoY",
 };
 
 // Helper to safely get value with dynamic key
 const getValue = (obj: any, key: string) => obj?.[key] ?? 0;
 // Generate trend data based on date range
-function generateTrendData(startDate: Date, endDate: Date, demandData: any, rateData: any, filter: any) {
+function generateTrendData(startDate: Date, endDate: Date, demandData: any, rateData: any, filter: any, rateCompData: any) {
+  debugger;
   const days = eachDayOfInterval({ start: startDate, end: endDate })
   const lowestDemandIndex = Math.max(...demandData?.optimaDemand.map((d: any) => d.demandIndex));
   const myRateDatas = rateData?.pricePositioningEntites
     ?.find((x: any) => x.propertyType === 0)
     ?.subscriberPropertyRate || [];
+  const myCompRateDatas = rateCompData?.pricePositioningEntites
+    ?.find((x: any) => x.propertyType === 0)
+    ?.subscriberPropertyRate || [];
   const suffix = suffixMap[filter] || "wow";
-
+  const selectedComparison = filter === "wow" ? 7 : filter === "mom" ? 30 : filter === "yoy" ? 365 : 7;
   return demandData?.optimaDemand.map((demandI: any, index: any) => {
-
     const myRateData = myRateDatas.find((x: any) => x.checkInDateTime === demandI.checkinDate) || {};
+    const comparisonDateStr = format(subDays(demandI.checkinDate, selectedComparison), 'yyyy-MM-dd') + 'T00:00:00';
+    const myCompRateData = myCompRateDatas.find((x: any) => x.checkInDateTime === comparisonDateStr) || {};
     // Generate realistic data with some variation
     const checkinDate = parseISO(demandI.checkinDate);
     const baseDemand = Math.floor(1 + Math.sin(index * 0.3) * 1.2 + Math.random() * 1.5)
@@ -56,7 +62,11 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
     const marketADR = demandI?.hotelADR ? demandI.hotelADR : 0
     const hotelADR = Math.max(parseInt(myRateData?.rate ?? "0", 10), 0);
     const airTravellers = demandI?.oagCapacity ? demandI.oagCapacity : 0
-    const myPriceVariance = getValue(demandI, `${suffix}_Overall_HotelADR`);
+    const compRate = Number(myCompRateData?.rate);
+    const myPriceVariance =
+      !isNaN(compRate) && compRate > 0
+        ? Number((((hotelADR - compRate) / compRate) * 100).toFixed(2))
+        : 0;
     const marketADRVariance = getValue(demandI, `${suffix}_Overall_HotelADR`);
     const airTravellersVariance = getValue(demandI, `${suffix}_Overall_OAGCapacity`);
     const demandVariance = getValue(demandI, `${suffix}_Overall_Demand_Index`);
@@ -97,74 +107,48 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
 }
 
 // Generate events for chart dates (similar to calendar logic)
-function generateChartEvents(trendData: any[]) {
-  const eventTemplates = [
-    { title: "GITEX Technology Week", category: "Technology", impact: "High", location: "Dubai World Trade Centre" },
-    { title: "Dubai Shopping Festival", category: "Festival", impact: "High", location: "Dubai Mall" },
-    { title: "Arab Health Exhibition", category: "Healthcare", impact: "High", location: "DWTC" },
-    { title: "Business Leadership Summit", category: "Business", impact: "High", location: "Burj Al Arab" },
-    { title: "Dubai Marathon", category: "Sports", impact: "High", location: "Dubai Marina" },
-    { title: "Art Dubai Fair", category: "Cultural", impact: "Medium", location: "Madinat Jumeirah" },
-    { title: "Dubai Food Festival", category: "Culinary", impact: "Medium", location: "Various Locations" },
-    { title: "Global Education Summit", category: "Education", impact: "Medium", location: "JW Marriott" }
-  ]
+function generateChartEvents(trendData: any[], events: any) {
+  const eventsData = Array.isArray(events) ? events : [];
 
-  return trendData.map((dataPoint, index) => {
-    const totalDays = trendData.length
+  return trendData.map((dataPoint) => {
+    const dataDate = new Date(dataPoint.fullDate);
 
-    // Skip first and last 3 items from having events to avoid crowding at edges
-    const isNearEdges = index < 3 || index >= totalDays - 3
+    // Find the first matching event where dataDate is between eventFrom and eventTo
+    const matchingEvent = eventsData.find((event: any) => {
+      const fromDate = new Date(event.eventFrom);
+      const toDate = new Date(event.eventTo);
 
-    if (isNearEdges) {
-      return {
-        ...dataPoint,
-        hasEvent: false,
-        eventData: null
-      }
-    }
+      return dataDate >= fromDate && dataDate <= toDate;
+    });
 
-    // Reduce event frequency based on total period length
-    let eventFrequency = 4 // Default: 1 in 4 chance (25%)
-    if (totalDays > 45) {
-      eventFrequency = 6 // For longer periods: 1 in 6 chance (~17%)
-    }
-    if (totalDays > 90) {
-      eventFrequency = 8 // For very long periods: 1 in 8 chance (~12%)
-    }
-
-    // Use deterministic logic to assign events with reduced frequency
-    const dateHash = dataPoint.fullDate.getDate() + dataPoint.fullDate.getMonth() * 31
-    const hasEvent = (dateHash + index) % eventFrequency === 0
-
-    if (hasEvent) {
-      const eventIndex = (dateHash + index) % eventTemplates.length
-      const selectedEvent = eventTemplates[eventIndex]
-
+    if (matchingEvent) {
       return {
         ...dataPoint,
         hasEvent: true,
         eventData: {
-          title: selectedEvent.title,
-          category: selectedEvent.category,
-          impact: selectedEvent.impact,
-          location: selectedEvent.location,
-          date: dataPoint.fullDate.toLocaleDateString('en-US', {
+          title: matchingEvent.eventName,
+          category: matchingEvent.formattedEventType || matchingEvent.eventType,
+          impact: matchingEvent.eventImpact,
+          location: matchingEvent.eventLocation || `${matchingEvent.eventCity}, ${matchingEvent.eventCountry}`,
+          date: matchingEvent.displayDate || dataDate.toLocaleDateString('en-US', {
             weekday: 'long',
             year: 'numeric',
             month: 'long',
             day: 'numeric'
-          })
+          }),
+          imageUrl: matchingEvent.imageUrl
         }
-      }
+      };
     }
 
     return {
       ...dataPoint,
       hasEvent: false,
       eventData: null
-    }
-  })
+    };
+  });
 }
+
 
 // Aggregate daily data into weeks
 function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
@@ -535,7 +519,7 @@ const CustomLegend = ({
   )
 }
 
-export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData }: any) {
+export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData, rateCompData }: any) {
   const { theme } = useTheme()
   const { startDate, endDate, isLoading } = useDemandDateContext()
   const [datasetType, setDatasetType] = useState<DatasetType>('pricing')
@@ -639,12 +623,12 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
       actualStartDate = new Date()
       actualEndDate = new Date(Date.now() + 29 * 24 * 60 * 60 * 1000)
     }
-    if (!demandData || demandData.length === 0 || !rateData || Object.keys(rateData).length === 0) return [];
+    if (!demandData || demandData.length === 0 || !rateData || Object.keys(rateData).length === 0 || !rateCompData || Object.keys(rateCompData).length === 0) return [];
     // Generate daily data first
-    const dailyData = generateTrendData(actualStartDate!, actualEndDate!, demandData, rateData, filter)
+    const dailyData = generateTrendData(actualStartDate!, actualEndDate!, demandData, rateData, filter, rateCompData)
 
     // Add event data to daily data
-    const dailyDataWithEvents = generateChartEvents(dailyData)
+    const dailyDataWithEvents = generateChartEvents(dailyData, events)
 
     // Apply aggregation based on selected period
     switch (aggregationPeriod) {
@@ -655,7 +639,7 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
       default:
         return dailyDataWithEvents
     }
-  }, [startDate, endDate, aggregationPeriod, demandData, rateData, filter])
+  }, [startDate, endDate, aggregationPeriod, demandData, rateData, filter, rateCompData])
 
   // Calculate Y-axis domains dynamically
   const demandDomain = [0, 4]

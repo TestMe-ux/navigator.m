@@ -18,7 +18,8 @@ interface SummaryCardProps {
   iconColorClass: string
   bgColorClass: string
   tooltipId: string
-  comparetext: string
+  comparetext: string,
+  isVisible?: boolean
 }
 
 /**
@@ -107,9 +108,9 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
   const selectedProperty: any = localStorageService.get('SelectedProperty')
   const [trendValue, setTrendValue] = useState(0);
 
+  console.log("Filter sumarry card", filter)
   useEffect(() => {
     if (!avgDemand) return;
-    console.log("Filter sumarry card", filter)
     let newTrend;
     newTrend = filter === "wow"
       ? avgDemand?.AvrageHotelADRWow
@@ -133,18 +134,20 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
       iconColorClass: "text-emerald-600 dark:text-emerald-400",
       bgColorClass: "bg-emerald-50 dark:bg-emerald-950",
       tooltipId: "avg-market-adr",
-      comparetext: filter
+      comparetext: filter,
+      isVisible: true
     },
     {
       title: "Avg. Market RevPAR",
-      value: "$201",
+      value: `\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E  ${avgDemand?.AvrageRevPAR?.toFixed(0)}`,
       trend: "2.1%",
       trendDirection: "up",
       icon: BarChart3,
       iconColorClass: "text-blue-600 dark:text-blue-400",
       bgColorClass: "bg-blue-50 dark:bg-blue-950",
       tooltipId: "avg-market-revpar",
-      comparetext: filter
+      comparetext: filter,
+      isVisible: avgDemand?.AvrageRevPAR > 0 ? true : false
     },
     {
       title: "Top Source Market",
@@ -155,7 +158,8 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
       iconColorClass: "text-amber-600 dark:text-amber-400",
       bgColorClass: "bg-amber-50 dark:bg-amber-950",
       tooltipId: "top-source-market",
-      comparetext: filter
+      comparetext: filter,
+      isVisible: !!demandAIPerCountryAverageData[0]?.srcCountryName ? true : false
     },
   ]
 
@@ -167,7 +171,7 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
           <p className="text-sm text-slate-600 dark:text-slate-400">Key performance indicators and market positioning</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 lg:gap-6">
-          {summaryData.filter((data) => data.value !== null && data.value !== undefined && data.value !== "undefined").map((data) => (
+          {summaryData.filter((data) => data.isVisible).map((data) => (
             <SummaryCard key={data.title} {...data} />
           ))}
         </div>

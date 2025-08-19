@@ -204,7 +204,7 @@ const generateRevenueManagerInsights = (channels: ChannelData[]) => {
 }
 
 export function PropertyHealthScoreWidget(props: any) {
-  const [selectedProperty] = useSelectedProperty()
+  const selectedProperty: any = localStorageService.get('SelectedProperty')
   const pendingFetchRef = useRef(false);
   const lastDatesRef = useRef<{ start: string | null; end: string | null }>({ start: null, end: null });
   const isFetchingRef = useRef(false); // avoid overlapping requests
@@ -236,7 +236,7 @@ export function PropertyHealthScoreWidget(props: any) {
       pendingFetchRef.current = false;
       fetchOtaAndRanks(); // defined below
     }
-  }, [startDate, endDate, selectedProperty]);
+  }, [startDate, endDate, !selectedProperty?.sid]);
 
   useEffect(() => {
     if (!pendingFetchRef.current) return;
@@ -320,7 +320,6 @@ export function PropertyHealthScoreWidget(props: any) {
       if (!nameKey) continue;
       parityMap.set(nameKey, p);
     }
-    debugger;
     const merged = [
       ...otarankdata.map((a1: any) => {
         const key = String(a1.name ?? a1.channelName ?? a1.cid ?? '').toLowerCase().trim();
@@ -348,7 +347,7 @@ export function PropertyHealthScoreWidget(props: any) {
         parityRaw: a2,
       })),
     ];
-
+    debugger;
     const filtered = merged.filter(item => {
       const cw = item.channelWisewinMeetLoss;
       const hasChannelWisewin =

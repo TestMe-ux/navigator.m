@@ -57,7 +57,7 @@ export function MarketDemandWidget() {
   const [holidaysData, setHolidays] = useState<any>({});
   const [demandAIPerCountryAverageData, setDemandAIPerCountryAverageData] = useState<any>([])
   const [selectedProperty] = useSelectedProperty()
-  const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0 })
+  const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0, AvrageRevPAR:0, AvrageOccupancy: 0 });
   type AvgDemandType = typeof avgDemand;
   const compMap: Record<ComparisonOption, { avgDICompare: keyof AvgDemandType; avgADRCompare: keyof AvgDemandType, compareText: string }> = {
     1: { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Yesterday' },
@@ -67,6 +67,7 @@ export function MarketDemandWidget() {
   };
   const { avgDICompare, avgADRCompare, compareText } = compMap[selectedComparison as ComparisonOption] || { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Yesterday' };
   useEffect(() => {
+    debugger;
     if (!startDate || !endDate || !selectedProperty?.sid) return;
     console.log("selectedComparison", startDate, endDate);
     Promise.all([
@@ -76,16 +77,13 @@ export function MarketDemandWidget() {
       getAllHolidayData(),
     ]);
 
-  }, [startDate, endDate]);
+  }, [startDate, endDate, selectedProperty?.sid]);
   useEffect(() => {
-    // console.log("selectedComparison", selectedComparison);
-
   }, [selectedComparison]);
   const getDemandAIData = () => {
     GetDemandAIData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
       .then((res) => {
         if (res.status) {
-          debugger;
           setDemandData(res.body);
           var demandDatas = res.body.optimaDemand
           let sumDI = 0;
@@ -94,6 +92,8 @@ export function MarketDemandWidget() {
           let sumHotelADR = 0
           let sumHotelADRWow = 0
           let sumHotelADRMom = 0
+          let RevPAR = 0
+          let Occupancy = 0
           demandDatas.forEach((element: any) => {
             sumDI += Number(element.demandIndex)
             sumWow += Number(element.woW_Overall_Demand_Index)
@@ -101,6 +101,8 @@ export function MarketDemandWidget() {
             sumHotelADR += Number(element.hotelADR)
             sumHotelADRWow += Number(element.woW_Overall_HotelADR)
             sumHotelADRMom += Number(element.moM_Overall_HotelADR)
+            RevPAR += Number(element.revpar)
+            Occupancy += Number(element.occupancy)
           });
           setAvgDemand({
             AverageDI: Number((sumDI / demandDatas.length).toFixed(2)),
@@ -108,7 +110,9 @@ export function MarketDemandWidget() {
             AverageMom: Number((sumMom / demandDatas.length).toFixed(2)),
             AvrageHotelADR: Number((sumHotelADR / demandDatas.length).toFixed(2)),
             AvrageHotelADRWow: Number((sumHotelADRWow / demandDatas.length).toFixed(2)),
-            AvrageHotelADRMom: Number((sumHotelADRMom / demandDatas.length).toFixed(2))
+            AvrageHotelADRMom: Number((sumHotelADRMom / demandDatas.length).toFixed(2)),
+            AvrageRevPAR: Number((RevPAR / demandDatas.length).toFixed(2)),
+            AvrageOccupancy: Number((Occupancy / demandDatas.length).toFixed(2))
           });
         }
       })
@@ -121,7 +125,6 @@ export function MarketDemandWidget() {
       .then((res) => {
         if (res.status) {
           setDemandAIPerCountryAverageData(res?.body[0].filter((market: any) => market.averageTotalFlights !== 0));
-          console.log("GetDemandAIPerCountryAverageData", res?.body[0]);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
       })
@@ -141,8 +144,7 @@ export function MarketDemandWidget() {
       .then((res) => {
         if (res.status && res.body && res.body.eventDetails) {
           res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum)
-          setEventData(res.body);
-          console.log("Events", res.body);
+          setEventData(res.body?.eventDetails);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
       })
@@ -163,7 +165,6 @@ export function MarketDemandWidget() {
     getAllHoliday(payload)
       .then((res) => {
         if (res.status) {
-          // console.log("Events", eventData);
           var holidays = [...res.body[0].holidayDetail]
           const holiday = holidays.map(x =>
           ({
@@ -174,7 +175,6 @@ export function MarketDemandWidget() {
             "eventTo": x.holidayDispalyDate
           })
           )
-          // console.log("Holidyas", holiday);
           setHolidays(holiday)
           // res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum)
           // setEventData(res.body);
@@ -246,7 +246,7 @@ export function MarketDemandWidget() {
               <span className="text-sm font-medium text-foreground/80">Market RevPAR</span>
             </div>
             <div className="space-y-1">
-              <div className="text-xl font-bold text-foreground">$180</div>
+              <div className="text-xl font-bold text-foreground">{avgDemand?.AvrageRevPAR}</div>
               <div className="flex items-center gap-1">
                 <span className="text-red-600 dark:text-red-400 text-sm font-medium bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded">
                   -2.3%
@@ -263,7 +263,7 @@ export function MarketDemandWidget() {
               <span className="text-sm font-medium text-foreground/80">Market Occupancy</span>
             </div>
             <div className="space-y-1">
-              <div className="text-xl font-bold text-foreground">72%</div>
+              <div className="text-xl font-bold text-foreground">{avgDemand?.AvrageOccupancy}%</div>
               <div className="flex items-center gap-1">
                 <span className="text-emerald-600 dark:text-emerald-400 text-sm font-medium bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded">
                   +4.2%
