@@ -43,6 +43,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
 
@@ -50,7 +52,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { getAllEvents } from "@/lib/events"
 import { useDateContext } from "@/components/date-context"
@@ -1364,6 +1365,7 @@ export default function EventsCalendarPage() {
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([])
   const [isAddEventOpen, setIsAddEventOpen] = useState(false)
   const [isBookmarkModalOpen, setIsBookmarkModalOpen] = useState(false)
+  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false)
 
   const [isDayViewOpen, setIsDayViewOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -1372,6 +1374,136 @@ export default function EventsCalendarPage() {
   const [bookmarkCategoryFilter, setBookmarkCategoryFilter] = useState<string[]>(["all", "conference", "tradeshow", "workshop", "social", "holidays"])
   const [bookmarkTypeFilter, setBookmarkTypeFilter] = useState<string[]>(["all", "bookmarked", "holidays", "suggested", "available"])
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+  const [dropdownKey, setDropdownKey] = useState(0) // Force re-render of dropdown
+
+  // Helper function to check if a category should be checked (bookmark popup)
+  const isCategoryChecked = useCallback((categoryId: string) => {
+    // Always return true for individual categories when "all" is present
+    const allCategories = ["conference", "tradeshow", "workshop", "social", "holidays"]
+    
+    if (categoryId === "all") {
+      return bookmarkCategoryFilter.includes("all")
+    }
+    
+    // If categoryId is an individual category and "all" is selected, always return true
+    if (allCategories.includes(categoryId) && bookmarkCategoryFilter.includes("all")) {
+      return true
+    }
+    
+    // Otherwise, check if the specific category is selected
+    return bookmarkCategoryFilter.includes(categoryId)
+  }, [bookmarkCategoryFilter])
+
+  // Helper function to check if a type should be checked (bookmark popup Event Type)
+  const isTypeChecked = useCallback((typeId: string) => {
+    // Always return true for individual types when "all" is present
+    const allTypes = ["bookmarked", "holidays", "suggested", "available"]
+    
+    if (typeId === "all") {
+      return bookmarkTypeFilter.includes("all")
+    }
+    
+    // If typeId is an individual type and "all" is selected, always return true
+    if (allTypes.includes(typeId) && bookmarkTypeFilter.includes("all")) {
+      return true
+    }
+    
+    // Otherwise, check if the specific type is selected
+    return bookmarkTypeFilter.includes(typeId)
+  }, [bookmarkTypeFilter])
+
+  // Force checkbox synchronization on page load and whenever the filter changes
+  useEffect(() => {
+    // Double-check that state is consistent for UI rendering
+    if (bookmarkCategoryFilter.includes("all")) {
+      const allCategories = ["all", "conference", "tradeshow", "workshop", "social", "holidays"]
+      const hasAllCategories = allCategories.every(cat => bookmarkCategoryFilter.includes(cat))
+      
+      if (!hasAllCategories) {
+        // Force complete state reconstruction to ensure all categories are included
+        setBookmarkCategoryFilter(allCategories)
+      }
+    }
+  }, [bookmarkCategoryFilter])
+
+
+
+  // Additional force sync on mount with multiple attempts to ensure UI consistency
+  useEffect(() => {
+    // Focus only on bookmark dropdown for now to avoid reference issues
+    // Immediate sync for bookmark dropdown
+    setBookmarkCategoryFilter(["all", "conference", "tradeshow", "workshop", "social", "holidays"])
+    setDropdownKey(prev => prev + 1)
+    
+    // Multiple delayed syncs to ensure UI renders correctly
+    const timer1 = setTimeout(() => {
+      setBookmarkCategoryFilter(["all", "conference", "tradeshow", "workshop", "social", "holidays"])
+      setDropdownKey(prev => prev + 1)
+    }, 100)
+    
+    const timer2 = setTimeout(() => {
+      setBookmarkCategoryFilter(["all", "conference", "tradeshow", "workshop", "social", "holidays"])
+      setDropdownKey(prev => prev + 1)
+    }, 300)
+    
+    const timer3 = setTimeout(() => {
+      setBookmarkCategoryFilter(["all", "conference", "tradeshow", "workshop", "social", "holidays"])
+      setDropdownKey(prev => prev + 1)
+    }, 500)
+
+    return () => {
+      clearTimeout(timer1)
+      clearTimeout(timer2)
+      clearTimeout(timer3)
+    }
+  }, []) // Only run once on mount
+
+  // Force checkbox synchronization for Event Type filter
+  useEffect(() => {
+    // Double-check that state is consistent for UI rendering
+    if (bookmarkTypeFilter.includes("all")) {
+      const allTypes = ["all", "bookmarked", "holidays", "suggested", "available"]
+      const hasAllTypes = allTypes.every(type => bookmarkTypeFilter.includes(type))
+      
+      if (!hasAllTypes) {
+        // Force complete state reconstruction to ensure all types are included
+        setBookmarkTypeFilter(allTypes)
+      }
+    }
+    
+    // Force re-render of dropdown to reflect changes
+    setDropdownKey(prev => prev + 1)
+  }, [bookmarkTypeFilter])
+
+  // Multi-phase force sync for Event Type filter on mount
+  useEffect(() => {
+    // Immediate sync for Event Type dropdown
+    setBookmarkTypeFilter(["all", "bookmarked", "holidays", "suggested", "available"])
+    setDropdownKey(prev => prev + 1)
+    
+    // Multiple delayed syncs to ensure UI renders correctly
+    const timer1 = setTimeout(() => {
+      setBookmarkTypeFilter(["all", "bookmarked", "holidays", "suggested", "available"])
+      setDropdownKey(prev => prev + 1)
+    }, 100)
+    
+    const timer2 = setTimeout(() => {
+      setBookmarkTypeFilter(["all", "bookmarked", "holidays", "suggested", "available"])
+      setDropdownKey(prev => prev + 1)
+    }, 300)
+    
+    const timer3 = setTimeout(() => {
+      setBookmarkTypeFilter(["all", "bookmarked", "holidays", "suggested", "available"])
+      setDropdownKey(prev => prev + 1)
+    }, 500)
+
+    return () => {
+      clearTimeout(timer1)
+      clearTimeout(timer2)
+      clearTimeout(timer3)
+    }
+  }, []) // Only run once on mount
+
   const [hoveredEvent, setHoveredEvent] = useState<string | null>(null)
   const [tooltipPosition, setTooltipPosition] = useState<{x: number, y: number}>({x: 0, y: 0})
 
@@ -1398,13 +1530,32 @@ export default function EventsCalendarPage() {
   
   // City dropdown state
   const [isCityOpen, setIsCityOpen] = useState(false)
-  const [selectedCity, setSelectedCity] = useState("New York")
+  const [selectedCities, setSelectedCities] = useState<string[]>(["All"])
   const [citySearchQuery, setCitySearchQuery] = useState("")
   const [isCitySearchFocused, setIsCitySearchFocused] = useState(false)
 
   // Category dropdown state
   const [isCategoryOpen, setIsCategoryOpen] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<string[]>(["All"])
+
+  // Helper function to check if a main category should be checked (main dropdown)
+  const isMainCategoryChecked = useCallback((categoryName: string) => {
+    // Define all category names statically
+    const allCategoryNames = ["All", "Conference", "Trade Shows", "Workshop", "Social", "Holidays"]
+    const nonAllCategories = ["Conference", "Trade Shows", "Workshop", "Social", "Holidays"]
+    
+    if (categoryName === "All") {
+      return selectedCategories.includes("All")
+    }
+    
+    // If categoryName is an individual category and "All" is selected, always return true
+    if (nonAllCategories.includes(categoryName) && selectedCategories.includes("All")) {
+      return true
+    }
+    
+    // Otherwise, check if the specific category is selected
+    return selectedCategories.includes(categoryName)
+  }, [selectedCategories])
 
   // Date picker states for add event form
   const [isStartDateOpen, setIsStartDateOpen] = useState(false)
@@ -1414,8 +1565,18 @@ export default function EventsCalendarPage() {
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
+  // Popover states for country and city dropdowns with search
+  const [isCreateCountryOpen, setIsCreateCountryOpen] = useState(false)
+  const [isCreateCityOpen, setIsCreateCityOpen] = useState(false)
+  const [isEditCountryOpen, setIsEditCountryOpen] = useState(false)
+  const [isEditCityOpen, setIsEditCityOpen] = useState(false)
+
+
+
   // Description validation state
   const [descriptionError, setDescriptionError] = useState("")
+
+
 
   // Initialize events with sample events and stored custom events
   useEffect(() => {
@@ -1504,14 +1665,14 @@ export default function EventsCalendarPage() {
 
 
 
-  // Category options
+  // Category options with distinct colors
   const categoryData = [
-    { id: "all", name: "All", icon: Globe },
-    { id: "conference", name: "Conference", icon: Presentation },
-    { id: "tradeshow", name: "Trade Shows", icon: Building },
-    { id: "workshop", name: "Workshop", icon: GraduationCap },
-    { id: "social", name: "Social", icon: PartyPopper },
-    { id: "holidays", name: "Holidays", icon: Sparkles }
+    { id: "all", name: "All", icon: Globe, color: "text-slate-600" },
+    { id: "conference", name: "Conference", icon: Presentation, color: "text-blue-600" },
+    { id: "tradeshow", name: "Trade Shows", icon: Building, color: "text-purple-600" },
+    { id: "workshop", name: "Workshop", icon: GraduationCap, color: "text-green-600" },
+    { id: "social", name: "Social", icon: PartyPopper, color: "text-pink-600" },
+    { id: "holidays", name: "Holidays", icon: Sparkles, color: "text-amber-600" }
   ]
   
   // Country options
@@ -1654,23 +1815,85 @@ export default function EventsCalendarPage() {
     setCountrySearchQuery("") // Clear search when selecting
     setIsCountrySearchFocused(false) // Clear focus state
     
-    // Auto-select first city of the new country
-    const cities = cityOptions[country as keyof typeof cityOptions]
-    if (cities && cities.length > 0) {
-      setSelectedCity(cities[0].label)
-    }
+    // Auto-select All cities for the new country
+    setSelectedCities(["All"])
     
     console.log(`🌍 Country changed: ${country}`)
   }, [cityOptions])
 
-  // Handle city selection
+  // Handle city selection with multi-select logic
   const handleCitySelect = useCallback((city: string) => {
-    setSelectedCity(city)
-    setIsCityOpen(false)
-    setCitySearchQuery("") // Clear search when selecting
-    setIsCitySearchFocused(false) // Clear focus state
-    console.log(`🏙️ City changed: ${city}`)
-  }, [])
+    setSelectedCities(prev => {
+      if (city === "All") {
+        // If selecting "All", toggle between all selected and all unselected
+        if (prev.includes("All")) {
+          return [] // Unselect all
+        } else {
+          // Get all available cities for the selected country
+          const availableCities = cityOptions[selectedCountry as keyof typeof cityOptions] || []
+          return ["All", ...availableCities.map(option => option.label)] // Select all
+        }
+      }
+      
+      const isSelected = prev.includes(city)
+      let newSelection: string[]
+      
+      if (isSelected) {
+        // Remove city and "All" if it was selected
+        newSelection = prev.filter(c => c !== city && c !== "All")
+      } else {
+        // Add city
+        const filteredPrev = prev.filter(c => c !== "All")
+        newSelection = [...filteredPrev, city]
+        
+        // Check if all cities are now selected
+        const availableCities = cityOptions[selectedCountry as keyof typeof cityOptions] || []
+        if (newSelection.length === availableCities.length && availableCities.every(option => newSelection.includes(option.label))) {
+          newSelection = ["All", ...newSelection]
+        }
+      }
+      
+      console.log(`🏙️ Cities changed:`, newSelection)
+      return newSelection
+    })
+  }, [selectedCountry, cityOptions])
+
+  // Helper function to check if a city should be checked
+  const isCityChecked = useCallback((cityName: string) => {
+    // Get available cities for the selected country
+    const availableCities = cityOptions[selectedCountry as keyof typeof cityOptions] || []
+    const cityNames = availableCities.map(option => option.label)
+    
+    if (cityName === "All") {
+      return selectedCities.includes("All")
+    }
+    
+    // If cityName is an individual city and "All" is selected, always return true
+    if (cityNames.includes(cityName) && selectedCities.includes("All")) {
+      return true
+    }
+    
+    return selectedCities.includes(cityName)
+  }, [selectedCities, selectedCountry, cityOptions])
+
+  // Get display text for city button
+  const getCityDisplayText = useCallback(() => {
+    if (selectedCities.length === 0) {
+      return "All Cities"
+    } else if (selectedCities.includes("All")) {
+      return "All Cities"
+    } else if (selectedCities.length === 1) {
+      return selectedCities[0]
+    } else {
+      return `${selectedCities.length} Cities`
+    }
+  }, [selectedCities])
+
+  // Get country flag for selected country
+  const getCountryFlag = useCallback(() => {
+    const country = countryOptions.find(option => option.label === selectedCountry)
+    return country?.flag || "🌍" // Default to world globe emoji if not found
+  }, [selectedCountry])
 
   // Handle category selection with multi-select logic
   const handleCategorySelect = useCallback((categoryName: string) => {
@@ -1679,25 +1902,30 @@ export default function EventsCalendarPage() {
       let newSelection: string[]
 
       if (categoryName === "All") {
-        // If selecting "All", clear all others
-        newSelection = isSelected ? [] : categoryData.map(c => c.name)
+        // If clicking "All", toggle between all selected and all unselected
+        if (isSelected) {
+          // If "All" is currently selected, deselect everything
+          newSelection = []
+        } else {
+          // If "All" is not selected, select all categories
+          newSelection = categoryData.map(c => c.name)
+        }
       } else {
         // If selecting a specific category
         if (isSelected) {
-          // Remove the category
-          newSelection = prev.filter(c => c !== categoryName)
+          // Remove the category and "All" if present
+          newSelection = prev.filter(c => c !== categoryName && c !== "All")
         } else {
           // Add the category and remove "All" if present
           const filteredSelection = prev.filter(c => c !== "All")
           newSelection = [...filteredSelection, categoryName]
+          
+          // If all individual categories are now selected, add "All"
+          const nonAllCategories = categoryData.filter(c => c.name !== "All")
+          if (newSelection.length === nonAllCategories.length) {
+            newSelection = categoryData.map(c => c.name)
+          }
         }
-      }
-      
-      // If all categories are selected or none, reset to "All"
-      if (newSelection.length === categoryData.length - 1 || newSelection.length === categoryData.length) {
-        newSelection = categoryData.map(c => c.name)
-      } else {
-        newSelection = newSelection.filter(c => c !== "All")
       }
       
       console.log(`📂 Category selection changed: ${newSelection.join(", ")}`)
@@ -1717,6 +1945,46 @@ export default function EventsCalendarPage() {
       return `${selectedCategories.length} Categories`
     }
   }, [selectedCategories])
+
+  // Helper function to get category color
+  const getCategoryColor = useCallback((categoryValue: string) => {
+    const category = categoryData.find(cat => cat.id === categoryValue || cat.name.toLowerCase() === categoryValue.toLowerCase())
+    return category?.color || "text-gray-600"
+  }, [categoryData])
+
+  // Helper function to get category data for events
+  const getCategoryData = useCallback((event: Event) => {
+    // For suggested events, use Social icon
+    if (event.status === "suggested") {
+      return categoryData.find(cat => cat.id === "social")
+    }
+    
+    // For holidays, use Sparkles icon
+    if (event.type === "holiday") {
+      return categoryData.find(cat => cat.id === "holidays")
+    }
+
+    // For other events, try to match by category
+    return categoryData.find(cat => 
+      cat.id === event.category || 
+      cat.name.toLowerCase() === event.category?.toLowerCase() ||
+      cat.id === event.type
+    )
+  }, [categoryData])
+
+  // Toggle bookmark status  
+  const toggleBookmark = useCallback((eventId: string) => {
+    setEvents(prevEvents => {
+      const newEvents = prevEvents.map(event => {
+        if (event.id === eventId) {
+          const newStatus: "bookmarked" | "suggested" | "available" = (event.status === "bookmarked" || event.status === "suggested") ? "available" : "bookmarked"
+          return { ...event, status: newStatus }
+        }
+        return event
+      })
+      return newEvents
+    })
+  }, [])
 
 
 
@@ -1983,6 +2251,70 @@ export default function EventsCalendarPage() {
            currentDate.getMonth() === today.getMonth()
   }
 
+  // Month picker functionality
+  const [monthPickerYear, setMonthPickerYear] = useState(currentDate.getFullYear())
+
+  // Navigate to specific month
+  const navigateToMonth = (month: number, year: number) => {
+    setCurrentDate(new Date(year, month, 1))
+    setMonthPickerYear(year)
+    setIsMonthPickerOpen(false)
+  }
+
+  // Update month picker year when currentDate changes
+  useEffect(() => {
+    setMonthPickerYear(currentDate.getFullYear())
+  }, [currentDate])
+
+  // Get date restrictions for month picker
+  const getDateRestrictions = () => {
+    const currentYear = new Date().getFullYear()
+    const nextYear = currentYear + 1
+    
+    return {
+      minYear: currentYear,
+      maxYear: nextYear,
+      minMonth: 0, // January of current year
+      maxMonth: 11 // December of next year
+    }
+  }
+
+  // Check if a month is selectable
+  const isMonthSelectable = (month: number, year: number) => {
+    const restrictions = getDateRestrictions()
+    const currentYear = new Date().getFullYear()
+    
+    if (year < restrictions.minYear || year > restrictions.maxYear) {
+      return false
+    }
+    
+    // For current year, can select from January onwards
+    if (year === currentYear) {
+      return month >= 0 // January onwards
+    }
+    
+    // For next year, can select all months
+    if (year === currentYear + 1) {
+      return true
+    }
+    
+    return false
+  }
+
+  // Month picker year navigation
+  const navigateMonthPickerYear = (direction: "prev" | "next") => {
+    const restrictions = getDateRestrictions()
+    setMonthPickerYear(prev => {
+      if (direction === "prev" && prev > restrictions.minYear) {
+        return prev - 1
+      }
+      if (direction === "next" && prev < restrictions.maxYear) {
+        return prev + 1
+      }
+      return prev
+    })
+  }
+
   const handleAddEvent = () => {
     const event: Event = {
       id: Date.now().toString(),
@@ -2025,24 +2357,7 @@ export default function EventsCalendarPage() {
     setIsAddEventOpen(false)
   }
 
-  const toggleBookmark = (eventId: string) => {
-    setEvents((prev) => {
-      const updatedEvents = prev.map((event) =>
-        event.id === eventId
-          ? {
-              ...event,
-              status: (event.status === "bookmarked" || event.status === "suggested") ? "available" : "bookmarked",
-            }
-          : event,
-      )
-      
-      // Save only custom events to localStorage
-      const customEvents = updatedEvents.filter(e => e.isCustom)
-      saveCustomEventsToStorage(customEvents)
-      
-      return updatedEvents
-    })
-  }
+
 
   const getEventsForDate = useCallback((day: number) => {
     const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
@@ -2200,7 +2515,10 @@ export default function EventsCalendarPage() {
     if (!bookmarkTypeFilter.includes("all")) {
       filtered = filtered.filter((event) => {
         return bookmarkTypeFilter.some(type => {
-          if (type === "bookmarked" || type === "suggested" || type === "available") {
+          if (type === "bookmarked") {
+            // Only show events that are actually bookmarked
+            return event.status === "bookmarked"
+          } else if (type === "suggested" || type === "available") {
             return event.status === type
           } else {
             return event.type === type
@@ -2210,9 +2528,7 @@ export default function EventsCalendarPage() {
     }
 
     return filtered.sort((a, b) => {
-      // Sort bookmarked events first, then by date
-      if (a.status === "bookmarked" && b.status !== "bookmarked") return -1
-      if (b.status === "bookmarked" && a.status !== "bookmarked") return 1
+      // Sort only by date to maintain consistent positioning
       return new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
     })
   }, [events, bookmarkSearchQuery, bookmarkCategoryFilter, bookmarkTypeFilter])
@@ -2236,12 +2552,13 @@ export default function EventsCalendarPage() {
         // Remove the category and "all" if present
         newSelection = prev.filter(c => c !== category && c !== "all")
       } else {
-        // Add the category and remove "all" if present
-        newSelection = prev.filter(c => c !== "all")
-        newSelection = [...newSelection, category]
+        // Add the category, keeping other selected categories
+        const filteredPrev = prev.filter(c => c !== "all")
+        newSelection = [...filteredPrev, category]
         
         // If all individual categories are now selected, add "all"
-        if (newSelection.length === 5) {
+        const allCategories = ["conference", "tradeshow", "workshop", "social", "holidays"]
+        if (newSelection.length === allCategories.length && allCategories.every(cat => newSelection.includes(cat))) {
           newSelection = ["all", ...newSelection]
         }
       }
@@ -2252,7 +2569,8 @@ export default function EventsCalendarPage() {
 
   // Get display text for bookmark category filter
   const getBookmarkCategoryDisplayText = () => {
-    if (bookmarkCategoryFilter.includes("all") || bookmarkCategoryFilter.length === 5) {
+    const nonAllCategories = bookmarkCategoryFilter.filter(c => c !== "all")
+    if (bookmarkCategoryFilter.includes("all") || nonAllCategories.length === 5) {
       return "All Categories"
     }
     if (bookmarkCategoryFilter.length === 1) {
@@ -2261,7 +2579,7 @@ export default function EventsCalendarPage() {
       if (category === "tradeshow") return "Trade Shows"
       return category.charAt(0).toUpperCase() + category.slice(1)
     }
-    return `${bookmarkCategoryFilter.length} Categories`
+    return `${nonAllCategories.length} Categories`
   }
 
   // Handle type selection with multi-select logic
@@ -2469,10 +2787,10 @@ export default function EventsCalendarPage() {
           {/* Fixed Table Header */}
           <div className="sticky top-0 z-10 bg-background border-b">
             <div className="grid grid-cols-12 gap-4 px-4 py-3 text-sm font-medium text-muted-foreground">
-              <div className="col-span-6">Event Name</div>
-              <div className="col-span-2 text-left">Date Range</div>
-              <div className="col-span-2 text-left">Type</div>
-              <div className="col-span-2">Actions</div>
+                              <div className="col-span-6">Event Name</div>
+                <div className="col-span-2 text-left">Date Range</div>
+                <div className="col-span-2 text-left">Category</div>
+                <div className="col-span-2">Actions</div>
             </div>
           </div>
 
@@ -2497,9 +2815,18 @@ export default function EventsCalendarPage() {
                         <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
                           {formatListHeader(date)}
                         </span>
-                        <span className="text-xs text-blue-600 dark:text-blue-400 ml-12">
+                        <button 
+                          className="text-xs text-blue-600 dark:text-blue-400 ml-12 hover:text-blue-800 dark:hover:text-blue-200 transition-colors cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const clickedDate = new Date(date)
+                            setSelectedDate(clickedDate)
+                            setIsDayViewOpen(true)
+                          }}
+                          title="Click to view all events on this date"
+                        >
                           {events.length} event{events.length !== 1 ? 's' : ''}
-                        </span>
+                        </button>
                       </div>
                     </div>
                     
@@ -2664,9 +2991,70 @@ export default function EventsCalendarPage() {
                   </Tooltip>
                 </TooltipProvider>
                 
-                <h1 className="text-base font-medium text-foreground px-2">
-                  {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-                </h1>
+                <Popover open={isMonthPickerOpen} onOpenChange={setIsMonthPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      className="text-base font-medium text-foreground px-2 hover:bg-primary/10 transition-colors"
+                    >
+                      {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-0" align="center">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+                      {/* Month Picker Header */}
+                      <div className="flex items-center justify-between px-3 py-2 border-b">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigateMonthPickerYear("prev")}
+                          disabled={monthPickerYear <= getDateRestrictions().minYear}
+                          className="h-7 w-7 p-0"
+                        >
+                          <ChevronLeft className="h-3.5 w-3.5" />
+                        </Button>
+                        <h3 className="text-base font-semibold">{monthPickerYear}</h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigateMonthPickerYear("next")}
+                          disabled={monthPickerYear >= getDateRestrictions().maxYear}
+                          className="h-7 w-7 p-0"
+                        >
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+
+                      {/* Month Grid */}
+                      <div className="grid grid-cols-3 gap-1.5 p-3">
+                        {monthNames.map((month, index) => {
+                          const isSelectable = isMonthSelectable(index, monthPickerYear)
+                          const isCurrentMonth = index === currentDate.getMonth() && monthPickerYear === currentDate.getFullYear()
+                          const isToday = index === new Date().getMonth() && monthPickerYear === new Date().getFullYear()
+                          
+                          return (
+                            <Button
+                              key={month}
+                              variant={isCurrentMonth ? "default" : "ghost"}
+                              size="sm"
+                              onClick={() => isSelectable ? navigateToMonth(index, monthPickerYear) : undefined}
+                              disabled={!isSelectable}
+                              className={cn(
+                                "h-9 text-xs font-medium transition-all",
+                                isCurrentMonth && "bg-primary text-primary-foreground",
+                                isToday && !isCurrentMonth && "ring-1 ring-primary ring-opacity-50",
+                                !isSelectable && "opacity-40 cursor-not-allowed",
+                                isSelectable && !isCurrentMonth && "hover:bg-primary/10"
+                              )}
+                            >
+                              {month}
+                            </Button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 
 
                 
@@ -2699,7 +3087,9 @@ export default function EventsCalendarPage() {
                         size="sm"
                         className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700 min-w-0 max-w-[180px]"
                       >
-                        <Globe className="w-4 h-4 shrink-0" />
+                        <span className="text-lg shrink-0">
+                          {getCountryFlag()}
+                        </span>
                         <span className="truncate max-w-[100px] font-semibold">
                           {selectedCountry}
                         </span>
@@ -2772,7 +3162,7 @@ export default function EventsCalendarPage() {
                       >
                         <MapPin className="w-4 h-4 shrink-0" />
                         <span className="truncate max-w-[80px] font-semibold">
-                          {selectedCity}
+                          {getCityDisplayText()}
                         </span>
                         <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
                       </Button>
@@ -2797,21 +3187,33 @@ export default function EventsCalendarPage() {
                             onBlur={() => setIsCitySearchFocused(false)}
                           />
                           <div className="space-y-1">
+                            {/* All Cities Option - Only show when not searching */}
+                            {!citySearchQuery && (
+                              <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-slate-50 dark:hover:bg-slate-800 text-sm">
+                                <input
+                                  type="checkbox"
+                                  checked={isCityChecked("All")}
+                                  onChange={() => handleCitySelect("All")}
+                                  className="rounded h-3.5 w-3.5"
+                                />
+                                <span className="font-medium">All</span>
+                              </label>
+                            )}
                             {filteredCityOptions.map((option) => (
-                              <Button
+                              <label 
                                 key={option.id}
-                                variant={selectedCity === option.label ? "default" : "ghost"}
-                                size="sm"
-                                className="w-full justify-start text-left h-auto py-2 px-3"
-                                onClick={() => handleCitySelect(option.label)}
+                                className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-slate-50 dark:hover:bg-slate-800 text-sm"
                               >
-                                <span className={cn(
-                                  "text-sm font-medium",
-                                  selectedCity === option.label ? "text-white" : "text-foreground"
-                                )}>
+                                <input
+                                  type="checkbox"
+                                  checked={isCityChecked(option.label)}
+                                  onChange={() => handleCitySelect(option.label)}
+                                  className="rounded h-3.5 w-3.5"
+                                />
+                                <span className="font-medium">
                                   {option.label}
                                 </span>
-                              </Button>
+                              </label>
                             ))}
                           </div>
                         </div>
@@ -2849,10 +3251,10 @@ export default function EventsCalendarPage() {
                                 <input
                                   type="checkbox"
                                   className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
-                                  checked={selectedCategories.includes(option.name)}
+                                  checked={isMainCategoryChecked(option.name)}
                                   onChange={() => handleCategorySelect(option.name)}
                                 />
-                                <option.icon className="w-4 h-4 mr-2 opacity-70" />
+                                <option.icon className={`w-4 h-4 mr-2 ${option.color}`} />
                                 <span className="font-medium text-sm flex-1">
                                   {option.name}
                                 </span>
@@ -2906,7 +3308,7 @@ export default function EventsCalendarPage() {
                     
                     {/* Event Category Dropdown */}
                     <div className="relative">
-                      <DropdownMenu>
+                      <DropdownMenu key={dropdownKey}>
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" className="w-48 h-10 justify-between text-sm hover:bg-white">
                             <div className="flex items-center gap-2">
@@ -2921,7 +3323,7 @@ export default function EventsCalendarPage() {
                             <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
-                                checked={bookmarkCategoryFilter.includes("all")}
+                                checked={isCategoryChecked("all")}
                                 onChange={() => handleCategorySelection("all")}
                                 className="rounded h-3.5 w-3.5"
                               />
@@ -2930,46 +3332,51 @@ export default function EventsCalendarPage() {
                             <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
-                                checked={bookmarkCategoryFilter.includes("conference")}
+                                checked={isCategoryChecked("conference")}
                                 onChange={() => handleCategorySelection("conference")}
                                 className="rounded h-3.5 w-3.5"
                               />
+                              <Presentation className={`h-3.5 w-3.5 ${getCategoryColor("conference")}`} />
                               <span>Conference</span>
                             </label>
                             <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
-                                checked={bookmarkCategoryFilter.includes("tradeshow")}
+                                checked={isCategoryChecked("tradeshow")}
                                 onChange={() => handleCategorySelection("tradeshow")}
                                 className="rounded h-3.5 w-3.5"
                               />
+                              <Building className={`h-3.5 w-3.5 ${getCategoryColor("tradeshow")}`} />
                               <span>Trade Shows</span>
                             </label>
                             <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
-                                checked={bookmarkCategoryFilter.includes("workshop")}
+                                checked={isCategoryChecked("workshop")}
                                 onChange={() => handleCategorySelection("workshop")}
                                 className="rounded h-3.5 w-3.5"
                               />
+                              <GraduationCap className={`h-3.5 w-3.5 ${getCategoryColor("workshop")}`} />
                               <span>Workshop</span>
                             </label>
                             <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
-                                checked={bookmarkCategoryFilter.includes("social")}
+                                checked={isCategoryChecked("social")}
                                 onChange={() => handleCategorySelection("social")}
                                 className="rounded h-3.5 w-3.5"
                               />
+                              <PartyPopper className={`h-3.5 w-3.5 ${getCategoryColor("social")}`} />
                               <span>Social</span>
                             </label>
                             <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
-                                checked={bookmarkCategoryFilter.includes("holidays")}
+                                checked={isCategoryChecked("holidays")}
                                 onChange={() => handleCategorySelection("holidays")}
                                 className="rounded h-3.5 w-3.5"
                               />
+                              <Sparkles className={`h-3.5 w-3.5 ${getCategoryColor("holidays")}`} />
                               <span>Holidays</span>
                             </label>
                           </div>
@@ -2983,7 +3390,7 @@ export default function EventsCalendarPage() {
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" className="w-44 h-10 justify-between text-sm hover:bg-white">
                             <div className="flex items-center gap-2">
-                              <Check className="h-3 w-3" />
+                              <Star className="h-3 w-3" />
                               <span>{getBookmarkTypeDisplayText()}</span>
                             </div>
                             <ChevronDown className="h-3 w-3 opacity-50" />
@@ -2994,7 +3401,7 @@ export default function EventsCalendarPage() {
                             <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
-                                checked={bookmarkTypeFilter.includes("all")}
+                                checked={isTypeChecked("all")}
                                 onChange={() => handleTypeSelection("all")}
                                 className="rounded h-3.5 w-3.5"
                               />
@@ -3003,7 +3410,7 @@ export default function EventsCalendarPage() {
                             <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
-                                checked={bookmarkTypeFilter.includes("bookmarked")}
+                                checked={isTypeChecked("bookmarked")}
                                 onChange={() => handleTypeSelection("bookmarked")}
                                 className="rounded h-3.5 w-3.5"
                               />
@@ -3012,7 +3419,7 @@ export default function EventsCalendarPage() {
                             <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
-                                checked={bookmarkTypeFilter.includes("holidays")}
+                                checked={isTypeChecked("holidays")}
                                 onChange={() => handleTypeSelection("holidays")}
                                 className="rounded h-3.5 w-3.5"
                               />
@@ -3021,7 +3428,7 @@ export default function EventsCalendarPage() {
                             <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
-                                checked={bookmarkTypeFilter.includes("suggested")}
+                                checked={isTypeChecked("suggested")}
                                 onChange={() => handleTypeSelection("suggested")}
                                 className="rounded h-3.5 w-3.5"
                               />
@@ -3031,7 +3438,7 @@ export default function EventsCalendarPage() {
                             <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
-                                checked={bookmarkTypeFilter.includes("available")}
+                                checked={isTypeChecked("available")}
                                 onChange={() => handleTypeSelection("available")}
                                 className="rounded h-3.5 w-3.5"
                               />
@@ -3063,19 +3470,23 @@ export default function EventsCalendarPage() {
                         <div
                           key={event.id}
                           className={cn(
-                            "flex items-center justify-between p-3 border rounded-lg hover:bg-accent transition-colors",
-                            (event.status === "bookmarked" || event.status === "suggested") && "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800",
+                            "flex items-center justify-between p-3 border rounded-lg",
+                            (event.status === "bookmarked" || event.status === "suggested") && "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800"
                           )}
                         >
                           <div className="flex items-center gap-3">
                             <div>
                               <div className="flex items-start gap-2">
-                                <h3 className="text-sm font-medium leading-snug flex-1">{event.name}</h3>
-                                <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
-                                  {event.status === "bookmarked" && (
-                                    <Star className="h-3 w-3 fill-current text-green-600" />
-                                  )}
-                                  {event.type === "holiday" && <Sparkles className="h-3 w-3 text-purple-600" />}
+                                {(() => {
+                                  const eventCategory = getCategoryData(event)
+                                  if (eventCategory && eventCategory.id !== "all") {
+                                    const IconComponent = eventCategory.icon
+                                    return <IconComponent className={`h-3 w-3 ${eventCategory.color}`} />
+                                  }
+                                  return null
+                                })()}
+                                <div className="flex-1">
+                                  <h3 className="text-sm font-medium leading-snug">{event.name}</h3>
                                 </div>
                               </div>
                               <div className="flex items-center gap-4 text-xs text-muted-foreground">
@@ -3089,9 +3500,7 @@ export default function EventsCalendarPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge className={cn("border text-xs", getStatusColor(event.status))}>
-                              {event.status === "available" ? "Available" : event.status}
-                            </Badge>
+                            {/* Removed all badges from bookmark popup */}
                             
                             {/* Edit and Delete buttons for custom events */}
                             {event.isCustom && (
@@ -3121,20 +3530,24 @@ export default function EventsCalendarPage() {
                             )}
                             
                             <Button
-                              variant={(event.status === "bookmarked" || event.status === "suggested") ? "default" : "outline"}
+                              variant={event.status === "bookmarked" || event.status === "suggested" ? "default" : "outline"}
                               size="sm"
-                              onClick={() => toggleBookmark(event.id)}
+                              onMouseDown={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                toggleBookmark(event.id)
+                              }}
                               className={cn(
                                 "px-3 gap-2 text-xs",
-                                (event.status === "bookmarked" || event.status === "suggested")
-                                  ? "bg-green-600 hover:bg-green-700"
+                                event.status === "bookmarked" || event.status === "suggested"
+                                  ? "bg-green-600 hover:bg-green-700 text-white"
                                   : "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
                               )}
                             >
                               <BookmarkIcon
                                 className={cn("h-3 w-3", (event.status === "bookmarked" || event.status === "suggested") && "fill-current")}
                               />
-                              {(event.status === "bookmarked" || event.status === "suggested") ? "Bookmarked" : "Bookmark"}
+                              {event.status === "bookmarked" || event.status === "suggested" ? "Bookmarked" : "Bookmark"}
                             </Button>
                           </div>
                         </div>
@@ -3208,7 +3621,7 @@ export default function EventsCalendarPage() {
                                 )}
                               >
                                 <div className="flex items-center gap-2">
-                                  <Presentation className="h-4 w-4" />
+                                  <Presentation className={`h-4 w-4 ${getCategoryColor("conference")}`} />
                                   <span>Conference</span>
                                 </div>
                               </SelectItem>
@@ -3220,7 +3633,7 @@ export default function EventsCalendarPage() {
                                 )}
                               >
                                 <div className="flex items-center gap-2">
-                                  <Building className="h-4 w-4" />
+                                  <Building className={`h-4 w-4 ${getCategoryColor("tradeshow")}`} />
                                   <span>Trade Shows</span>
                                 </div>
                               </SelectItem>
@@ -3232,7 +3645,7 @@ export default function EventsCalendarPage() {
                                 )}
                               >
                                 <div className="flex items-center gap-2">
-                                  <GraduationCap className="h-4 w-4" />
+                                  <GraduationCap className={`h-4 w-4 ${getCategoryColor("workshop")}`} />
                                   <span>Workshop</span>
                                 </div>
                               </SelectItem>
@@ -3244,7 +3657,7 @@ export default function EventsCalendarPage() {
                                 )}
                               >
                                 <div className="flex items-center gap-2">
-                                  <PartyPopper className="h-4 w-4" />
+                                  <PartyPopper className={`h-4 w-4 ${getCategoryColor("social")}`} />
                                   <span>Social</span>
                                 </div>
                               </SelectItem>
@@ -3292,6 +3705,13 @@ export default function EventsCalendarPage() {
                                     setIsStartDateOpen(false)
                                   }
                                 }}
+                                disabled={(date) => {
+                                  // Disable all dates before today
+                                  const today = new Date()
+                                  today.setHours(0, 0, 0, 0) // Normalize to start of day
+                                  const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+                                  return compareDate < today
+                                }}
                                 initialFocus
                               />
                             </PopoverContent>
@@ -3332,13 +3752,23 @@ export default function EventsCalendarPage() {
                                   }
                                 }}
                                 disabled={(date) => {
-                                  if (!newEvent.startDate) return false
-                                  const startDate = new Date(newEvent.startDate)
-                                  // Normalize dates to compare only date part (not time)
+                                  // Disable all dates before today
+                                  const today = new Date()
+                                  today.setHours(0, 0, 0, 0) // Normalize to start of day
                                   const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-                                  const compareStartDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
-                                  // Allow same date (>=) but disable dates before start date
-                                  return compareDate < compareStartDate
+                                  
+                                  // If date is before today, disable it
+                                  if (compareDate < today) return true
+                                  
+                                  // If there's a start date, also disable dates before start date
+                                  if (newEvent.startDate) {
+                                    const startDate = new Date(newEvent.startDate)
+                                    const compareStartDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+                                    // Allow same date (>=) but disable dates before start date
+                                    return compareDate < compareStartDate
+                                  }
+                                  
+                                  return false
                                 }}
                                 initialFocus
                               />
@@ -3352,64 +3782,107 @@ export default function EventsCalendarPage() {
                       <div>
                         <Label htmlFor="country">Country *</Label>
                         <div className="mt-1">
-                          <Select
-                            value={newEventCountry}
-                            onValueChange={handleNewEventCountrySelect}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select a country" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-60">
-                              <ScrollArea className="h-60">
-                                {countryOptions.map((option) => (
-                                  <SelectItem 
-                                    key={option.id} 
-                                    value={option.label}
-                                    className={cn(
-                                      "flex items-center gap-2 cursor-pointer pl-3 [&>span:first-child]:hidden",
-                                      newEventCountry === option.label ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
-                                    )}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-sm">{option.flag}</span>
-                                      <span>{option.label}</span>
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </ScrollArea>
-                            </SelectContent>
-                          </Select>
+                          <Popover open={isCreateCountryOpen} onOpenChange={setIsCreateCountryOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={isCreateCountryOpen}
+                                className="w-full justify-between"
+                              >
+                                {newEventCountry ? (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm">
+                                      {countryOptions.find(option => option.label === newEventCountry)?.flag}
+                                    </span>
+                                    <span>{newEventCountry}</span>
+                                  </div>
+                                ) : (
+                                  "Select a country"
+                                )}
+                                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" sideOffset={4}>
+                              <Command className="max-h-[280px]">
+                                <CommandInput placeholder="Search countries..." className="border-0" />
+                                <CommandList className="max-h-[200px] overflow-y-scroll">
+                                  <CommandEmpty>No country found.</CommandEmpty>
+                                  <CommandGroup>
+                                    {countryOptions.map((option) => (
+                                      <CommandItem
+                                        key={option.id}
+                                        value={option.label}
+                                        onSelect={(currentValue) => {
+                                          handleNewEventCountrySelect(currentValue)
+                                          setIsCreateCountryOpen(false)
+                                        }}
+                                        className="flex items-center gap-2 cursor-pointer"
+                                      >
+                                        <span className="text-sm">{option.flag}</span>
+                                        <span>{option.label}</span>
+                                        <Check
+                                          className={cn(
+                                            "ml-auto h-4 w-4",
+                                            newEventCountry === option.label ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       </div>
 
                       <div>
                         <Label htmlFor="city">City *</Label>
                         <div className="mt-1">
-                          <Select
-                            value={newEventCity}
-                            onValueChange={handleNewEventCitySelect}
-                            disabled={!newEventCountry}
-                          >
-                            <SelectTrigger className="w-full [&>svg]:hidden">
-                              <SelectValue placeholder={newEventCountry ? "Select a city" : "Select country first"} />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-60" hideScrollButtons={true}>
-                              <ScrollArea className="h-60">
-                                {newEventCountry && cityOptions[newEventCountry as keyof typeof cityOptions]?.map((option) => (
-                                  <SelectItem 
-                                    key={option.id} 
-                                    value={option.label}
-                                    className={cn(
-                                      "cursor-pointer pl-3 [&>span:first-child]:hidden",
-                                      newEventCity === option.label ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
-                                    )}
-                                  >
-                                    {option.label}
-                                  </SelectItem>
-                                ))}
-                              </ScrollArea>
-                            </SelectContent>
-                          </Select>
+                          <Popover open={isCreateCityOpen} onOpenChange={setIsCreateCityOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={isCreateCityOpen}
+                                className="w-full justify-between"
+                                disabled={!newEventCountry}
+                              >
+                                {newEventCity ? newEventCity : (newEventCountry ? "Select a city" : "Select country first")}
+                                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" sideOffset={4}>
+                              <Command className="max-h-[280px]">
+                                <CommandInput placeholder="Search cities..." className="border-0" />
+                                <CommandList className="max-h-[200px] overflow-y-scroll">
+                                  <CommandEmpty>No city found.</CommandEmpty>
+                                  <CommandGroup>
+                                    {newEventCountry && cityOptions[newEventCountry as keyof typeof cityOptions]?.map((option) => (
+                                      <CommandItem
+                                        key={option.id}
+                                        value={option.label}
+                                        onSelect={(currentValue) => {
+                                          handleNewEventCitySelect(currentValue)
+                                          setIsCreateCityOpen(false)
+                                        }}
+                                        className="cursor-pointer"
+                                      >
+                                        {option.label}
+                                        <Check
+                                          className={cn(
+                                            "ml-auto h-4 w-4",
+                                            newEventCity === option.label ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       </div>
 
@@ -3501,7 +3974,7 @@ export default function EventsCalendarPage() {
                                 )}
                               >
                                 <div className="flex items-center gap-2">
-                                  <Presentation className="h-4 w-4" />
+                                  <Presentation className={`h-4 w-4 ${getCategoryColor("conference")}`} />
                                   <span>Conference</span>
                                 </div>
                               </SelectItem>
@@ -3513,7 +3986,7 @@ export default function EventsCalendarPage() {
                                 )}
                               >
                                 <div className="flex items-center gap-2">
-                                  <Building className="h-4 w-4" />
+                                  <Building className={`h-4 w-4 ${getCategoryColor("tradeshow")}`} />
                                   <span>Trade Shows</span>
                                 </div>
                               </SelectItem>
@@ -3525,7 +3998,7 @@ export default function EventsCalendarPage() {
                                 )}
                               >
                                 <div className="flex items-center gap-2">
-                                  <GraduationCap className="h-4 w-4" />
+                                  <GraduationCap className={`h-4 w-4 ${getCategoryColor("workshop")}`} />
                                   <span>Workshop</span>
                                 </div>
                               </SelectItem>
@@ -3537,7 +4010,7 @@ export default function EventsCalendarPage() {
                                 )}
                               >
                                 <div className="flex items-center gap-2">
-                                  <PartyPopper className="h-4 w-4" />
+                                  <PartyPopper className={`h-4 w-4 ${getCategoryColor("social")}`} />
                                   <span>Social</span>
                                 </div>
                               </SelectItem>
@@ -3584,6 +4057,13 @@ export default function EventsCalendarPage() {
                                     })
                                   }
                                 }}
+                                disabled={(date) => {
+                                  // Disable all dates before today
+                                  const today = new Date()
+                                  today.setHours(0, 0, 0, 0) // Normalize to start of day
+                                  const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+                                  return compareDate < today
+                                }}
                                 initialFocus
                               />
                             </PopoverContent>
@@ -3623,13 +4103,23 @@ export default function EventsCalendarPage() {
                                   }
                                 }}
                                 disabled={(date) => {
-                                  if (!newEvent.startDate) return false
-                                  const startDate = new Date(newEvent.startDate)
-                                  // Normalize dates to compare only date part (not time)
+                                  // Disable all dates before today
+                                  const today = new Date()
+                                  today.setHours(0, 0, 0, 0) // Normalize to start of day
                                   const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-                                  const compareStartDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
-                                  // Allow same date (>=) but disable dates before start date
-                                  return compareDate < compareStartDate
+                                  
+                                  // If date is before today, disable it
+                                  if (compareDate < today) return true
+                                  
+                                  // If there's a start date, also disable dates before start date
+                                  if (newEvent.startDate) {
+                                    const startDate = new Date(newEvent.startDate)
+                                    const compareStartDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+                                    // Allow same date (>=) but disable dates before start date
+                                    return compareDate < compareStartDate
+                                  }
+                                  
+                                  return false
                                 }}
                                 initialFocus
                               />
@@ -3641,64 +4131,107 @@ export default function EventsCalendarPage() {
                       <div>
                         <Label htmlFor="edit-country">Country *</Label>
                         <div className="mt-1">
-                          <Select
-                            value={newEventCountry}
-                            onValueChange={handleNewEventCountrySelect}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select a country" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-60">
-                              <ScrollArea className="h-60">
-                                {countryOptions.map((option) => (
-                                  <SelectItem 
-                                    key={option.id} 
-                                    value={option.label}
-                                    className={cn(
-                                      "flex items-center gap-2 cursor-pointer pl-3 [&>span:first-child]:hidden",
-                                      newEventCountry === option.label ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
-                                    )}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-sm">{option.flag}</span>
-                                      <span>{option.label}</span>
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </ScrollArea>
-                            </SelectContent>
-                          </Select>
+                          <Popover open={isEditCountryOpen} onOpenChange={setIsEditCountryOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={isEditCountryOpen}
+                                className="w-full justify-between"
+                              >
+                                {newEventCountry ? (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm">
+                                      {countryOptions.find(option => option.label === newEventCountry)?.flag}
+                                    </span>
+                                    <span>{newEventCountry}</span>
+                                  </div>
+                                ) : (
+                                  "Select a country"
+                                )}
+                                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" sideOffset={4}>
+                              <Command className="max-h-[280px]">
+                                <CommandInput placeholder="Search countries..." className="border-0" />
+                                <CommandList className="max-h-[200px] overflow-y-scroll">
+                                  <CommandEmpty>No country found.</CommandEmpty>
+                                  <CommandGroup>
+                                    {countryOptions.map((option) => (
+                                      <CommandItem
+                                        key={option.id}
+                                        value={option.label}
+                                        onSelect={(currentValue) => {
+                                          handleNewEventCountrySelect(currentValue)
+                                          setIsEditCountryOpen(false)
+                                        }}
+                                        className="flex items-center gap-2 cursor-pointer"
+                                      >
+                                        <span className="text-sm">{option.flag}</span>
+                                        <span>{option.label}</span>
+                                        <Check
+                                          className={cn(
+                                            "ml-auto h-4 w-4",
+                                            newEventCountry === option.label ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       </div>
 
                       <div>
                         <Label htmlFor="edit-city">City *</Label>
                         <div className="mt-1">
-                          <Select
-                            value={newEventCity}
-                            onValueChange={handleNewEventCitySelect}
-                            disabled={!newEventCountry}
-                          >
-                            <SelectTrigger className="w-full [&>svg]:hidden">
-                              <SelectValue placeholder={newEventCountry ? "Select a city" : "Select country first"} />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-60" hideScrollButtons={true}>
-                              <ScrollArea className="h-60">
-                                {newEventCountry && cityOptions[newEventCountry as keyof typeof cityOptions]?.map((option) => (
-                                  <SelectItem 
-                                    key={option.id} 
-                                    value={option.label}
-                                    className={cn(
-                                      "cursor-pointer pl-3 [&>span:first-child]:hidden",
-                                      newEventCity === option.label ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
-                                    )}
-                                  >
-                                    {option.label}
-                                  </SelectItem>
-                                ))}
-                              </ScrollArea>
-                            </SelectContent>
-                          </Select>
+                          <Popover open={isEditCityOpen} onOpenChange={setIsEditCityOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={isEditCityOpen}
+                                className="w-full justify-between"
+                                disabled={!newEventCountry}
+                              >
+                                {newEventCity ? newEventCity : (newEventCountry ? "Select a city" : "Select country first")}
+                                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" sideOffset={4}>
+                              <Command className="max-h-[280px]">
+                                <CommandInput placeholder="Search cities..." className="border-0" />
+                                <CommandList className="max-h-[200px] overflow-y-scroll">
+                                  <CommandEmpty>No city found.</CommandEmpty>
+                                  <CommandGroup>
+                                    {newEventCountry && cityOptions[newEventCountry as keyof typeof cityOptions]?.map((option) => (
+                                      <CommandItem
+                                        key={option.id}
+                                        value={option.label}
+                                        onSelect={(currentValue) => {
+                                          handleNewEventCitySelect(currentValue)
+                                          setIsEditCityOpen(false)
+                                        }}
+                                        className="cursor-pointer"
+                                      >
+                                        {option.label}
+                                        <Check
+                                          className={cn(
+                                            "ml-auto h-4 w-4",
+                                            newEventCity === option.label ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       </div>
 
@@ -3912,47 +4445,83 @@ export default function EventsCalendarPage() {
                     setIsDayViewOpen(false)
                   }}
                 >
-                  <div className="flex items-center gap-4">
-
-                    <div className="text-left">
-                      <div>
-                        <h3 className="font-semibold text-foreground leading-snug text-left">
-                          {event.name}
-                          {(event.status === "bookmarked" || event.status === "suggested") && <Star className="h-4 w-4 fill-current text-green-600 inline ml-1" />}
-                          {event.type === "holiday" && <Sparkles className="h-4 w-4 text-purple-600 inline ml-1" />}
-                        </h3>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1 text-left">
-                        <div className="flex items-center gap-0.5">
-                          <Clock className="h-3 w-3" />
-                          {event.startDate === event.endDate ? formatSingleDate(event.startDate) : formatDateRange(event.startDate, event.endDate)}
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <div className="flex items-start gap-2">
+                        {(() => {
+                          const eventCategory = getCategoryData(event)
+                          if (eventCategory && eventCategory.id !== "all") {
+                            const IconComponent = eventCategory.icon
+                            return <IconComponent className={`h-3 w-3 ${eventCategory.color}`} />
+                          }
+                          return null
+                        })()}
+                        <div className="flex-1">
+                          <h3 className="text-sm font-medium leading-snug">{event.name}</h3>
                         </div>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-2 text-left">{event.description}</p>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span>
+                          {event.startDate === event.endDate ? formatSingleDate(event.startDate) : formatDateRange(event.startDate, event.endDate)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{event.description}</p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Badge className={cn("border", getStatusColor(event.status))}>
-                      {event.status === "available" ? "Available" : event.status}
-                    </Badge>
-                    <div className="relative group">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          toggleBookmark(event.id)
-                        }}
-                      >
-                        <BookmarkIcon
-                          className={cn("h-4 w-4", (event.status === "bookmarked" || event.status === "suggested") ? "fill-current text-green-600" : "")}
-                        />
-                      </Button>
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                        {(event.status === "bookmarked" || event.status === "suggested") ? "Remove Bookmark" : "Bookmark Event"}
+                    {/* Removed all badges from date popup */}
+                    
+                    {/* Edit and Delete buttons for custom events */}
+                    {event.isCustom && (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleEditEvent(event)
+                            setIsDayViewOpen(false)
+                          }}
+                          className="h-7 w-7 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
+                          title="Edit Event"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            showDeleteConfirmation(event.id)
+                          }}
+                          className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                          title="Delete Event"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
-                    </div>
+                    )}
+                    
+                    <Button
+                      variant={(event.status === "bookmarked" || event.status === "suggested") ? "default" : "outline"}
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleBookmark(event.id)
+                      }}
+                      className={cn(
+                        "px-3 gap-2 text-xs",
+                        (event.status === "bookmarked" || event.status === "suggested")
+                          ? "bg-green-600 hover:bg-green-700"
+                          : "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
+                      )}
+                    >
+                      <BookmarkIcon
+                        className={cn("h-3 w-3", (event.status === "bookmarked" || event.status === "suggested") && "fill-current")}
+                      />
+                      {(event.status === "bookmarked" || event.status === "suggested") ? "Bookmarked" : "Bookmark"}
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -3985,7 +4554,7 @@ export default function EventsCalendarPage() {
                   <div className="leading-relaxed break-words">
                     {selectedEvent.name}
                     {selectedEvent.status === "bookmarked" && <Star className="h-5 w-5 fill-current text-green-600 inline ml-2" />}
-                    {selectedEvent.type === "holiday" && <Sparkles className="h-5 w-5 text-purple-600 inline ml-2" />}
+                    {selectedEvent.type === "holiday" && <Sparkles className={`h-5 w-5 ${getCategoryColor("holidays")} inline ml-2`} />}
                   </div>
                 </div>
                 <Badge className={cn(getStatusColor(selectedEvent.status))}>
@@ -4055,12 +4624,16 @@ export default function EventsCalendarPage() {
                 <div className="flex items-center gap-2">
                   {selectedEvent.status !== "available" ? (
                     <Button
-                      variant={(selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") ? "default" : "outline"}
-                      onClick={() => toggleBookmark(selectedEvent.id)}
+                      variant={selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested" ? "default" : "outline"}
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        toggleBookmark(selectedEvent.id)
+                      }}
                       className={cn(
                         "px-4 gap-3",
-                        (selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested")
-                          ? "bg-green-600 hover:bg-green-700"
+                        selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested"
+                          ? "bg-green-600 hover:bg-green-700 text-white"
                           : "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
                       )}
                     >
@@ -4072,7 +4645,11 @@ export default function EventsCalendarPage() {
                   ) : (
                     <Button
                       variant="outline"
-                      onClick={() => toggleBookmark(selectedEvent.id)}
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        toggleBookmark(selectedEvent.id)
+                      }}
                       className="px-4 gap-3 hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
                     >
                       <BookmarkIcon className="h-4 w-4" />
