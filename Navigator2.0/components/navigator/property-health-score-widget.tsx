@@ -404,7 +404,7 @@ export function PropertyHealthScoreWidget(props: any) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 -mt-2.5">
           {combinedData.map((channel: any) => {
             // const Icon = channel.channelIcon
-            const sortedData = [...channel.data].sort((a, b) => parseScore(a.score) - parseScore(b.score));
+            const sortedData = [...channel.data].sort((a, b) => parseScore(b.score) - parseScore(a.score));
             const subsOtaranData = channel.data.filter((xy: any) => xy.propertyID == selectedProperty?.hmid)
             const Subindex = sortedData.findIndex((h: any) => h.propertyID === selectedProperty?.hmid);
             return (

@@ -209,8 +209,8 @@ function DemandPageContent() {
     return getAllSubscribeEvents(payload)
       .then((res) => {
         if (res.status) {
-          res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum)
-          setAllEventData(res.body);
+          const filtertedEvevent = res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum).filter((x: any) => x.isSubscribed === true);
+          setAllEventData(filtertedEvevent);
           const start = startDate ? new Date(startDate) : new Date();
           const end = endDate ? new Date(endDate) : new Date();
           start.setHours(0, 0, 0, 0);
@@ -222,7 +222,7 @@ function DemandPageContent() {
             from.setHours(0, 0, 0, 0);
             to.setHours(0, 0, 0, 0);
 
-            return from <= end && to >= start;
+            return from <= end && to >= start && event.isSubscribed === true;
           });
           setEventData(matchingEvents);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));

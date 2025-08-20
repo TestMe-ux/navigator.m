@@ -290,9 +290,9 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
    * Generate event icons based on actual event data
    */
   const generateEventIcons = (days: CalendarDay[]): CalendarDay[] => {
-    const eventsData = eventData?.eventDetails || []
+    // const eventsData = eventData || []
     const mergedEventandHoliday = [
-      ...(Array.isArray(eventsData) ? eventsData : []),
+      ...(Array.isArray(eventData) ? eventData : []),
       ...(Array.isArray(holidayData) ? holidayData : [])
     ];
 
@@ -443,9 +443,9 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
   ))
   const handleDownloadCSV = () => {
     console.log('📊 Downloading data as CSV...')
-    const eventsData = eventData?.eventDetails || []
+    // const eventsData = eventData?.eventDetails || []
     const mergedEventandHoliday = [
-      ...(Array.isArray(eventsData) ? eventsData : []),
+      ...(Array.isArray(eventData) ? eventData : []),
       ...(Array.isArray(holidayData) ? holidayData : [])
     ];
 

@@ -50,14 +50,24 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
   const allWithAvg = rateData?.pricePositioningEntites
     ?.filter((x: any) => (typeof x.AvgData === "number") && (x.propertyType === 0 || x.propertyType === 1)) || [];
   const sortedByAvg = [...allWithAvg].sort((a, b) => a.AvgData - b.AvgData);
-  const indexOfSubscriber = sortedByAvg.findIndex(x => x.propertyType === 0)+1;
+  const indexOfSubscriber = sortedByAvg.findIndex(x => x.propertyType === 0) + 1;
   //All Compset Subscriber Rate and Market Positioning Data
   const avgAllSubscriberRate_Comp = rateCompData?.pricePositioningEntites?.find((x: any) => x.propertyType === 0)?.AvgData;
   const allWithAvg_Comp = rateCompData?.pricePositioningEntites
     ?.filter((x: any) => (typeof x.AvgData === "number") && (x.propertyType === 0 || x.propertyType === 1)) || [];
   const sortedByAvg_Comp = [...allWithAvg_Comp].sort((a, b) => a.AvgData - b.AvgData);
-  const indexOfSubscriber_Comp = sortedByAvg_Comp.findIndex(x => x.propertyType === 0)+1;
-  const latestEvent = rateData?.pricePositioningEntites?.find((x: any) => x.propertyType === 0)?.subscriberPropertyRate?.map((x: any) => x.event?.eventDetails)?.find((details: any) => Array.isArray(details) && details.length > 0)?.[0];
+  const indexOfSubscriber_Comp = sortedByAvg_Comp.findIndex(x => x.propertyType === 0) + 1;
+  const eventsData = rateData?.pricePositioningEntites
+    ?.find((x: any) => x.propertyType === 0)
+    ?.subscriberPropertyRate
+    ?.flatMap((x: any) => x.event?.eventDetails || [])
+    ?.filter((event: any) => event && event.eventName);
+
+  // Sort by eventName
+  const sortedEvents = eventsData?.sort((a: any, b: any) =>
+    a.eventName.localeCompare(b.eventName)
+  );
+  const latestEvent = sortedEvents?.[0];
 
   // Normalize dates to start of day for accurate comparison
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
@@ -99,7 +109,7 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
       gradient: 'from-blue-500 to-blue-600',
       urgency: Math.abs(((avgAllSubscriberRate - avgAllSubscriberRate_Comp) / avgAllSubscriberRate_Comp) * 100) > 5 ? 'high' : 'medium',
       currencyCode: selectedProperty?.currencySymbol || '$',
-      comparisonText: selectedComparison ?selectedComparison === 1 ? 'Yesterday': selectedComparison === 7 ? 'Last 7 Days' : selectedComparison === 28 ? 'Last 28 Days' : 'Last Quarter' : 'N/A',
+      comparisonText: selectedComparison ? selectedComparison === 1 ? 'Yesterday' : selectedComparison === 7 ? 'Last 7 Days' : selectedComparison === 28 ? 'Last 28 Days' : 'Last Quarter' : 'N/A',
     },
     {
       id: 'parity-status',
@@ -115,7 +125,7 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
       isImportant: true,
       gradient: parityBase > 95 ? 'from-emerald-500 to-emerald-600' : parityBase > 85 ? 'from-amber-500 to-amber-600' : 'from-red-500 to-red-600',
       urgency: parityBase < 85 ? 'critical' : parityBase < 95 ? 'high' : 'low',
-      comparisonText: selectedComparison ?selectedComparison === 1 ? 'Yesterday': selectedComparison === 7 ? 'Last 7 Days' : selectedComparison === 28 ? 'Last 28 Days' : 'Last Quarter' : 'N/A',
+      comparisonText: selectedComparison ? selectedComparison === 1 ? 'Yesterday' : selectedComparison === 7 ? 'Last 7 Days' : selectedComparison === 28 ? 'Last 28 Days' : 'Last Quarter' : 'N/A',
     },
     {
       id: 'market-position',
@@ -132,7 +142,7 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
       gradient: 'from-purple-500 to-purple-600',
       urgency: indexOfSubscriber > 5 ? 'high' : 'medium',
       outOfIndex: rateData?.pricePositioningEntites?.length - 2 || 0,
-      comparisonText: selectedComparison ?selectedComparison === 1 ? 'Yesterday': selectedComparison === 7 ? 'Last 7 Days' : selectedComparison === 28 ? 'Last 28 Days' : 'Last Quarter' : 'N/A',
+      comparisonText: selectedComparison ? selectedComparison === 1 ? 'Yesterday' : selectedComparison === 7 ? 'Last 7 Days' : selectedComparison === 28 ? 'Last 28 Days' : 'Last Quarter' : 'N/A',
     },
   ]
   // Include Events KPI only for current and future dates (revenue managers focus on actionable events)
@@ -425,7 +435,7 @@ function KPICard({ metric }: { metric: KPIMetric }) {
 export function OverviewKpiCards(props: any) {
   const { startDate, endDate, isLoading: contextIsLoading } = useDateContext()
   const [selectedProperty, setSelectedProperty] = useState<any>(null)
-  
+
   // Safely get selectedProperty on client side only
   useEffect(() => {
     if (typeof window !== 'undefined') {

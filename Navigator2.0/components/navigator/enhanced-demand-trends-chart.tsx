@@ -61,10 +61,10 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
     const baseDemand = Math.floor(1 + Math.sin(index * 0.3) * 1.2 + Math.random() * 1.5)
 
 
-    const marketADR = demandI?.hotelADR ? demandI.hotelADR : 0
-    const hotelADR = Math.max(parseInt(myRateData?.rate ?? "0", 10), 0);
+    const marketADR = demandI?.hotelADR ? Number(demandI.hotelADR) : 0
+    const hotelADR = Math.max(Number(myRateData?.rate) || 0, 0);
     const airTravellers = demandI?.oagCapacity ? demandI.oagCapacity : 0
-    const compRate = Number(myCompRateData?.rate);
+    const compRate =Math.max(Number(myCompRateData?.rate) || 0, 0);
     const myPriceVariance =
       !isNaN(compRate) && compRate > 0
         ? Number((((hotelADR - compRate) / compRate) * 100).toFixed(2))
@@ -201,6 +201,7 @@ function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
 
 // Aggregate daily data into months
 function aggregateDataByMonth(dailyData: any[], startDate: Date, endDate: Date) {
+  debugger;
   const months = eachMonthOfInterval({ start: startDate, end: endDate })
 
   return months.map((monthStart, monthIndex) => {
