@@ -67,9 +67,9 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
       !isNaN(compRate) && compRate > 0
         ? Number((((hotelADR - compRate) / compRate) * 100).toFixed(2))
         : 0;
-    const marketADRVariance = getValue(demandI, `${suffix}_Overall_HotelADR`);
-    const airTravellersVariance = getValue(demandI, `${suffix}_Overall_OAGCapacity`);
-    const demandVariance = getValue(demandI, `${suffix}_Overall_Demand_Index`);
+    const marketADRVariance = Number(getValue(demandI, `${suffix}_Overall_HotelADR`));
+    const airTravellersVariance = Number(getValue(demandI, `${suffix}_Overall_OAGCapacity`));
+    const demandVariance = Number(getValue(demandI, `${suffix}_Overall_Demand_Index`));
     // Generate variance percentages (realistic fluctuations)
     // const myPriceVariance = demandI?.woW_Overall_HotelADR ? demandI.woW_Overall_HotelADR : 0
     // const marketADRVariance = demandI?.woW_Overall_HotelADR ? demandI.woW_Overall_HotelADR : 0
@@ -153,7 +153,7 @@ function generateChartEvents(trendData: any[], events: any) {
 // Aggregate daily data into weeks
 function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
   const weeks = eachWeekOfInterval({ start: startDate, end: endDate }, { weekStartsOn: 1 }) // Start week on Monday
-
+debugger;
   return weeks.map((weekStart, weekIndex) => {
     const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 })
 

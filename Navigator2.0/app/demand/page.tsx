@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState, useCallback, useMemo, use } from "react"
+import React, { useEffect, useState, useCallback, useMemo, use, useRef } from "react"
 import { addDays, format } from "date-fns"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -16,7 +16,7 @@ import { DemandSummaryCards } from "@/components/navigator/demand-summary-cards"
 import { MyEventsHolidaysTable } from "@/components/navigator/my-events-holidays-table"
 import { useDemandDateContext, DemandDateProvider } from "@/components/demand-date-context"
 import { GetDemandAIData, GetDemandAIPerCountryAverageData } from "@/lib/demand"
-import { getAllEvents, getAllHoliday } from "@/lib/events"
+import { getAllEvents, getAllHoliday, getAllSubscribeEvents } from "@/lib/events"
 import localStorageService from "@/lib/localstorage"
 import { getRateTrends } from "@/lib/rate"
 import { getChannels } from "@/lib/channels"
@@ -41,6 +41,7 @@ function DemandPageContent() {
   const [rateData, setRateData] = useState(Object);
   const [rateCompData, setRateCompData] = useState(Object);
   const [filter, setFilter] = useState<any>("wow");
+  const [isDownloading, setIsDownloading] = useState(false);
   const [channelFilter, setChannelFilter] = useState<any>({ channelId: [], channelName: [] });
   // Initialize demand page with Next 15 Days default
   useEffect(() => {
@@ -92,15 +93,15 @@ function DemandPageContent() {
     if (!startDate ||
       !endDate ||
       !channelFilter?.channelId || channelFilter?.channelId.length === 0) return;
-    
+
     const fetchRateData = async () => {
       setIsLoading(true);
       setLoadingProgress(0);
-      
+
       try {
         await Promise.all([
           getRateDate(),
-      getCompRateData()
+          getCompRateData()
         ]);
       } finally {
         // Show completion for 300ms before hiding
@@ -110,7 +111,7 @@ function DemandPageContent() {
         }, 300);
       }
     };
-    
+
     fetchRateData();
   }, [startDate, endDate, channelFilter]);
   useEffect(() => {
@@ -184,7 +185,7 @@ function DemandPageContent() {
   const getDemandAIPerCountryAverageData = () => {
     return GetDemandAIPerCountryAverageData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
       .then((res) => {
-        if (res.status) { 
+        if (res.status) {
           setDemandAIPerCountryAverageData(res?.body[0]);
           console.log("GetDemandAIPerCountryAverageData", res?.body[0]);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
@@ -195,7 +196,7 @@ function DemandPageContent() {
   const getAllEventData = () => {
     const today = new Date()
     const endDates = new Date(today)
-    endDates.setDate(today.getDate() + 75)
+    endDates.setDate(today.getDate() + 74)
     var payload = {
       "Country": [selectedProperty?.country ?? ''],
       "City": [selectedProperty?.city ?? ''],
@@ -205,7 +206,7 @@ function DemandPageContent() {
       "StartDate": conevrtDateforApi(today?.toString()),
       "EndDate": conevrtDateforApi(endDates?.toString())
     }
-    return getAllEvents(payload)
+    return getAllSubscribeEvents(payload)
       .then((res) => {
         if (res.status) {
           res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum)
@@ -233,7 +234,7 @@ function DemandPageContent() {
     // var filters = { "Type": [], "Impact": [], "SearchType": "" };
     const today = new Date()
     const endDates = new Date(today)
-    endDates.setDate(today.getDate() + 75)
+    endDates.setDate(today.getDate() + 74)
     var payload = {
       "Country": [selectedProperty?.country ?? ''],
       "City": [selectedProperty?.city ?? ''],
@@ -305,7 +306,7 @@ function DemandPageContent() {
       "propertiesText": [],
       "isSecondary": false,
     }
-     getRateTrends(filtersValue)
+    getRateTrends(filtersValue)
       .then((res) => {
         if (res.status) {
           var CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
@@ -317,7 +318,7 @@ function DemandPageContent() {
             return { ...x, AvgData: ty };
           });
           res.body.pricePositioningEntites = CalulatedData;
-           console.log('Rate trends data:', res.body);
+          console.log('Rate trends data:', res.body);
           setRateData(res.body);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
@@ -385,8 +386,11 @@ function DemandPageContent() {
     setFilter(filters);
     // Handle demand filter changes here
   }
-
-
+  const csvRef = useRef<any>(null);
+  const handleDownload = () => {
+    csvRef.current?.handleDownloadCSV()
+    console.log("Downloading CSV...");
+  }
   // Show loading state when data is being fetched
   if (isLoading) {
     return (
@@ -412,13 +416,13 @@ function DemandPageContent() {
       <section className="w-full">
         <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16">
           <div className="max-w-7xl xl:max-w-none mx-auto">
-            <DemandHeader />
+            <DemandHeader handleCsvDownload={handleDownload} />
           </div>
         </div>
       </section>
 
       {/* Demand Calendar Overview - Replaces KPIs */}
-      <DemandCalendarOverview eventData={allEventData} holidayData={allHolidaysData} />
+      <DemandCalendarOverview eventData={allEventData} holidayData={allHolidaysData} ref={csvRef} />
 
       {/* Main Content Area */}
       <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8 xl:py-10">
