@@ -143,7 +143,7 @@ export function MarketDemandWidget() {
     getAllSubscribeEvents(payload)
       .then((res) => {
         if (res.status && res.body && res.body.eventDetails) {
-          res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum)
+          res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum).fillter((x: any) => x.isSubscribed===true);
           setEventData(res.body?.eventDetails);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
@@ -283,7 +283,7 @@ export function MarketDemandWidget() {
           <div className="px-4 py-3 bg-muted/20 border-b border-border/30">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <h4 className="text-minimal-subtitle font-semibold text-foreground">Top Source Markets</h4>
+                <h4 className="text-minimal-subtitle font-semibold text-foreground">Top Source Markets - {selectedProperty?.demandCity}</h4>
               </div>
             </div>
           </div>
