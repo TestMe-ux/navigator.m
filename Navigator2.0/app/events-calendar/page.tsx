@@ -2171,8 +2171,8 @@ export default function EventsCalendarPage() {
           "SID": selectedProperty?.sid,
           "PageNumber": 1,
           "PageCount": 500,
-          "StartDate": startDate || new Date().toISOString().split('T')[0],
-          "EndDate": endDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 90 days ahead
+          "StartDate": startDate,
+          "EndDate": endDate
         }
 
         const response = await getAllEvents(filtersValue)
@@ -2205,7 +2205,7 @@ export default function EventsCalendarPage() {
           }))
           console.log(`🌆 Fetched ${cities} cities for country ${selectedProperty?.country || ''}`)
           setCityOptions(cities);
-          setSelectedCity(cities[0]?.label || '')
+          // setSelectedCity(cities[0]?.label || '')
         }
       } catch (error) {
         console.error('Failed to fetch country list:', error)
@@ -2222,6 +2222,7 @@ export default function EventsCalendarPage() {
 
   // Combine API events with sample events
   useEffect(() => {
+    debugger
     const combinedEvents = [] as Event[]
 
     // Convert API events to our Event interface format
@@ -2354,61 +2355,13 @@ export default function EventsCalendarPage() {
     }
   }
 
-  // Check if a month is selectable
-  const isMonthSelectable = (month: number, year: number) => {
-    const restrictions = getDateRestrictions()
-    const currentYear = new Date().getFullYear()
-
-    if (year < restrictions.minYear || year > restrictions.maxYear) {
-      return false
-    }
-
-    // For current year, can select from January onwards
-    if (year === currentYear) {
-      return month >= 0 // January onwards
-    }
-
-    // For next year, can select all months
-    if (year === currentYear + 1) {
-      return true
-    }
-
-    return false
-  }
-
-  // Month picker year navigation
-  const navigateMonthPickerYear = (direction: "prev" | "next") => {
-    const restrictions = getDateRestrictions()
-    setMonthPickerYear(prev => {
-      if (direction === "prev" && prev > restrictions.minYear) {
-        return prev - 1
-      }
-      if (direction === "next" && prev < restrictions.maxYear) {
-        return prev + 1
-      }
-      return prev
-    })
-  }
-
-  
+ 
 
   // Update month picker year when currentDate changes
   useEffect(() => {
     setMonthPickerYear(currentDate.getFullYear())
   }, [currentDate])
 
-  // Get date restrictions for month picker
-  const getDateRestrictions = () => {
-    const currentYear = new Date().getFullYear()
-    const nextYear = currentYear + 1
-
-    return {
-      minYear: currentYear,
-      maxYear: nextYear,
-      minMonth: 0, // January of current year
-      maxMonth: 11 // December of next year
-    }
-  }
 
   // Check if a month is selectable
   const isMonthSelectable = (month: number, year: number) => {
@@ -3144,8 +3097,8 @@ export default function EventsCalendarPage() {
     return !hasError ? (
       <img
         className="text-sm mr-2"
-        src={option.flag}
-        alt={option.label}
+        src={option?.flag}
+        alt={option?.label}
         width="20"
         height="20"
         onError={() => setHasError(true)}
