@@ -257,7 +257,7 @@ export default function Home() {
       getCompRateData(),
       GetParityDatas_Comp()
     ]);
-  }, [hasTriggered, showCSATCard, csatClosed, startDate, endDate, selectedProperty, compsetFilter, sideFilter])
+  }, [hasTriggered, showCSATCard, csatClosed, startDate, endDate, selectedProperty, compsetFilter, sideFilter, channelFilter?.channelId])
 
   useEffect(() => {
     if (!startDate ||

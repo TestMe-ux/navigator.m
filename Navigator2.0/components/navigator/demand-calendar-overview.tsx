@@ -391,7 +391,7 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
 
   // Generate calendar data for current and next two months (total 3 months)
   const todayForCalendar = new Date()
-  const maxAllowedDate = addDays(todayForCalendar, 75) //new Date(2025, 9, 25) // October 25, 2025 (month is 0-indexed)
+  const maxAllowedDate = addDays(todayForCalendar, 74) //new Date(2025, 9, 25) // October 25, 2025 (month is 0-indexed)
 
   // Helper function to check if a date should be disabled
   const isDateDisabled = (date: Date) => {
