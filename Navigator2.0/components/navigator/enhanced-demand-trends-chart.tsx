@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { subDays } from "date-fns"
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -26,6 +26,8 @@ import { format, eachDayOfInterval, parseISO, startOfWeek, endOfWeek, startOfMon
 import { getRateTrends } from "@/lib/rate"
 import localStorageService from "@/lib/localstorage"
 import { useComparison } from "../comparison-context"
+import { toPng } from "html-to-image"
+import { useSelectedProperty } from "@/hooks/use-local-storage"
 
 type DatasetType = 'pricing' | 'travellers'
 type AggregationPeriod = 'day' | 'week' | 'month'
@@ -153,7 +155,7 @@ function generateChartEvents(trendData: any[], events: any) {
 // Aggregate daily data into weeks
 function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
   const weeks = eachWeekOfInterval({ start: startDate, end: endDate }, { weekStartsOn: 1 }) // Start week on Monday
-debugger;
+  debugger;
   return weeks.map((weekStart, weekIndex) => {
     const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 })
 
@@ -521,6 +523,7 @@ const CustomLegend = ({
 
 export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData, rateCompData }: any) {
   const { theme } = useTheme()
+  const [selectedProperty] = useSelectedProperty()
   const { startDate, endDate, isLoading } = useDemandDateContext()
   const [datasetType, setDatasetType] = useState<DatasetType>('pricing')
   const [aggregationPeriod, setAggregationPeriod] = useState<AggregationPeriod>('day')
@@ -542,12 +545,7 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
   }
 
   // Download handlers
-  const handleDownloadImage = () => {
-    console.log('📸 Downloading chart as image...')
-    // TODO: Implement chart to image export functionality
-    // This would typically use html2canvas or similar library to capture the chart
-    alert('Image download functionality will be implemented soon!')
-  }
+
 
   const handleDownloadCSV = () => {
     console.log('📊 Downloading data as CSV...')
@@ -704,10 +702,25 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
   if (aggregationPeriod === 'month' && !dateRangeDetails.canShowMonth) {
     setAggregationPeriod('day')
   }
-
+  const cardRef = useRef<HTMLDivElement>(null);
+  const handleDownloadImageRate = () => {
+    // console.log("upgrading the a Sum Insured", data);
+    if (cardRef.current) {
+      toPng(cardRef.current, { cacheBust: true })
+        .then((dataUrl) => {
+          const link = document.createElement("a");
+          link.download = 'Demand_Chart_' + selectedProperty?.sid + '_' + new Date().getTime() + ".png"; // File name
+          link.href = dataUrl;
+          link.click();
+        })
+        .catch((err) => {
+          console.error("Error generating image:", err);
+        });
+    }
+  };
   return (
     <TooltipProvider>
-      <div className="space-y-4">
+      <div className="space-y-4 bg-white" ref={cardRef}>
         {/* Header Section with Controls */}
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div>
@@ -771,7 +784,7 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleDownloadImage()}>
+                <DropdownMenuItem onClick={() => handleDownloadImageRate()}>
                   Export as Image
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleDownloadCSV()}>
