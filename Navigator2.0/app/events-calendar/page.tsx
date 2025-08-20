@@ -52,15 +52,14 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils"
-import { getAllEvents, saveEvents,deleteEvents, getEventCitiesCountryList } from "@/lib/events"
+import { cn, conevrtDateforApi } from "@/lib/utils"
+import { getAllEvents, saveEvents, deleteEvents, getEventCitiesCountryList, getAllHoliday } from "@/lib/events"
 import { useDateContext } from "@/components/date-context"
-import { format, getDaysInMonth } from "date-fns"
+import { addDays, endOfMonth, format, getDaysInMonth, startOfMonth } from "date-fns"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 
 // Helper functions for consistent date formatting
 const formatSingleDate = (dateString: string | Date) => {
-  debugger;
   const date = typeof dateString === 'string' ? new Date(dateString) : dateString
   return format(date, "dd MMM ''yy")
 }
@@ -88,10 +87,10 @@ interface Event {
   name: string
   startDate: string
   endDate: string
-  category: "social" | "business"
+  category: "conference" | "tradeshow" | "workshop" | "social" | "holidays" | "business"
   location: string
   description: string
-  status: "bookmarked" | "suggested" | "available"
+  status: "bookmarked" | "suggested" | "available" | "holidays"
   country?: string
   flag?: string
   type: "holiday" | "conference" | "festival" | "sports" | "business" | "social"
@@ -1354,7 +1353,8 @@ const EventTooltip = ({ children, event, isVisible, day, currentDate }: {
 }
 
 export default function EventsCalendarPage() {
-  const { startDate, endDate } = useDateContext()
+  // const { startDate, endDate } = useDateContext()
+  const fmtDate = (d: string) => format(new Date(d), "EEE, dd MMM - yyyy");
   const [selectedProperty] = useSelectedProperty()
   // Initialize calendar to show current month (today's logic)
   const [currentDate, setCurrentDate] = useState(() => {
@@ -1374,7 +1374,7 @@ export default function EventsCalendarPage() {
 
   const [bookmarkSearchQuery, setBookmarkSearchQuery] = useState("")
   const [bookmarkCategoryFilter, setBookmarkCategoryFilter] = useState<string[]>(["all", "conference", "tradeshow", "workshop", "social", "holidays"])
-  const [bookmarkTypeFilter, setBookmarkTypeFilter] = useState<string[]>(["all", "bookmarked", "holidays", "suggested", "available"])
+  const [bookmarkTypeFilter, setBookmarkTypeFilter] = useState<string[]>(["all", "bookmarked", "holiday", "suggested", "available"])
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [dropdownKey, setDropdownKey] = useState(0) // Force re-render of dropdown
 
@@ -1399,7 +1399,7 @@ export default function EventsCalendarPage() {
   // Helper function to check if a type should be checked (bookmark popup Event Type)
   const isTypeChecked = useCallback((typeId: string) => {
     // Always return true for individual types when "all" is present
-    const allTypes = ["bookmarked", "holidays", "suggested", "available"]
+    const allTypes = ["bookmarked", "holiday", "suggested", "available"]
 
     if (typeId === "all") {
       return bookmarkTypeFilter.includes("all")
@@ -1464,7 +1464,7 @@ export default function EventsCalendarPage() {
   useEffect(() => {
     // Double-check that state is consistent for UI rendering
     if (bookmarkTypeFilter.includes("all")) {
-      const allTypes = ["all", "bookmarked", "holidays", "suggested", "available"]
+      const allTypes = ["all", "bookmarked", "holiday", "suggested", "available"]
       const hasAllTypes = allTypes.every(type => bookmarkTypeFilter.includes(type))
 
       if (!hasAllTypes) {
@@ -1480,22 +1480,22 @@ export default function EventsCalendarPage() {
   // Multi-phase force sync for Event Type filter on mount
   useEffect(() => {
     // Immediate sync for Event Type dropdown
-    setBookmarkTypeFilter(["all", "bookmarked", "holidays", "suggested", "available"])
+    setBookmarkTypeFilter(["all", "bookmarked", "holiday", "suggested", "available"])
     setDropdownKey(prev => prev + 1)
 
     // Multiple delayed syncs to ensure UI renders correctly
     const timer1 = setTimeout(() => {
-      setBookmarkTypeFilter(["all", "bookmarked", "holidays", "suggested", "available"])
+      setBookmarkTypeFilter(["all", "bookmarked", "holiday", "suggested", "available"])
       setDropdownKey(prev => prev + 1)
     }, 100)
 
     const timer2 = setTimeout(() => {
-      setBookmarkTypeFilter(["all", "bookmarked", "holidays", "suggested", "available"])
+      setBookmarkTypeFilter(["all", "bookmarked", "holiday", "suggested", "available"])
       setDropdownKey(prev => prev + 1)
     }, 300)
 
     const timer3 = setTimeout(() => {
-      setBookmarkTypeFilter(["all", "bookmarked", "holidays", "suggested", "available"])
+      setBookmarkTypeFilter(["all", "bookmarked", "holiday", "suggested", "available"])
       setDropdownKey(prev => prev + 1)
     }, 500)
 
@@ -1521,6 +1521,7 @@ export default function EventsCalendarPage() {
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar")
   const [isLoading, setIsLoading] = useState(false)
   const [apiEvents, setApiEvents] = useState<any[]>([])
+  const [apiHolidays, setApiHolidays] = useState<any[]>([])
   const [countryList, setCountryList] = useState<any[]>([])
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [loadingCycle, setLoadingCycle] = useState(1)
@@ -1834,7 +1835,7 @@ export default function EventsCalendarPage() {
         } else {
           // Get all available cities for the selected country
           const availableCities = cityOptions[selectedCountry as keyof typeof cityOptions] || []
-          return ["All", ...availableCities.map(option => option.label)] // Select all
+          return ["All", ...availableCities.map((option: any) => option.label)] // Select all
         }
       }
 
@@ -1851,7 +1852,7 @@ export default function EventsCalendarPage() {
 
         // Check if all cities are now selected
         const availableCities = cityOptions[selectedCountry as keyof typeof cityOptions] || []
-        if (newSelection.length === availableCities.length && availableCities.every(option => newSelection.includes(option.label))) {
+        if (newSelection.length === availableCities.length && availableCities.every((option: any) => newSelection.includes(option.label))) {
           newSelection = ["All", ...newSelection]
         }
       }
@@ -1865,7 +1866,7 @@ export default function EventsCalendarPage() {
   const isCityChecked = useCallback((cityName: string) => {
     // Get available cities for the selected country
     const availableCities = cityOptions[selectedCountry as keyof typeof cityOptions] || []
-    const cityNames = availableCities.map(option => option.label)
+    const cityNames = availableCities.map((option: any) => option.label)
 
     if (cityName === "All") {
       return selectedCities.includes("All")
@@ -2034,7 +2035,6 @@ export default function EventsCalendarPage() {
 
   // Handle edit event
   const handleEditEvent = async (event: Event) => {
-    debugger
     setEditingEvent(event)
     setNewEvent({
       name: event.name,
@@ -2098,7 +2098,7 @@ export default function EventsCalendarPage() {
 
       if (result.status) {
         //delete  state with new event   
-        
+
         setMessage("Event deleted successfully!");
         setIsDeleteDialogOpen(false);
       } else {
@@ -2163,7 +2163,10 @@ export default function EventsCalendarPage() {
 
   // Fetch events from API
   useEffect(() => {
+    setMonthPickerYear(currentDate.getFullYear())
     const fetchEventsData = async () => {
+      const startDate = startOfMonth(currentDate)
+      const endDate = endOfMonth(currentDate);
       try {
         setIsLoading(true)
         const filtersValue = {
@@ -2212,20 +2215,65 @@ export default function EventsCalendarPage() {
         console.error('Failed to fetch country list:', error)
       }
     }
-    if (startDate && endDate && selectedProperty?.sid) {
+    const fetchHolidayData = async () => {
+      const startDate = startOfMonth(currentDate)
+      const endDate = endOfMonth(currentDate);
+      try {
+        setIsLoading(true)
+        const filtersValue = {
+          "Country": [selectedProperty?.country ?? ''],
+          "City": [selectedProperty?.city ?? ''],
+          "SID": selectedProperty?.sid,
+          "FromDate": conevrtDateforApi(startDate?.toString()),
+          "ToDate": conevrtDateforApi(endDate?.toString()),
+          "Type": [],
+          "Impact": [],
+          "SearchType": ""
+        }
+        const response = await getAllHoliday(filtersValue)
+        if (response?.status && response?.body) {
+          var holidays = [...response.body[0].holidayDetail];
+          const combinedEvents = [] as Event[]
+          holidays.map((x, index) => {
+            const convertedEvent: Event = {
+              id: `api-${index}`,
+              name: x.holidayName || '',
+              startDate: x.holidayDispalyDate || new Date().toISOString().split('T')[0],
+              endDate: x.holidayDispalyDate || new Date().toISOString().split('T')[0],
+              category: 'holidays',
+              location: x.holidayCountry || '',
+              description: '',
+              status: x.isSubscribe ? "bookmarked" : "holidays" as const,
+              country: x.holidayCountry || '',
+              flag: '🇦🇪',
+              type: 'holiday',
+              priority: 'high'
+            }
+            combinedEvents.push(convertedEvent)
+          }
+          )
+          setApiHolidays(combinedEvents);
+        }
+      } catch (error) {
+        console.error('Failed to fetch events:', error)
+        // Fallback to sample data if API fails
+        setApiHolidays([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (!!currentDate && selectedProperty?.sid) {
       // Only fetch events if both start and end dates are set
-      console.log(`📅 Fetching events from ${startDate} to ${endDate}`)
-      Promise.all([fetchEventsData(), fetchEventCitiesCountryList()]);
+      Promise.all([fetchEventsData(), fetchEventCitiesCountryList(), fetchHolidayData()]);
       // fetchEventsData();
       // fetchEventCitiesCountryList();
     }
-  }, [startDate, endDate])
+  }, [currentDate, selectedProperty?.sid])
 
   // Combine API events with sample events
   useEffect(() => {
-    debugger
     const combinedEvents = [] as Event[]
-
     // Convert API events to our Event interface format
     apiEvents.forEach((apiEvent, index) => {
       const convertedEvent: Event = {
@@ -2233,21 +2281,21 @@ export default function EventsCalendarPage() {
         name: apiEvent.eventName || 'Unnamed Event',
         startDate: apiEvent.startDate || apiEvent.eventFrom || new Date().toISOString().split('T')[0],
         endDate: apiEvent.endDate || apiEvent.eventTo || new Date().toISOString().split('T')[0],
-        category: apiEvent.eventType === 'business' ? 'business' : 'social',
-        location: apiEvent.location || 'Dubai, UAE',
-        description: apiEvent.description || 'Event details not available',
-        status: "suggested" as const,
-        country: apiEvent.country || 'UAE',
+        category: apiEvent.eventType,
+        location: apiEvent.eventLocation || 'Dubai, UAE',
+        description: apiEvent.eventDescription || 'Event details not available',
+        status: apiEvent.isSubscribed ? "bookmarked" : "available" as const,
+        country: apiEvent.eventCountry || '',
         flag: apiEvent.flag || '🇦🇪',
 
         type: apiEvent.eventType || 'business',
-        priority: apiEvent.eventColor === 'high' ? 'high' : apiEvent.eventColor === 'medium' ? 'medium' : 'low'
+        priority: apiEvent.eventColor === 'PositiveHigh' ? 'high' : apiEvent.eventColor === 'medium' ? 'medium' : 'low'
       }
       combinedEvents.push(convertedEvent)
     })
 
-    setEvents(combinedEvents)
-  }, [apiEvents])
+    setEvents([...combinedEvents, ...apiHolidays])
+  }, [apiEvents, apiHolidays])
 
   // Filter events based on current view and enabled event types
   useEffect(() => {
@@ -2339,9 +2387,9 @@ export default function EventsCalendarPage() {
   }
 
   // Update month picker year when currentDate changes
-  useEffect(() => {
-    setMonthPickerYear(currentDate.getFullYear())
-  }, [currentDate])
+  // useEffect(() => {
+
+  // }, [currentDate])
 
   // Get date restrictions for month picker
   const getDateRestrictions = () => {
@@ -2356,12 +2404,12 @@ export default function EventsCalendarPage() {
     }
   }
 
- 
+
 
   // Update month picker year when currentDate changes
-  useEffect(() => {
-    setMonthPickerYear(currentDate.getFullYear())
-  }, [currentDate])
+  // useEffect(() => {
+  //   setMonthPickerYear(currentDate.getFullYear())
+  // }, [currentDate])
 
 
   // Check if a month is selectable
@@ -2486,9 +2534,9 @@ export default function EventsCalendarPage() {
   const getEventsForDate = useCallback((day: number) => {
     const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
     return filteredEvents.filter((event) => {
-      const eventStart = new Date(event.startDate + "T00:00:00")
-      const eventEnd = new Date(event.endDate + "T23:59:59")
-      const checkDate = new Date(dateStr + "T12:00:00")
+      const eventStart = new Date(event.startDate)
+      const eventEnd = new Date(event.endDate)
+      const checkDate = new Date(dateStr + "T00:00:00")
       return checkDate >= eventStart && checkDate <= eventEnd
     })
   }, [currentDate, filteredEvents])
@@ -2497,9 +2545,9 @@ export default function EventsCalendarPage() {
   const getEventsForCalendarDisplay = useCallback((day: number) => {
     const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
     return filteredEvents.filter((event) => {
-      const eventStart = new Date(event.startDate + "T00:00:00")
-      const eventEnd = new Date(event.endDate + "T23:59:59")
-      const checkDate = new Date(dateStr + "T12:00:00")
+      const eventStart = new Date(event.startDate)
+      const eventEnd = new Date(event.endDate)
+      const checkDate = new Date(dateStr + "T00:00:00")
 
       // Show events on all days from start to end date (inclusive)
       return checkDate >= eventStart && checkDate <= eventEnd
@@ -2510,9 +2558,9 @@ export default function EventsCalendarPage() {
     if (!selectedDate) return []
     const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`
     return filteredEvents.filter((event) => {
-      const eventStart = new Date(event.startDate + "T00:00:00")
-      const eventEnd = new Date(event.endDate + "T23:59:59")
-      const checkDate = new Date(dateStr + "T12:00:00")
+      const eventStart = new Date(event.startDate)
+      const eventEnd = new Date(event.endDate)
+      const checkDate = new Date(dateStr + "T00:00:00")
       return checkDate >= eventStart && checkDate <= eventEnd
     })
   }
@@ -2714,7 +2762,7 @@ export default function EventsCalendarPage() {
         if (prev.includes("all")) {
           return [] // Unselect all
         } else {
-          return ["all", "bookmarked", "holidays", "suggested", "available"] // Select all
+          return ["all", "bookmarked", "holiday", "suggested", "available"] // Select all
         }
       }
 
@@ -2756,6 +2804,7 @@ export default function EventsCalendarPage() {
   }
 
   const renderCalendarDays = () => {
+    debugger;
     const daysInMonth = getDaysInMonth(currentDate)
     const firstDay = getFirstDayOfMonth(currentDate)
     const days = []
@@ -3581,8 +3630,8 @@ export default function EventsCalendarPage() {
                             <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
-                                checked={isTypeChecked("holidays")}
-                                onChange={() => handleTypeSelection("holidays")}
+                                checked={isTypeChecked("holiday")}
+                                onChange={() => handleTypeSelection("holiday")}
                                 className="rounded h-3.5 w-3.5"
                               />
                               <span>Holidays</span>
@@ -4022,7 +4071,7 @@ export default function EventsCalendarPage() {
                                 <CommandList className="max-h-[200px] overflow-y-scroll">
                                   <CommandEmpty>No city found.</CommandEmpty>
                                   <CommandGroup>
-                                    {newEventCountry && cityOptions[newEventCountry as keyof typeof cityOptions]?.map((option) => (
+                                    {newEventCountry && cityOptions[newEventCountry as keyof typeof cityOptions]?.map((option: any) => (
                                       <CommandItem
                                         key={option.id}
                                         value={option.label}
@@ -4372,7 +4421,7 @@ export default function EventsCalendarPage() {
                                 <CommandList className="max-h-[200px] overflow-y-scroll">
                                   <CommandEmpty>No city found.</CommandEmpty>
                                   <CommandGroup>
-                                    {newEventCountry && cityOptions[newEventCountry as keyof typeof cityOptions]?.map((option) => (
+                                    {newEventCountry && cityOptions[newEventCountry as keyof typeof cityOptions]?.map((option: any) => (
                                       <CommandItem
                                         key={option.id}
                                         value={option.label}

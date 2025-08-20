@@ -11,10 +11,10 @@ import {
   Star,
   Info
 } from "lucide-react"
-import { cn, conevrtDateforApi } from "@/lib/utils"
+import { cn, conevrtDateforApi, escapeCSVValue } from "@/lib/utils"
 import { GetDemandAIData } from "@/lib/demand"
 import localStorageService from "@/lib/localstorage"
-import { addDays } from "date-fns"
+import { addDays, format } from "date-fns"
 
 
 /**
@@ -448,24 +448,47 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
       ...(Array.isArray(eventsData) ? eventsData : []),
       ...(Array.isArray(holidayData) ? holidayData : [])
     ];
+
     console.log('📊 Merged Events and Holidays:', mergedEventandHoliday)
     console.log('📊 Demand Data:', demandData)
     // Create CSV content from trend data
     const headers = ['Date', 'Day', 'Demand Index Value', 'Demand Status', 'Event/Holiday Name', 'Event Duration', 'Event Count', 'Event Distance', 'Estimated Visitors']
 
-    const csvContent = [].join('\n')
+    const csvContent = [
+      headers.join(','),
+      ...demandData.map((demand: any) => {
+        const matchingEvents = mergedEventandHoliday.filter((event: any) => {
+          const fromDate = new Date(event.eventFrom)
+          const toDate = new Date(event.eventTo)
+          const dataDate = demand.checkinDate ? new Date(demand.checkinDate) : new Date();
+
+          return dataDate >= fromDate && dataDate <= toDate
+        })
+        return [
+          new Date(demand.checkinDate).toLocaleDateString('en-US'),
+          new Date(demand.checkinDate).toLocaleDateString('en-US', { weekday: 'short' }),
+          demand.demandIndex,
+          getDemandLevelFromIndex(demand.demandIndex),
+          matchingEvents.length > 0 ? matchingEvents[0].eventName : '',
+          matchingEvents.length > 0 ? escapeCSVValue(matchingEvents[0].displayDate) : '',
+          matchingEvents.length || 0,
+          '',
+          ''
+        ]
+      })
+    ].join('\n')
 
     // Create and trigger download
-    // const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    // const link = document.createElement('a')
-    // const url = URL.createObjectURL(blob)
-    // link.setAttribute('href', url)
-    // link.setAttribute('download', `demand-trends-${datasetType}-${aggregationPeriod}-${format(new Date(), 'yyyy-MM-dd')}.csv`)
-    // link.style.visibility = 'hidden'
-    // document.body.appendChild(link)
-    // link.click()
-    // document.body.removeChild(link)
-    // URL.revokeObjectURL(url)
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `demand-trends-${format(new Date(), 'yyyyMMddHHmmss')}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
   }
   // Loading state
   if (!isClient) {
