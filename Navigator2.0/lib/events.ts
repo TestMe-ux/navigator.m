@@ -23,3 +23,7 @@ export async function deleteEvents(paramsValues:any) {
      const { data } = await apiClient.post(`${Constants.API_DeleteEvents}`, paramsValues);
     return data;    
 }
+export async function getAllSubscribeEvents(filtersValue: any) {
+    const { data } = await apiClient.post(`${Constants.API_GET_GetAllSubscribeEvent}`, filtersValue);
+    return data;
+}

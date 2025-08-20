@@ -60,6 +60,7 @@ import { useSelectedProperty } from "@/hooks/use-local-storage"
 
 // Helper functions for consistent date formatting
 const formatSingleDate = (dateString: string | Date) => {
+  debugger;
   const date = typeof dateString === 'string' ? new Date(dateString) : dateString
   return format(date, "dd MMM ''yy")
 }
@@ -2230,8 +2231,8 @@ export default function EventsCalendarPage() {
       const convertedEvent: Event = {
         id: `api-${index}`,
         name: apiEvent.eventName || 'Unnamed Event',
-        startDate: apiEvent.startDate || apiEvent.displayDate || new Date().toISOString().split('T')[0],
-        endDate: apiEvent.endDate || apiEvent.displayDate || new Date().toISOString().split('T')[0],
+        startDate: apiEvent.startDate || apiEvent.eventFrom || new Date().toISOString().split('T')[0],
+        endDate: apiEvent.endDate || apiEvent.eventTo || new Date().toISOString().split('T')[0],
         category: apiEvent.eventType === 'business' ? 'business' : 'social',
         location: apiEvent.location || 'Dubai, UAE',
         description: apiEvent.description || 'Event details not available',

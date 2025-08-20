@@ -7,7 +7,7 @@ import { WorldMapVisualization, sourceMarkets } from "./world-map-visualization"
 import { useEffect, useState } from "react"
 import { useDateContext } from "../date-context"
 import { GetDemandAIData, GetDemandAIPerCountryAverageData } from "@/lib/demand"
-import { getAllEvents, getAllHoliday } from "@/lib/events"
+import { getAllEvents, getAllHoliday, getAllSubscribeEvents } from "@/lib/events"
 import localStorageService from "@/lib/localstorage"
 import { ComparisonOption, useComparison } from "../comparison-context"
 import { format } from "date-fns"
@@ -140,7 +140,7 @@ export function MarketDemandWidget() {
       "StartDate": conevrtDateforApi(startDate?.toString()),
       "EndDate": conevrtDateforApi(endDate?.toString())
     }
-    getAllEvents(payload)
+    getAllSubscribeEvents(payload)
       .then((res) => {
         if (res.status && res.body && res.body.eventDetails) {
           res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum)

@@ -50,13 +50,13 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
   const allWithAvg = rateData?.pricePositioningEntites
     ?.filter((x: any) => (typeof x.AvgData === "number") && (x.propertyType === 0 || x.propertyType === 1)) || [];
   const sortedByAvg = [...allWithAvg].sort((a, b) => a.AvgData - b.AvgData);
-  const indexOfSubscriber = sortedByAvg.findIndex(x => x.propertyType === 0);
+  const indexOfSubscriber = sortedByAvg.findIndex(x => x.propertyType === 0)+1;
   //All Compset Subscriber Rate and Market Positioning Data
   const avgAllSubscriberRate_Comp = rateCompData?.pricePositioningEntites?.find((x: any) => x.propertyType === 0)?.AvgData;
   const allWithAvg_Comp = rateCompData?.pricePositioningEntites
     ?.filter((x: any) => (typeof x.AvgData === "number") && (x.propertyType === 0 || x.propertyType === 1)) || [];
   const sortedByAvg_Comp = [...allWithAvg_Comp].sort((a, b) => a.AvgData - b.AvgData);
-  const indexOfSubscriber_Comp = sortedByAvg_Comp.findIndex(x => x.propertyType === 0);
+  const indexOfSubscriber_Comp = sortedByAvg_Comp.findIndex(x => x.propertyType === 0)+1;
   const latestEvent = rateData?.pricePositioningEntites?.find((x: any) => x.propertyType === 0)?.subscriberPropertyRate?.map((x: any) => x.event?.eventDetails)?.find((details: any) => Array.isArray(details) && details.length > 0)?.[0];
 
   // Normalize dates to start of day for accurate comparison
