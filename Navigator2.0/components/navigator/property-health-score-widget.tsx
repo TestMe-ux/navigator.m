@@ -355,8 +355,8 @@ export function PropertyHealthScoreWidget(props: any) {
         !(cw?.parityScore <= 0);
 
       const hasData = Array.isArray(item.data)
-        ? item.data.some((d: any) => d?.propertyid === selectedProperty?.hmid)
-        : item.data?.propertyid === selectedProperty?.hmid;
+        ? item.data.some((d: any) => d?.propertyID === selectedProperty?.hmid)
+        : item.data?.propertyID === selectedProperty?.hmid;
       return hasChannelWisewin || hasData;
     });
 
