@@ -258,7 +258,7 @@ export function PropertyHealthScoreWidget(props: any) {
         setotaRankOnChannel([]);
         return;
       }
-      const otach = chRes.body ?? chRes ?? [];
+      const otach =Array.isArray(chRes.body) ? chRes.body.flat() : [];
       setotachannel(otach);
       // setOtaChannels(otach);
 
