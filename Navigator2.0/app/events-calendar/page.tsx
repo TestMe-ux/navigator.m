@@ -53,7 +53,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn, conevrtDateforApi } from "@/lib/utils"
-import { getAllEvents, saveEvents, deleteEvents, getEventCitiesCountryList, getAllHoliday } from "@/lib/events"
+import { getAllEvents, saveEvents, deleteEvents, getEventCitiesCountryList, getAllHoliday, getAllSubscribeEvents, getSubscribeUnsubscribeEvent, updateEvents } from "@/lib/events"
 import { useDateContext } from "@/components/date-context"
 import { addDays, endOfMonth, format, getDaysInMonth, startOfMonth } from "date-fns"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
@@ -1522,6 +1522,8 @@ export default function EventsCalendarPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [apiEvents, setApiEvents] = useState<any[]>([])
   const [apiHolidays, setApiHolidays] = useState<any[]>([])
+  const [apiSubscribeEvents, setApiSubscribeEvents] = useState<any[]>([])
+  const [apiSubscribeEventList, setApiSubscribeEventList] = useState<any[]>([])
   const [countryList, setCountryList] = useState<any[]>([])
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [loadingCycle, setLoadingCycle] = useState(1)
@@ -1977,20 +1979,107 @@ export default function EventsCalendarPage() {
   }, [categoryData])
 
   // Toggle bookmark status  
-  const toggleBookmark = useCallback((eventId: string) => {
-    setEvents(prevEvents => {
-      const newEvents = prevEvents.map(event => {
-        if (event.id === eventId) {
-          const newStatus: "bookmarked" | "suggested" | "available" = (event.status === "bookmarked" || event.status === "suggested") ? "available" : "bookmarked"
-          return { ...event, status: newStatus }
+  // const toggleBookmark = useCallback((eventId: string) => {    
+  //   setEvents(prevEvents => {
+  //     const newEvents = prevEvents.map(event => {
+  //       if (event.id === eventId) {
+  //         const newStatus: "bookmarked" | "suggested" | "available" = (event.status === "bookmarked" || event.status === "suggested") ? "available" : "bookmarked"
+  //         return { ...event, status: newStatus }
+  //       }
+  //       return event
+  //     })
+  //     return newEvents
+  //   })
+  // }, [])
+
+  const toggleBookmark = useCallback(async (eventId: string) => {
+    const event = events.find(ev => ev.id === eventId);
+    if (!event) return;
+    const newStatus: "bookmarked" | "suggested" | "available" =
+      event.status === "bookmarked" || event.status === "suggested"
+        ? "available"
+        : "bookmarked";
+    if (event.isCustom) {
+      // Decide new status before API call
+
+      const filtersValues = {
+        eventId: event.id,
+        action: newStatus === "bookmarked" ? 1 : 2,
+        isCustom: event.isCustom,
+      };
+
+      try {
+        const response = await getSubscribeUnsubscribeEvent(filtersValues);
+        if (response?.status) {
+          //  Update UI only after success
+          setEvents(prevEvents =>
+            prevEvents.map(ev =>
+              ev.id === eventId ? { ...ev, status: newStatus } : ev
+            )
+          );
+        } else {
+          console.warn("API failed, UI not updated");
         }
-        return event
-      })
-      return newEvents
-    })
-  }, [])
+      } catch (err) {
+        console.error("API Error:", err);
+      }
+    } else if (event.status == 'suggested' || event.status == 'available') {
+      let addEventObj = {
+        EventType: event.type,
+        EventImpact: 1,
+        EventTo: event.endDate,
+        EventFrom: event.startDate,
+        EventLocation: event.location,
+        EventDescription: event.description,
+        EventName: event.name,
+        Charge: "Free",
+        Sid: selectedProperty?.sid,
+        RepeatsBy: "50986",
+        IsCustom: false,
+        IsRepeat: false,
+        Latitude: 51.52937650320423,
+        Longitude: -0.12381210923194885
 
+      }
+      try {
+        //Call backend API
+        const response: any = await saveEvents(addEventObj)
+        const result = await response.json();
+        if (result.status) {
+          setEvents((prev) => [...prev, result.data ?? event]);
+          setMessage("Non Custom Event Subscribe Successfully");
+        } else {
+          setMessage("Non Custom Event Not Subscribe Or Failed :" + (result.message || ""));
+        }
+      } catch (error) {
+        console.error("Error inserting event:", error);
+      }
+    }
+    else {
 
+      const filtersValues = {
+        eventId: event.id,
+        action: 0,
+        isCustom: event.isCustom,
+      };
+      try {
+        const response = await getSubscribeUnsubscribeEvent(filtersValues);
+        if (response?.status) {
+          //  Update UI only after success
+          setEvents(prevEvents =>
+            prevEvents.map(ev =>
+              ev.id === eventId ? { ...ev, status: newStatus } : ev
+            )
+          );
+        } else {
+          console.warn("API failed, UI not updated");
+        }
+      } catch (err) {
+        console.error("API Error:", err);
+      }
+    }
+
+  }, [events]);
 
   const [newEvent, setNewEvent] = useState({
     name: "",
@@ -2045,26 +2134,6 @@ export default function EventsCalendarPage() {
       city: event.location.split(", ")[0] || "",
       description: event.description,
     })
-
-    try {
-      // const response = await updateEvent(editingEvent.id, updatedEvent);
-      // const result = await response.json();
-
-      // if (result.status) {
-      //   //Update state with new event
-      //   setEvents((prev) =>
-      //     prev.map((e) => (e.id === editingEvent.id ? result.data ?? updatedEvent : e))
-      //   );
-
-      //   setMessage("Event updated successfully!");
-      //   setIsEditEventOpen(false);
-      // } else {
-      //   setMessage("Failed to update event: " + (result.message || ""));
-      // }
-    } catch (error) {
-      console.error("Error updating event:", error);
-      setMessage("Something went wrong while updating event!");
-    }
     setNewEventCountry(event.country || "")
     setNewEventCity(event.location.split(", ")[0] || "")
     setIsEditEventOpen(true)
@@ -2121,7 +2190,7 @@ export default function EventsCalendarPage() {
   }
 
   // Handle save edited event
-  const handleSaveEditedEvent = () => {
+  const handleSaveEditedEvent = async () => {
     if (!editingEvent) return
 
     const updatedEvent: Event = {
@@ -2135,16 +2204,55 @@ export default function EventsCalendarPage() {
       type: newEvent.category as Event["type"],
       country: newEvent.country,
     }
+    let addEventObj = {
+      Sid: selectedProperty?.sid,
+      EventId: updatedEvent.id,
+      EventName: updatedEvent.name,
+      EventDescription: updatedEvent.description,
+      EventLocation: updatedEvent.location,
+      EventFrom: updatedEvent.startDate,
+      EventTo: updatedEvent.endDate,
+      EventType: updatedEvent.type,
+      EventImpact: 1,
+      Charge: "Free",
+      RepeatsBy: "50986",
+      IsCustom: true,
+      IsRepeat: false,
+      Latitude: 13.7451222401638,
+      Longitude: 100.556809902191
+    }
+    try {
+      const response = await updateEvents(updatedEvent);
+      const result = await response.json();
 
-    setEvents((prev) => {
-      const updatedEvents = prev.map((event) =>
-        event.id === editingEvent.id ? updatedEvent : event
-      )
-      // Save only custom events to localStorage
-      const customEvents = updatedEvents.filter(e => e.isCustom)
-      saveCustomEventsToStorage(customEvents)
-      return updatedEvents
-    })
+      if (result.status) {
+        //Update state with new event
+        setEvents((prev) => {
+          const updatedEvents = prev.map((event) =>
+            event.id === editingEvent.id ? updatedEvent : event
+          );
+          const customEvents = updatedEvents.filter(e => e.isCustom)
+          saveCustomEventsToStorage(customEvents)
+          setMessage("Event updated successfully!");
+          return updatedEvents
+        })
+      } else {
+        setMessage("Failed to update event: " + (result.message || ""));
+      }
+    } catch (error) {
+      console.error("Error updating event:", error);
+      setMessage("Something went wrong while updating event!");
+    }
+
+    // setEvents((prev) => {
+    //   const updatedEvents = prev.map((event) =>
+    //     event.id === editingEvent.id ? updatedEvent : event
+    //   )
+    //   // Save only custom events to localStorage
+    //   const customEvents = updatedEvents.filter(e => e.isCustom)
+    //   saveCustomEventsToStorage(customEvents)
+    //   return updatedEvents
+    // })
 
     setIsEditEventOpen(false)
     setEditingEvent(null)
@@ -2234,16 +2342,17 @@ export default function EventsCalendarPage() {
         if (response?.status && response?.body) {
           var holidays = [...response.body[0].holidayDetail];
           const combinedEvents = [] as Event[]
+          console.log("holidays===>>", holidays)
           holidays.map((x, index) => {
             const convertedEvent: Event = {
-              id: `api-${index}`,
+              id: `api-${index}-00`,
               name: x.holidayName || '',
               startDate: x.holidayDispalyDate || new Date().toISOString().split('T')[0],
               endDate: x.holidayDispalyDate || new Date().toISOString().split('T')[0],
               category: 'holidays',
               location: x.holidayCountry || '',
               description: '',
-              status: x.isSubscribe ? "bookmarked" : "holidays" as const,
+              status: x.isSubscribe == true ? "bookmarked" : "holidays" as const,
               country: x.holidayCountry || '',
               flag: '🇦🇪',
               type: 'holiday',
@@ -2263,9 +2372,61 @@ export default function EventsCalendarPage() {
       }
     }
 
+    const fetchAllSubscribeEvents = async () => {
+      const startDate = startOfMonth(currentDate)
+      const endDate = endOfMonth(currentDate);
+      try {
+        setIsLoading(true)
+        const filtersValue = {
+          //"Country": [selectedProperty?.country ?? ''],
+          //"City": [selectedProperty?.city ?? ''],
+          "SID": selectedProperty?.sid,
+          "StartDate": conevrtDateforApi(startDate?.toString()),
+          "EndDate": conevrtDateforApi(endDate?.toString()),
+          "Distance": 100,
+          "pageNumber": 1,
+          "pageCount": 500,
+          "lattitude": 0,
+          "longitude": 0
+        }
+        const response = await getAllSubscribeEvents(filtersValue)
+        if (response?.status && response?.body) {
+          var Subscribes = [...response.body.eventDetails];
+          const combinedSubscribeEvents = [] as Event[]
+          console.log("Subscribes===>>", Subscribes)
+          Subscribes.filter(x => x.isSubscribed === true).map((apiEvent, index) => {
+            const convertedSubscribeEvent: Event = {
+              id: `api-${index}`,
+              name: apiEvent.eventName || 'Unnamed Event',
+              startDate: apiEvent.startDate || apiEvent.eventFrom || new Date().toISOString().split('T')[0],
+              endDate: apiEvent.endDate || apiEvent.eventTo || new Date().toISOString().split('T')[0],
+              category: apiEvent.eventType?.trim(),
+              location: apiEvent.eventLocation || 'Dubai, UAE',
+              description: apiEvent.eventDescription || 'Event details not available',
+              status: apiEvent.isSubscribed ? "bookmarked" : "available" as const,
+              country: apiEvent.eventCountry || '',
+              flag: apiEvent.flag || '🇦🇪',
+              isCustom: apiEvent.isCustom || false,
+              type: apiEvent.eventType?.trim() || 'business',
+              priority: apiEvent.eventColor === 'PositiveHigh' ? 'high' : apiEvent.eventColor === 'medium' ? 'medium' : 'low'
+
+            }
+            combinedSubscribeEvents.push(convertedSubscribeEvent)
+          })
+          setApiSubscribeEvents(combinedSubscribeEvents);
+        }
+      } catch (error) {
+        console.error('Failed to fetch events:', error)
+        // Fallback to sample data if API fails
+        setApiSubscribeEvents([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
     if (!!currentDate && selectedProperty?.sid) {
       // Only fetch events if both start and end dates are set
-      Promise.all([fetchEventsData(), fetchEventCitiesCountryList(), fetchHolidayData()]);
+      Promise.all([fetchEventsData(), fetchEventCitiesCountryList(), fetchHolidayData(), fetchAllSubscribeEvents()]);
       // fetchEventsData();
       // fetchEventCitiesCountryList();
     }
@@ -2281,21 +2442,27 @@ export default function EventsCalendarPage() {
         name: apiEvent.eventName || 'Unnamed Event',
         startDate: apiEvent.startDate || apiEvent.eventFrom || new Date().toISOString().split('T')[0],
         endDate: apiEvent.endDate || apiEvent.eventTo || new Date().toISOString().split('T')[0],
-        category: apiEvent.eventType,
+        category: apiEvent.eventType?.trim(),
         location: apiEvent.eventLocation || 'Dubai, UAE',
         description: apiEvent.eventDescription || 'Event details not available',
         status: apiEvent.isSubscribed ? "bookmarked" : "available" as const,
         country: apiEvent.eventCountry || '',
         flag: apiEvent.flag || '🇦🇪',
-
-        type: apiEvent.eventType || 'business',
+        isCustom: apiEvent.isCustom || false,
+        type: apiEvent.eventType?.trim() || 'business',
         priority: apiEvent.eventColor === 'PositiveHigh' ? 'high' : apiEvent.eventColor === 'medium' ? 'medium' : 'low'
+
       }
       combinedEvents.push(convertedEvent)
     })
-
+    // const merged = [...combinedEvents, ...apiHolidays, ...apiSubscribeEvents];
+    // const uniqueEvents = Array.from(
+    //   new Map(merged.map(item => [item.name, item])).values()
+    // );
     setEvents([...combinedEvents, ...apiHolidays])
-  }, [apiEvents, apiHolidays])
+
+    setApiSubscribeEventList([...apiHolidays, ...apiSubscribeEvents])
+  }, [apiEvents, apiHolidays, apiSubscribeEvents])
 
   // Filter events based on current view and enabled event types
   useEffect(() => {
@@ -2476,7 +2643,7 @@ export default function EventsCalendarPage() {
       EventDescription: event.description,
       EventName: event.name,
       Charge: "Free",
-      Sid: 17535,
+      Sid: selectedProperty?.sid,
       RepeatsBy: "50986",
       IsCustom: true,
       IsRepeat: false,
@@ -2656,7 +2823,8 @@ export default function EventsCalendarPage() {
 
   // Filter events for bookmark modal
   const getFilteredBookmarkEvents = useMemo(() => {
-    let filtered = events
+    let filtered = apiSubscribeEventList
+    //events
 
     // Apply bookmark search filter
     if (bookmarkSearchQuery) {
@@ -2703,7 +2871,7 @@ export default function EventsCalendarPage() {
       // Sort only by date to maintain consistent positioning
       return new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
     })
-  }, [events, bookmarkSearchQuery, bookmarkCategoryFilter, bookmarkTypeFilter])
+  }, [apiSubscribeEventList, bookmarkSearchQuery, bookmarkCategoryFilter, bookmarkTypeFilter])
 
   // Handle category selection with multi-select logic
   const handleCategorySelection = (category: string) => {
@@ -2804,7 +2972,7 @@ export default function EventsCalendarPage() {
   }
 
   const renderCalendarDays = () => {
-    debugger;
+
     const daysInMonth = getDaysInMonth(currentDate)
     const firstDay = getFirstDayOfMonth(currentDate)
     const days = []
