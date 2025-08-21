@@ -19,11 +19,23 @@ export async function saveEvents(paramsValues:any) {
      const { data } = await apiClient.post(`${Constants.API_AddEvents}`, paramsValues);
     return data;    
 }
+
+export async function updateEvents(paramsValues:any) {
+     const { data } = await apiClient.post(`${Constants.API_UpdateEvents}`, paramsValues);
+    return data;    
+}
+
 export async function deleteEvents(paramsValues:any) {
      const { data } = await apiClient.post(`${Constants.API_DeleteEvents}`, paramsValues);
     return data;    
 }
+
 export async function getAllSubscribeEvents(filtersValue: any) {
     const { data } = await apiClient.post(`${Constants.API_GET_GetAllSubscribeEvent}`, filtersValue);
+    return data;
+}
+
+export async function getSubscribeUnsubscribeEvent(filtersValue: any) {
+    const { data } = await apiClient.post(`${Constants.API_SubscribeUnsubscribeEvent}`, filtersValue);
     return data;
 }
