@@ -143,7 +143,7 @@ export function MarketDemandWidget() {
     getAllSubscribeEvents(payload)
       .then((res) => {
         if (res.status && res.body && res.body.eventDetails) {
-          res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum).fillter((x: any) => x.isSubscribed===true);
+          res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum).fillter((x: any) => x.isSubscribed === true);
           setEventData(res.body?.eventDetails);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
@@ -279,45 +279,50 @@ export function MarketDemandWidget() {
 
         {/* Source Markets Section with Events Subsection */}
         <div className="card-minimal overflow-hidden">
-          {/* Header with Hotel Location and View Toggle */}
-          <div className="px-4 py-3 bg-muted/20 border-b border-border/30">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <h4 className="text-minimal-subtitle font-semibold text-foreground">Top Source Markets - {selectedProperty?.demandCity}</h4>
-              </div>
-            </div>
-          </div>
-
-          {/* Legends Section - Under Heading */}
-          <div className="px-4 py-3 bg-muted/10 border-b border-border/20">
-            <div className="flex flex-wrap gap-4 justify-start">
-              {demandAIPerCountryAverageData.map((market: any, index: number) => (
-                <div key={market.srcCountryName} className="flex items-center gap-2 text-sm">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: sourceMarketColors[index] }}
-                  />
-                  <span className="text-xs font-medium text-foreground">
-                    {market.srcCountryName} ({market.averageTotalFlights}%)
-                  </span>
+          {demandAIPerCountryAverageData.length > 0 && (
+            <>
+              {/* Header with Hotel Location and View Toggle */}
+              <div className="px-4 py-3 bg-muted/20 border-b border-border/30">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <h4 className="text-minimal-subtitle font-semibold text-foreground">Top Source Markets - {selectedProperty?.demandCity}</h4>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
 
+              {/* Legends Section - Under Heading */}
+              <div className="px-4 py-3 bg-muted/10 border-b border-border/20">
+                <div className="flex flex-wrap gap-4 justify-start">
+                  {demandAIPerCountryAverageData.map((market: any, index: number) => (
+                    <div key={market.srcCountryName} className="flex items-center gap-2 text-sm">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: sourceMarketColors[index] }}
+                      />
+                      <span className="text-xs font-medium text-foreground">
+                        {market.srcCountryName} ({market.averageTotalFlights}%)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="py-4 px-1">
+                <div className="flex flex-col gap-6">
+                  {/* Map Section - Full Width */}
+                  <div className="w-full h-[400px]">
+                    <WorldMapVisualization demandAiAvg={demandAIPerCountryAverageData} />
+                  </div>
+
+
+                </div>
+              </div>
+            </>)}
+          {/* Events Section - Full Width Below Map */}
           <div className="py-4 px-1">
-            <div className="flex flex-col gap-6">
-              {/* Map Section - Full Width */}
-              <div className="w-full h-[400px]">
-                <WorldMapVisualization demandAiAvg={demandAIPerCountryAverageData} />
-              </div>
-
-              {/* Events Section - Full Width Below Map */}
-              <div className="w-full pb-6">
-                <MyEventsHolidaysTable events={eventData} holidaysData={holidaysData} />
-              </div>
+            <div className="w-full pb-6">
+              <MyEventsHolidaysTable events={eventData} holidaysData={holidaysData} />
             </div>
-
           </div>
         </div>
       </CardContent>
