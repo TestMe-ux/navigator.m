@@ -257,7 +257,7 @@ export default function Home() {
       getCompRateData(),
       GetParityDatas_Comp()
     ]);
-  }, [hasTriggered, showCSATCard, csatClosed, startDate, endDate, selectedProperty, channelFilter, compsetFilter, sideFilter])
+  }, [hasTriggered, showCSATCard, csatClosed, startDate, endDate, selectedProperty, compsetFilter, sideFilter])
 
   useEffect(() => {
     if (!startDate ||
@@ -267,7 +267,7 @@ export default function Home() {
       getCompRateData(),
       GetParityDatas_Comp()
     ]);
-  }, [selectedComparison, startDate, endDate, selectedProperty, channelFilter])
+  }, [selectedComparison])
 
   const getRateDate = () => {
     debugger;

@@ -50,8 +50,10 @@ export function Header() {
 
     didFetch.current = true;
     const selectedProperty = localStorageService.get('SelectedProperty');
+    const properties = localStorageService.get('Properties');
     if (selectedProperty) {
       setSelectedHotel(selectedProperty);
+      setHotelOptions(properties)
       return
     }
     getSIDListforUser();
@@ -61,13 +63,13 @@ export function Header() {
       .then((res) => {
         if (res.status) {
           localStorageService.set('Properties', res.body);
-          
+
           // Find Alhambra Hotel in the properties list, fallback to first property if not found
-          const alhambraHotel = res.body.find((property: any) => 
+          const alhambraHotel = res.body.find((property: any) =>
             property.name && property.name.toLowerCase().includes('alhambra')
           );
           const defaultProperty = alhambraHotel || res.body[0];
-          
+
           localStorageService.set('SelectedProperty', defaultProperty);
           setSelectedHotel(defaultProperty);
           setHotelOptions(res.body)

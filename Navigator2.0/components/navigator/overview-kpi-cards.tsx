@@ -44,7 +44,6 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
   const days = differenceInDays(endDate, startDate) + 1
   const today = new Date()
 
-  debugger;
   //All Subscriber Rate and Market Positioning Data
   const avgAllSubscriberRate = rateData?.pricePositioningEntites?.find((x: any) => x.propertyType === 0)?.AvgData;
   const allWithAvg = rateData?.pricePositioningEntites
