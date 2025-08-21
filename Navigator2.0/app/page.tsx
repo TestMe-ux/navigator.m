@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -271,8 +271,8 @@ export default function Home() {
 
   const getRateDate = () => {
     debugger;
-    setRateData(Object);
-    var filtersValue = {
+    setRateData({});
+    const filtersValue = {
       "SID": selectedProperty?.sid,
       "channels": (channelFilter?.channelId?.length ?? 0) > 0 ? channelFilter.channelId : [-1],
       "channelsText": (channelFilter?.channelName?.length ?? 0) > 0 ? channelFilter.channelName : ["All Channel"],
@@ -320,14 +320,14 @@ export default function Home() {
       .catch((err) => console.error(err));
   }
   const getCompRateData = () => {
-    setRateCompData(Object);
-    var startDateComp = startDate
+    setRateCompData({});
+    const startDateComp = startDate
       ? new Date(startDate.getTime() + (-selectedComparison * 24 * 60 * 60 * 1000))
       : new Date();
-    var endDateComp = endDate
+    const endDateComp = endDate
       ? new Date(endDate.getTime() + (-selectedComparison * 24 * 60 * 60 * 1000))
       : new Date();
-    var filtersValue = {
+    const filtersValue = {
       "SID": selectedProperty?.sid,
       "channels": channelFilter.channelId,
       "channelsText": channelFilter.channelName,
@@ -374,9 +374,14 @@ export default function Home() {
       })
       .catch((err) => console.error(err));
   }
-  const GetParityDatas = () => {
-    setparityData(Object);
-    var filtersValue = {
+  const GetParityDatas = useCallback(() => {
+    if (!selectedProperty?.sid || !startDate || !endDate) {
+      console.warn('Missing required parameters for parity data fetch');
+      return;
+    }
+    
+    setparityData({});
+    const filtersValue = {
       "sid": selectedProperty?.sid,
       "checkInStartDate": conevrtDateforApi(startDate?.toString()),
       "checkInEndDate": conevrtDateforApi(endDate?.toString()),
@@ -387,7 +392,8 @@ export default function Home() {
       "qualification": sideFilter?.rateViewBy?.QualificationText === "All" ? null : sideFilter?.rateViewBy?.QualificationText,
       "restriction": sideFilter?.rateViewBy?.RestrictionText === "All" ? null : sideFilter?.rateViewBy?.RestrictionText,
     }
-    GetParityData(filtersValue)
+    
+    return GetParityData(filtersValue)
       .then((res) => {
         if (res.status) {
           let parityDatasMain = res.body;
@@ -425,17 +431,20 @@ export default function Home() {
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
       })
-      .catch((err) => console.error(err));
-  }
+      .catch((err) => {
+        console.error('Parity data fetch failed:', err);
+        setparityData({});
+      });
+  }, [selectedProperty?.sid, startDate, endDate, channelFilter, sideFilter]);
   const GetParityDatas_Comp = () => {
-    setParityDataComp(Object);
-    var startDateComp = startDate
+    setParityDataComp({});
+    const startDateComp = startDate
       ? new Date(startDate.getTime() + (-selectedComparison * 24 * 60 * 60 * 1000))
       : new Date();
-    var endDateComp = endDate
+    const endDateComp = endDate
       ? new Date(endDate.getTime() + (-selectedComparison * 24 * 60 * 60 * 1000))
       : new Date();
-    var filtersValue = {
+    const filtersValue = {
       "sid": selectedProperty?.sid,
       "checkInStartDate": conevrtDateforApi(startDateComp.toString()),
       "checkInEndDate": conevrtDateforApi(endDateComp.toString()),

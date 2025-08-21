@@ -1,40 +1,429 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { EnhancedDatePicker } from "@/components/enhanced-date-picker"
+import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Checkbox } from "@/components/ui/checkbox"
 
-import { Calendar, TrendingUp, BarChart3, Activity, Grid3x3, ChevronDown, Eye, Users, ChevronLeft, ChevronRight } from "lucide-react"
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, ReferenceLine, Tooltip as RechartsTooltip } from "recharts"
+import { Calendar, ChevronDown, Eye, Users, ChevronLeft, ChevronRight, Download, Star, Info } from "lucide-react"
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts"
+import { format, addDays, subDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, isWithinInterval, subMonths, isBefore, addMonths } from "date-fns"
+import { toPng } from "html-to-image"
+import { useSelectedProperty } from "@/hooks/use-local-storage"
+import { getOTAChannels, getOTARankOnAllChannel } from "@/lib/otarank"
+import { conevrtDateforApi } from "@/lib/utils"
+import { getChannels } from "@/lib/channels"
+import { Globe } from "lucide-react"
 
 export default function OTARankingsPage() {
+  const [selectedProperty] = useSelectedProperty()
+  const cardRef = useRef<HTMLDivElement>(null)
+  
+  // OTA Data state
+  const [otaChannels, setOtaChannels] = useState<any[]>([])
+  const [otaRankingData, setOtaRankingData] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const isFetchingRef = useRef(false)
+  
+  // Page loading state for full-page loading effect
+  const [isPageLoading, setIsPageLoading] = useState(false)
+  
+  // Window width state for responsive text
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1920)
+  
   const [compareWith, setCompareWith] = useState("Last 1 Week")
   const [compSet, setCompSet] = useState("Primary Compset")
   const [viewMode, setViewMode] = useState("Rank")
   const [selectedChannel, setSelectedChannel] = useState("booking")
-  const [activeOption, setActiveOption] = useState("option1")
-  const [chartView, setChartView] = useState("rank") // For Option 3
+  
+  // Reviews-specific state
+  const [checkInRange, setCheckInRange] = useState("Last 30 Days")
+  const [previousCheckInRange, setPreviousCheckInRange] = useState("Last 30 Days")
+  const [selectedChannelsReviews, setSelectedChannelsReviews] = useState<string[]>(["booking", "expedia"])
+  
+  // Overview-style channel dropdown state
+  const [overviewChannelData, setOverviewChannelData] = useState<any>([])
+  const [selectedOverviewChannels, setSelectedOverviewChannels] = useState<number[]>([])
+  const didFetchChannels = useRef(false)
+  
+  // Custom calendar state for Reviews
+  const [customStartDate, setCustomStartDate] = useState<Date | undefined>()
+  const [customEndDate, setCustomEndDate] = useState<Date | undefined>()
+  const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date())
+  
+  // Fetch channel data for Overview-style dropdown
+  useEffect(() => {
+    if (!selectedProperty?.sid || didFetchChannels.current) return;
+
+    didFetchChannels.current = true;
+    getChannels({ SID: selectedProperty?.sid })
+      .then((res) => {
+        if (res?.status && res?.body) {
+          // Add "All Channels" option
+          const allChannel = { cid: -1, name: "All Channels" };
+          const channelList = [allChannel, ...res.body];
+
+          // Set data
+          setOverviewChannelData(channelList);
+
+          // Set selected channels as array of cids (default to all)
+          setSelectedOverviewChannels(channelList.map(c => c.cid));
+        }
+      })
+      .catch((err) => console.error(err));
+  }, [selectedProperty?.sid]);
+
+  // Reset channel fetch when property changes
+  useEffect(() => {
+    didFetchChannels.current = false;
+  }, [selectedProperty?.sid]);
+
+  // Handle window resize for responsive text
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth)
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize)
+      return () => window.removeEventListener('resize', handleResize)
+    }
+  }, [])
+
+  // Get display text for overview channel dropdown
+  const getOverviewChannelDisplayText = useCallback(() => {
+    if (selectedOverviewChannels.length === 0) {
+      return "All Channels"
+    } else if (selectedOverviewChannels.includes(-1)) {
+      return "All Channels"
+    } else if (selectedOverviewChannels.length === 1) {
+      const channel = overviewChannelData.find((c: any) => c.cid === selectedOverviewChannels[0]);
+      if (channel) {
+        return channel.name
+      }
+      return "Select Channels"
+    } else {
+      return `${selectedOverviewChannels.length} Channels`
+    }
+  }, [selectedOverviewChannels, overviewChannelData])
+
+  // Handle overview channel selection
+  const handleOverviewChannelSelect = useCallback((channelCid: any, channelData: any) => {
+    setSelectedOverviewChannels(prev => {
+      const isSelected = prev.includes(channelCid)
+      let newSelection: number[]
+
+      if (channelCid === -1) {
+        // If selecting "All Channels", clear all others
+        newSelection = isSelected ? [] : channelData.map((c: any) => c.cid)
+      } else {
+        // If selecting a specific channel
+        if (isSelected) {
+          // Remove this channel and "All Channels" if present
+          newSelection = prev.filter(id => id !== channelCid && id !== -1)
+        } else {
+          // Add this channel and remove "All Channels" if present
+          const withoutAll = prev.filter(id => id !== -1)
+          newSelection = [...withoutAll, channelCid]
+          
+          // If all individual channels are now selected, add "All Channels"
+          if (newSelection.length === channelData.length - 1) {
+            newSelection = channelData.map((c: any) => c.cid)
+          }
+        }
+      }
+
+      return newSelection
+    })
+  }, [])
+
+  const onOpenChangeSelect = (isOpen: boolean) => {
+    // Handle dropdown open/close if needed
+  }
+
+  // Get responsive compare text for channel widgets
+  const getCompareText = useCallback(() => {
+    if (windowWidth <= 1280) {
+      return "vs 1 week" // Compact version for 1280px and below
+    }
+    return "vs. Last 1 week" // Full version for larger screens
+  }, [windowWidth])
+
+  // Get display text for check-in range
+  const getCheckInDisplayText = () => {
+    const selectedOption = checkInRangeOptions.find(opt => opt.label === checkInRange)
+    if (selectedOption?.dateRange) {
+      return `${selectedOption.label} • ${selectedOption.dateRange}`
+    }
+    if (checkInRange === "Custom Date Range") {
+      if (customStartDate && customEndDate) {
+        // Show custom selected range
+        const formatDate = (date: Date) => {
+          const formatted = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).replace(',', '')
+          return `${formatted} '25`
+        }
+        return `Custom Date Range • ${formatDate(customEndDate)} - ${formatDate(customStartDate)}`
+      } else {
+        // Show previous selection when no custom dates are selected
+        const previousOption = checkInRangeOptions.find(opt => opt.label === previousCheckInRange)
+        if (previousOption?.dateRange) {
+          return `${previousOption.label} • ${previousOption.dateRange}`
+        }
+        return previousCheckInRange
+      }
+    }
+    return checkInRange
+  }
+
+  // Calendar helper functions for Reviews
+  const handleCustomDateSelect = (date: Date) => {
+    if (!customStartDate || customEndDate) {
+      // First selection or reset selection
+      setCustomStartDate(date)
+      setCustomEndDate(undefined)
+    } else {
+      // Second selection - determine start and end based on chronological order
+      if (date > customStartDate) {
+        setCustomEndDate(date)
+      } else if (date < customStartDate) {
+        setCustomEndDate(customStartDate)
+        setCustomStartDate(date)
+      } else {
+        // Same date selected - reset to single date
+        setCustomStartDate(date)
+        setCustomEndDate(undefined)
+      }
+    }
+  }
+
+  const renderCustomCalendar = () => {
+    const monthStart = startOfMonth(currentCalendarMonth)
+    const monthEnd = endOfMonth(currentCalendarMonth)
+    const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
+    
+    const firstDayOfWeek = monthStart.getDay() === 0 ? 6 : monthStart.getDay() - 1
+    const paddingDaysBefore = Array.from({ length: firstDayOfWeek }, (_, i) => {
+      const paddingDate = new Date(monthStart)
+      paddingDate.setDate(paddingDate.getDate() - (firstDayOfWeek - i))
+      return paddingDate
+    })
+
+    const totalCells = 42
+    const remainingCells = totalCells - (paddingDaysBefore.length + days.length)
+    const paddingDaysAfter = Array.from({ length: remainingCells }, (_, i) => {
+      const paddingDate = new Date(monthEnd)
+      paddingDate.setDate(paddingDate.getDate() + i + 1)
+      return paddingDate
+    })
+
+    const allDays = [...paddingDaysBefore, ...days, ...paddingDaysAfter]
+    const today = new Date()
+    const lastYearJan = new Date(today.getFullYear() - 1, 0, 1) // January of last year
+
+    return (
+      <div className="flex-1">
+        <div className="flex items-center justify-between mb-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setCurrentCalendarMonth(subMonths(currentCalendarMonth, 1))}
+            disabled={isBefore(endOfMonth(subMonths(currentCalendarMonth, 1)), lastYearJan)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <h3 className="text-lg font-semibold text-gray-700">{format(currentCalendarMonth, "MMMM yyyy")}</h3>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setCurrentCalendarMonth(addMonths(currentCalendarMonth, 1))}
+            disabled={true}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+            <div key={day} className="h-8 flex items-center justify-center text-xs font-medium text-gray-500">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {allDays.map((day, index) => {
+            const isCurrentMonth = isSameMonth(day, currentCalendarMonth)
+            const isToday = isSameDay(day, today)
+            const isFutureDate = day > today
+            const isBeforeLimit = day < lastYearJan
+            const isSelected = customStartDate && isSameDay(day, customStartDate) || customEndDate && isSameDay(day, customEndDate)
+            const isInRange = customStartDate && customEndDate && 
+              isWithinInterval(day, { start: customStartDate, end: customEndDate })
+
+            return (
+              <Button
+                key={index}
+                variant="ghost"
+                size="sm"
+                className={`h-8 w-8 p-0 font-normal ${
+                  !isCurrentMonth ? "text-gray-300" : ""
+                } ${isSelected ? "bg-blue-600 text-white hover:bg-blue-700 hover:text-white" : ""} ${
+                  isInRange && !isSelected ? "bg-blue-600 text-white hover:bg-blue-700 hover:text-white" : ""
+                } ${isToday ? "border border-primary" : ""}`}
+                onClick={() => handleCustomDateSelect(day)}
+                disabled={isFutureDate || isBeforeLimit || !isCurrentMonth}
+              >
+                {format(day, "d")}
+              </Button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
 
   // Date picker state
   const [startDate, setStartDate] = useState<Date | null>(new Date())
   const [endDate, setEndDate] = useState<Date | null>(new Date(Date.now() + 6 * 24 * 60 * 60 * 1000)) // 7 days from now
   
   // Filter dropdown states
-  const [isViewOpen, setIsViewOpen] = useState(false)
   const [isCompareOpen, setIsCompareOpen] = useState(false)
   const [isCompsetOpen, setIsCompsetOpen] = useState(false)
+  const [isDateRangeOpen, setIsDateRangeOpen] = useState(false)
   
   // Channel pagination state
   const [currentChannelPage, setCurrentChannelPage] = useState(0)
   const channelsPerPage = 3
+  
+  // Separate error states for each tab
+  const [rankErrorMessage, setRankErrorMessage] = useState<string>('')
+  const [reviewsErrorMessage, setReviewsErrorMessage] = useState<string>('')
+
+  // Get current error state based on active tab
+  const errorMessage = viewMode === "Rank" ? rankErrorMessage : reviewsErrorMessage
+  const setErrorMessage = viewMode === "Rank" ? setRankErrorMessage : setReviewsErrorMessage
+
+  // Maximum lines allowed on graph
+  const MAX_LINES = 10
+
+  // Available hotel lines (expanded for testing 10-line limit) - Memoized for performance
+  const availableHotelLines = useMemo(() => [
+    { dataKey: 'myHotel', name: 'Alhambra Hotel', color: '#3b82f6' },
+    { dataKey: 'competitor1', name: 'Grand Hotel Guayaquil', color: '#10b981' },
+    { dataKey: 'competitor2', name: 'Clarion Inn Lake Buena Vista', color: '#f59e0b' },
+    { dataKey: 'competitor3', name: 'Marriott Downtown', color: '#ef4444' },
+    { dataKey: 'competitor4', name: 'Hilton Garden Inn', color: '#8b5cf6' },
+    { dataKey: 'competitor5', name: 'Hampton Inn & Suites', color: '#06b6d4' },
+    { dataKey: 'competitor6', name: 'Holiday Inn Express', color: '#84cc16' },
+    { dataKey: 'competitor7', name: 'Courtyard by Marriott', color: '#f97316' },
+    { dataKey: 'competitor8', name: 'Residence Inn', color: '#ec4899' },
+    { dataKey: 'competitor9', name: 'SpringHill Suites', color: '#6366f1' },
+    { dataKey: 'competitor10', name: 'Four Points Sheraton', color: '#14b8a6' },
+    { dataKey: 'competitor11', name: 'DoubleTree Hilton', color: '#f59e0b' },
+    { dataKey: 'competitor12', name: 'Embassy Suites', color: '#dc2626' },
+    { dataKey: 'competitor13', name: 'Hyatt House', color: '#7c3aed' },
+    { dataKey: 'competitor14', name: 'Fairfield Inn Marriott', color: '#059669' }
+  ], [])
+
+  // Separate legend visibility states for each tab
+  const [rankLegendVisibility, setRankLegendVisibility] = useState<{[key: string]: boolean}>(() => {
+    const initial: {[key: string]: boolean} = {}
+    availableHotelLines.forEach(hotel => {
+      initial[hotel.dataKey] = !['competitor10', 'competitor11', 'competitor12', 'competitor13', 'competitor14'].includes(hotel.dataKey)
+    })
+    return initial
+  })
+
+  const [reviewsLegendVisibility, setReviewsLegendVisibility] = useState<{[key: string]: boolean}>(() => {
+    const initial: {[key: string]: boolean} = {}
+    availableHotelLines.forEach(hotel => {
+      initial[hotel.dataKey] = true // All visible by default for Reviews
+    })
+    return initial
+  })
+
+  // Get current legend visibility based on active tab
+  const legendVisibility = viewMode === "Rank" ? rankLegendVisibility : reviewsLegendVisibility
+  const setLegendVisibility = viewMode === "Rank" ? setRankLegendVisibility : setReviewsLegendVisibility
+
+  // Calculate currently visible lines using new legend visibility state - Memoized for performance
+  const visibleLinesCount = useMemo(() => 
+    availableHotelLines.filter(hotel => legendVisibility[hotel.dataKey]).length, 
+    [availableHotelLines, legendVisibility]
+  )
+
+  // Separate height calculations for each tab
+  const calculateRankChartHeight = () => {
+    return 556 // Fixed height for Rank tab - no dynamic changes when legends hide/show
+  }
+
+  const calculateReviewsChartHeight = () => {
+    const baseHeight = 400 // Base height for the chart area
+    const visibleReviewsLines = availableHotelLines.filter(hotel => reviewsLegendVisibility[hotel.dataKey]).length
+    const legendHeight = visibleReviewsLines * 25 // ~25px per legend item
+    const legendPadding = 80 // Additional padding for legend area
+    const fullHeight = baseHeight + Math.max(legendHeight, 100) + legendPadding // Minimum 100px for legends
+    return Math.floor(fullHeight * 0.5) // Reduce chart container height by 50%
+  }
+
+  // Get current chart height based on active tab
+  const chartHeight = viewMode === "Rank" ? calculateRankChartHeight() : calculateReviewsChartHeight()
+
+  // Fetch OTA data when component mounts or dates change
+  useEffect(() => {
+    if (!selectedProperty?.sid || !startDate || !endDate) return
+    fetchOTAData()
+  }, [selectedProperty?.sid, startDate, endDate])
+
+  // Fetch OTA channels and ranking data
+  const fetchOTAData = useCallback(async () => {
+    if (isFetchingRef.current) return
+    isFetchingRef.current = true
+    setIsPageLoading(true)
+
+    try {
+      // 1. Fetch OTA channels
+      const channelsRes = await getOTAChannels({ SID: selectedProperty?.sid })
+      if (channelsRes?.status && channelsRes.body) {
+        setOtaChannels(channelsRes.body)
+      }
+
+      // 2. Fetch OTA ranking data
+      const rankingRes = await getOTARankOnAllChannel({
+        SID: selectedProperty?.sid,
+        CheckInDateStart: startDate?.toUTCString(),
+        CheckInEndDate: endDate?.toUTCString(),
+      })
+
+      if (rankingRes?.status && rankingRes.body) {
+        const flatRankingData = Array.isArray(rankingRes.body) ? rankingRes.body.flat() : []
+        setOtaRankingData(flatRankingData)
+      }
+    } catch (error) {
+      console.error('Error fetching OTA data:', error)
+    } finally {
+      // Show completion for 300ms before hiding (similar to Demand/Events)
+      setTimeout(() => {
+        setIsPageLoading(false)
+        isFetchingRef.current = false
+      }, 300)
+    }
+  }, [selectedProperty?.sid, startDate, endDate])
 
   // Handle date range changes
   const handleDateRangeChange = (start: Date | undefined, end: Date | undefined) => {
@@ -42,17 +431,104 @@ export default function OTARankingsPage() {
     setEndDate(end || null)
   }
 
+
+
+  // Export chart functionality
+  const exportChart = useCallback(async () => {
+    if (cardRef.current) {
+      try {
+        const dataUrl = await toPng(cardRef.current)
+        const link = document.createElement('a')
+        link.download = `${viewMode.toLowerCase()}-chart.png`
+        link.href = dataUrl
+        link.click()
+      } catch (error) {
+        console.error('Error exporting chart:', error)
+      }
+    }
+  }, [viewMode])
+
+
+
+  // Reviews data structure
+  const reviewsData = useMemo(() => {
+    const baseData = []
+    const today = new Date()
+    
+    // Generate 4 weeks of data for Reviews mode
+    for (let i = 3; i >= 0; i--) {
+      const weekStart = new Date(today)
+      weekStart.setDate(today.getDate() - (i * 7))
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekStart.getDate() + 6)
+      
+      const weekLabel = `Week of ${weekStart.getDate()}-${weekEnd.getDate()} ${weekStart.toLocaleString('en', { month: 'short' })}`
+      
+      baseData.push({
+        week: weekLabel,
+        reviewScore: Number((7.5 + Math.random() * 2).toFixed(1)), // 7.5-9.5 range
+        numberOfReviews: Math.floor(80 + Math.random() * 140), // 80-220 reviews
+        // Events data for Reviews timeline
+        hasEvent: i === 1 || i === 3, // Events on specific weeks
+        eventData: i === 1 ? {
+          title: 'Guest Experience Summit',
+          category: 'Hospitality',
+          impact: 'Medium',
+          date: weekLabel
+        } : i === 3 ? {
+          title: 'Customer Service Training',
+          category: 'Training',
+          impact: 'High',
+          date: weekLabel
+        } : null
+      })
+    }
+    
+    return baseData
+  }, [])
+
   // Compare options (simplified as requested)
   const compareOptions = [
     { id: "1week", label: "Last 1 Week" },
     { id: "2weeks", label: "Last 2 Weeks" }
   ]
 
-  // View options
-  const viewOptions = [
-    { id: "rank", label: "Rank" },
-    { id: "reviews", label: "Reviews" }
-  ]
+  // Reviews check-in range options with date calculations
+  const getCheckInRangeOptions = () => {
+    const today = new Date()
+    const format = (date: Date) => {
+      const formatted = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).replace(',', '')
+      return `${formatted} '25`
+    }
+    
+    return [
+      { 
+        id: "15days", 
+        label: "Last 15 Days",
+        dateRange: `${format(today)} - ${format(subDays(today, 14))}`, // Reversed order: latest to earliest
+        startDate: subDays(today, 14),
+        endDate: today
+      },
+      { 
+        id: "30days", 
+        label: "Last 30 Days",
+        dateRange: `${format(today)} - ${format(subDays(today, 29))}`, // Reversed order: latest to earliest
+        startDate: subDays(today, 29),
+        endDate: today
+      },
+      { 
+        id: "custom", 
+        label: "Custom Date Range",
+        dateRange: null,
+        startDate: null,
+        endDate: null
+      }
+    ]
+  }
+
+  const checkInRangeOptions = useMemo(() => getCheckInRangeOptions(), [])
+
+
 
   // Compset options
   const compsetOptions = [
@@ -60,105 +536,225 @@ export default function OTARankingsPage() {
     { id: "secondary", label: "Secondary Compset" }
   ]
 
-  // Enhanced Channel data with performance metrics
-  const channelData = [
-    {
-      id: "booking",
-      name: "Booking.com",
-      shortName: "Booking",
-      icon: "B",
-      iconBg: "bg-blue-600",
-      avgRank: 5,
-      totalRankings: 122,
-      rankingChange: -1,
-      reviewScore: 9.6,
-      maxReviewScore: 10,
-      reviewChange: 0.1,
-      compareText: "vs. Last 1 week",
-      reviewText: "As on today",
-      status: "stable"
-    },
-    {
-      id: "expedia",
-      name: "Expedia",
-      shortName: "Expedia", 
-      icon: "✈",
-      iconBg: "bg-yellow-500",
-      avgRank: 36,
-      totalRankings: 122,
-      rankingChange: -25,
-      reviewScore: 9.8,
-      maxReviewScore: 10,
-      reviewChange: 0,
-      compareText: "vs. Last 1 week",
-      reviewText: "As on today",
-      status: "improving"
-    },
-    {
-      id: "tripadvisor",
-      name: "Tripadvisor",
-      shortName: "TripAdvisor",
-      icon: "🦉",
-      iconBg: "bg-green-600",
-      avgRank: 1,
-      totalRankings: 122,
-      rankingChange: 0,
-      reviewScore: 5.0,
-      maxReviewScore: 10,
-      reviewChange: 0,
-      compareText: "vs. Last 1 week",
-      reviewText: "As on today",
-      status: "leading"
-    },
-    {
-      id: "agoda",
-      name: "Agoda",
-      shortName: "Agoda",
-      icon: "A",
-      iconBg: "bg-red-500",
-      avgRank: 12,
-      totalRankings: 122,
-      rankingChange: 3,
-      reviewScore: 9.2,
-      maxReviewScore: 10,
-      reviewChange: 0.1,
-      compareText: "vs. Last 1 week",
-      reviewText: "As on today",
-      status: "improving"
-    },
-    {
-      id: "hotels",
-      name: "Hotels.com",
-      shortName: "Hotels",
-      icon: "H",
-      iconBg: "bg-purple-600",
-      avgRank: 8,
-      totalRankings: 122,
-      rankingChange: -2,
-      reviewScore: 9.4,
-      maxReviewScore: 10,
-      reviewChange: -0.2,
-      compareText: "vs. Last 1 week",
-      reviewText: "As on today",
-      status: "stable"
-    },
-    {
-      id: "kayak",
-      name: "Kayak",
-      shortName: "Kayak",
-      icon: "K",
-      iconBg: "bg-orange-500",
-      avgRank: 15,
-      totalRankings: 122,
-      rankingChange: -5,
-      reviewScore: 8.9,
-      maxReviewScore: 10,
-      reviewChange: -0.1,
-      compareText: "vs. Last 1 week",
-      reviewText: "As on today",
-      status: "declining"
-    },
-  ]
+  // Event generation function (similar to Demand page) - Memoized for performance
+  const generateChartEvents = useCallback((trendData: any[]) => {
+    const eventTemplates = [
+      { title: "GITEX Technology Week", category: "Technology", impact: "High", location: "Dubai World Trade Centre" },
+      { title: "Dubai Shopping Festival", category: "Festival", impact: "High", location: "Dubai Mall" },
+      { title: "Arab Health Exhibition", category: "Healthcare", impact: "High", location: "DWTC" },
+      { title: "Business Leadership Summit", category: "Business", impact: "High", location: "Burj Al Arab" },
+      { title: "Dubai Marathon", category: "Sports", impact: "High", location: "Dubai Marina" },
+      { title: "Art Dubai Fair", category: "Cultural", impact: "Medium", location: "Madinat Jumeirah" },
+      { title: "Dubai Food Festival", category: "Culinary", impact: "Medium", location: "Various Locations" },
+      { title: "Global Education Summit", category: "Education", impact: "Medium", location: "JW Marriott" },
+      { title: "International Tourism Fair", category: "Tourism", impact: "High", location: "Emirates Palace" },
+      { title: "Regional Conference Summit", category: "Business", impact: "Medium", location: "Conrad Hotel" }
+    ]
+
+    return trendData.map((dataPoint, index) => {
+      const totalDays = trendData.length
+
+      // For testing purposes, let's ensure we have some guaranteed sample events
+      // Add events at specific indices for demonstration
+      const guaranteedEventIndices = [2, 5, 8, 12, 15, 18] // Specific indices for sample events
+      let hasEvent = false
+
+      // First check if this is a guaranteed event position
+      if (guaranteedEventIndices.includes(index) && index < totalDays) {
+        hasEvent = true
+      } else {
+        // Skip first and last 2 items from having random events (reduced from 3)
+        const isNearEdges = index < 2 || index >= totalDays - 2
+
+        if (!isNearEdges) {
+          // Use more frequent event generation for better visibility
+          let eventFrequency = 3 // Increased frequency: 1 in 3 chance (33%)
+          if (totalDays > 30) {
+            eventFrequency = 4 // For longer periods: 1 in 4 chance (25%)
+          }
+          if (totalDays > 60) {
+            eventFrequency = 5 // For very long periods: 1 in 5 chance (20%)
+          }
+
+          // Use deterministic logic to assign events
+          const dateHash = index + (dataPoint.date ? dataPoint.date.length : 0)
+          hasEvent = (dateHash) % eventFrequency === 0
+        }
+      }
+
+      if (hasEvent) {
+        const eventIndex = index % eventTemplates.length
+        const selectedEvent = eventTemplates[eventIndex]
+
+        // Create a more robust date for the event
+        const eventDate = new Date()
+        eventDate.setDate(eventDate.getDate() + index)
+
+        const eventDataPoint = {
+          ...dataPoint,
+          hasEvent: true,
+          eventData: {
+            title: selectedEvent.title,
+            category: selectedEvent.category,
+            impact: selectedEvent.impact,
+            location: selectedEvent.location,
+            date: eventDate.toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })
+          }
+        }
+
+        // Event created successfully
+
+        return eventDataPoint
+      }
+
+      return {
+        ...dataPoint,
+        hasEvent: false,
+        eventData: null
+      }
+    })
+  }, [])
+
+  // Enhanced Channel data with performance metrics - hybrid of API and mock data
+  const channelData = useMemo(() => {
+    // Base channel templates
+    const baseChannels = [
+      {
+        id: "booking",
+        name: "Booking.com",
+        shortName: "Booking",
+        icon: "B",
+        iconBg: "bg-blue-600",
+        avgRank: 5,
+        totalRankings: 122,
+        rankingChange: -1,
+        reviewScore: 9.6,
+        maxReviewScore: 10,
+        reviewChange: 0.1,
+        compareText: getCompareText(),
+        reviewText: "As on today",
+        status: "stable"
+      },
+      {
+        id: "expedia",
+        name: "Expedia",
+        shortName: "Expedia", 
+        icon: "✈",
+        iconBg: "bg-yellow-500",
+        avgRank: 36,
+        totalRankings: 122,
+        rankingChange: -25,
+        reviewScore: 9.8,
+        maxReviewScore: 10,
+        reviewChange: 0,
+        compareText: getCompareText(),
+        reviewText: "As on today",
+        status: "improving"
+      },
+      {
+        id: "tripadvisor",
+        name: "Tripadvisor",
+        shortName: "TripAdvisor",
+        icon: "🦉",
+        iconBg: "bg-green-600",
+        avgRank: 1,
+        totalRankings: 122,
+        rankingChange: 0,
+        reviewScore: 5.0,
+        maxReviewScore: 10,
+        reviewChange: 0,
+        compareText: getCompareText(),
+        reviewText: "As on today",
+        status: "leading"
+      },
+      {
+        id: "agoda",
+        name: "Agoda",
+        shortName: "Agoda",
+        icon: "A",
+        iconBg: "bg-red-500",
+        avgRank: 12,
+        totalRankings: 122,
+        rankingChange: 3,
+        reviewScore: 9.2,
+        maxReviewScore: 10,
+        reviewChange: 0.1,
+        compareText: getCompareText(),
+        reviewText: "As on today",
+        status: "improving"
+      },
+      {
+        id: "hotels",
+        name: "Hotels.com",
+        shortName: "Hotels",
+        icon: "H",
+        iconBg: "bg-purple-600",
+        avgRank: 8,
+        totalRankings: 122,
+        rankingChange: -2,
+        reviewScore: 9.4,
+        maxReviewScore: 10,
+        reviewChange: -0.2,
+        compareText: getCompareText(),
+        reviewText: "As on today",
+        status: "stable"
+      },
+      {
+        id: "kayak",
+        name: "Kayak",
+        shortName: "Kayak",
+        icon: "K",
+        iconBg: "bg-orange-500",
+        avgRank: 15,
+        totalRankings: 122,
+        rankingChange: -5,
+        reviewScore: 8.9,
+        maxReviewScore: 10,
+        reviewChange: -0.1,
+        compareText: getCompareText(),
+        reviewText: "As on today",
+        status: "declining"
+      },
+    ]
+
+    // If we have real API data, enhance base channels with real ranking data
+    if (otaChannels.length > 0 && otaRankingData.length > 0) {
+      return baseChannels.map(baseChannel => {
+        // Find matching API channel
+        const apiChannel = otaChannels.find((ch: any) => 
+          ch.name?.toLowerCase().includes(baseChannel.name.toLowerCase().split('.')[0]) ||
+          baseChannel.name.toLowerCase().includes(ch.name?.toLowerCase())
+        )
+        
+        // Find ranking data for this channel
+        const rankingData = otaRankingData.filter((rank: any) => 
+          apiChannel && String(rank.otaId) === String(apiChannel.cid)
+        )
+
+        // Calculate average ranking if we have data
+        if (rankingData.length > 0) {
+          const avgRank = Math.round(rankingData.reduce((sum: number, rank: any) => sum + (rank.rank || 0), 0) / rankingData.length)
+          const totalRankings = rankingData.length
+          
+          return {
+            ...baseChannel,
+            avgRank: avgRank || baseChannel.avgRank,
+            totalRankings: totalRankings || baseChannel.totalRankings,
+            // Keep mock data for other fields that may not be in API
+          }
+        }
+
+        return baseChannel
+      })
+    }
+
+    return baseChannels
+  }, [otaChannels, otaRankingData, getCompareText])
 
   // Channel pagination logic (after channelData is defined)
   const totalChannelPages = Math.ceil(channelData.length / channelsPerPage)
@@ -179,10 +775,118 @@ export default function OTARankingsPage() {
     }
   }
 
+  // Toggle legend visibility (for hiding/showing lines in chart) - tab-specific
+  const toggleLegendVisibility = useCallback((dataKey: string) => {
+    // Get the correct state setters for current tab
+    const currentSetLegendVisibility = viewMode === "Rank" ? setRankLegendVisibility : setReviewsLegendVisibility
+    const currentSetErrorMessage = viewMode === "Rank" ? setRankErrorMessage : setReviewsErrorMessage
+    const currentLegendVisibility = viewMode === "Rank" ? rankLegendVisibility : reviewsLegendVisibility
+    
+    // Use functional state update to avoid stale closure issues
+    currentSetLegendVisibility(prev => {
+      // Calculate current state using fresh state from setter
+      const isCurrentlyVisible = prev[dataKey]
+      
+      // If trying to enable a hidden legend, check the 10-visible limit
+      if (!isCurrentlyVisible) {
+        // Count currently visible legends using fresh state
+        const allSelectedKeys = availableHotelLines.map(hotel => hotel.dataKey)
+        const currentVisibleCount = allSelectedKeys.filter(key => prev[key]).length
+        
+        // Block if already at 10 visible legends
+        if (currentVisibleCount >= MAX_LINES) {
+          currentSetErrorMessage('Maximum 10 hotels can be displayed on the graph. Please hide a hotel first to show another one.')
+          setTimeout(() => currentSetErrorMessage(''), 5000)
+          return prev // Return unchanged state
+        }
+      }
+      
+      // Allow the toggle - update state
+      const newState = {
+        ...prev,
+        [dataKey]: !prev[dataKey]
+      }
+      
+      // If we're now under 10 visible legends, clear any error immediately
+      const allSelectedKeys = availableHotelLines.map(hotel => hotel.dataKey)
+      const newVisibleCount = allSelectedKeys.filter(key => newState[key]).length
+      
+      if (newVisibleCount < MAX_LINES) {
+        currentSetErrorMessage('')
+      }
+      
+      return newState
+    })
+  }, [availableHotelLines, MAX_LINES, viewMode])
+
+  // Handle legend click to toggle line visibility with 10-line limit (legacy support)
+  const handleLegendClick = (dataKey: string) => {
+    toggleLegendVisibility(dataKey)
+  }
+
+  // Download functions
+  const handleDownloadImage = () => {
+    if (cardRef.current) {
+      toPng(cardRef.current, { cacheBust: true })
+        .then((dataUrl) => {
+          const link = document.createElement("a")
+          const propertyName = selectedProperty?.name || 'OTAProperty'
+          const dateRange = startDate && endDate ? 
+            `${format(startDate, 'ddMMMyy')}_${format(endDate, 'ddMMMyy')}` : 
+            format(new Date(), 'ddMMMyy')
+          link.download = `OTARanking_${propertyName}_${dateRange}_${new Date().getTime()}.png`
+          link.href = dataUrl
+          link.click()
+        })
+        .catch((err) => {
+          console.error("Error generating image:", err)
+        })
+    }
+  }
+
+  const handleDownloadCSV = () => {
+    const propertyName = selectedProperty?.name || 'My Hotel'
+    const csvData = rankingTrendsData.map(row => {
+      const csvRow: any = { Date: row.fullDate }
+      
+      // Add data for all hotels
+      availableHotelLines.forEach(hotel => {
+        const displayName = hotel.dataKey === 'myHotel' ? propertyName : hotel.name
+        csvRow[`${displayName} Rank`] = row[hotel.dataKey]
+        csvRow[`${displayName} Price`] = row[`${hotel.dataKey}Price`]
+        csvRow[`${displayName} Variance`] = row[`${hotel.dataKey}Variance`]
+      })
+      
+      return csvRow
+    })
+
+    const csvContent = [
+      Object.keys(csvData[0]).join(','),
+      ...csvData.map(row => Object.values(row).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    const dateRange = startDate && endDate ? 
+      `${format(startDate, 'ddMMMyy')}_${format(endDate, 'ddMMMyy')}` : 
+      format(new Date(), 'ddMMMyy')
+    link.download = `OTARanking_${propertyName}_${dateRange}_${new Date().getTime()}.csv`
+    link.click()
+    window.URL.revokeObjectURL(url)
+  }
+
   // Get selected channel data for charts with memoization
   const selectedChannelData = useMemo(() => 
     channelData.find((channel) => channel.id === selectedChannel),
     [selectedChannel]
+  )
+
+  // Get selected channel data for Reviews tab with memoization
+  const selectedChannelDataReviews = useMemo(() => 
+    selectedChannelsReviews.length === 1 ? channelData.find((channel) => channel.id === selectedChannelsReviews[0]) : null,
+    [selectedChannelsReviews, channelData]
   )
 
   // Ranking chart data - varies by channel (memoized for performance)
@@ -252,128 +956,201 @@ export default function OTARankingsPage() {
   const rankingData = useMemo(() => getRankingData(selectedChannel), [getRankingData, selectedChannel])
   const reviewData = useMemo(() => getReviewData(selectedChannel), [selectedChannel])
 
-  // Ranking Trends Data for the new full-width chart
-  const rankingTrendsData = useMemo(() => [
-    {
-      date: "Aug 19",
-      myHotel: 5,
-      competitor1: 1,
-      competitor2: 8,
-      competitor3: 12,
-      myHotelPrice: 125,
-      competitor1Price: 110,
-      competitor2Price: 140,
-      competitor3Price: 95
-    },
-    {
-      date: "Aug 20",
-      myHotel: 4,
-      competitor1: 1,
-      competitor2: 9,
-      competitor3: 11,
-      myHotelPrice: 128,
-      competitor1Price: 112,
-      competitor2Price: 142,
-      competitor3Price: 98
-    },
-    {
-      date: "Aug 21",
-      myHotel: 5,
-      competitor1: 2,
-      competitor2: 8,
-      competitor3: 10,
-      myHotelPrice: 130,
-      competitor1Price: 115,
-      competitor2Price: 145,
-      competitor3Price: 100
-    },
-    {
-      date: "Aug 22",
-      myHotel: 6,
-      competitor1: 1,
-      competitor2: 7,
-      competitor3: 9,
-      myHotelPrice: 132,
-      competitor1Price: 108,
-      competitor2Price: 138,
-      competitor3Price: 102
-    },
-    {
-      date: "Aug 23",
-      myHotel: 5,
-      competitor1: 1,
-      competitor2: 8,
-      competitor3: 10,
-      myHotelPrice: 135,
-      competitor1Price: 118,
-      competitor2Price: 148,
-      competitor3Price: 105
+  // Ranking Trends Data for the new full-width chart (7 days based on selected date range)
+  // Calculate number of days based on date range
+  const numberOfDays = useMemo(() => {
+    if (startDate && endDate) {
+      const diffTime = Math.abs(endDate.getTime() - startDate.getTime())
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+      return Math.min(diffDays, 30) // Cap at 30 days for performance
     }
-  ], [])
+    return 7 // Default to 7 days
+  }, [startDate, endDate])
 
-  // Custom Tooltip Component for Ranking Trends
-  const RankingTrendsTooltip = ({ active, payload, label }: any) => {
+  // Calculate compare period length
+  const comparePeriodDays = useMemo(() => {
+    return compareWith === "Last 1 Week" ? 7 : 14
+  }, [compareWith])
+
+  const rankingTrendsData = useMemo(() => {
+    const baseDate = startDate || new Date()
+    
+    // Generate historical data for variance calculation
+    const generateVarianceData = (currentRank: number, dayIndex: number, hotelType: string) => {
+      // Create consistent variance patterns based on hotel type and compare period
+      const getVariancePattern = (hotelKey: string) => {
+        // Define different variance patterns for different hotel types
+        const patterns = {
+          myHotel: comparePeriodDays === 7 ? [2, 1, 0, -1, 1, 0, 1] : [2, 1, 0, -1, 1, 0, 1, -2, 1, 0, -1, 2, 1, 0],
+          competitor1: comparePeriodDays === 7 ? [0, 0, 0, 0, 0, 0, 0] : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // NF - no variance
+          competitor2: comparePeriodDays === 7 ? [-1, -2, -1, 0, -1, -2, -1] : [-1, -2, -1, 0, -1, -2, -1, -2, -1, 0, -1, -2, -1, 0],
+          // Additional patterns for new competitors
+          competitor3: comparePeriodDays === 7 ? [1, -1, 2, 0, -1, 1, 0] : [1, -1, 2, 0, -1, 1, 0, 1, -2, 0, 1, -1, 2, 0],
+          competitor4: comparePeriodDays === 7 ? [-2, 1, -1, 1, 0, -1, 2] : [-2, 1, -1, 1, 0, -1, 2, -1, 0, 1, -2, 1, -1, 0],
+          competitor5: comparePeriodDays === 7 ? [0, 1, -1, 2, -1, 0, 1] : [0, 1, -1, 2, -1, 0, 1, -2, 1, 0, -1, 2, 0, -1],
+          competitor6: comparePeriodDays === 7 ? [1, 0, -2, 1, -1, 2, 0] : [1, 0, -2, 1, -1, 2, 0, -1, 1, -2, 0, 1, -1, 2],
+          competitor7: comparePeriodDays === 7 ? [-1, 2, 0, -2, 1, 0, -1] : [-1, 2, 0, -2, 1, 0, -1, 2, -1, 0, 1, -2, 0, 1],
+          competitor8: comparePeriodDays === 7 ? [2, -1, 1, 0, -2, 1, -1] : [2, -1, 1, 0, -2, 1, -1, 0, 2, -1, 1, 0, -2, 1],
+          competitor9: comparePeriodDays === 7 ? [0, -1, 1, -2, 0, 1, -1] : [0, -1, 1, -2, 0, 1, -1, 2, 0, -1, 1, -2, 0, 1],
+          competitor10: comparePeriodDays === 7 ? [1, -2, 0, 1, -1, 2, 0] : [1, -2, 0, 1, -1, 2, 0, -1, 1, -2, 0, 1, -1, 2],
+          competitor11: comparePeriodDays === 7 ? [-1, 0, 2, -1, 0, -2, 1] : [-1, 0, 2, -1, 0, -2, 1, 0, -1, 2, -1, 0, -2, 1],
+          competitor12: comparePeriodDays === 7 ? [2, 1, -1, 0, 2, -1, 0] : [2, 1, -1, 0, 2, -1, 0, 1, 2, -1, 0, 2, -1, 0],
+          competitor13: comparePeriodDays === 7 ? [0, -2, 1, 2, -1, 0, 1] : [0, -2, 1, 2, -1, 0, 1, -2, 0, 1, 2, -1, 0, 1],
+          competitor14: comparePeriodDays === 7 ? [-2, 1, 0, -1, 2, 1, -1] : [-2, 1, 0, -1, 2, 1, -1, 0, -2, 1, 0, -1, 2, 1]
+        }
+        
+        return patterns[hotelKey as keyof typeof patterns] || patterns.competitor2 // Default fallback
+      }
+      
+      const variancePattern = getVariancePattern(hotelType)
+      const factor = variancePattern[dayIndex % variancePattern.length]
+      return factor
+    }
+
+    const baseData = Array.from({ length: numberOfDays }, (_, index) => {
+      const currentDate = addDays(baseDate, index)
+      
+      // Generate realistic ranking data for all 15 hotels
+      const dataPoint: any = {
+        date: format(currentDate, 'MMM dd'),
+        fullDate: format(currentDate, 'dd MMM yyyy, EEE')
+      }
+      
+      // Generate rankings and prices for each hotel
+      availableHotelLines.forEach((hotel, hotelIndex) => {
+        // Create varied ranking ranges for different hotels
+        const rankingRanges = [
+          [4, 7],   // myHotel: 4-7
+          [1, 3],   // competitor1: 1-3
+          [7, 10],  // competitor2: 7-10
+          [2, 5],   // competitor3: 2-5
+          [8, 12],  // competitor4: 8-12
+          [5, 8],   // competitor5: 5-8
+          [10, 15], // competitor6: 10-15
+          [3, 6],   // competitor7: 3-6
+          [12, 18], // competitor8: 12-18
+          [6, 9],   // competitor9: 6-9
+          [9, 13],  // competitor10: 9-13
+          [15, 20], // competitor11: 15-20
+          [4, 8],   // competitor12: 4-8
+          [11, 16], // competitor13: 11-16
+          [13, 17]  // competitor14: 13-17
+        ]
+        
+        const [minRank, maxRank] = rankingRanges[hotelIndex] || [10, 15]
+        const rank = minRank + Math.floor(Math.random() * (maxRank - minRank + 1))
+        
+        // Generate price based on ranking (better rank = higher price generally)
+        const basePrice = 150 - (rank * 3) + Math.floor(Math.random() * 20)
+        const price = Math.max(80, basePrice + index * 1.5)
+        
+        // Generate variance
+        const variance = generateVarianceData(rank, index, hotel.dataKey as any)
+        
+        dataPoint[hotel.dataKey] = rank
+        dataPoint[`${hotel.dataKey}Price`] = price
+        dataPoint[`${hotel.dataKey}Variance`] = variance
+      })
+      
+      return dataPoint
+    })
+
+    // Add event data to the ranking trends  
+    const dataWithEvents = generateChartEvents(baseData)
+    return dataWithEvents
+  }, [startDate, numberOfDays, comparePeriodDays])
+
+  // Custom Tooltip Component for Ranking Trends (matching Rate Trends Analysis style)
+  const RankingTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0]?.payload
 
+      // Dynamic positioning based on cursor location
+      // Get chart width (approximate) and determine positioning
+      const chartWidth = 800 // Approximate chart area width
+      const tooltipWidth = 300 // Approximate tooltip width
+      const isNearRightEdge = coordinate && coordinate.x > (chartWidth * 0.6) // 60% from left
+      
+      const tooltipStyle = isNearRightEdge ? {
+        transform: 'translateX(-100%)',
+        marginLeft: '-10px'
+      } : {
+        transform: 'translateX(0%)',
+        marginLeft: '10px'
+      }
+
       return (
-        <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 min-w-[320px] z-[10001]">
+        <div 
+          className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-3 min-w-[260px] max-w-[350px] z-[10001] relative"
+          style={tooltipStyle}
+        >
           {/* Date Heading */}
           <div className="mb-3">
-            <h3 className="text-base font-bold text-gray-900 dark:text-white">
-              {label}
+            <h3 className="text-gray-900 dark:text-white">
+              <span className="text-base font-bold">{data?.fullDate ? data.fullDate.split(',')[0] : label}</span>
+              <span className="text-sm font-normal">{data?.fullDate ? `, ${data.fullDate.split(',')[1]}` : ''}</span>
             </h3>
-          </div>
+              </div>
 
-          {/* Hotel Rankings */}
+                    {/* Hotel Rankings */}
           <div className="space-y-2">
             {payload.map((entry: any, index: number) => {
-              const hotelNames = {
-                myHotel: "Alhambra Hotel",
-                competitor1: "Grand Hotel Guayaquil", 
-                competitor2: "Clarion Inn Lake Buena Vista",
-                competitor3: "Compset Avg. Rate"
-              }
-              
-              const prices = {
-                myHotel: data?.myHotelPrice || 0,
-                competitor1: data?.competitor1Price || 0,
-                competitor2: data?.competitor2Price || 0,
-                competitor3: data?.competitor3Price || 0
-              }
-
-              const hotelName = hotelNames[entry.dataKey as keyof typeof hotelNames]
-              const price = prices[entry.dataKey as keyof typeof prices]
+                // Find hotel info from availableHotelLines
+                const hotelInfo = availableHotelLines.find(hotel => hotel.dataKey === entry.dataKey)
+                const hotelName = hotelInfo?.name || entry.name || 'Unknown Hotel'
+                
+                // Truncate long hotel names for tooltip display
+                const truncatedName = hotelName.length > 20 ? `${hotelName.substring(0, 17)}...` : hotelName
+                
+                const price = data?.[`${entry.dataKey}Price`] || 0
               const rank = entry.value
-              const variance = entry.dataKey === 'myHotel' ? '+2%' : entry.dataKey === 'competitor1' ? 'NF' : entry.dataKey === 'competitor2' ? '-1%' : '+1%'
+                              // Get variance from data
+                const getVarianceText = (dataKey: string) => {
+                  const variance = data?.[`${dataKey}Variance`]
+                  if (variance === 0 || variance === null || variance === undefined) {
+                    return 'NF'
+                  }
+                  const sign = variance > 0 ? '+' : ''
+                  return `${sign}${variance}`
+                }
+                const variance = getVarianceText(entry.dataKey)
+              const isMyHotel = entry.dataKey === 'myHotel'
 
               return (
-                <div key={index} className="flex items-center justify-between py-1">
-                  <div className="flex items-center gap-3 flex-1">
+                <div key={index} className={`flex items-center justify-between py-1.5 px-2 rounded-md ${
+                  isMyHotel ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700' : ''
+                }`}>
+                  <div className="flex items-center gap-2 flex-1">
                     <div
-                      className="w-3 h-3 rounded-full shrink-0"
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
                       style={{ backgroundColor: entry.color }}
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {hotelName}
-                      </div>
-                    </div>
+                      <div className={`text-xs font-medium truncate ${
+                        isMyHotel ? 'text-blue-900 dark:text-blue-200' : 'text-gray-900 dark:text-slate-100'
+                      }`}>
+                        {truncatedName}
                   </div>
-                  <div className="flex items-center gap-3 text-right">
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                      ${price}
-                    </div>
-                    <div className="text-sm font-bold text-gray-900 dark:text-white min-w-[30px]">
+                </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-right flex-shrink-0">
+                    <div className={`text-xs font-bold min-w-[60px] text-right ${
+                      isMyHotel ? 'text-blue-900 dark:text-blue-200' : 'text-gray-900 dark:text-slate-100'
+                    }`}>
+                      ${price?.toLocaleString()}
+                </div>
+                    <div className={`text-xs font-bold min-w-[30px] ${
+                      isMyHotel ? 'text-blue-900 dark:text-blue-200' : 'text-gray-900 dark:text-slate-100'
+                    }`}>
                       #{rank}
-                    </div>
-                    <div className={`text-xs font-bold min-w-[35px] ${
+              </div>
+                    <div className={`text-xs font-medium min-w-[40px] ${
                       variance === 'NF' ? 'text-gray-500' :
-                      variance.startsWith('+') ? 'text-red-600 dark:text-red-400' : 
-                      'text-green-600 dark:text-green-400'
+                      variance.toString().startsWith('+') ? 'text-red-600 dark:text-red-400 font-bold' : 
+                      'text-green-600 dark:text-green-400 font-bold'
                     }`}>
                       {variance}
-                    </div>
+      </div>
                   </div>
                 </div>
               )
@@ -385,543 +1162,312 @@ export default function OTARankingsPage() {
     return null
   }
 
-  // Sample data for Option 2 (Dual-Axis) - Stable data
-  const getDualAxisData = (channelId: string) => {
-    const months = [
-      "Aug 2024", "Sep 2024", "Oct 2024", "Nov 2024", "Dec 2024", 
-      "Jan 2025", "Feb 2025", "Mar 2025", "Apr 2025", "May 2025", "Jun 2025", "Jul 2025"
-    ]
-    
-    // Pre-defined stable data based on channel
-    const channelVariations = {
-      expedia: {
-        rankings: [38, 37, 35, 36, 34, 36, 35, 33, 32, 31, 30, 29],
-        reviews: [9.7, 9.8, 9.9, 9.8, 9.7, 9.8, null, null, null, null, null, null]
-      },
-      booking: {
-        rankings: [6, 5, 4, 5, 6, 5, 4, 3, 4, 3, 2, 3],
-        reviews: [9.5, 9.6, 9.7, 9.6, 9.5, 9.6, null, null, null, null, null, null]
-      },
-      tripadvisor: {
-        rankings: [2, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1],
-        reviews: [4.8, 4.9, 5.0, 5.1, 5.0, 5.0, null, null, null, null, null, null]
-      },
-      agoda: {
-        rankings: [14, 13, 12, 11, 12, 12, 11, 10, 11, 10, 9, 10],
-        reviews: [9.1, 9.2, 9.3, 9.2, 9.1, 9.2, null, null, null, null, null, null]
-      },
-      hotels: {
-        rankings: [9, 8, 7, 8, 9, 8, 7, 6, 7, 6, 5, 6],
-        reviews: [9.3, 9.4, 9.5, 9.4, 9.3, 9.4, null, null, null, null, null, null]
-      }
-    }
-    
-    const channelData = channelVariations[channelId as keyof typeof channelVariations] || channelVariations.expedia
-    
-    return months.map((month, index) => {
-      const isHistorical = index <= 5 // Up to Jan 2025
-      
-      return {
-        month,
-        ranking: channelData.rankings[index],
-        review: channelData.reviews[index],
-        isHistorical,
-        isToday: month === "Jan 2025"
-      }
-    })
-  }
 
-  // Sample sparkline data for Option 3 - Stable data
-  const getSparklineData = (type: "ranking" | "review", channelId: string) => {
-    const sparklineData = {
-      ranking: {
-        expedia: [40, 38, 36, 37, 35, 36, 34, 33, 32, 31, 30, 29],
-        booking: [7, 6, 5, 6, 4, 5, 4, 3, 4, 3, 2, 3],
-        tripadvisor: [3, 2, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1],
-        agoda: [15, 14, 13, 12, 11, 12, 11, 10, 11, 10, 9, 10],
-        hotels: [10, 9, 8, 9, 7, 8, 7, 6, 7, 6, 5, 6]
-      },
-      review: {
-        expedia: [9.6, 9.7, 9.8, 9.9, 9.8, 9.7, 9.8, 9.9, 9.8, 9.7, 9.8, 9.8],
-        booking: [9.4, 9.5, 9.6, 9.7, 9.6, 9.5, 9.6, 9.7, 9.6, 9.5, 9.6, 9.6],
-        tripadvisor: [4.7, 4.8, 4.9, 5.0, 5.1, 5.0, 4.9, 5.0, 5.1, 5.0, 4.9, 5.0],
-        agoda: [9.0, 9.1, 9.2, 9.3, 9.2, 9.1, 9.2, 9.3, 9.2, 9.1, 9.2, 9.2],
-        hotels: [9.2, 9.3, 9.4, 9.5, 9.4, 9.3, 9.4, 9.5, 9.4, 9.3, 9.4, 9.4]
-      }
-    }
-    
-    const channelKey = channelId as keyof typeof sparklineData.ranking
-    const values = sparklineData[type][channelKey] || sparklineData[type].expedia
-    
-    return values.map(value => ({ value }))
-  }
 
-  const dualAxisData = getDualAxisData(selectedChannel)
-  const rankingSparkline = getSparklineData("ranking", selectedChannel)
-  const reviewSparkline = getSparklineData("review", selectedChannel)
 
-  // Helper components for sparklines
-  const SparklineChart = ({ data, color = "#3b82f6" }: { data: any[], color?: string }) => (
-    <div className="h-8 w-20">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data}>
-          <Line
-            type="monotone"
-            dataKey="value"
-            stroke={color}
-            strokeWidth={2}
-            dot={false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  )
 
   const renderOption1 = () => (
     <>
-
       {/* Enhanced Charts Section */}
       {/* Full-width Ranking Trends Analysis */}
-      <Card className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50">
+      <Card ref={cardRef} className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 mb-[200px] pb-[50px]">
         <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-                  <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
-                  <TrendingUp className="w-4 h-4 text-white" />
-                  </div>
-                <div>
+          <div className="flex items-start justify-between">
+            <div className="flex items-start space-x-3">
+              <div className={`w-6 h-6 rounded ${selectedChannelData?.iconBg || 'bg-primary'} flex items-center justify-center mt-0.5`}>
+                <span className="text-white text-xs font-bold">{selectedChannelData?.icon}</span>
+            </div>
+                              <div className="flex-1">
                   <CardTitle className="text-xl font-bold">Ranking Trends Analysis</CardTitle>
-                  <p className="text-sm text-muted-foreground">Comprehensive ranking comparison across all channels with market insights</p>
-                  </div>
-                </div>
-              </div>
+                  <p className="text-sm text-muted-foreground mt-1">Comprehensive ranking comparison across all channels with market insights</p>
+          </div>
       </div>
+
+            {/* Download Button */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="btn-minimal">
+                  <Download className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleDownloadImage}>Export as Image</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDownloadCSV}>Export as CSV</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            </div>
         </CardHeader>
         <CardContent>
-          <div className="h-96">
+          {/* Error Message */}
+          {errorMessage && (
+            <Alert className="mb-4 border-red-200 bg-red-50 dark:bg-red-900/20">
+              <AlertDescription className="text-red-800 dark:text-red-200">
+                {errorMessage}
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {/* Ranking Chart */}
+          {(
+            <div className="mt-4" style={{ height: `${chartHeight}px` }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={rankingTrendsData} margin={{ top: 20, right: 40, left: 30, bottom: 30 }}>
+                              <LineChart data={rankingTrendsData} margin={{ top: 20, right: 40, left: 30, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-15 dark:opacity-10" stroke="#e5e7eb" />
                 <XAxis 
                   dataKey="date"
                   className="text-xs"
                   interval="preserveStartEnd"
-                  height={35}
-                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  height={85}
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", dy: 20 }}
+                  axisLine={true}
+                  tickLine={false}
                 />
                 <YAxis
                   className="text-xs"
                   tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
                   axisLine={false}
                   tickLine={false}
-                  domain={[1, 'dataMax + 2']}
+                  domain={[1, 'dataMax']}
                   reversed={true}
-                  label={{ value: 'Ranking Position', angle: -90, position: 'insideLeft' }}
+                  label={{ 
+                    value: 'Ranking Position', 
+                    angle: -90, 
+                    position: 'insideLeft', 
+                    style: { textAnchor: 'middle' } 
+                  }}
+                  tickFormatter={(value: number) => {
+                    // Calculate the maximum rank from the current data
+                    if (rankingTrendsData.length === 0) return value.toString()
+                    
+                    // Get all rank values from visible hotel lines
+                    const visibleHotels = availableHotelLines.filter(hotel => legendVisibility[hotel.dataKey])
+                    const allRankValues = rankingTrendsData.flatMap(d => 
+                      visibleHotels
+                        .map(hotel => d[hotel.dataKey])
+                        .filter(rank => rank != null && typeof rank === 'number' && rank > 0)
+                    )
+                    
+                    if (allRankValues.length === 0) return value.toString()
+                    
+                    const maxRank = Math.max(...allRankValues)
+                    
+                    // Hide the highest rank value (worst ranking) from Y-axis
+                    // Show rank 1 (best) and intermediate values, but hide the worst rank
+                    if (value >= maxRank && value > 1) {
+                      return ''
+                    }
+                    
+                    return value.toString()
+                  }}
+                  width={50}
                 />
                 <RechartsTooltip
                   content={RankingTrendsTooltip}
                   allowEscapeViewBox={{ x: true, y: true }}
-                  offset={10}
+                  offset={0}
                   isAnimationActive={false}
+                  position={{ x: undefined, y: undefined }}
                   wrapperStyle={{
                     zIndex: 10000,
                     pointerEvents: 'none'
                   }}
                 />
-                {/* Hotel Lines */}
-                <Line
-                  type="monotone"
-                  dataKey="myHotel"
-                  stroke="#3b82f6"
-                  strokeWidth={3}
-                  dot={{ fill: "#3b82f6", strokeWidth: 2, r: 5 }}
-                  activeDot={{ r: 7, stroke: "#3b82f6", strokeWidth: 3, fill: "hsl(var(--background))" }}
-                  name="My Hotel"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="competitor1"
-                  stroke="#10b981"
-                  strokeWidth={2}
-                  dot={{ fill: "#10b981", strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, stroke: "#10b981", strokeWidth: 2, fill: "hsl(var(--background))" }}
-                  name="Grand Hotel Guayaquil"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="competitor2"
-                  stroke="#f59e0b"
-                  strokeWidth={2}
-                  dot={{ fill: "#f59e0b", strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, stroke: "#f59e0b", strokeWidth: 2, fill: "hsl(var(--background))" }}
-                  name="Clarion Inn Lake Buena Vista"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="competitor3"
-                  stroke="#8b5cf6"
-                  strokeWidth={2}
-                  dot={{ fill: "#8b5cf6", strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, stroke: "#8b5cf6", strokeWidth: 2, fill: "hsl(var(--background))" }}
-                  name="Alhambra Hotel"
+                                                {/* Hotel Lines - Dynamic rendering using Overview page pattern */}
+                {availableHotelLines.map((hotel) => {
+                  const isVisible = legendVisibility[hotel.dataKey]
+                  
+                  return (
+                    <Line
+                      key={hotel.dataKey}
+                      type="monotone"
+                      dataKey={hotel.dataKey}
+                      stroke={isVisible ? hotel.color : 'transparent'}
+                      strokeWidth={isVisible ? (hotel.dataKey === 'myHotel' ? 3 : 2) : 0}
+                      name={hotel.name}
+                      dot={isVisible ? { 
+                        fill: "white", 
+                        stroke: hotel.color,
+                        strokeWidth: 2, 
+                        r: hotel.dataKey === 'myHotel' ? 4 : 3 
+                      } : false}
+                      activeDot={isVisible ? { 
+                        r: hotel.dataKey === 'myHotel' ? 6 : 5, 
+                        fill: hotel.color,
+                        stroke: hotel.color, 
+                        strokeWidth: 2
+                      } : false}
+                      hide={!isVisible}
+                    />
+                  )
+                })}
+                
+                {/* Recharts Legend with Overview page pattern */}
+                <Legend
+                  verticalAlign="bottom"
+                  height={120} // Fixed height for legend - no dynamic changes when lines hide/show
+                  iconType="line"
+                  wrapperStyle={{
+                    paddingTop: "10px",
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    lineHeight: "1.6",
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "18px",
+                    justifyContent: "center",
+                    position: "absolute",
+                    top: "354px",
+                    left: "40px",
+                    right: "0"
+                  }}
+                  onClick={(event: any) => {
+                    if (event.dataKey && typeof event.dataKey === 'string') {
+                      // Toggle legend visibility using Overview page pattern
+                      toggleLegendVisibility(event.dataKey)
+                    }
+                  }}
+                  formatter={(value, entry: any) => {
+                    const dataKey = entry.dataKey as string
+                    const isVisible = legendVisibility[dataKey]
+
+                    return (
+                      <span style={{
+                        color: isVisible ? entry.color : '#9ca3af',
+                        fontWeight: isVisible ? 500 : 400,
+                        textDecoration: isVisible ? 'none' : 'line-through',
+                        cursor: 'pointer'
+                      }}>
+                        {value}
+                      </span>
+                    )
+                  }}
                 />
               </LineChart>
             </ResponsiveContainer>
-          </div>
+            </div>
+          )}
+
+          {/* Event Star Icons Above X-Axis Dates */}
+          {(() => {
+            return (
+            <div className="relative mb-8" style={{ marginTop: '-266px' }}>
+              {/* Precise alignment container that matches Recharts coordinate system */}
+              <div
+                className="relative"
+                style={{
+                  // Match the exact chart positioning
+                  marginLeft: '60px', // Left margin to align with chart
+                  marginRight: '70px', // Right margin to align with chart  
+                  width: 'calc(100% - 130px)', // Total available plot area width
+                  height: '30px'
+                }}
+              >
+                {rankingTrendsData.map((dataPoint, index) => {
+                  // SIMPLIFIED POSITIONING ALGORITHM FOR PERFECT ALIGNMENT
+                  const totalDataPoints = rankingTrendsData.length;
+
+                  // Use a simpler approach that matches Recharts categorical axis spacing
+                  // Recharts distributes categorical data points evenly with padding
+                  
+                  let finalPosition;
+                  
+                  if (totalDataPoints === 1) {
+                    finalPosition = 50; // Center for single point
+                  } else {
+                    // Simple percentage-based positioning with proper padding
+                    // Account for Recharts internal margins and categorical spacing
+                    const leftPadding = 5; // 5% left padding
+                    const rightPadding = 5; // 5% right padding
+                    const availableWidth = 100 - leftPadding - rightPadding; // 90% usable width
+                    
+                    // Calculate position within the available width
+                    const stepWidth = availableWidth / (totalDataPoints - 1);
+                    finalPosition = leftPadding + (index * stepWidth);
+                  }
+
+                  // Ensure boundaries
+                  finalPosition = Math.max(2, Math.min(98, finalPosition));
+
+                  return (
+                    <div
+                      key={`event-star-${index}`}
+                      className="absolute"
+                      style={{
+                        left: `${finalPosition}%`,
+                        top: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 10
+                      }}
+                    >
+                      {dataPoint.hasEvent && dataPoint.eventData && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="cursor-pointer flex items-center justify-center">
+                                <Star
+                                  className="w-3 h-3 text-amber-500 fill-amber-500 hover:scale-110 transition-transform duration-200 drop-shadow-lg"
+                                />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                              <div className="space-y-2">
+                                {/* Date Header */}
+                                <div className="text-white font-medium text-sm border-b border-slate-700 pb-2">
+                                  {dataPoint.eventData.date}
+                                </div>
+
+                                {/* Event Details */}
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1">
+                                    <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                                    <span className="font-semibold text-sm text-white">{dataPoint.eventData.title}</span>
+                                  </div>
+
+                                  <div className="text-xs text-gray-300">
+                                    {dataPoint.eventData.category} | <span className={`font-medium ${dataPoint.eventData.impact === 'High' ? 'text-red-400' :
+                                      dataPoint.eventData.impact === 'Medium' ? 'text-yellow-400' :
+                                        'text-green-400'
+                                      }`}>
+                                      {dataPoint.eventData.impact} Impact
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
+                  );
+                })}
+                
+
+              </div>
+            </div>
+            )
+          })()}
+          
+
         </CardContent>
       </Card>
     </>
   )
 
-  const renderOption2 = () => {
-    console.log("Option 2 Data:", dualAxisData) // Debug log
-    
+
+
+
+
+
+
+  // Show full-page loading similar to Demand/Events pages
+  if (isPageLoading) {
     return (
-      <Card className="bg-card shadow-lg">
-        <CardHeader>
-          <CardTitle>
-            <div className="flex items-center space-x-2">
-              <TrendingUp className="h-5 w-5" />
-              <span>Dual-Axis Analysis - {selectedChannelData?.name}</span>
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">
-              How past reviews influence future rankings
-            </p>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-96">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dualAxisData} margin={{ top: 20, right: 60, left: 60, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="month" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} 
-                  angle={-45}
-                  textAnchor="end"
-                  height={60}
-                />
-                <YAxis
-                  yAxisId="ranking"
-                  orientation="left"
-                  domain={[1, 50]}
-                  reversed={true}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: "#3b82f6" }}
-                  width={50}
-                />
-                <YAxis
-                  yAxisId="review"
-                  orientation="right"
-                  domain={[4.0, 10.0]}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: "#10b981" }}
-                  width={50}
-                />
-                
-                {/* Today marker */}
-                <ReferenceLine x="Jan 2025" stroke="#ef4444" strokeDasharray="5 5" strokeWidth={2} yAxisId="ranking" />
-                
-                {/* Ranking line (full timeline) */}
-                <Line
-                  yAxisId="ranking"
-                  type="monotone"
-                  dataKey="ranking"
-                  stroke="#3b82f6"
-                  strokeWidth={3}
-                  dot={{ fill: "#3b82f6", strokeWidth: 2, r: 4 }}
-                  connectNulls={true}
-                  name="Ranking"
-                />
-                
-                {/* Review line (historical only) */}
-                <Line
-                  yAxisId="review"
-                  type="monotone"
-                  dataKey="review"
-                  stroke="#10b981"
-                  strokeWidth={3}
-                  dot={{ fill: "#10b981", strokeWidth: 2, r: 4 }}
-                  connectNulls={false}
-                  name="Review Score"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-4 flex items-center justify-center space-x-6 text-sm">
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-blue-500 rounded"></div>
-              <span>Ranking (Historical & Projected)</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-500 rounded"></div>
-              <span>Review Score (Historical Only)</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-0.5 bg-red-500"></div>
-              <span>Today Marker</span>
-            </div>
-          </div>
-          
-          {/* Additional Info */}
-          <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-            <p className="text-sm text-muted-foreground">
-              <strong>Left Axis (Blue):</strong> Ranking position (lower is better) | 
-              <strong className="ml-2">Right Axis (Green):</strong> Review score (higher is better) | 
-              <strong className="ml-2">Red Line:</strong> Current date separator
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <GlobalProgressBar />
+        <LoadingSkeleton type="demand" className="p-4 md:p-6 lg:p-8 xl:p-12 2xl:p-16" />
+      </div>
     )
   }
-
-  const renderOption3 = () => (
-    <>
-      {/* Toggle Buttons at Top */}
-      <Card className="bg-card shadow-lg">
-        <CardContent className="p-6">
-          <div className="flex space-x-2">
-            <Button
-              variant={chartView === "rank" ? "default" : "outline"}
-              onClick={() => setChartView("rank")}
-              className="flex items-center space-x-2"
-            >
-              <TrendingUp className="h-4 w-4" />
-              <span>Ranking Analysis</span>
-            </Button>
-            <Button
-              variant={chartView === "review" ? "default" : "outline"}
-              onClick={() => setChartView("review")}
-              className="flex items-center space-x-2"
-            >
-              <Activity className="h-4 w-4" />
-              <span>Review Analysis</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Filter Bar - For Option 3 */}
-      <Card className="bg-card shadow-lg">
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-            {/* Channel Filter */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-muted-foreground">Channel</Label>
-              <Select value={selectedChannel} onValueChange={setSelectedChannel}>
-                <SelectTrigger className="w-full">
-                  <SelectValue>
-                    <div className="flex items-center space-x-2">
-                      <div
-                        className={`w-5 h-5 rounded flex items-center justify-center ${channelData.find((c) => c.id === selectedChannel)?.iconBg}`}
-                      >
-                        <span className="text-white text-xs font-bold">
-                          {channelData.find((c) => c.id === selectedChannel)?.icon}
-                        </span>
-                      </div>
-                      <span>{channelData.find((c) => c.id === selectedChannel)?.name}</span>
-                    </div>
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {channelData.map((channel) => (
-                    <SelectItem key={channel.id} value={channel.id}>
-                      <div className="flex items-center space-x-2">
-                        <div className={`w-5 h-5 rounded flex items-center justify-center ${channel.iconBg}`}>
-                          <span className="text-white text-xs font-bold">{channel.icon}</span>
-                        </div>
-                        <span>{channel.name}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Next 7 Days */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-muted-foreground">Next 7 Days</Label>
-              <Button variant="outline" className="w-full justify-between text-left bg-transparent">
-                <span className="text-lg font-semibold">Aug 23 - Aug 30</span>
-                <Calendar className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {/* Compare with */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-muted-foreground">Compare with</Label>
-              <Select value={compareWith} onValueChange={setCompareWith}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Last 1 week">Last 1 week</SelectItem>
-                  <SelectItem value="Last 2 weeks">Last 2 weeks</SelectItem>
-                  <SelectItem value="Last month">Last month</SelectItem>
-                  <SelectItem value="Last 3 months">Last 3 months</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* CompSet */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-muted-foreground">CompSet</Label>
-              <RadioGroup value={compSet} onValueChange={setCompSet} className="flex space-x-6">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="primary" id="primary-opt3" />
-                  <Label htmlFor="primary-opt3">Primary</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="secondary" id="secondary-opt3" />
-                  <Label htmlFor="secondary-opt3">Secondary</Label>
-                </div>
-              </RadioGroup>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* KPI Cards */}
-      <Card className="bg-card shadow-lg">
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="bg-muted/30">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-medium text-muted-foreground">Current Ranking</h4>
-                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="flex items-end justify-between">
-                  <div>
-                    <div className="text-3xl font-bold">#{selectedChannelData?.avgRank}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {selectedChannelData?.rankingChange && selectedChannelData.rankingChange !== 0 && (
-                        <span className={selectedChannelData.rankingChange > 0 ? "text-red-600" : "text-green-600"}>
-                          {selectedChannelData.rankingChange > 0 ? "+" : ""}{selectedChannelData.rankingChange} vs Last Week
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <SparklineChart data={rankingSparkline} color="#3b82f6" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-muted/30">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-medium text-muted-foreground">Review Score</h4>
-                  <Activity className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="flex items-end justify-between">
-                  <div>
-                    <div className="text-3xl font-bold">{selectedChannelData?.reviewScore}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {selectedChannelData?.reviewChange && selectedChannelData.reviewChange !== 0 && (
-                        <span className={selectedChannelData.reviewChange < 0 ? "text-red-600" : "text-green-600"}>
-                          {selectedChannelData.reviewChange > 0 ? "+" : ""}{selectedChannelData.reviewChange} vs Last Month
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <SparklineChart data={reviewSparkline} color="#10b981" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Detailed Chart */}
-      <Card className="bg-card shadow-lg">
-        <CardHeader>
-          <CardTitle>
-            {chartView === "rank" ? "Ranking Analysis" : "Review Score Analysis"} - {selectedChannelData?.name}
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {chartView === "rank" 
-              ? "Track your ranking position and forecast future performance" 
-              : "Historical review score trends and comparisons"}
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              {chartView === "rank" ? (
-                <LineChart data={rankingData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis 
-                    dataKey="month" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
-                  />
-                  <YAxis
-                    domain={[1, Math.max(...rankingData.map((d) => d.value)) + 2]}
-                    reversed={true}
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={3}
-                    dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6, stroke: "hsl(var(--primary))", strokeWidth: 2 }}
-                  />
-                </LineChart>
-              ) : (
-                <LineChart data={reviewData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis 
-                    dataKey="month" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
-                  />
-                  <YAxis
-                    domain={[
-                      Math.min(...reviewData.map((d) => Math.min(d.primary, d.secondary))) - 0.1,
-                      Math.max(...reviewData.map((d) => Math.max(d.primary, d.secondary))) + 0.1,
-                    ]}
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="primary"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={3}
-                    dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6, stroke: "hsl(var(--primary))", strokeWidth: 2 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="secondary"
-                    stroke="hsl(var(--chart-2))"
-                    strokeWidth={3}
-                    dot={{ fill: "hsl(var(--chart-2))", strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6, stroke: "hsl(var(--chart-2))", strokeWidth: 2 }}
-                  />
-                </LineChart>
-              )}
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-    </>
-  )
-
-
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -935,60 +1481,131 @@ export default function OTARankingsPage() {
                 {/* Left Section - Primary Filters */}
                 <div className="flex items-center gap-4 flex-1 min-w-0">
 
-                  {/* View Dropdown */}
+                  {/* View Toggle */}
                   <div className="shrink-0">
-                    <Popover open={isViewOpen} onOpenChange={setIsViewOpen}>
-                      <PopoverTrigger asChild>
-              <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700 min-w-0 max-w-[160px]"
-                        >
-                          <Eye className="w-4 h-4 shrink-0" />
-                          <span className="truncate max-w-[80px] font-semibold">
-                            {viewMode}
-                          </span>
-                          <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
-              </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 z-[60]" align="start">
-                        <div className="flex">
-                          <div className="w-44 p-4">
-                            <h4 className="font-semibold text-sm text-gray-700 mb-3">View</h4>
-                            <div className="space-y-1">
-                              {viewOptions.map((option) => (
-              <Button
-                                  key={option.id}
-                                  variant={viewMode === option.label ? "default" : "ghost"}
-                                  size="sm"
-                                  className="w-full justify-start text-left h-auto py-2 px-3"
-                                  onClick={() => {
-                                    setViewMode(option.label)
-                                    setIsViewOpen(false)
-                                  }}
-                                >
-                                  <span className="text-sm font-medium">
-                                    {option.label}
-                                  </span>
-                                </Button>
-                              ))}
-                </div>
+                    <ToggleGroup
+                      type="single"
+                      value={viewMode}
+                      onValueChange={(value) => value && setViewMode(value)}
+                      className="border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 shadow-sm h-10 gap-0"
+                    >
+                      <ToggleGroupItem
+                        value="Rank"
+                        className="h-10 px-4 text-sm font-medium data-[state=on]:bg-blue-600 data-[state=on]:text-white dark:data-[state=on]:bg-blue-600 dark:data-[state=on]:text-white hover:text-black data-[state=on]:hover:text-white border-0 rounded-l-md rounded-r-none"
+                      >
+                        Rank
+                      </ToggleGroupItem>
+                      <ToggleGroupItem
+                        value="Reviews"
+                        className="h-10 px-4 text-sm font-medium data-[state=on]:bg-blue-600 data-[state=on]:text-white dark:data-[state=on]:bg-blue-600 dark:data-[state=on]:text-white hover:text-black data-[state=on]:hover:text-white border-0 rounded-r-md rounded-l-none border-l border-slate-200 dark:border-slate-700"
+                      >
+                        Reviews
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  </div>
+          
+                  {/* Date/Check-in Range Picker */}
+                  <div className="shrink-0">
+                    {viewMode === "Reviews" ? (
+                      <Popover open={isDateRangeOpen} onOpenChange={setIsDateRangeOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="justify-start text-left font-semibold h-10 min-w-[280px] px-4 gap-2 shadow-sm hover:shadow-md transition-all duration-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800"
+                          >
+                            <Calendar className="h-4 w-4" />
+                            <span className="truncate">{getCheckInDisplayText()}</span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <div className="flex">
+                            {/* Quick Date Options Sidebar */}
+                            <div className="w-56 border-r border-gray-200 p-4">
+                              <h4 className="font-semibold text-sm text-gray-700 mb-3">Check-in Date</h4>
+                              <div className="space-y-1">
+                                {checkInRangeOptions.map((option) => (
+                                  <Button
+                                    key={option.id}
+                                    variant={checkInRange === option.label ? "default" : "ghost"}
+                                    size="sm"
+                                    className="w-full justify-start text-left h-auto py-2 px-3"
+                                    onClick={() => {
+                                      // Store previous selection before changing to Custom Date Range
+                                      if (option.label === "Custom Date Range" && checkInRange !== "Custom Date Range") {
+                                        setPreviousCheckInRange(checkInRange)
+                                      }
+                                      setCheckInRange(option.label)
+                                      // Close dropdown for predefined ranges (not Custom Date Range)
+                                      if (option.label !== "Custom Date Range") {
+                                        setIsDateRangeOpen(false)
+                                        // Clear custom dates when selecting predefined range
+                                        setCustomStartDate(undefined)
+                                        setCustomEndDate(undefined)
+                                      }
+                                    }}
+                                  >
+                                    <div className="flex flex-col items-start">
+                                      <span className="text-sm font-medium">{option.label}</span>
+                                      {option.dateRange && (
+                                        <span className={`text-xs mt-0.5 ${
+                                          checkInRange === option.label ? "text-white" : "text-muted-foreground"
+                                        }`}>
+                                          {option.dateRange}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                            
+                            {/* Calendar for Custom Range Only */}
+                            {checkInRange === "Custom Date Range" && (
+                              <div className="w-80 p-4">
+                                {renderCustomCalendar()}
+                                
+                                {/* Apply/Cancel buttons */}
+                                <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-200">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      // Cancel: Reset to previous selection and close dropdown
+                                      setCheckInRange(previousCheckInRange)
+                                      setCustomStartDate(undefined)
+                                      setCustomEndDate(undefined)
+                                      setIsDateRangeOpen(false)
+                                    }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    disabled={!customStartDate || !customEndDate}
+                                    onClick={() => {
+                                      // Apply the selected dates and close dropdown
+                                      setIsDateRangeOpen(false)
+                                    }}
+                                  >
+                                    Apply
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                        </PopoverContent>
+                      </Popover>
+                    ) : (
+                      <EnhancedDatePicker
+                        startDate={startDate || undefined}
+                        endDate={endDate || undefined}
+                        onChange={handleDateRangeChange}
+                      />
+                    )}
                   </div>
 
-                  {/* Enhanced Date Picker - Matching Overview */}
-                  <div className="shrink-0">
-                    <EnhancedDatePicker
-                      startDate={startDate || undefined}
-                      endDate={endDate || undefined}
-                      onChange={handleDateRangeChange}
-                    />
-                  </div>
-
-                  {/* Compare with Dropdown */}
+                  {/* Compare with Dropdown - Only for Rank mode */}
+                  {viewMode === "Rank" && (
                   <div className="shrink-0">
                     <Popover open={isCompareOpen} onOpenChange={setIsCompareOpen}>
                       <PopoverTrigger asChild>
@@ -1002,7 +1619,7 @@ export default function OTARankingsPage() {
                             Vs. {compareOptions.find(opt => opt.label === compareWith)?.label.replace('Last ', '') || "1 week"}
                           </span>
                           <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
-              </Button>
+                        </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0 z-[60]" align="start">
                         <div className="flex">
@@ -1010,7 +1627,7 @@ export default function OTARankingsPage() {
                             <h4 className="font-semibold text-sm text-gray-700 mb-3">Compare with</h4>
                             <div className="space-y-1">
                               {compareOptions.map((option) => (
-              <Button
+                                <Button
                                   key={option.id}
                                   variant={compareWith === option.label ? "default" : "ghost"}
                                   size="sm"
@@ -1023,14 +1640,63 @@ export default function OTARankingsPage() {
                                   <span className="text-sm font-medium">
                                     {option.label}
                                   </span>
-              </Button>
+                                </Button>
                               ))}
-            </div>
+                            </div>
                           </div>
                         </div>
                       </PopoverContent>
                     </Popover>
                   </div>
+                  )}
+
+                  {/* Channel Dropdown - Overview-style for Reviews mode */}
+                  {viewMode === "Reviews" ? (
+                    <div className="shrink-0">
+                      <DropdownMenu key="channel" onOpenChange={(event) => onOpenChangeSelect(event)}>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md min-w-0 max-w-[160px] hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
+                          >
+                            <Globe className="w-4 h-4 shrink-0" />
+                            <span className="truncate max-w-[80px] font-semibold">
+                              {getOverviewChannelDisplayText()}
+                            </span>
+                            <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-auto p-0 shadow-xl border-slate-200 dark:border-slate-700 z-[60]">
+                          <div className="flex">
+                            <div className="w-56 p-4">
+                              <h4 className="font-semibold text-sm text-gray-700 mb-3">Channels</h4>
+                              <div className="max-h-64 overflow-y-auto">
+                                <div className="space-y-1 pr-1">
+                                  {overviewChannelData?.map((option: any) => (
+                                    <label
+                                      key={option.cid}
+                                      className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
+                                        checked={selectedOverviewChannels.includes(option?.cid)}
+                                        onChange={() => handleOverviewChannelSelect(option?.cid, overviewChannelData)}
+                                      />
+                                      <span className="font-medium text-sm flex-1">
+                                        {option?.name}
+                                      </span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  ) : null}
 
                   {/* Compset Dropdown */}
                   <div className="shrink-0">
@@ -1044,7 +1710,7 @@ export default function OTARankingsPage() {
                           <Users className="w-4 h-4 shrink-0" />
                           <span className="truncate max-w-[80px] font-semibold">
                             {compSet.replace(' Compset', '')}
-                            </span>
+                        </span>
                           <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
                         </Button>
                       </PopoverTrigger>
@@ -1069,8 +1735,8 @@ export default function OTARankingsPage() {
                                   </span>
                                 </Button>
                               ))}
+                            </div>
                           </div>
-                        </div>
                         </div>
                       </PopoverContent>
                     </Popover>
@@ -1092,21 +1758,22 @@ export default function OTARankingsPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-minimal-md mb-8">
               <div className="space-y-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  OTA Rank
+                  {viewMode === "Reviews" ? "Reviews Analysis" : "OTA Rank"}
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  Monitor your property's ranking performance across major OTA channels
+                  {viewMode === "Reviews" 
+                    ? "Analyze your property's review scores and feedback across OTA channels"
+                    : "Monitor your property's ranking performance across major OTA channels"
+                  }
                 </p>
               </div>
             </div>
 
             {/* Channel Widgets - Enhanced with proper spacing */}
             <div className="w-full animate-slide-up">
-              {activeOption === "option1" && (
-                <>
-                  {/* Channel Cards with Pagination */}
-                  <div className="relative mb-8">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+                  {/* Channel Cards with Pagination */
+                  <div className="relative mb-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
                       {currentChannels.map((channel, index) => (
                         <div key={channel.id} className="relative">
                           <Card
@@ -1120,71 +1787,99 @@ export default function OTARankingsPage() {
                             <CardContent className="p-4">
                               {/* Channel Header */}
                               <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2">
                                   <div className={`w-7 h-7 rounded-md ${channel.iconBg} flex items-center justify-center shadow-sm`}>
                               <span className="text-white text-xs font-bold">{channel.icon}</span>
-                            </div>
+                </div>
                                   <div>
                                     <h3 className="font-semibold text-foreground text-sm leading-tight">{channel.name}</h3>
-                          </div>
                 </div>
+            </div>
                                 {selectedChannel === channel.id && (
                                   <Badge className="bg-primary/15 text-primary text-xs border-primary/30 animate-pulse h-5">
                                     Active
                                   </Badge>
                                 )}
-                </div>
+          </div>
 
-                              {/* Metrics Grid - Side by Side */}
+                              {/* Metrics Grid - Side by Side - Conditional order for Reviews mode */}
                               <div className="grid grid-cols-2 gap-2">
-                                {/* Avg Rank Metric */}
-                                <div className="py-2 px-2">
-                                  <div className="mb-1">
-                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Avg Rank</span>
+                                {/* First Metric - Review Score for Reviews mode, Rank for Rank mode */}
+                                <div className="py-2 px-2 h-full flex flex-col">
+                                  <div className="mb-3">
+                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                      {viewMode === "Reviews" ? "Review Score" : (viewMode === "Rank" ? "Rank" : "Avg Rank")}
+                                    </span>
                                   </div>
-                                  <div className="space-y-0.5">
+                                  <div className="flex flex-col h-full">
                                     <div className="flex items-baseline space-x-1">
-                                      <span className="text-lg font-bold text-foreground leading-none">{channel.avgRank}</span>
-                                      <span className="text-xs text-muted-foreground">/ {channel.totalRankings}</span>
-                                    </div>
-                                    <div className="flex items-center space-x-1 mt-1">
-                                      {channel.rankingChange !== 0 ? (
-                                        <span className={`text-xs font-bold ${
-                                          channel.rankingChange < 0 
-                                            ? "text-green-600 dark:text-green-400" 
-                                            : "text-red-600 dark:text-red-400"
-                                        }`}>
-                                          {channel.rankingChange > 0 ? `+${channel.rankingChange}` : channel.rankingChange}%
-                                        </span>
+                                      <span className="text-lg font-bold text-foreground leading-none">
+                                        {viewMode === "Reviews" ? channel.reviewScore : channel.avgRank}
+                                      </span>
+                                      {viewMode === "Reviews" ? (
+                                        <span className="text-xs text-muted-foreground">/ 10</span>
                                       ) : (
-                                        <span className="text-xs font-bold text-muted-foreground">NF</span>
+                                        <span className="text-xs text-muted-foreground">/ {channel.totalRankings}</span>
                                       )}
-                                      <span className="text-xs text-muted-foreground leading-none">{channel.compareText}</span>
+                                    </div>
+                                    <div className="flex items-center space-x-1 mt-auto pt-1">
+                                      {viewMode === "Reviews" ? (
+                                        <span className="text-xs text-muted-foreground leading-none">As on today</span>
+                                      ) : (
+                                        <>
+                                          {channel.rankingChange !== 0 ? (
+                                            <span className={`text-xs font-bold ${
+                                              channel.rankingChange < 0 
+                                                ? "text-green-600 dark:text-green-400" 
+                                                : "text-red-600 dark:text-red-400"
+                                            }`}>
+                                              {channel.rankingChange > 0 ? `+${channel.rankingChange}` : channel.rankingChange}%
+                                            </span>
+                                          ) : (
+                                            <span className="text-xs font-bold text-muted-foreground">NF</span>
+                                          )}
+                                          <span className="text-xs text-muted-foreground leading-none">{channel.compareText}</span>
+                                        </>
+                                      )}
                                     </div>
                                   </div>
-                </div>
+                                </div>
 
-                                {/* Review Score Metric */}
-                                <div className="py-2 px-2">
-                                  <div className="mb-1">
-                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Review Score</span>
-                    </div>
-                                  <div className="space-y-0.5">
+                                {/* Second Metric - Rank for Reviews mode, Review Score for Rank mode */}
+                                <div className="py-2 px-2 h-full flex flex-col">
+                                  <div className="mb-3">
+                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                      {viewMode === "Reviews" ? "Rank" : "Review Score"}
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-col h-full">
                                     <div className="flex items-baseline space-x-1">
-                                      <span className="text-lg font-bold text-foreground leading-none">{channel.reviewScore}</span>
-                                      <span className="text-xs text-muted-foreground">/ {channel.maxReviewScore}</span>
-                    </div>
-                                    <p className="text-xs text-muted-foreground leading-none mt-2">{channel.reviewText}</p>
-                </div>
-              </div>
-                              </div>
+                                      <span className="text-lg font-bold text-foreground leading-none">
+                                        {viewMode === "Reviews" ? channel.avgRank : channel.reviewScore}
+                                      </span>
+                                      {viewMode === "Reviews" ? (
+                                        <span className="text-xs text-muted-foreground">/ {channel.totalRankings}</span>
+                                      ) : (
+                                        <span className="text-xs text-muted-foreground">/ 10</span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center space-x-1 mt-auto pt-1">
+                                      {viewMode === "Reviews" ? (
+                                        <span className="text-xs text-muted-foreground leading-none">As on today</span>
+                                      ) : (
+                                        <span className="text-xs text-muted-foreground leading-none">{channel.reviewText}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+          </div>
 
                               {/* Selection Indicator */}
                               {selectedChannel === channel.id && (
                                 <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none" />
                               )}
-            </CardContent>
-          </Card>
+        </CardContent>
+      </Card>
 
                           {/* Navigation Arrows - Show on top-right of last channel widget */}
                           {index === currentChannels.length - 1 && totalChannelPages > 1 && (
@@ -1192,7 +1887,7 @@ export default function OTARankingsPage() {
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button
+              <Button
                                       variant="outline"
                                       size="sm"
                                       onClick={handlePrevChannels}
@@ -1200,7 +1895,7 @@ export default function OTARankingsPage() {
                                       className="w-8 h-8 p-0 rounded-full shadow-lg bg-background hover:bg-muted border-2"
                                     >
                                       <ChevronLeft className="w-3 h-3" />
-                                    </Button>
+              </Button>
                                   </TooltipTrigger>
                                   <TooltipContent side="bottom" className="bg-black text-white border-black">
                                     <p>Previous channels</p>
@@ -1211,7 +1906,7 @@ export default function OTARankingsPage() {
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button
+              <Button
                                       variant="outline"
                                       size="sm"
                                       onClick={handleNextChannels}
@@ -1232,111 +1927,362 @@ export default function OTARankingsPage() {
                       ))}
                     </div>
                   </div>
+                }
 
                   {/* Rest of Option 1 Content */}
-                  <div className="space-minimal-xl mt-8">
-                    {renderOption1()}
-                  </div>
-                </>
-              )}
-              
-        {activeOption === "option2" && renderOption2()}
-        {activeOption === "option3" && renderOption3()}
+                  {viewMode === "Rank" ? renderOption1() : (
+                    viewMode === "Reviews" && (
+                      <>
+                        {/* Reviews Table Widget */}
+                        <Card className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 mb-6">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-start space-x-3">
+                              <div className={`w-6 h-6 rounded ${selectedChannelData?.iconBg || 'bg-primary'} flex items-center justify-center mt-0.5`}>
+                                <span className="text-white text-xs font-bold">
+                                  {selectedChannelData?.icon || selectedChannel.charAt(0).toUpperCase()}
+                                </span>
+                              </div>
+                              <div className="flex-1">
+                                <CardTitle className="text-xl font-bold">
+                                  Reviews
+                                </CardTitle>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="overflow-x-auto">
+                              <div className="max-h-96 overflow-y-auto">
+                                <table className="w-full">
+                                <thead className="bg-gray-50">
+                                  <tr className="border-b border-gray-200">
+                                    <th className="text-left py-1.5 px-2 font-semibold text-xs text-muted-foreground">Hotel</th>
+                                    <th className="text-right py-1.5 px-2 pr-16 font-semibold text-xs text-muted-foreground">
+                                      Review Score
+                                      <div className="text-xs text-muted-foreground font-normal mt-0.5">Out of 10</div>
+                                    </th>
+                                    <th className="text-right py-1.5 px-2 pr-8 font-semibold text-xs text-muted-foreground">
+                                      Number of<br/>Reviews
+                                    </th>
+                                    <th className="text-right py-1.5 px-2 pr-28 font-semibold text-xs text-muted-foreground">
+                                      Rank
+                                      <div className="text-xs text-muted-foreground font-normal mt-0.5">As on today</div>
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {/* My Hotel - First Row */}
+                                  <tr className="border-b border-gray-100 hover:bg-gray-50">
+                                    <td className="py-2 px-2 font-medium text-foreground text-sm">{selectedProperty?.name || 'Alhambra Hotel'}</td>
+                                    <td className="py-2 px-2 pr-16 text-right">
+                                      <div className="flex items-center justify-end space-x-1">
+                                        <span className="bg-red-100 text-red-800 px-1 py-0.5 rounded text-xs font-medium" style={{fontSize: '10px'}}>WORST</span>
+                                        <span className="font-semibold text-sm">6.2</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">626</td>
+                                    <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">#7</td>
+                                  </tr>
+                                  {/* Competitor Hotels */}
+                                  <tr className="border-b border-gray-100 hover:bg-gray-50">
+                                    <td className="py-2 px-2 text-sm">Hotel Alexander Plaza</td>
+                                    <td className="py-2 px-2 pr-16 text-right font-semibold text-sm">8.7</td>
+                                    <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">3855</td>
+                                    <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">#1</td>
+                                  </tr>
+                                  <tr className="border-b border-gray-100 hover:bg-gray-50">
+                                    <td className="py-2 px-2 text-sm">Comfort Hotel Auberge</td>
+                                    <td className="py-2 px-2 pr-16 text-right font-semibold text-sm">7.5</td>
+                                    <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">2515</td>
+                                    <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">#4</td>
+                                  </tr>
+                                  <tr className="border-b border-gray-100 hover:bg-gray-50">
+                                    <td className="py-2 px-2 text-sm">acom Hotel Berlin City Süd</td>
+                                    <td className="py-2 px-2 pr-16 text-right font-semibold text-sm">8.1</td>
+                                    <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">810</td>
+                                    <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">#2</td>
+                                  </tr>
+                                  <tr className="border-b border-gray-100 hover:bg-gray-50">
+                                    <td className="py-2 px-2 text-sm">InterCityHotel Berlin Ostbahnhof</td>
+                                    <td className="py-2 px-2 pr-16 text-right font-semibold text-sm">7.9</td>
+                                    <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">3670</td>
+                                    <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">#3</td>
+                                  </tr>
+                                  <tr className="border-b border-gray-100 hover:bg-gray-50">
+                                    <td className="py-2 px-2 text-sm">Mercure Hotel Berlin City West</td>
+                                    <td className="py-2 px-2 pr-16 text-right font-semibold text-sm">7.0</td>
+                                    <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">2096</td>
+                                    <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">#6</td>
+                                  </tr>
+                                  <tr className="hover:bg-gray-50">
+                                    <td className="py-2 px-2 text-sm">Hotel Brandies an der Messe</td>
+                                    <td className="py-2 px-2 pr-16 text-right">
+                                      <div className="flex items-center justify-end space-x-1">
+                                        <span className="bg-green-100 text-green-800 px-1 py-0.5 rounded text-xs font-medium" style={{fontSize: '10px'}}>BEST</span>
+                                        <span className="font-semibold text-sm">8.8</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">1485</td>
+                                    <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">#5</td>
+                                  </tr>
+                                </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card ref={cardRef} className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 mb-[200px] reviews-chart-card">
+                        <CardHeader className="pb-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start space-x-3">
+                              <div className={`w-6 h-6 rounded ${selectedChannelData?.iconBg || 'bg-primary'} flex items-center justify-center mt-0.5`}>
+                                <span className="text-white text-xs font-bold">
+                                  {selectedChannelData?.icon || selectedChannel.charAt(0).toUpperCase()}
+                                </span>
+                              </div>
+                              <div className="flex-1">
+                                <CardTitle className="text-xl font-bold">Reviews Trends</CardTitle>
+                                <p className="text-sm text-muted-foreground mt-1">Track review scores and volume trends across your selected channels over time</p>
+                              </div>
+                            </div>
+
+                            {/* Download Button */}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="btn-minimal">
+                                  <Download className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => {
+                                  const element = document.getElementById('reviews-chart')
+                                  if (element) {
+                                    toPng(element)
+                                      .then((dataUrl) => {
+                                        const link = document.createElement('a')
+                                        link.download = 'reviews-trends.png'
+                                        link.href = dataUrl
+                                        link.click()
+                                      })
+                                      .catch((err) => {
+                                        console.error('Export failed:', err)
+                                      })
+                                  }
+                                }}>Export as Image</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  const csvData = reviewsData.map(item => ({
+                                    Week: item.week,
+                                    'Review Score': item.reviewScore,
+                                    'Number of Reviews': item.numberOfReviews
+                                  }))
+                                  
+                                  const headers = Object.keys(csvData[0])
+                                  const csvContent = [
+                                    headers.join(','),
+                                    ...csvData.map(row => headers.map(header => row[header as keyof typeof row]).join(','))
+                                  ].join('\n')
+                                  
+                                  const blob = new Blob([csvContent], { type: 'text/csv' })
+                                  const url = window.URL.createObjectURL(blob)
+                                  const link = document.createElement('a')
+                                  link.href = url
+                                  link.download = 'reviews-trends.csv'
+                                  link.click()
+                                  window.URL.revokeObjectURL(url)
+                                }}>Export as CSV</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="px-6 pt-6 pb-3">
+                          {(
+                            <div id="reviews-chart" className="mt-4" style={{ height: `${chartHeight}px` }}>
+                              <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={reviewsData} margin={{ top: 20, right: 40, left: 30, bottom: 80 }}>
+                                  <CartesianGrid strokeDasharray="3 3" className="opacity-15 dark:opacity-10" stroke="#e5e7eb" />
+                                  <XAxis 
+                                    dataKey="week"
+                                    className="text-xs"
+                                    interval="preserveStartEnd"
+                                    height={85}
+                                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", dy: 20 }}
+                                    axisLine={true}
+                                    tickLine={false}
+                                  />
+                                  <YAxis
+                                    yAxisId="left"
+                                    className="text-xs"
+                                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    domain={[0, 10]}
+                                    label={{
+                                      value: 'Review Score',
+                                      angle: -90,
+                                      position: 'insideLeft',
+                                      style: { textAnchor: 'middle' }
+                                    }}
+                                    width={50}
+                                  />
+                                  <YAxis
+                                    yAxisId="right"
+                                    orientation="right"
+                                    className="text-xs"
+                                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    domain={[0, 'dataMax']}
+                                    label={{
+                                      value: 'Number of Reviews',
+                                      angle: 90,
+                                      position: 'insideRight',
+                                      style: { textAnchor: 'middle' }
+                                    }}
+                                    width={50}
+                                  />
+                                  <RechartsTooltip
+                                    content={({ active, payload, label }) => {
+                                      if (active && payload && payload.length) {
+                                        const data = payload[0].payload
+                                        return (
+                                          <div className="bg-white text-gray-900 p-3 border border-gray-200 rounded-lg shadow-xl">
+                                            <div className="text-gray-900 font-bold text-sm border-b border-gray-300 pb-2 mb-2">
+                                              {label}
+                                            </div>
+                                            <div className="space-y-1">
+                                              <div className="flex items-center gap-2">
+                                                <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
+                                                <span className="text-sm text-gray-900">Review Score: <span className="font-bold">{data.reviewScore}</span></span>
+                                              </div>
+                                              <div className="flex items-center gap-2">
+                                                <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                                                <span className="text-sm text-gray-900">No. of Reviews: <span className="font-bold">{data.numberOfReviews}</span></span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )
+                                      }
+                                      return null
+                                    }}
+                                  />
+                                  <Line
+                                    yAxisId="left"
+                                    type="monotone"
+                                    dataKey="reviewScore"
+                                    stroke="#2563eb"
+                                    strokeWidth={3}
+                                    dot={{ fill: "white", stroke: "#2563eb", strokeWidth: 2, r: 4 }}
+                                    activeDot={{ r: 6, fill: "#2563eb", stroke: "#2563eb", strokeWidth: 2 }}
+                                    name="Review Score"
+                                  />
+                                  <Line
+                                    yAxisId="right"
+                                    type="monotone"
+                                    dataKey="numberOfReviews"
+                                    stroke="#f97316"
+                                    strokeWidth={3}
+                                    dot={{ fill: "white", stroke: "#f97316", strokeWidth: 2, r: 4 }}
+                                    activeDot={{ r: 6, fill: "#f97316", stroke: "#f97316", strokeWidth: 2 }}
+                                    name="Number of Reviews"
+                                  />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+                          )}
+
+                          {/* Events for Reviews */}
+                          {(
+                            <div className="relative -mt-20 mb-8" style={{ marginTop: '-168px' }}>
+                              <div
+                                className="relative"
+                                style={{
+                                  marginLeft: '60px',
+                                  marginRight: '70px',
+                                  width: 'calc(100% - 130px)',
+                                  height: '30px'
+                                }}
+                              >
+                                {reviewsData.map((dataPoint, index) => {
+                                  const totalDataPoints = reviewsData.length;
+                                  let finalPosition;
+                                  
+                                  if (totalDataPoints === 1) {
+                                    finalPosition = 50;
+                                  } else {
+                                    const leftPadding = 5;
+                                    const rightPadding = 5;
+                                    const availableWidth = 100 - leftPadding - rightPadding;
+                                    const stepWidth = availableWidth / (totalDataPoints - 1);
+                                    finalPosition = leftPadding + (index * stepWidth);
+                                  }
+                                  
+                                  finalPosition = Math.max(2, Math.min(98, finalPosition));
+
+                                  return (
+                                    <div
+                                      key={`event-star-${index}`}
+                                      className="absolute"
+                                      style={{
+                                        left: `${finalPosition}%`,
+                                        top: '50%',
+                                        transform: 'translate(-50%, -50%)',
+                                        zIndex: 10
+                                      }}
+                                    >
+                                      {dataPoint.hasEvent && dataPoint.eventData && (
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <div className="cursor-pointer flex items-center justify-center">
+                                                <Star className="w-3 h-3 text-amber-500 fill-amber-500 hover:scale-110 transition-transform duration-200 drop-shadow-lg" />
+                                              </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                              <div className="space-y-2">
+                                                <div className="text-white font-medium text-sm border-b border-slate-700 pb-2">
+                                                  {dataPoint.eventData.date}
+                                                </div>
+                                                <div className="space-y-1">
+                                                  <div className="flex items-center gap-1">
+                                                    <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                                                    <span className="font-semibold text-sm text-white">{dataPoint.eventData.title}</span>
+                                                  </div>
+                                                  <div className="text-xs text-gray-300">
+                                                    {dataPoint.eventData.category} | <span className={`font-medium ${dataPoint.eventData.impact === 'High' ? 'text-red-400' :
+                                                      dataPoint.eventData.impact === 'Medium' ? 'text-yellow-400' :
+                                                        'text-green-400'
+                                                      }`}>
+                                                      {dataPoint.eventData.impact} Impact
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                      </>
+                    )
+                  )}
             </div>
+
+
 
             {/* Footer spacing */}
             <div className="h-8"></div>
-          </div>
-        </div>
+                    </div>
+                    </div>
       </main>
 
-      {/* Bottom Option Selector */}
-      <div className="px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-8">
-        <Card className="bg-gradient-to-r from-primary/5 to-chart-2/5 shadow-xl border border-primary/20">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">Design Options</h3>
-                <p className="text-sm text-muted-foreground">Switch between different layout variations</p>
-              </div>
-              <Badge variant="outline" className="text-xs">
-                Active: {activeOption === "option1" ? "Enhanced Cards" : activeOption === "option2" ? "Dual-Axis" : "Sparklines"}
-              </Badge>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Button
-                variant={activeOption === "option1" ? "default" : "outline"}
-                onClick={() => setActiveOption("option1")}
-                className={`relative overflow-hidden h-auto p-4 transition-all duration-300 ${
-                  activeOption === "option1" 
-                    ? "bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg" 
-                    : "hover:bg-primary/5 hover:border-primary/30"
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg ${activeOption === "option1" ? "bg-primary-foreground/20" : "bg-primary/10"}`}>
-                    <Grid3x3 className="h-5 w-5" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-semibold">Option 1</div>
-                    <div className={`text-sm ${activeOption === "option1" ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                      Enhanced Cards & Charts
-                    </div>
-                  </div>
-                </div>
-                {activeOption === "option1" && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-transparent pointer-events-none" />
-                )}
-              </Button>
-              
-              <Button
-                variant={activeOption === "option2" ? "default" : "outline"}
-                onClick={() => setActiveOption("option2")}
-                className={`h-auto p-4 transition-all duration-300 ${
-                  activeOption === "option2" 
-                    ? "bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg" 
-                    : "hover:bg-primary/5 hover:border-primary/30"
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg ${activeOption === "option2" ? "bg-primary-foreground/20" : "bg-orange-100 dark:bg-orange-900/30"}`}>
-                    <TrendingUp className="h-5 w-5" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-semibold">Option 2</div>
-                    <div className={`text-sm ${activeOption === "option2" ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                      Dual-Axis Analysis
-                    </div>
-                  </div>
-                </div>
-              </Button>
-              
-              <Button
-                variant={activeOption === "option3" ? "default" : "outline"}
-                onClick={() => setActiveOption("option3")}
-                className={`h-auto p-4 transition-all duration-300 ${
-                  activeOption === "option3" 
-                    ? "bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg" 
-                    : "hover:bg-primary/5 hover:border-primary/30"
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg ${activeOption === "option3" ? "bg-primary-foreground/20" : "bg-purple-100 dark:bg-purple-900/30"}`}>
-                    <BarChart3 className="h-5 w-5" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-semibold">Option 3</div>
-                    <div className={`text-sm ${activeOption === "option3" ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                      Cards & Sparklines
-                    </div>
-                  </div>
-                </div>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+
     </div>
   )
 }
