@@ -96,8 +96,8 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
   })
 }
 
-// Generate events for chart dates (similar to calendar logic)
-function generateChartEvents(trendData: any[]) {
+// Generate events for chart dates (including sample event from events calendar)
+function generateChartEvents(trendData: any[], sampleEvent?: any) {
   const eventTemplates = [
     { title: "GITEX Technology Week", category: "Technology", impact: "High", location: "Dubai World Trade Centre" },
     { title: "Dubai Shopping Festival", category: "Festival", impact: "High", location: "Dubai Mall" },
@@ -109,8 +109,40 @@ function generateChartEvents(trendData: any[]) {
     { title: "Global Education Summit", category: "Education", impact: "Medium", location: "JW Marriott" }
   ]
 
+  // Find the best data point to place the sample event (somewhere in the middle third)
+  let sampleEventAssigned = false
+  const middleStart = Math.floor(trendData.length * 0.33)
+  const middleEnd = Math.floor(trendData.length * 0.66)
+  const sampleEventIndex = sampleEvent ? Math.floor(middleStart + Math.random() * (middleEnd - middleStart)) : -1
+
   return trendData.map((dataPoint, index) => {
     const totalDays = trendData.length
+
+    // Check if this should be the sample event date
+    if (sampleEvent && index === sampleEventIndex && !sampleEventAssigned) {
+      sampleEventAssigned = true
+      return {
+        ...dataPoint,
+        hasEvent: true,
+        eventData: {
+          title: sampleEvent.name,
+          category: sampleEvent.category === 'business' ? 'Business' : 
+                   sampleEvent.category === 'social' ? 'Social' : 'General',
+          impact: sampleEvent.impact || sampleEvent.priority === 'high' ? 'High' : 'Medium',
+          location: sampleEvent.location,
+          date: dataPoint.fullDate.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          }),
+          description: sampleEvent.description,
+          attendees: sampleEvent.attendees,
+          country: sampleEvent.country,
+          flag: sampleEvent.flag
+        }
+      }
+    }
 
     // Skip first and last 3 items from having events to avoid crowding at edges
     const isNearEdges = index < 3 || index >= totalDays - 3
@@ -124,12 +156,12 @@ function generateChartEvents(trendData: any[]) {
     }
 
     // Reduce event frequency based on total period length
-    let eventFrequency = 4 // Default: 1 in 4 chance (25%)
+    let eventFrequency = 5 // Reduced frequency to give more prominence to sample event
     if (totalDays > 45) {
-      eventFrequency = 6 // For longer periods: 1 in 6 chance (~17%)
+      eventFrequency = 7 // For longer periods: 1 in 7 chance
     }
     if (totalDays > 90) {
-      eventFrequency = 8 // For very long periods: 1 in 8 chance (~12%)
+      eventFrequency = 9 // For very long periods: 1 in 9 chance
     }
 
     // Use deterministic logic to assign events with reduced frequency
@@ -535,7 +567,7 @@ const CustomLegend = ({
   )
 }
 
-export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData }: any) {
+export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData, sampleEvent }: any) {
   const { theme } = useTheme()
   const { startDate, endDate, isLoading } = useDemandDateContext()
   const [datasetType, setDatasetType] = useState<DatasetType>('pricing')
@@ -644,7 +676,7 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
     const dailyData = generateTrendData(actualStartDate!, actualEndDate!, demandData, rateData, filter)
 
     // Add event data to daily data
-    const dailyDataWithEvents = generateChartEvents(dailyData)
+    const dailyDataWithEvents = generateChartEvents(dailyData, sampleEvent)
 
     // Apply aggregation based on selected period
     switch (aggregationPeriod) {
@@ -1124,6 +1156,9 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
                                 <div className="flex items-center gap-1">
                                   <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
                                   <span className="font-semibold text-sm text-white">{dataPoint.eventData.title}</span>
+                                  {dataPoint.eventData.flag && (
+                                    <span className="text-sm">{dataPoint.eventData.flag}</span>
+                                  )}
                                 </div>
 
                                 <div className="text-xs text-gray-300">
@@ -1135,6 +1170,26 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
                                     {dataPoint.eventData.impact} Impact
                                   </span>
                                 </div>
+                                
+                                {/* Show additional details for sample event */}
+                                {dataPoint.eventData.description && (
+                                  <div className="text-xs text-gray-300 mt-1 border-t border-gray-600 pt-1">
+                                    <div className="font-medium text-gray-200">Description:</div>
+                                    <div>{dataPoint.eventData.description}</div>
+                                  </div>
+                                )}
+                                
+                                {dataPoint.eventData.attendees && (
+                                  <div className="text-xs text-gray-300">
+                                    <span className="font-medium text-gray-200">Expected Attendees:</span> {dataPoint.eventData.attendees.toLocaleString()}
+                                  </div>
+                                )}
+                                
+                                {dataPoint.eventData.country && dataPoint.eventData.country !== 'Global' && (
+                                  <div className="text-xs text-gray-300">
+                                    <span className="font-medium text-gray-200">Country:</span> {dataPoint.eventData.country}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </TooltipContent>

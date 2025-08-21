@@ -29,6 +29,40 @@ function DemandPageContent() {
   const [demandData, setDemandData] = useState<any>([])
   const [eventData, setEventData] = useState<any>({});
   const [selectedProperty] = useSelectedProperty()
+  
+  // Sample event to show in demand chart tooltip (within demand page range)
+  const sampleEventForChart = useMemo(() => {
+    if (!startDate || !endDate) return null;
+    
+    // Calculate a date within the demand page range (middle of the range)
+    const rangeStart = new Date(startDate);
+    const rangeEnd = new Date(endDate);
+    const rangeDays = Math.floor((rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24));
+    const middleDay = Math.floor(rangeDays * 0.4); // 40% into the range for good visibility
+    
+    const eventDate = new Date(rangeStart);
+    eventDate.setDate(rangeStart.getDate() + middleDay);
+    
+    const eventEndDate = new Date(eventDate);
+    eventEndDate.setDate(eventDate.getDate() + 2); // 3-day event
+    
+    return {
+      id: "sample-chart-event",
+      name: "AI Summit 2025",
+      startDate: eventDate.toISOString().split('T')[0],
+      endDate: eventEndDate.toISOString().split('T')[0],
+      category: "business",
+      location: "Seattle, USA",
+      description: "Leading artificial intelligence and machine learning conference showcasing latest innovations in AI and ML technologies",
+      status: "suggested",
+      country: "USA",
+      flag: "🇺🇸",
+      attendees: 25000,
+      type: "conference",
+      priority: "high",
+      impact: "High"
+    };
+  }, [startDate, endDate])
   const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AverageYoy: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0, AvrageHotelADRYoy: 0 })
   const [isInitialized, setIsInitialized] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -280,7 +314,7 @@ function DemandPageContent() {
           <section className="w-full">
             <Card className="card-elevated animate-fade-in">
               <CardContent className="p-3 md:p-4 lg:p-6 xl:p-8">
-                <EnhancedDemandTrendsChart filter={filter} events={eventData} demandData={demandData} rateData={rateData} />
+                <EnhancedDemandTrendsChart filter={filter} events={eventData} demandData={demandData} rateData={rateData} sampleEvent={sampleEventForChart} />
               </CardContent>
             </Card>
           </section>

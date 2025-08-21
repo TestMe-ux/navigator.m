@@ -112,13 +112,15 @@ const saveCustomEventsToStorage = (customEvents: Event[]) => {
     }))
     
     const dataToSave = JSON.stringify(eventsWithTimestamp)
-    localStorage.setItem(CUSTOM_EVENTS_KEY, dataToSave)
-    console.log(`💾 Saved ${eventsWithTimestamp.length} custom events to localStorage`)
-    
-    // Verify the save was successful
-    const verification = localStorage.getItem(CUSTOM_EVENTS_KEY)
-    if (!verification) {
-      throw new Error('Failed to verify localStorage save')
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(CUSTOM_EVENTS_KEY, dataToSave)
+      console.log(`💾 Saved ${eventsWithTimestamp.length} custom events to localStorage`)
+      
+      // Verify the save was successful
+      const verification = localStorage.getItem(CUSTOM_EVENTS_KEY)
+      if (!verification) {
+        throw new Error('Failed to verify localStorage save')
+      }
     }
   } catch (error) {
     console.error('Failed to save custom events to localStorage:', error)
@@ -138,6 +140,11 @@ const loadCustomEventsFromStorage = (): Event[] => {
       return []
     }
     
+    if (typeof window === 'undefined') {
+      console.log('📂 localStorage not available on server side')
+      return []
+    }
+    
     const stored = localStorage.getItem(CUSTOM_EVENTS_KEY)
     if (!stored || stored === 'null' || stored === 'undefined') {
       console.log('📂 No custom events found in localStorage')
@@ -149,14 +156,18 @@ const loadCustomEventsFromStorage = (): Event[] => {
       events = JSON.parse(stored)
     } catch (parseError) {
       console.error('Failed to parse stored events, clearing localStorage:', parseError)
-      localStorage.removeItem(CUSTOM_EVENTS_KEY)
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(CUSTOM_EVENTS_KEY)
+      }
       return []
     }
     
     // Ensure events is an array
     if (!Array.isArray(events)) {
       console.error('Stored events is not an array, clearing localStorage')
-      localStorage.removeItem(CUSTOM_EVENTS_KEY)
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(CUSTOM_EVENTS_KEY)
+      }
       return []
     }
     
@@ -180,8 +191,10 @@ const loadCustomEventsFromStorage = (): Event[] => {
     // Save back the filtered events to clean up expired ones
     if (validEvents.length !== events.length) {
       try {
-        localStorage.setItem(CUSTOM_EVENTS_KEY, JSON.stringify(validEvents))
-        console.log(`🗑️ Cleaned up ${expiredCount} expired events (older than 3 days)`)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(CUSTOM_EVENTS_KEY, JSON.stringify(validEvents))
+          console.log(`🗑️ Cleaned up ${expiredCount} expired events (older than 3 days)`)
+        }
       } catch (saveError) {
         console.error('Failed to save cleaned events:', saveError)
       }
@@ -193,7 +206,9 @@ const loadCustomEventsFromStorage = (): Event[] => {
     console.error('Failed to load custom events from localStorage:', error)
     // Clear corrupted data
     try {
-      localStorage.removeItem(CUSTOM_EVENTS_KEY)
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(CUSTOM_EVENTS_KEY)
+      }
     } catch (clearError) {
       console.error('Failed to clear corrupted localStorage data:', clearError)
     }
@@ -3110,7 +3125,9 @@ export default function EventsCalendarPage() {
                             onClick={(e) => {
                               e.stopPropagation() // Prevent event bubbling to parent popover
                               setIsCountrySearchFocused(true)
-                              e.target.focus()
+                              if (e.target instanceof HTMLInputElement) {
+                                e.target.focus()
+                              }
                             }}
                             onFocus={() => setIsCountrySearchFocused(true)}
                             onBlur={() => setIsCountrySearchFocused(false)}
@@ -3181,7 +3198,9 @@ export default function EventsCalendarPage() {
                             onClick={(e) => {
                               e.stopPropagation() // Prevent event bubbling to parent popover
                               setIsCitySearchFocused(true)
-                              e.target.focus()
+                              if (e.target instanceof HTMLInputElement) {
+                                e.target.focus()
+                              }
                             }}
                             onFocus={() => setIsCitySearchFocused(true)}
                             onBlur={() => setIsCitySearchFocused(false)}

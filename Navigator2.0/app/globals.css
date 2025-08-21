@@ -714,3 +714,8 @@ a {
 .dark .recharts-tooltip-wrapper {
   backdrop-filter: blur(8px);
 }
+
+/* Custom styling for Reviews chart card */
+.reviews-chart-card {
+  height: 50% !important;
+}
