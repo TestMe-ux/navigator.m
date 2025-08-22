@@ -14,6 +14,7 @@ import { useDateContext } from "@/components/date-context"
 import { format, eachDayOfInterval, differenceInDays } from "date-fns"
 import localStorageService from "@/lib/localstorage"
 import { toPng } from "html-to-image";
+import { escapeCSVValue } from "@/lib/utils"
 /**
  * Chart Data Configuration
  * Professional rate trends data with multiple channels and time periods
@@ -876,15 +877,15 @@ export function RateTrendsChart({ rateData }: any) {
   };
 
   // Escape CSV fields if needed
-  const escapeCSVValue = (value: any) => {
-    if (typeof value === "string") {
-      if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-        return `"${value.replace(/"/g, '""')}"`;
-      }
-      return value;
-    }
-    return value ?? "";
-  };
+  // const escapeCSVValue = (value: any) => {
+  //   if (typeof value === "string") {
+  //     if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+  //       return `"${value.replace(/"/g, '""')}"`;
+  //     }
+  //     return value;
+  //   }
+  //   return value ?? "";
+  // };
   const handleDownload = () => {
     const headers = ["CheckinDate", "PropertyID", "PropertyName", "Rate"];
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef, useCallback } from "react"
+import { useState, useMemo, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -11,9 +11,10 @@ import {
   Star,
   Info
 } from "lucide-react"
-import { cn, conevrtDateforApi } from "@/lib/utils"
+import { cn, conevrtDateforApi, escapeCSVValue } from "@/lib/utils"
 import { GetDemandAIData } from "@/lib/demand"
 import localStorageService from "@/lib/localstorage"
+import { addDays, format } from "date-fns"
 
 
 /**
@@ -41,6 +42,7 @@ interface CalendarDay {
   events: CalendarEvent[]
   hasEvents: boolean
   demandLevel: 'low' | 'normal' | 'elevated' | 'high' | ''
+  demedandIndex?: number
   hasEventIcon?: boolean
   eventName?: string
   eventCategory?: string
@@ -162,13 +164,14 @@ const generateMonthDays = (year: number, month: number, today: Date, sid: number
       isCurrentMonth: true,
       events: [], // Events are only shown as star icons, not in cell styling
       hasEvents: false, // Events are only shown as star icons, not in cell styling
-      demandLevel
+      demandLevel,
+      demedandIndex: demandItem?.demandIndex
     })
   }
 
   return days
 }
-export function DemandCalendarOverview({ eventData, holidayData }: any) {
+function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: any) {
   // const { startDate, endDate } = useDateContext();
   const [demandData, setDemandData] = useState<any>([])
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
@@ -179,6 +182,9 @@ export function DemandCalendarOverview({ eventData, holidayData }: any) {
   )
   const selectedProperty: any = localStorageService.get('SelectedProperty')
   const fetchedSIDRef = useRef<number | null>(null)
+  useImperativeHandle(csvRef, () => ({
+    handleDownloadCSV,
+  }));
 
   // Handle client-side hydration
   useEffect(() => {
@@ -188,7 +194,7 @@ export function DemandCalendarOverview({ eventData, holidayData }: any) {
   const fetchDemandData = () => {
     const today = new Date()
     const endDates = new Date(today)
-    endDates.setDate(today.getDate() + 75) // 75 days from today
+    endDates.setDate(today.getDate() + 74) // 75 days from today
     const currentSID = selectedProperty?.sid
     try {
       GetDemandAIData({
@@ -284,9 +290,9 @@ export function DemandCalendarOverview({ eventData, holidayData }: any) {
    * Generate event icons based on actual event data
    */
   const generateEventIcons = (days: CalendarDay[]): CalendarDay[] => {
-    const eventsData = eventData?.eventDetails || []
+    // const eventsData = eventData || []
     const mergedEventandHoliday = [
-      ...(Array.isArray(eventsData) ? eventsData : []),
+      ...(Array.isArray(eventData) ? eventData : []),
       ...(Array.isArray(holidayData) ? holidayData : [])
     ];
 
@@ -385,7 +391,7 @@ export function DemandCalendarOverview({ eventData, holidayData }: any) {
 
   // Generate calendar data for current and next two months (total 3 months)
   const todayForCalendar = new Date()
-  const maxAllowedDate = new Date(2025, 9, 25) // October 25, 2025 (month is 0-indexed)
+  const maxAllowedDate = addDays(todayForCalendar, 74) //new Date(2025, 9, 25) // October 25, 2025 (month is 0-indexed)
 
   // Helper function to check if a date should be disabled
   const isDateDisabled = (date: Date) => {
@@ -417,7 +423,6 @@ export function DemandCalendarOverview({ eventData, holidayData }: any) {
       break
     }
   }
-
   const isNextDisabled = !hasEnabledDatesInNextMonth
 
   const currentMonthBase = generateMonthDays(currentDate.getFullYear(), currentDate.getMonth(), todayForCalendar, selectedProperty?.sid || 0, demandData)
@@ -436,6 +441,55 @@ export function DemandCalendarOverview({ eventData, holidayData }: any) {
   const thirdMonth = generateEventIcons(thirdMonthBase.map(day =>
     day ? { ...day, isDisabled: isDateDisabled(day.date) } : day
   ))
+  const handleDownloadCSV = () => {
+    console.log('📊 Downloading data as CSV...')
+    // const eventsData = eventData?.eventDetails || []
+    const mergedEventandHoliday = [
+      ...(Array.isArray(eventData) ? eventData : []),
+      ...(Array.isArray(holidayData) ? holidayData : [])
+    ];
+
+    console.log('📊 Merged Events and Holidays:', mergedEventandHoliday)
+    console.log('📊 Demand Data:', demandData)
+    // Create CSV content from trend data
+    const headers = ['Date', 'Day', 'Demand Index Value', 'Demand Status', 'Event/Holiday Name', 'Event Duration', 'Event Count', 'Event Distance', 'Estimated Visitors']
+
+    const csvContent = [
+      headers.join(','),
+      ...demandData.map((demand: any) => {
+        const matchingEvents = mergedEventandHoliday.filter((event: any) => {
+          const fromDate = new Date(event.eventFrom)
+          const toDate = new Date(event.eventTo)
+          const dataDate = demand.checkinDate ? new Date(demand.checkinDate) : new Date();
+
+          return dataDate >= fromDate && dataDate <= toDate
+        })
+        return [
+          new Date(demand.checkinDate).toLocaleDateString('en-US'),
+          new Date(demand.checkinDate).toLocaleDateString('en-US', { weekday: 'short' }),
+          demand.demandIndex,
+          getDemandLevelFromIndex(demand.demandIndex),
+          matchingEvents.length > 0 ? matchingEvents[0].eventName : '',
+          matchingEvents.length > 0 ? escapeCSVValue(matchingEvents[0].displayDate) : '',
+          matchingEvents.length || 0,
+          '',
+          ''
+        ]
+      })
+    ].join('\n')
+
+    // Create and trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `demand-trends-${format(new Date(), 'yyyyMMddHHmmss')}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
   // Loading state
   if (!isClient) {
     return (
@@ -552,6 +606,9 @@ export function DemandCalendarOverview({ eventData, holidayData }: any) {
                           <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
                             <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                             <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
+                            <div className="border-t border-gray-600 my-1 pt-1">
+                              <div className="text-xs text-gray-300 capitalize">Demand Index {day.demedandIndex}</div>
+                            </div>
                             {day.hasEventIcon && (
                               <>
                                 <div className="border-t border-gray-600 my-1 pt-1">
@@ -645,6 +702,9 @@ export function DemandCalendarOverview({ eventData, holidayData }: any) {
                           <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
                             <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                             <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
+                            <div className="border-t border-gray-600 my-1 pt-1">
+                              <div className="text-xs text-gray-300 capitalize">Demand Index {day.demedandIndex}</div>
+                            </div>
                             {day.hasEventIcon && (
                               <>
                                 <div className="border-t border-gray-600 my-1 pt-1">
@@ -755,6 +815,9 @@ export function DemandCalendarOverview({ eventData, holidayData }: any) {
                           <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
                             <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                             <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
+                            <div className="border-t border-gray-600 my-1 pt-1">
+                              <div className="text-xs text-gray-300 capitalize">Demand Index {day.demedandIndex}</div>
+                            </div>
                             {day.hasEventIcon && (
                               <>
                                 <div className="border-t border-gray-600 my-1 pt-1">
@@ -873,4 +936,5 @@ export function DemandCalendarOverview({ eventData, holidayData }: any) {
     </TooltipProvider>
   )
 
-} 
+}
+export const DemandCalendarOverview = forwardRef(DemandCalendarOverviewInner);

@@ -67,6 +67,7 @@ type SelectedProperty = {
   city?: string
   country?: string
   currencySymbol?: string
+  demandCity?: string
 } | null
 
 /**

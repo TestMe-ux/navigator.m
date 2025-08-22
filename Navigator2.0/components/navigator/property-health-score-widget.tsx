@@ -258,7 +258,7 @@ export function PropertyHealthScoreWidget(props: any) {
         setotaRankOnChannel([]);
         return;
       }
-      const otach = chRes.body ?? chRes ?? [];
+      const otach =Array.isArray(chRes.body) ? chRes.body.flat() : [];
       setotachannel(otach);
       // setOtaChannels(otach);
 
@@ -355,8 +355,8 @@ export function PropertyHealthScoreWidget(props: any) {
         !(cw?.parityScore <= 0);
 
       const hasData = Array.isArray(item.data)
-        ? item.data.some((d: any) => d?.propertyid === selectedProperty?.hmid)
-        : item.data?.propertyid === selectedProperty?.hmid;
+        ? item.data.some((d: any) => d?.propertyID === selectedProperty?.hmid)
+        : item.data?.propertyID === selectedProperty?.hmid;
       return hasChannelWisewin || hasData;
     });
 
@@ -404,7 +404,7 @@ export function PropertyHealthScoreWidget(props: any) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 -mt-2.5">
           {combinedData.map((channel: any) => {
             // const Icon = channel.channelIcon
-            const sortedData = [...channel.data].sort((a, b) => parseScore(a.score) - parseScore(b.score));
+            const sortedData = [...channel.data].sort((a, b) => parseScore(b.score) - parseScore(a.score));
             const subsOtaranData = channel.data.filter((xy: any) => xy.propertyID == selectedProperty?.hmid)
             const Subindex = sortedData.findIndex((h: any) => h.propertyID === selectedProperty?.hmid);
             return (

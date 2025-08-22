@@ -6,13 +6,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Download, Info } from "lucide-react"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 
-export function DemandHeader() {
+export function DemandHeader({ handleCsvDownload }: any) {
   const [selectedProperty] = useSelectedProperty()
-  const propertyCity = selectedProperty?.city || 'Property'
+  const propertyCity = selectedProperty?.demandCity || 'Property'
   return (
     <TooltipProvider>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4">
-        
+
         {/* Left Section - Title & Description */}
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -42,8 +42,8 @@ export function DemandHeader() {
             <DropdownMenuTrigger asChild>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Download className="h-4 w-4" />
+                  <Button variant="outline" size="sm" onClick={handleCsvDownload}>
+                    <Download className="h-4 w-4"  />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent className="bg-black text-white border-black">

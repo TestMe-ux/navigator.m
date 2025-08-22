@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { subDays } from "date-fns"
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -26,6 +26,8 @@ import { format, eachDayOfInterval, parseISO, startOfWeek, endOfWeek, startOfMon
 import { getRateTrends } from "@/lib/rate"
 import localStorageService from "@/lib/localstorage"
 import { useComparison } from "../comparison-context"
+import { toPng } from "html-to-image"
+import { useSelectedProperty } from "@/hooks/use-local-storage"
 
 type DatasetType = 'pricing' | 'travellers'
 type AggregationPeriod = 'day' | 'week' | 'month'
@@ -59,17 +61,17 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
     const baseDemand = Math.floor(1 + Math.sin(index * 0.3) * 1.2 + Math.random() * 1.5)
 
 
-    const marketADR = demandI?.hotelADR ? demandI.hotelADR : 0
-    const hotelADR = Math.max(parseInt(myRateData?.rate ?? "0", 10), 0);
+    const marketADR = demandI?.hotelADR ? Number(demandI.hotelADR) : 0
+    const hotelADR = Math.max(Number(myRateData?.rate) || 0, 0);
     const airTravellers = demandI?.oagCapacity ? demandI.oagCapacity : 0
-    const compRate = Number(myCompRateData?.rate);
+    const compRate =Math.max(Number(myCompRateData?.rate) || 0, 0);
     const myPriceVariance =
       !isNaN(compRate) && compRate > 0
         ? Number((((hotelADR - compRate) / compRate) * 100).toFixed(2))
         : 0;
-    const marketADRVariance = getValue(demandI, `${suffix}_Overall_HotelADR`);
-    const airTravellersVariance = getValue(demandI, `${suffix}_Overall_OAGCapacity`);
-    const demandVariance = getValue(demandI, `${suffix}_Overall_Demand_Index`);
+    const marketADRVariance = Number(getValue(demandI, `${suffix}_Overall_HotelADR`));
+    const airTravellersVariance = Number(getValue(demandI, `${suffix}_Overall_OAGCapacity`));
+    const demandVariance = Number(getValue(demandI, `${suffix}_Overall_Demand_Index`));
     // Generate variance percentages (realistic fluctuations)
     // const myPriceVariance = demandI?.woW_Overall_HotelADR ? demandI.woW_Overall_HotelADR : 0
     // const marketADRVariance = demandI?.woW_Overall_HotelADR ? demandI.woW_Overall_HotelADR : 0
@@ -153,7 +155,7 @@ function generateChartEvents(trendData: any[], events: any) {
 // Aggregate daily data into weeks
 function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
   const weeks = eachWeekOfInterval({ start: startDate, end: endDate }, { weekStartsOn: 1 }) // Start week on Monday
-
+  debugger;
   return weeks.map((weekStart, weekIndex) => {
     const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 })
 
@@ -199,6 +201,7 @@ function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
 
 // Aggregate daily data into months
 function aggregateDataByMonth(dailyData: any[], startDate: Date, endDate: Date) {
+  debugger;
   const months = eachMonthOfInterval({ start: startDate, end: endDate })
 
   return months.map((monthStart, monthIndex) => {
@@ -521,6 +524,7 @@ const CustomLegend = ({
 
 export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData, rateCompData }: any) {
   const { theme } = useTheme()
+  const [selectedProperty] = useSelectedProperty()
   const { startDate, endDate, isLoading } = useDemandDateContext()
   const [datasetType, setDatasetType] = useState<DatasetType>('pricing')
   const [aggregationPeriod, setAggregationPeriod] = useState<AggregationPeriod>('day')
@@ -542,12 +546,7 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
   }
 
   // Download handlers
-  const handleDownloadImage = () => {
-    console.log('📸 Downloading chart as image...')
-    // TODO: Implement chart to image export functionality
-    // This would typically use html2canvas or similar library to capture the chart
-    alert('Image download functionality will be implemented soon!')
-  }
+
 
   const handleDownloadCSV = () => {
     console.log('📊 Downloading data as CSV...')
@@ -704,10 +703,25 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
   if (aggregationPeriod === 'month' && !dateRangeDetails.canShowMonth) {
     setAggregationPeriod('day')
   }
-
+  const cardRef = useRef<HTMLDivElement>(null);
+  const handleDownloadImageRate = () => {
+    // console.log("upgrading the a Sum Insured", data);
+    if (cardRef.current) {
+      toPng(cardRef.current, { cacheBust: true })
+        .then((dataUrl) => {
+          const link = document.createElement("a");
+          link.download = 'Demand_Chart_' + selectedProperty?.sid + '_' + new Date().getTime() + ".png"; // File name
+          link.href = dataUrl;
+          link.click();
+        })
+        .catch((err) => {
+          console.error("Error generating image:", err);
+        });
+    }
+  };
   return (
     <TooltipProvider>
-      <div className="space-y-4">
+      <div className="space-y-4 bg-white" ref={cardRef}>
         {/* Header Section with Controls */}
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div>
@@ -771,7 +785,7 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleDownloadImage()}>
+                <DropdownMenuItem onClick={() => handleDownloadImageRate()}>
                   Export as Image
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleDownloadCSV()}>

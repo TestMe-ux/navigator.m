@@ -213,9 +213,9 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
 
     const allDays = [...paddingDaysBefore, ...days, ...paddingDaysAfter]
     const maxSelectableAfterStart =
-      selectedStartDate ? addDays(selectedStartDate, 90) : maxDate;
+      selectedStartDate ? addDays(selectedStartDate, 89) : maxDate;
     const minSelectableAfterStart =
-      selectedStartDate ? subDays(selectedStartDate, 90) : maxDate;
+      selectedStartDate ? subDays(selectedStartDate, 89) : maxDate;
     return (
       <div className="flex-1">
         <div className="flex items-center justify-between mb-4">
@@ -264,8 +264,8 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
             let rangeMin = minDate;
             let rangeMax = maxDate;
             if (selectedStartDate) {
-              const before = addDays(selectedStartDate, -90);
-              const after = addDays(selectedStartDate, 90);
+              const before = addDays(selectedStartDate, -89);
+              const after = addDays(selectedStartDate, 89);
               rangeMin = before < minDate ? minDate : before;
               rangeMax = after > maxDate ? maxDate : after;
             }

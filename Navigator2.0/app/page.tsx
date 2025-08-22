@@ -257,7 +257,7 @@ export default function Home() {
       getCompRateData(),
       GetParityDatas_Comp()
     ]);
-  }, [hasTriggered, showCSATCard, csatClosed, startDate, endDate, selectedProperty, compsetFilter, sideFilter])
+  }, [hasTriggered, showCSATCard, csatClosed, startDate, endDate, selectedProperty, compsetFilter, sideFilter, channelFilter?.channelId])
 
   useEffect(() => {
     if (!startDate ||
@@ -357,6 +357,7 @@ export default function Home() {
     getRateTrends(filtersValue)
       .then((res) => {
         if (res.status) {
+          debugger
           var CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
             const allSubscriberRate = x.subscriberPropertyRate?.map((r: any) => parseInt(r.rate) > 0 ? parseInt(r.rate) : 0) || [];
             const ty = allSubscriberRate.length
