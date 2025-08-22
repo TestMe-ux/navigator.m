@@ -17,13 +17,13 @@ import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleto
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
 
-import { Calendar, ChevronDown, Eye, Users, ChevronLeft, ChevronRight, Download, Star, Info } from "lucide-react"
+import { Calendar, ChevronDown, Eye, Users, ChevronLeft, ChevronRight, Download, Star, Info, BarChart3, Table } from "lucide-react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts"
 import { format, addDays, subDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, isWithinInterval, subMonths, isBefore, addMonths } from "date-fns"
 import { toPng } from "html-to-image"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { getOTAChannels, getOTARankOnAllChannel } from "@/lib/otarank"
-import { conevrtDateforApi } from "@/lib/utils"
+import { conevrtDateforApi, cn } from "@/lib/utils"
 import { getChannels } from "@/lib/channels"
 import { Globe } from "lucide-react"
 
@@ -46,6 +46,12 @@ export default function OTARankingsPage() {
   const [compareWith, setCompareWith] = useState("Last 1 Week")
   const [compSet, setCompSet] = useState("Primary Compset")
   const [viewMode, setViewMode] = useState("Rank")
+  const [rankViewMode, setRankViewMode] = useState<"graph" | "table">("graph")
+  const [competitorPage, setCompetitorPage] = useState(0)
+  
+  // View mode state for Reviews tab (graph/table)
+  const [reviewsViewMode, setReviewsViewMode] = useState<"graph" | "table">("graph")
+  
   const [selectedChannel, setSelectedChannel] = useState("booking")
   
   // Reviews-specific state
@@ -324,7 +330,7 @@ export default function OTARankingsPage() {
   // Available hotel lines (expanded for testing 10-line limit) - Memoized for performance
   const availableHotelLines = useMemo(() => [
     { dataKey: 'myHotel', name: 'Alhambra Hotel', color: '#3b82f6' },
-    { dataKey: 'competitor1', name: 'Grand Hotel Guayaquil', color: '#10b981' },
+    { dataKey: 'competitor1', name: 'Grand Hotel Guayaquil International Resorts', color: '#10b981' },
     { dataKey: 'competitor2', name: 'Clarion Inn Lake Buena Vista', color: '#f59e0b' },
     { dataKey: 'competitor3', name: 'Marriott Downtown', color: '#ef4444' },
     { dataKey: 'competitor4', name: 'Hilton Garden Inn', color: '#8b5cf6' },
@@ -367,9 +373,34 @@ export default function OTARankingsPage() {
     [availableHotelLines, legendVisibility]
   )
 
+  // Pagination handlers for competitor table
+  const handlePrevCompetitors = useCallback(() => {
+    setCompetitorPage(prev => Math.max(0, prev - 1))
+  }, [])
+  
+  const handleNextCompetitors = useCallback(() => {
+    const totalCompetitors = availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey]).length
+    const maxPage = Math.ceil(totalCompetitors / 4) - 1
+    setCompetitorPage(prev => Math.min(maxPage, prev + 1))
+  }, [availableHotelLines, legendVisibility])
+
+  // Format date for table display
+  const formatTableDate = useCallback((dateString: string) => {
+    try {
+      const date = new Date(dateString)
+      const day = date.getDate()
+      const month = format(date, 'MMM')
+      const year = format(date, "''yy")
+      const dayName = format(date, 'EEE')
+      return { day, month, year, dayName, formatted: `${day} ${month} ${year}` }
+    } catch {
+      return { day: '', month: '', year: '', dayName: '', formatted: dateString }
+    }
+  }, [])
+
   // Separate height calculations for each tab
   const calculateRankChartHeight = () => {
-    return 556 // Fixed height for Rank tab - no dynamic changes when legends hide/show
+    return 500 // Set chart container height to 500px
   }
 
   const calculateReviewsChartHeight = () => {
@@ -468,19 +499,7 @@ export default function OTARankingsPage() {
         week: weekLabel,
         reviewScore: Number((7.5 + Math.random() * 2).toFixed(1)), // 7.5-9.5 range
         numberOfReviews: Math.floor(80 + Math.random() * 140), // 80-220 reviews
-        // Events data for Reviews timeline
-        hasEvent: i === 1 || i === 3, // Events on specific weeks
-        eventData: i === 1 ? {
-          title: 'Guest Experience Summit',
-          category: 'Hospitality',
-          impact: 'Medium',
-          date: weekLabel
-        } : i === 3 ? {
-          title: 'Customer Service Training',
-          category: 'Training',
-          impact: 'High',
-          date: weekLabel
-        } : null
+
       })
     }
     
@@ -536,89 +555,7 @@ export default function OTARankingsPage() {
     { id: "secondary", label: "Secondary Compset" }
   ]
 
-  // Event generation function (similar to Demand page) - Memoized for performance
-  const generateChartEvents = useCallback((trendData: any[]) => {
-    const eventTemplates = [
-      { title: "GITEX Technology Week", category: "Technology", impact: "High", location: "Dubai World Trade Centre" },
-      { title: "Dubai Shopping Festival", category: "Festival", impact: "High", location: "Dubai Mall" },
-      { title: "Arab Health Exhibition", category: "Healthcare", impact: "High", location: "DWTC" },
-      { title: "Business Leadership Summit", category: "Business", impact: "High", location: "Burj Al Arab" },
-      { title: "Dubai Marathon", category: "Sports", impact: "High", location: "Dubai Marina" },
-      { title: "Art Dubai Fair", category: "Cultural", impact: "Medium", location: "Madinat Jumeirah" },
-      { title: "Dubai Food Festival", category: "Culinary", impact: "Medium", location: "Various Locations" },
-      { title: "Global Education Summit", category: "Education", impact: "Medium", location: "JW Marriott" },
-      { title: "International Tourism Fair", category: "Tourism", impact: "High", location: "Emirates Palace" },
-      { title: "Regional Conference Summit", category: "Business", impact: "Medium", location: "Conrad Hotel" }
-    ]
 
-    return trendData.map((dataPoint, index) => {
-      const totalDays = trendData.length
-
-      // For testing purposes, let's ensure we have some guaranteed sample events
-      // Add events at specific indices for demonstration
-      const guaranteedEventIndices = [2, 5, 8, 12, 15, 18] // Specific indices for sample events
-      let hasEvent = false
-
-      // First check if this is a guaranteed event position
-      if (guaranteedEventIndices.includes(index) && index < totalDays) {
-        hasEvent = true
-      } else {
-        // Skip first and last 2 items from having random events (reduced from 3)
-        const isNearEdges = index < 2 || index >= totalDays - 2
-
-        if (!isNearEdges) {
-          // Use more frequent event generation for better visibility
-          let eventFrequency = 3 // Increased frequency: 1 in 3 chance (33%)
-          if (totalDays > 30) {
-            eventFrequency = 4 // For longer periods: 1 in 4 chance (25%)
-          }
-          if (totalDays > 60) {
-            eventFrequency = 5 // For very long periods: 1 in 5 chance (20%)
-          }
-
-          // Use deterministic logic to assign events
-          const dateHash = index + (dataPoint.date ? dataPoint.date.length : 0)
-          hasEvent = (dateHash) % eventFrequency === 0
-        }
-      }
-
-      if (hasEvent) {
-        const eventIndex = index % eventTemplates.length
-        const selectedEvent = eventTemplates[eventIndex]
-
-        // Create a more robust date for the event
-        const eventDate = new Date()
-        eventDate.setDate(eventDate.getDate() + index)
-
-        const eventDataPoint = {
-          ...dataPoint,
-          hasEvent: true,
-          eventData: {
-            title: selectedEvent.title,
-            category: selectedEvent.category,
-            impact: selectedEvent.impact,
-            location: selectedEvent.location,
-            date: eventDate.toLocaleDateString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })
-          }
-        }
-
-        // Event created successfully
-
-        return eventDataPoint
-      }
-
-      return {
-        ...dataPoint,
-        hasEvent: false,
-        eventData: null
-      }
-    })
-  }, [])
 
   // Enhanced Channel data with performance metrics - hybrid of API and mock data
   const channelData = useMemo(() => {
@@ -1013,7 +950,7 @@ export default function OTARankingsPage() {
       // Generate realistic ranking data for all 15 hotels
       const dataPoint: any = {
         date: format(currentDate, 'MMM dd'),
-        fullDate: format(currentDate, 'dd MMM yyyy, EEE')
+        fullDate: format(currentDate, 'yyyy-MM-dd')
       }
       
       // Generate rankings and prices for each hotel
@@ -1055,9 +992,7 @@ export default function OTARankingsPage() {
       return dataPoint
     })
 
-    // Add event data to the ranking trends  
-    const dataWithEvents = generateChartEvents(baseData)
-    return dataWithEvents
+    return baseData
   }, [startDate, numberOfDays, comparePeriodDays])
 
   // Custom Tooltip Component for Ranking Trends (matching Rate Trends Analysis style)
@@ -1068,7 +1003,7 @@ export default function OTARankingsPage() {
       // Dynamic positioning based on cursor location
       // Get chart width (approximate) and determine positioning
       const chartWidth = 800 // Approximate chart area width
-      const tooltipWidth = 300 // Approximate tooltip width
+      const tooltipWidth = 280 // Increased tooltip width for wider property column
       const isNearRightEdge = coordinate && coordinate.x > (chartWidth * 0.6) // 60% from left
       
       const tooltipStyle = isNearRightEdge ? {
@@ -1081,28 +1016,37 @@ export default function OTARankingsPage() {
 
       return (
         <div 
-          className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-3 min-w-[260px] max-w-[350px] z-[10001] relative"
+          className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-3 min-w-[260px] max-w-[300px] z-[10001] relative"
           style={tooltipStyle}
         >
           {/* Date Heading */}
-          <div className="mb-3">
+          <div className="mb-2">
             <h3 className="text-gray-900 dark:text-white">
-              <span className="text-base font-bold">{data?.fullDate ? data.fullDate.split(',')[0] : label}</span>
-              <span className="text-sm font-normal">{data?.fullDate ? `, ${data.fullDate.split(',')[1]}` : ''}</span>
+              <span className="text-base font-bold">{data?.fullDate ? format(new Date(data.fullDate), "dd MMM yyyy") : ''}</span>
+              <span className="text-sm font-normal">{data?.fullDate ? `, ${format(new Date(data.fullDate), 'EEE')}` : ''}</span>
             </h3>
               </div>
 
-                    {/* Hotel Rankings */}
-          <div className="space-y-2">
+                    {/* Column Headings */}
+                     <div className="flex justify-between px-2">
+            <div>
+              <span className="text-xs font-medium text-gray-500 dark:text-slate-400">Property</span>
+            </div>
+            <div>
+                              <span className="text-xs font-medium text-gray-500 dark:text-slate-400">Rank&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+            </div>
+          </div>
+
+          {/* Hotel Rankings */}
+                     <div className="space-y-2 mt-1">
             {payload.map((entry: any, index: number) => {
                 // Find hotel info from availableHotelLines
                 const hotelInfo = availableHotelLines.find(hotel => hotel.dataKey === entry.dataKey)
                 const hotelName = hotelInfo?.name || entry.name || 'Unknown Hotel'
                 
-                // Truncate long hotel names for tooltip display
-                const truncatedName = hotelName.length > 20 ? `${hotelName.substring(0, 17)}...` : hotelName
+                // Truncate long hotel names for tooltip display - increased limit for wider column
+                const truncatedName = hotelName.length > 28 ? `${hotelName.substring(0, 25)}...` : hotelName
                 
-                const price = data?.[`${entry.dataKey}Price`] || 0
               const rank = entry.value
                               // Get variance from data
                 const getVarianceText = (dataKey: string) => {
@@ -1117,40 +1061,36 @@ export default function OTARankingsPage() {
               const isMyHotel = entry.dataKey === 'myHotel'
 
               return (
-                <div key={index} className={`flex items-center justify-between py-1.5 px-2 rounded-md ${
+                <div key={index} className={`flex justify-between items-center py-1.5 pl-2 pr-4 rounded-md ${
                   isMyHotel ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700' : ''
                 }`}>
-                  <div className="flex items-center gap-2 flex-1">
+                  {/* Property Column */}
+                  <div className="flex items-center gap-2 flex-1 min-w-0 mr-4">
                     <div
                       className="w-2.5 h-2.5 rounded-full shrink-0"
                       style={{ backgroundColor: entry.color }}
                     />
-                    <div className="flex-1 min-w-0">
-                      <div className={`text-xs font-medium truncate ${
-                        isMyHotel ? 'text-blue-900 dark:text-blue-200' : 'text-gray-900 dark:text-slate-100'
-                      }`}>
-                        {truncatedName}
-                  </div>
-                </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-right flex-shrink-0">
-                    <div className={`text-xs font-bold min-w-[60px] text-right ${
+                    <div className={`text-xs font-medium whitespace-nowrap ${
                       isMyHotel ? 'text-blue-900 dark:text-blue-200' : 'text-gray-900 dark:text-slate-100'
                     }`}>
-                      ${price?.toLocaleString()}
-                </div>
-                    <div className={`text-xs font-bold min-w-[30px] ${
+                      {truncatedName}
+                    </div>
+                  </div>
+                  
+                  {/* Rank Column - Right aligned */}
+                  <div className="flex items-center gap-3">
+                    <div className={`text-xs font-bold w-6 text-right ${
                       isMyHotel ? 'text-blue-900 dark:text-blue-200' : 'text-gray-900 dark:text-slate-100'
                     }`}>
                       #{rank}
-              </div>
-                    <div className={`text-xs font-medium min-w-[40px] ${
+                    </div>
+                    <div className={`text-xs font-medium w-6 text-right ${
                       variance === 'NF' ? 'text-gray-500' :
                       variance.toString().startsWith('+') ? 'text-red-600 dark:text-red-400 font-bold' : 
                       'text-green-600 dark:text-green-400 font-bold'
                     }`}>
                       {variance}
-      </div>
+                    </div>
                   </div>
                 </div>
               )
@@ -1170,8 +1110,8 @@ export default function OTARankingsPage() {
     <>
       {/* Enhanced Charts Section */}
       {/* Full-width Ranking Trends Analysis */}
-      <Card ref={cardRef} className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 mb-[200px] pb-[50px]">
-        <CardHeader className="pb-4">
+      <Card ref={cardRef} className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 mb-6">
+        <CardHeader className="pb-2">
           <div className="flex items-start justify-between">
             <div className="flex items-start space-x-3">
               <div className={`w-6 h-6 rounded ${selectedChannelData?.iconBg || 'bg-primary'} flex items-center justify-center mt-0.5`}>
@@ -1183,21 +1123,75 @@ export default function OTARankingsPage() {
           </div>
       </div>
 
+                          {/* View Toggle and Download Button Container */}
+              <div className="flex items-center gap-4">
+              {/* View Toggle */}
+              <TooltipProvider>
+                <div className="flex items-center border border-border rounded-lg overflow-hidden h-9 w-auto">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={rankViewMode === "graph" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setRankViewMode("graph")}
+                        className={cn(
+                          "h-9 w-9 rounded-none border-r-0 border-b-0",
+                          rankViewMode === "graph" ? "border-r-0 border-b-0" : "border-r-0 border-b-0 hover:border-r-0 hover:border-b-0"
+                        )}
+                      >
+                        <BarChart3 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                      <p className="text-xs font-normal">Graph View</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={rankViewMode === "table" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setRankViewMode("table")}
+                        className={cn(
+                          "h-9 w-9 rounded-none border-l-0 border-t-0",
+                          rankViewMode === "table" ? "border-l-0 border-t-0" : "border-l-0 border-t-0 hover:border-l-0 hover:border-t-0"
+                        )}
+                      >
+                        <Table className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                      <p className="text-xs font-normal">Table View</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </TooltipProvider>
+
             {/* Download Button */}
             <DropdownMenu>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="btn-minimal">
                   <Download className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                    <p className="text-xs font-normal">Download</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleDownloadImage}>Export as Image</DropdownMenuItem>
                 <DropdownMenuItem onClick={handleDownloadCSV}>Export as CSV</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             </div>
+            </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-6 pt-1 pb-2">
           {/* Error Message */}
           {errorMessage && (
             <Alert className="mb-4 border-red-200 bg-red-50 dark:bg-red-900/20">
@@ -1207,18 +1201,18 @@ export default function OTARankingsPage() {
             </Alert>
           )}
           
-          {/* Ranking Chart */}
-          {(
-            <div className="mt-4" style={{ height: `${chartHeight}px` }}>
+          {/* Ranking Content - Graph or Table */}
+          {rankViewMode === "graph" ? (
+            <div style={{ height: '470px' }} className="[&_.recharts-wrapper]:mt-3 [&_.recharts-legend-wrapper]:!bottom-[54px]">
             <ResponsiveContainer width="100%" height="100%">
-                              <LineChart data={rankingTrendsData} margin={{ top: 20, right: 40, left: 30, bottom: 60 }}>
+                              <LineChart data={rankingTrendsData} margin={{ top: 20, right: 40, left: 30, bottom: 30 }}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-15 dark:opacity-10" stroke="#e5e7eb" />
                 <XAxis 
                   dataKey="date"
                   className="text-xs"
                   interval="preserveStartEnd"
                   height={85}
-                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", dy: 20 }}
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", dy: 10 }}
                   axisLine={true}
                   tickLine={false}
                 />
@@ -1297,6 +1291,8 @@ export default function OTARankingsPage() {
                         strokeWidth: 2
                       } : false}
                       hide={!isVisible}
+                      isAnimationActive={false}
+                      animationDuration={0}
                     />
                   )
                 })}
@@ -1304,21 +1300,17 @@ export default function OTARankingsPage() {
                 {/* Recharts Legend with Overview page pattern */}
                 <Legend
                   verticalAlign="bottom"
-                  height={120} // Fixed height for legend - no dynamic changes when lines hide/show
+                  height={30}
                   iconType="line"
                   wrapperStyle={{
-                    paddingTop: "10px",
+                    paddingTop: "5px",
                     fontSize: "12px",
                     cursor: "pointer",
                     lineHeight: "1.6",
                     display: "flex",
                     flexWrap: "wrap",
                     gap: "18px",
-                    justifyContent: "center",
-                    position: "absolute",
-                    top: "354px",
-                    left: "40px",
-                    right: "0"
+                    justifyContent: "center"
                   }}
                   onClick={(event: any) => {
                     if (event.dataKey && typeof event.dataKey === 'string') {
@@ -1345,109 +1337,193 @@ export default function OTARankingsPage() {
               </LineChart>
             </ResponsiveContainer>
             </div>
-          )}
-
-          {/* Event Star Icons Above X-Axis Dates */}
-          {(() => {
-            return (
-            <div className="relative mb-8" style={{ marginTop: '-266px' }}>
-              {/* Precise alignment container that matches Recharts coordinate system */}
-              <div
-                className="relative"
-                style={{
-                  // Match the exact chart positioning
-                  marginLeft: '60px', // Left margin to align with chart
-                  marginRight: '70px', // Right margin to align with chart  
-                  width: 'calc(100% - 130px)', // Total available plot area width
-                  height: '30px'
-                }}
-              >
-                {rankingTrendsData.map((dataPoint, index) => {
-                  // SIMPLIFIED POSITIONING ALGORITHM FOR PERFECT ALIGNMENT
-                  const totalDataPoints = rankingTrendsData.length;
-
-                  // Use a simpler approach that matches Recharts categorical axis spacing
-                  // Recharts distributes categorical data points evenly with padding
-                  
-                  let finalPosition;
-                  
-                  if (totalDataPoints === 1) {
-                    finalPosition = 50; // Center for single point
-                  } else {
-                    // Simple percentage-based positioning with proper padding
-                    // Account for Recharts internal margins and categorical spacing
-                    const leftPadding = 5; // 5% left padding
-                    const rightPadding = 5; // 5% right padding
-                    const availableWidth = 100 - leftPadding - rightPadding; // 90% usable width
-                    
-                    // Calculate position within the available width
-                    const stepWidth = availableWidth / (totalDataPoints - 1);
-                    finalPosition = leftPadding + (index * stepWidth);
-                  }
-
-                  // Ensure boundaries
-                  finalPosition = Math.max(2, Math.min(98, finalPosition));
-
-                  return (
-                    <div
-                      key={`event-star-${index}`}
-                      className="absolute"
-                      style={{
-                        left: `${finalPosition}%`,
-                        top: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        zIndex: 10
-                      }}
-                    >
-                      {dataPoint.hasEvent && dataPoint.eventData && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="cursor-pointer flex items-center justify-center">
-                                <Star
-                                  className="w-3 h-3 text-amber-500 fill-amber-500 hover:scale-110 transition-transform duration-200 drop-shadow-lg"
-                                />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
-                              <div className="space-y-2">
-                                {/* Date Header */}
-                                <div className="text-white font-medium text-sm border-b border-slate-700 pb-2">
-                                  {dataPoint.eventData.date}
+          ) : (
+            // Table View with Reviews styling and sticky columns
+            <div style={{ height: '470px' }} className="mt-4 mb-5">
+              <div className="border border-border rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <div className="max-h-[462px] overflow-y-auto">
+                    <table className="w-full relative">
+                      {/* Sticky Header */}
+                      <thead className="bg-gray-50 sticky top-0 z-20">
+                        <tr className="border-b border-gray-200">
+                          {/* Sticky Check-in Date Column */}
+                          <th className="sticky left-0 z-30 bg-gray-50 text-left py-1.5 pl-2 pr-4 font-semibold text-xs text-muted-foreground border-r border-gray-200">
+                            Check-in Date
+                          </th>
+                          {/* Sticky My Hotel Column */}
+                                                     <th className="sticky left-24 z-30 bg-blue-50 text-right py-1.5 pl-2 pr-4 font-semibold text-xs text-muted-foreground border-r border-gray-200">
+                            {selectedProperty?.name || 'Alhambra Hotel'}
+                            <div className="text-xs text-muted-foreground font-normal mt-0.5">Rank</div>
+                          </th>
+                                                     {/* Competitor Columns */}
+                           {Array.from({ length: 4 }, (_, index) => {
+                             const competitorSlice = availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey]).slice(competitorPage * 4, (competitorPage + 1) * 4);
+                             const hotel = competitorSlice[index];
+                             
+                             if (hotel) {
+                               return (
+                                 <th key={hotel.dataKey} className="text-right py-1.5 px-0 font-semibold text-xs text-muted-foreground min-w-32" style={{marginLeft: '-20px'}}>
+                                   <TooltipProvider>
+                                     <Tooltip>
+                                       <TooltipTrigger asChild>
+                                         <div className="truncate cursor-pointer">{hotel.name.length > 15 ? `${hotel.name.substring(0, 15)}...` : hotel.name}</div>
+                                       </TooltipTrigger>
+                                       {hotel.name.length > 15 && (
+                                         <TooltipContent className="bg-black text-white border-black font-normal">
+                                           <p>{hotel.name}</p>
+                                         </TooltipContent>
+                                       )}
+                                     </Tooltip>
+                                   </TooltipProvider>
+                                   <div className="text-xs text-muted-foreground font-normal mt-0.5">Rank</div>
+                                 </th>
+                               );
+                             } else {
+                               return (
+                                 <th key={`empty-${index}`} className="text-right py-1.5 px-0 font-semibold text-xs text-muted-foreground min-w-32" style={{marginLeft: '-20px'}}>
+                                   <div className="text-xs text-muted-foreground font-normal mt-0.5 opacity-0">-</div>
+                                 </th>
+                               );
+                             }
+                           })}
+                                                     {/* Navigation Column */}
+                           {availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey]).length > 4 && (
+                             <th className="text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground w-20">
+                               <TooltipProvider>
+                                 <div className="flex items-center justify-center">
+                                   <div className="flex border border-input rounded-md">
+                                     <Tooltip>
+                                       <TooltipTrigger asChild>
+                                         <Button
+                                           variant="ghost"
+                                           size="sm"
+                                           className="h-6 w-6 p-0 rounded-none border-0"
+                                           onClick={handlePrevCompetitors}
+                                           disabled={competitorPage === 0}
+                                         >
+                                           <ChevronLeft className="h-3 w-3" />
+                                         </Button>
+                                       </TooltipTrigger>
+                                       <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                                         <p className="text-xs font-normal">Previous</p>
+                                       </TooltipContent>
+                                     </Tooltip>
+                                     <div className="w-px bg-border"></div>
+                                     <Tooltip>
+                                       <TooltipTrigger asChild>
+                                         <Button
+                                           variant="ghost"
+                                           size="sm"
+                                           className="h-6 w-6 p-0 rounded-none border-0"
+                                           onClick={handleNextCompetitors}
+                                           disabled={competitorPage >= Math.ceil(availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey]).length / 4) - 1}
+                                         >
+                                           <ChevronRight className="h-3 w-3" />
+                                         </Button>
+                                       </TooltipTrigger>
+                                       <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                                         <p className="text-xs font-normal">Next</p>
+                                       </TooltipContent>
+                                     </Tooltip>
+                                   </div>
+                                 </div>
+                               </TooltipProvider>
+                             </th>
+                           )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rankingTrendsData.map((dataPoint, index) => {
+                          const myHotelData = availableHotelLines.find(hotel => hotel.dataKey === 'myHotel');
+                          const competitors = availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey]).slice(competitorPage * 4, (competitorPage + 1) * 4);
+                          
+                          return (
+                                                         <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 group">
+                              {/* Sticky Check-in Date */}
+                              <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 py-2 pl-2 pr-4 font-medium text-foreground text-sm border-r border-gray-200">
+                                {(() => {
+                                  const dateInfo = formatTableDate(dataPoint.fullDate || dataPoint.date)
+                                  return (
+                                    <div className="flex items-center">
+                                      <span>{dateInfo.formatted}, </span>
+                                      <span className="font-normal text-gray-600 ml-1" style={{fontSize: '12px'}}>{dateInfo.dayName}</span>
+                                    </div>
+                                  )
+                                })()}
+                              </td>
+                              {/* Sticky My Hotel Rank */}
+                                                             <td className="sticky left-24 z-10 bg-blue-50 group-hover:bg-blue-100 py-2 pl-2 pr-4 text-right border-r border-gray-200 border-b border-gray-200">
+                                <div className="flex items-center justify-end space-x-6">
+                                  <span className="font-semibold text-sm">{dataPoint[myHotelData?.dataKey || 'myHotel']}</span>
+                                  {(() => {
+                                    const variance = dataPoint[`${myHotelData?.dataKey || 'myHotel'}Variance`];
+                                    if (variance === 0 || variance === null || variance === undefined) {
+                                      return <span className="text-gray-500 text-xs px-1 py-0.5 rounded text-center" style={{width: '30px', display: 'inline-block'}}>NF</span>;
+                                    }
+                                    const isPositive = variance > 0;
+                                    return (
+                                      <span className={`text-xs font-medium px-1 py-0.5 rounded text-center ${
+                                        isPositive ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+                                      }`} style={{width: '30px', display: 'inline-block'}}>
+                                        {isPositive ? '+' : ''}{variance}
+                                      </span>
+                                    );
+                                  })()}
                                 </div>
-
-                                {/* Event Details */}
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-1">
-                                    <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                                    <span className="font-semibold text-sm text-white">{dataPoint.eventData.title}</span>
-                                  </div>
-
-                                  <div className="text-xs text-gray-300">
-                                    {dataPoint.eventData.category} | <span className={`font-medium ${dataPoint.eventData.impact === 'High' ? 'text-red-400' :
-                                      dataPoint.eventData.impact === 'Medium' ? 'text-yellow-400' :
-                                        'text-green-400'
-                                      }`}>
-                                      {dataPoint.eventData.impact} Impact
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                    </div>
-                  );
-                })}
-                
-
+                              </td>
+                              {/* Competitor Ranks */}
+                              {Array.from({ length: 4 }, (_, index) => {
+                                const hotel = competitors[index];
+                                
+                                if (hotel) {
+                                  return (
+                                    <td key={hotel.dataKey} className="py-2 px-0 text-right group-hover:bg-gray-50" style={{marginLeft: '-20px'}}>
+                                      <div className="flex items-center justify-end space-x-6">
+                                        <span className="font-semibold text-sm">{dataPoint[hotel.dataKey]}</span>
+                                        {(() => {
+                                          const variance = dataPoint[`${hotel.dataKey}Variance`];
+                                          if (variance === 0 || variance === null || variance === undefined) {
+                                            return <span className="text-gray-500 text-xs px-1 py-0.5 rounded text-center" style={{width: '30px', display: 'inline-block'}}>NF</span>;
+                                          }
+                                          const isPositive = variance > 0;
+                                          return (
+                                            <span className={`text-xs font-medium px-1 py-0.5 rounded text-center ${
+                                              isPositive ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+                                            }`} style={{width: '30px', display: 'inline-block'}}>
+                                              {isPositive ? '+' : ''}{variance}
+                                            </span>
+                                          );
+                                        })()}
+                                      </div>
+                                    </td>
+                                  );
+                                } else {
+                                  return (
+                                    <td key={`empty-${index}`} className="py-2 px-0 text-right group-hover:bg-gray-50" style={{marginLeft: '-20px'}}>
+                                      <div className="flex items-center justify-end space-x-6">
+                                        <span className="font-semibold text-sm text-gray-300 opacity-0">-</span>
+                                        <span className="text-gray-300 text-xs px-1 py-0.5 rounded text-center opacity-0" style={{width: '30px', display: 'inline-block'}}>-</span>
+                                      </div>
+                                    </td>
+                                  );
+                                }
+                              })}
+                                                             {/* Navigation Column Cell */}
+                               {availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey]).length > 4 && (
+                                 <td className="py-2 px-2 text-center group-hover:bg-gray-50">
+                                 </td>
+                               )}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
-            )
-          })()}
-          
-
+          )}
         </CardContent>
       </Card>
     </>
@@ -1650,53 +1726,7 @@ export default function OTARankingsPage() {
                   </div>
                   )}
 
-                  {/* Channel Dropdown - Overview-style for Reviews mode */}
-                  {viewMode === "Reviews" ? (
-                    <div className="shrink-0">
-                      <DropdownMenu key="channel" onOpenChange={(event) => onOpenChangeSelect(event)}>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md min-w-0 max-w-[160px] hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
-                          >
-                            <Globe className="w-4 h-4 shrink-0" />
-                            <span className="truncate max-w-[80px] font-semibold">
-                              {getOverviewChannelDisplayText()}
-                            </span>
-                            <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-auto p-0 shadow-xl border-slate-200 dark:border-slate-700 z-[60]">
-                          <div className="flex">
-                            <div className="w-56 p-4">
-                              <h4 className="font-semibold text-sm text-gray-700 mb-3">Channels</h4>
-                              <div className="max-h-64 overflow-y-auto">
-                                <div className="space-y-1 pr-1">
-                                  {overviewChannelData?.map((option: any) => (
-                                    <label
-                                      key={option.cid}
-                                      className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
-                                        checked={selectedOverviewChannels.includes(option?.cid)}
-                                        onChange={() => handleOverviewChannelSelect(option?.cid, overviewChannelData)}
-                                      />
-                                      <span className="font-medium text-sm flex-1">
-                                        {option?.name}
-                                      </span>
-                                    </label>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  ) : null}
+
 
                   {/* Compset Dropdown */}
                   <div className="shrink-0">
@@ -1932,10 +1962,9 @@ export default function OTARankingsPage() {
                   {/* Rest of Option 1 Content */}
                   {viewMode === "Rank" ? renderOption1() : (
                     viewMode === "Reviews" && (
-                      <>
-                        {/* Reviews Table Widget */}
                         <Card className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 mb-6">
-                          <CardHeader className="pb-4">
+                        <CardHeader className="p-6 pb-2">
+                          <div className="flex items-start justify-between">
                             <div className="flex items-start space-x-3">
                               <div className={`w-6 h-6 rounded ${selectedChannelData?.iconBg || 'bg-primary'} flex items-center justify-center mt-0.5`}>
                                 <span className="text-white text-xs font-bold">
@@ -1944,18 +1973,130 @@ export default function OTARankingsPage() {
                               </div>
                               <div className="flex-1">
                                 <CardTitle className="text-xl font-bold">
-                                  Reviews
+                                  Reviews Trends
                                 </CardTitle>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  Track review scores and volume trends across your selected channels over time
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                              {/* View Toggle */}
+                              <TooltipProvider>
+                                <div className="flex items-center border border-border rounded-lg overflow-hidden h-9 w-auto">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant={reviewsViewMode === "graph" ? "default" : "ghost"}
+                                        size="sm"
+                                        onClick={() => setReviewsViewMode("graph")}
+                                        className={cn(
+                                          "h-[42px] w-[42px] p-0 rounded-none border-0",
+                                          reviewsViewMode === "graph" ? "bg-primary text-primary-foreground" : ""
+                                        )}
+                                      >
+                                        <BarChart3 className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                                      <p className="text-xs font-normal">Graph View</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant={reviewsViewMode === "table" ? "default" : "ghost"}
+                                        size="sm"
+                                        onClick={() => setReviewsViewMode("table")}
+                                        className={cn(
+                                          "h-[42px] w-[42px] p-0 rounded-none border-0",
+                                          reviewsViewMode === "table" ? "bg-primary text-primary-foreground" : ""
+                                        )}
+                                      >
+                                        <Table className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                                      <p className="text-xs font-normal">Table View</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                              </TooltipProvider>
+
+                              {/* Download Button */}
+                              <DropdownMenu>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" size="sm" className="btn-minimal">
+                                          <Download className="w-4 h-4" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                                      <p className="text-xs font-normal">Download</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                                      <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => {
+                                    const element = reviewsViewMode === "graph" ? document.getElementById('reviews-chart') : cardRef.current
+                                    if (element) {
+                                      toPng(element)
+                                        .then((dataUrl) => {
+                                          const link = document.createElement('a')
+                                          link.download = `reviews-${reviewsViewMode}.png`
+                                          link.href = dataUrl
+                                          link.click()
+                                        })
+                                        .catch((err) => {
+                                          console.error('Export failed:', err)
+                                        })
+                                    }
+                                  }}>Export as Image</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => {
+                                    if (reviewsViewMode === "graph") {
+                                      const csvData = reviewsData.map(item => ({
+                                        Week: item.week,
+                                        'Review Score': item.reviewScore,
+                                        'Number of Reviews': item.numberOfReviews
+                                      }))
+                                      
+                                      const headers = Object.keys(csvData[0])
+                                      const csvContent = [
+                                        headers.join(','),
+                                        ...csvData.map(row => headers.map(header => row[header as keyof typeof row]).join(','))
+                                      ].join('\n')
+                                      
+                                      const blob = new Blob([csvContent], { type: 'text/csv' })
+                                      const url = window.URL.createObjectURL(blob)
+                                      const link = document.createElement('a')
+                                      link.href = url
+                                      link.download = 'reviews-trends.csv'
+                                      link.click()
+                                      window.URL.revokeObjectURL(url)
+                                    } else {
+                                      // Handle table CSV export here if needed
+                                      console.log('Table CSV export')
+                                    }
+                                  }}>Export as CSV</DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                               </div>
                             </div>
                           </CardHeader>
-                          <CardContent>
+                          <CardContent className="px-6 pt-1 pb-0">
+                            {reviewsViewMode === "table" ? (
+                            <div style={{ height: '400px' }} className="mt-3 mb-6">
+                              <div className="border border-border rounded-lg overflow-hidden">
                             <div className="overflow-x-auto">
-                              <div className="max-h-96 overflow-y-auto">
+                                  <div className="max-h-80 overflow-y-auto">
                                 <table className="w-full">
                                 <thead className="bg-gray-50">
                                   <tr className="border-b border-gray-200">
-                                    <th className="text-left py-1.5 px-2 font-semibold text-xs text-muted-foreground">Hotel</th>
+                                    <th className="text-left py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200">Hotel</th>
                                     <th className="text-right py-1.5 px-2 pr-16 font-semibold text-xs text-muted-foreground">
                                       Review Score
                                       <div className="text-xs text-muted-foreground font-normal mt-0.5">Out of 10</div>
@@ -1972,7 +2113,7 @@ export default function OTARankingsPage() {
                                 <tbody>
                                   {/* My Hotel - First Row */}
                                   <tr className="border-b border-gray-100 hover:bg-gray-50">
-                                    <td className="py-2 px-2 font-medium text-foreground text-sm">{selectedProperty?.name || 'Alhambra Hotel'}</td>
+                                    <td className="py-2 px-2 font-medium text-foreground text-sm border-r border-gray-200">{selectedProperty?.name || 'Alhambra Hotel'}</td>
                                     <td className="py-2 px-2 pr-16 text-right">
                                       <div className="flex items-center justify-end space-x-1">
                                         <span className="bg-red-100 text-red-800 px-1 py-0.5 rounded text-xs font-medium" style={{fontSize: '10px'}}>WORST</span>
@@ -1984,37 +2125,60 @@ export default function OTARankingsPage() {
                                   </tr>
                                   {/* Competitor Hotels */}
                                   <tr className="border-b border-gray-100 hover:bg-gray-50">
-                                    <td className="py-2 px-2 text-sm">Hotel Alexander Plaza</td>
+                                    <td className="py-2 px-2 text-sm border-r border-gray-200">Hotel Alexander Plaza</td>
                                     <td className="py-2 px-2 pr-16 text-right font-semibold text-sm">8.7</td>
                                     <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">3855</td>
                                     <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">#1</td>
                                   </tr>
                                   <tr className="border-b border-gray-100 hover:bg-gray-50">
-                                    <td className="py-2 px-2 text-sm">Comfort Hotel Auberge</td>
+                                    <td className="py-2 px-2 text-sm border-r border-gray-200">Comfort Hotel Auberge</td>
                                     <td className="py-2 px-2 pr-16 text-right font-semibold text-sm">7.5</td>
                                     <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">2515</td>
-                                    <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">#4</td>
+                                    <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">
+                                      <div className="flex items-center justify-end space-x-1">
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <span className="text-red-600 dark:text-red-400 font-normal cursor-help">#500+</span>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                              <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Info className="w-3 h-3 text-red-600 dark:text-red-400 cursor-help transition-colors" />
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                              <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      </div>
+                                    </td>
                                   </tr>
                                   <tr className="border-b border-gray-100 hover:bg-gray-50">
-                                    <td className="py-2 px-2 text-sm">acom Hotel Berlin City Süd</td>
+                                    <td className="py-2 px-2 text-sm border-r border-gray-200">acom Hotel Berlin City Süd</td>
                                     <td className="py-2 px-2 pr-16 text-right font-semibold text-sm">8.1</td>
                                     <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">810</td>
                                     <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">#2</td>
                                   </tr>
                                   <tr className="border-b border-gray-100 hover:bg-gray-50">
-                                    <td className="py-2 px-2 text-sm">InterCityHotel Berlin Ostbahnhof</td>
+                                    <td className="py-2 px-2 text-sm border-r border-gray-200">InterCityHotel Berlin Ostbahnhof</td>
                                     <td className="py-2 px-2 pr-16 text-right font-semibold text-sm">7.9</td>
                                     <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">3670</td>
                                     <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">#3</td>
                                   </tr>
                                   <tr className="border-b border-gray-100 hover:bg-gray-50">
-                                    <td className="py-2 px-2 text-sm">Mercure Hotel Berlin City West</td>
+                                    <td className="py-2 px-2 text-sm border-r border-gray-200">Mercure Hotel Berlin City West</td>
                                     <td className="py-2 px-2 pr-16 text-right font-semibold text-sm">7.0</td>
                                     <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">2096</td>
                                     <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">#6</td>
                                   </tr>
                                   <tr className="hover:bg-gray-50">
-                                    <td className="py-2 px-2 text-sm">Hotel Brandies an der Messe</td>
+                                    <td className="py-2 px-2 text-sm border-r border-gray-200">Hotel Brandies an der Messe</td>
                                     <td className="py-2 px-2 pr-16 text-right">
                                       <div className="flex items-center justify-end space-x-1">
                                         <span className="bg-green-100 text-green-800 px-1 py-0.5 rounded text-xs font-medium" style={{fontSize: '10px'}}>BEST</span>
@@ -2028,84 +2192,19 @@ export default function OTARankingsPage() {
                                 </table>
                               </div>
                             </div>
-                          </CardContent>
-                        </Card>
-
-                        <Card ref={cardRef} className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 mb-[200px] reviews-chart-card">
-                        <CardHeader className="pb-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start space-x-3">
-                              <div className={`w-6 h-6 rounded ${selectedChannelData?.iconBg || 'bg-primary'} flex items-center justify-center mt-0.5`}>
-                                <span className="text-white text-xs font-bold">
-                                  {selectedChannelData?.icon || selectedChannel.charAt(0).toUpperCase()}
-                                </span>
                               </div>
-                              <div className="flex-1">
-                                <CardTitle className="text-xl font-bold">Reviews Trends</CardTitle>
-                                <p className="text-sm text-muted-foreground mt-1">Track review scores and volume trends across your selected channels over time</p>
                               </div>
-                            </div>
-
-                            {/* Download Button */}
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm" className="btn-minimal">
-                                  <Download className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => {
-                                  const element = document.getElementById('reviews-chart')
-                                  if (element) {
-                                    toPng(element)
-                                      .then((dataUrl) => {
-                                        const link = document.createElement('a')
-                                        link.download = 'reviews-trends.png'
-                                        link.href = dataUrl
-                                        link.click()
-                                      })
-                                      .catch((err) => {
-                                        console.error('Export failed:', err)
-                                      })
-                                  }
-                                }}>Export as Image</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
-                                  const csvData = reviewsData.map(item => ({
-                                    Week: item.week,
-                                    'Review Score': item.reviewScore,
-                                    'Number of Reviews': item.numberOfReviews
-                                  }))
-                                  
-                                  const headers = Object.keys(csvData[0])
-                                  const csvContent = [
-                                    headers.join(','),
-                                    ...csvData.map(row => headers.map(header => row[header as keyof typeof row]).join(','))
-                                  ].join('\n')
-                                  
-                                  const blob = new Blob([csvContent], { type: 'text/csv' })
-                                  const url = window.URL.createObjectURL(blob)
-                                  const link = document.createElement('a')
-                                  link.href = url
-                                  link.download = 'reviews-trends.csv'
-                                  link.click()
-                                  window.URL.revokeObjectURL(url)
-                                }}>Export as CSV</DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="px-6 pt-6 pb-3">
-                          {(
-                            <div id="reviews-chart" className="mt-4" style={{ height: `${chartHeight}px` }}>
+                            ) : (
+                            <div id="reviews-chart" className="mt-1" style={{ height: '440px' }}>
                               <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={reviewsData} margin={{ top: 20, right: 40, left: 30, bottom: 80 }}>
+                                <LineChart data={reviewsData} margin={{ top: 15, right: 40, left: 30, bottom: 5 }}>
                                   <CartesianGrid strokeDasharray="3 3" className="opacity-15 dark:opacity-10" stroke="#e5e7eb" />
                                   <XAxis 
                                     dataKey="week"
                                     className="text-xs"
                                     interval="preserveStartEnd"
                                     height={85}
-                                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", dy: 20 }}
+                                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", dy: 10 }}
                                     axisLine={true}
                                     tickLine={false}
                                   />
@@ -2189,87 +2288,8 @@ export default function OTARankingsPage() {
                               </ResponsiveContainer>
                             </div>
                           )}
-
-                          {/* Events for Reviews */}
-                          {(
-                            <div className="relative -mt-20 mb-8" style={{ marginTop: '-168px' }}>
-                              <div
-                                className="relative"
-                                style={{
-                                  marginLeft: '60px',
-                                  marginRight: '70px',
-                                  width: 'calc(100% - 130px)',
-                                  height: '30px'
-                                }}
-                              >
-                                {reviewsData.map((dataPoint, index) => {
-                                  const totalDataPoints = reviewsData.length;
-                                  let finalPosition;
-                                  
-                                  if (totalDataPoints === 1) {
-                                    finalPosition = 50;
-                                  } else {
-                                    const leftPadding = 5;
-                                    const rightPadding = 5;
-                                    const availableWidth = 100 - leftPadding - rightPadding;
-                                    const stepWidth = availableWidth / (totalDataPoints - 1);
-                                    finalPosition = leftPadding + (index * stepWidth);
-                                  }
-                                  
-                                  finalPosition = Math.max(2, Math.min(98, finalPosition));
-
-                                  return (
-                                    <div
-                                      key={`event-star-${index}`}
-                                      className="absolute"
-                                      style={{
-                                        left: `${finalPosition}%`,
-                                        top: '50%',
-                                        transform: 'translate(-50%, -50%)',
-                                        zIndex: 10
-                                      }}
-                                    >
-                                      {dataPoint.hasEvent && dataPoint.eventData && (
-                                        <TooltipProvider>
-                                          <Tooltip>
-                                            <TooltipTrigger asChild>
-                                              <div className="cursor-pointer flex items-center justify-center">
-                                                <Star className="w-3 h-3 text-amber-500 fill-amber-500 hover:scale-110 transition-transform duration-200 drop-shadow-lg" />
-                                              </div>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
-                                              <div className="space-y-2">
-                                                <div className="text-white font-medium text-sm border-b border-slate-700 pb-2">
-                                                  {dataPoint.eventData.date}
-                                                </div>
-                                                <div className="space-y-1">
-                                                  <div className="flex items-center gap-1">
-                                                    <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                                                    <span className="font-semibold text-sm text-white">{dataPoint.eventData.title}</span>
-                                                  </div>
-                                                  <div className="text-xs text-gray-300">
-                                                    {dataPoint.eventData.category} | <span className={`font-medium ${dataPoint.eventData.impact === 'High' ? 'text-red-400' :
-                                                      dataPoint.eventData.impact === 'Medium' ? 'text-yellow-400' :
-                                                        'text-green-400'
-                                                      }`}>
-                                                      {dataPoint.eventData.impact} Impact
-                                                    </span>
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            </TooltipContent>
-                                          </Tooltip>
-                                        </TooltipProvider>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
                         </CardContent>
                       </Card>
-                      </>
                     )
                   )}
             </div>

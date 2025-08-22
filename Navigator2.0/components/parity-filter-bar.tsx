@@ -11,7 +11,7 @@ import { EnhancedDatePicker } from "@/components/enhanced-date-picker"
 import { cn } from "@/lib/utils"
 import { getChannels } from "@/lib/channels"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
-import { addDays } from "date-fns"
+import { addDays, format } from "date-fns"
 
 // Parity-specific date context
 interface ParityDateContextType {
@@ -145,7 +145,7 @@ export function ParityFilterBar({ className }: ParityFilterBarProps) {
               <Calendar className="h-4 w-4 mr-2" />
               {startDate && endDate ? (
                 <span className="text-sm">
-                  {startDate.toLocaleDateString()} - {endDate.toLocaleDateString()}
+                  {format(startDate, 'dd/MM/yyyy')} - {format(endDate, 'dd/MM/yyyy')}
                 </span>
               ) : (
                 <span className="text-sm text-muted-foreground">Select dates</span>

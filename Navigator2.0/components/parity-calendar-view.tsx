@@ -102,9 +102,105 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
     }
   }, [selectedProperty?.sid, startDate, endDate, channelFilter])
 
+  // Sample data for 10 channels (when no API data is available)
+  const generateSampleData = (): ChannelParityData[] => {
+    const sampleChannels = [
+      { name: "Hotel 2", isHotel: true, winPercent: 45, meetPercent: 35, lossPercent: 20, parityScore: 65 },
+      { name: "Booking.com", winPercent: 55, meetPercent: 10, lossPercent: 35, parityScore: 60 },
+      { name: "Trivago", winPercent: 50, meetPercent: 25, lossPercent: 25, parityScore: 70 },
+      { name: "Google Hotels", winPercent: 45, meetPercent: 35, lossPercent: 20, parityScore: 65 },
+      { name: "Expedia", winPercent: 55, meetPercent: 10, lossPercent: 35, parityScore: 60 },
+      { name: "Trip Advisor", winPercent: 50, meetPercent: 25, lossPercent: 25, parityScore: 70 },
+      { name: "Agoda", winPercent: 40, meetPercent: 30, lossPercent: 30, parityScore: 55 },
+      { name: "Hotels.com", winPercent: 35, meetPercent: 25, lossPercent: 40, parityScore: 50 },
+      { name: "Priceline", winPercent: 30, meetPercent: 35, lossPercent: 35, parityScore: 45 },
+      { name: "Kayak", winPercent: 25, meetPercent: 40, lossPercent: 35, parityScore: 40 }
+    ]
+
+    return sampleChannels.map((channel, index) => {
+      // Generate sample daily data for each channel
+      const dailyData: ParityDayData[] = dateRange.map((date, dayIndex) => {
+        const patterns = [
+          // Hotel 2 pattern
+          ['67%', '25%', '45%', '29%', '55%', '45%', '26%', '26%', '55%', '26%', '77%', '72%', '67%', '87%', '55%'],
+          // Booking.com pattern
+          ['M', 'L', 'M', 'L', 'M', 'M', 'L', 'L', 'M', 'L', 'W', 'W', 'M', 'W', 'M'],
+          // Trivago pattern  
+          ['M', 'L', 'M', 'L', 'M', 'M', 'L', 'L', 'M', 'L', 'W', 'W', 'M', 'W', 'M'],
+          // Google Hotels pattern
+          ['M', 'L', 'M', 'L', 'M', 'M', 'L', 'L', 'M', 'L', 'W', 'W', 'M', 'W', 'M'],
+          // Expedia pattern
+          ['L', 'W', 'M', 'W', 'W', 'L', 'M', 'L', 'L', 'M', 'M', 'L', 'M', 'L', 'M'],
+          // Trip Advisor pattern
+          ['M', 'W', 'M', 'W', 'W', 'L', 'M', 'L', 'L', 'M', 'M', 'L', 'M', 'L', 'M'],
+          // Agoda pattern
+          ['L', 'M', 'W', 'L', 'M', 'W', 'L', 'M', 'W', 'L', 'M', 'W', 'L', 'M', 'W'],
+          // Hotels.com pattern
+          ['M', 'L', 'L', 'M', 'L', 'M', 'L', 'L', 'M', 'M', 'L', 'M', 'L', 'W', 'M'],
+          // Priceline pattern
+          ['L', 'L', 'M', 'L', 'M', 'L', 'L', 'M', 'L', 'M', 'L', 'L', 'M', 'M', 'L'],
+          // Kayak pattern
+          ['M', 'M', 'L', 'M', 'L', 'M', 'M', 'L', 'M', 'L', 'M', 'M', 'L', 'L', 'M']
+        ]
+
+        let result: 'W' | 'M' | 'L' = 'M'
+        let parityScore = 50
+        
+        if (index === 0) {
+          // Hotel 2 - show percentage scores
+          const scores = [67, 25, 45, 29, 55, 45, 26, 26, 55, 26, 77, 72, 67, 87, 55]
+          parityScore = scores[dayIndex % scores.length]
+          result = parityScore >= 50 ? 'W' : parityScore >= 30 ? 'M' : 'L'
+        } else {
+          // Other channels - use WLM patterns
+          const pattern = patterns[index % patterns.length]
+          result = pattern[dayIndex % pattern.length] as 'W' | 'M' | 'L'
+          
+          // Convert result to score (deterministic for SSR)
+          const scoreVariation = (dayIndex + index) % 20; // Deterministic variation
+          switch (result) {
+            case 'W': parityScore = 70 + scoreVariation; break
+            case 'M': parityScore = 40 + scoreVariation; break
+            case 'L': parityScore = 15 + scoreVariation; break
+          }
+        }
+
+        return {
+          date: format(date, 'yyyy-MM-dd'),
+          dateFormatted: format(date, 'dd MMM'),
+          winCount: result === 'W' ? 1 : 0,
+          meetCount: result === 'M' ? 1 : 0,
+          lossCount: result === 'L' ? 1 : 0,
+          parityScore,
+          result,
+          violations: (dayIndex + index) % 5 === 0 ? 1 : 0 // Deterministic violations
+        }
+      })
+
+      return {
+        channelId: index + 1,
+        channelName: channel.name,
+        channelIcon: undefined,
+        isBrand: channel.isHotel || false,
+        overallParityScore: channel.parityScore,
+        winPercent: channel.winPercent,
+        meetPercent: channel.meetPercent,
+        lossPercent: channel.lossPercent,
+        dailyData,
+        trend: 'stable' as const,
+        trendValue: 0
+      }
+    })
+  }
+
   // Process API data into calendar format
   const processParityDataForCalendar = (apiData: any): ChannelParityData[] => {
     const channels = apiData?.otaViolationChannelRate?.violationChannelRatesCollection || []
+    
+    // If no API data, return sample data
+    if (channels.length === 0) {
+      return generateSampleData()
+    }
     
     return channels.map((channel: any) => {
       const dailyRates = channel.checkInDateWiseRates || []
@@ -183,14 +279,23 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
     fetchParityData()
   }, [fetchParityData])
 
-  const getResultColor = (result: string, score?: number) => {
+  const getResultColor = (result: string, score?: number, isHotel?: boolean) => {
+    if (isHotel) {
+      // Hotel row - show percentage scores with colors
+      if (score && score >= 70) return "bg-green-100 text-green-800 border-green-300"
+      if (score && score >= 50) return "bg-yellow-100 text-yellow-800 border-yellow-300"
+      if (score && score >= 30) return "bg-orange-100 text-orange-800 border-orange-300"
+      return "bg-red-100 text-red-800 border-red-300"
+    }
+    
+    // Channel rows - W/M/L with exact colors from reference
     switch (result) {
       case "W":
-        return "bg-green-50 text-green-700 border-green-200"
+        return "bg-green-100 text-green-800 border-green-300"
       case "M":
-        return "bg-orange-50 text-orange-700 border-orange-200"
+        return "bg-green-100 text-green-800 border-green-300"
       case "L":
-        return "bg-red-50 text-red-600 border-red-200"
+        return "bg-red-100 text-red-800 border-red-300"
       default:
         return "bg-gray-50 text-gray-600 border-gray-200"
     }
@@ -347,18 +452,18 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                           <TooltipTrigger asChild>
                             <div className="flex items-center h-4 bg-gray-100 rounded overflow-hidden border border-gray-200 cursor-help">
                               <div
-                                className="h-full bg-green-400 flex items-center justify-center"
+                                className="h-full bg-orange-400 flex items-center justify-center"
                                 style={{ width: `${channel.winPercent}%` }}
                               >
-                                {channel.winPercent > 20 && (
+                                {channel.winPercent > 15 && (
                                   <span className="text-[10px] font-bold text-white">{channel.winPercent}%</span>
                                 )}
                               </div>
                               <div
-                                className="h-full bg-orange-400 flex items-center justify-center"
+                                className="h-full bg-green-400 flex items-center justify-center"
                                 style={{ width: `${channel.meetPercent}%` }}
                               >
-                                {channel.meetPercent > 20 && (
+                                {channel.meetPercent > 15 && (
                                   <span className="text-[10px] font-bold text-white">{channel.meetPercent}%</span>
                                 )}
                               </div>
@@ -366,7 +471,7 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                                 className="h-full bg-red-400 flex items-center justify-center"
                                 style={{ width: `${channel.lossPercent}%` }}
                               >
-                                {channel.lossPercent > 20 && (
+                                {channel.lossPercent > 15 && (
                                   <span className="text-[10px] font-bold text-white">{channel.lossPercent}%</span>
                                 )}
                               </div>
@@ -377,11 +482,11 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                               <div className="font-semibold mb-1">{channel.channelName}</div>
                               <div className="space-y-1 text-xs">
                                 <div className="flex items-center gap-2">
-                                  <div className="w-2 h-2 bg-green-500 rounded-sm"></div>
+                                  <div className="w-2 h-2 bg-orange-500 rounded-sm"></div>
                                   <span>Win: {channel.winPercent}%</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <div className="w-2 h-2 bg-orange-500 rounded-sm"></div>
+                                  <div className="w-2 h-2 bg-green-500 rounded-sm"></div>
                                   <span>Meet: {channel.meetPercent}%</span>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -419,12 +524,16 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                             <TooltipTrigger asChild>
                               <div
                                 className={cn(
-                                  "w-10 h-6 flex items-center justify-center rounded text-[10px] font-bold border cursor-help transition-all hover:scale-105",
-                                  getResultColor(dayData.result),
+                                  "relative w-10 h-6 flex items-center justify-center rounded text-[10px] font-bold border cursor-help transition-all hover:scale-105",
+                                  getResultColor(dayData.result, dayData.parityScore, channel.isBrand),
                                   shouldHighlight(dayData.parityScore) && "ring-1 ring-red-500 ring-offset-1",
                                 )}
                               >
-                                {dayData.result}
+                                {channel.isBrand ? `${dayData.parityScore}%` : dayData.result}
+                                {/* Red dot for highlighted values */}
+                                {shouldHighlight(dayData.parityScore) && (
+                                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+                                )}
                               </div>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -458,11 +567,11 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
           <div className="py-2 px-4 border-t border-gray-200 bg-gray-50">
             <div className="flex items-center justify-center gap-6 text-xs">
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 bg-green-400 rounded border border-green-500"></div>
+                <div className="w-3 h-3 bg-orange-400 rounded border border-orange-500"></div>
                 <span className="text-gray-700 font-medium">Win</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 bg-orange-400 rounded border border-orange-500"></div>
+                <div className="w-3 h-3 bg-green-400 rounded border border-green-500"></div>
                 <span className="text-gray-700 font-medium">Meet</span>
               </div>
               <div className="flex items-center gap-1.5">

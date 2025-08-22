@@ -25,6 +25,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tool
 import { cn } from "@/lib/utils"
 import { ParityFilterBar, ParityDateProvider, ParityChannelProvider } from "@/components/parity-filter-bar"
 import { ParityCalendarView } from "@/components/parity-calendar-view"
+import { ParityOverviewFilterBar } from "@/components/parity-overview-filter-bar"
+
 
 // Sample data for the parity table
 const parityData = [
@@ -293,10 +295,17 @@ export default function ParityMonitoringPage() {
     return `${diffHours} hours ago`
   }
 
+
+
   return (
     <ParityDateProvider>
       <ParityChannelProvider>
-        <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+          {/* Enhanced Filter Bar with Sticky Positioning - Copied from Overview */}
+          <div className="sticky top-0 z-40 filter-bar-minimal bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
+            <ParityOverviewFilterBar />
+          </div>
+
           <div className="flex-1 space-y-6 px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -367,22 +376,6 @@ export default function ParityMonitoringPage() {
             </Button>
           </div>
         </div>
-
-        {/* Parity Filters - Simplified for parity page */}
-        <Card className="p-4 bg-muted/30 border border-border">
-          <ParityFilterBar />
-          <div className="flex items-center justify-end mt-3 pt-3 border-t border-border/50">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              <span>Updated {formatLastUpdated(lastUpdated)}</span>
-              {autoRefresh && (
-                <Badge variant="secondary" className="text-xs">
-                  Auto-refresh ON
-                </Badge>
-              )}
-            </div>
-          </div>
-        </Card>
 
         {/* Parity Calendar View */}
         <ParityCalendarView />
