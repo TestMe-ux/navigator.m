@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   ChevronLeft,
   ChevronRight,
@@ -11,6 +11,10 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  AlertCircle,
+  Clock,
+  Play,
+  Pause,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -19,6 +23,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend } from "recharts"
 import { cn } from "@/lib/utils"
+import { ParityFilterBar, ParityDateProvider, ParityChannelProvider } from "@/components/parity-filter-bar"
+import { ParityCalendarView } from "@/components/parity-calendar-view"
+import { ParityOverviewFilterBar } from "@/components/parity-overview-filter-bar"
+
 
 // Sample data for the parity table
 const parityData = [
@@ -177,6 +185,10 @@ const parityData = [
 export default function ParityMonitoringPage() {
   const [currentMonth, setCurrentMonth] = useState("August 2025")
   const [viewMode, setViewMode] = useState<"table" | "chart">("table")
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
+  const [autoRefresh, setAutoRefresh] = useState(false)
+  const [showAlerts, setShowAlerts] = useState(true)
   const [filters, setFilters] = useState({
     rateType: "lowest",
     device: "desktop",
@@ -185,6 +197,15 @@ export default function ParityMonitoringPage() {
     room: "any",
     meal: "any",
   })
+
+  // Calculate critical parity violations
+  const criticalViolations = parityData.filter(row => {
+    const hasHighLoss = row.lossChannels.length >= 3
+    const hasLowRates = row.makeMyTrip.rate && row.makeMyTrip.rate < row.lowestRate * 0.8
+    return hasHighLoss || hasLowRates
+  })
+
+  const totalViolations = parityData.reduce((sum, row) => sum + row.lossChannels.length, 0)
 
   const getRateColor = (channel: string, rate: number | null) => {
     if (rate === null) return "text-muted-foreground"
@@ -234,9 +255,58 @@ export default function ParityMonitoringPage() {
 
   const chartData = getChartData()
 
+  // Real-time refresh functionality
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true)
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      setLastUpdated(new Date())
+    } catch (error) {
+      console.error('Failed to refresh parity data:', error)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }, [])
+
+  // Auto-refresh functionality
+  useEffect(() => {
+    if (!autoRefresh) return
+
+    const interval = setInterval(() => {
+      handleRefresh()
+    }, 30000) // Refresh every 30 seconds
+
+    return () => clearInterval(interval)
+  }, [autoRefresh, handleRefresh])
+
+  // Format last updated time
+  const formatLastUpdated = (date: Date) => {
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    
+    if (diffMins < 1) return 'Just now'
+    if (diffMins === 1) return '1 minute ago'
+    if (diffMins < 60) return `${diffMins} minutes ago`
+    
+    const diffHours = Math.floor(diffMins / 60)
+    if (diffHours === 1) return '1 hour ago'
+    return `${diffHours} hours ago`
+  }
+
+
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
-      <div className="flex-1 space-y-6 px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8">
+    <ParityDateProvider>
+      <ParityChannelProvider>
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+          {/* Enhanced Filter Bar with Sticky Positioning - Copied from Overview */}
+          <div className="sticky top-0 z-40 filter-bar-minimal bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
+            <ParityOverviewFilterBar />
+          </div>
+
+          <div className="flex-1 space-y-6 px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -285,89 +355,81 @@ export default function ParityMonitoringPage() {
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* Auto-refresh Toggle */}
+            <Button
+              variant={autoRefresh ? "default" : "outline"}
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              className="gap-2"
+            >
+              {autoRefresh ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              Auto-refresh
+            </Button>
+
             {/* Refresh Button */}
-            <Button className="gap-2 bg-primary hover:bg-primary/90">
-              <RefreshCw className="h-4 w-4" />
-              Refresh rates
+            <Button 
+              className="gap-2 bg-primary hover:bg-primary/90"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Refreshing...' : 'Refresh rates'}
             </Button>
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-4 p-4 bg-muted/50 rounded-lg border border-border">
-          <Select value={filters.rateType} onValueChange={(value) => setFilters({ ...filters, rateType: value })}>
-            <SelectTrigger className="w-32 bg-card">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="lowest">Lowest</SelectItem>
-              <SelectItem value="highest">Highest</SelectItem>
-              <SelectItem value="average">Average</SelectItem>
-            </SelectContent>
-          </Select>
+        {/* Parity Calendar View */}
+        <ParityCalendarView />
 
-          <Select value={filters.device} onValueChange={(value) => setFilters({ ...filters, device: value })}>
-            <SelectTrigger className="w-32 bg-card">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="desktop">Desktop</SelectItem>
-              <SelectItem value="mobile">Mobile</SelectItem>
-              <SelectItem value="tablet">Tablet</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={filters.nights} onValueChange={(value) => setFilters({ ...filters, nights: value })}>
-            <SelectTrigger className="w-32 bg-card">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1">1 night</SelectItem>
-              <SelectItem value="2">2 nights</SelectItem>
-              <SelectItem value="3">3 nights</SelectItem>
-              <SelectItem value="7">1 week</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={filters.guests} onValueChange={(value) => setFilters({ ...filters, guests: value })}>
-            <SelectTrigger className="w-32 bg-card">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1">1 guest</SelectItem>
-              <SelectItem value="2">2 guests</SelectItem>
-              <SelectItem value="3">3 guests</SelectItem>
-              <SelectItem value="4">4 guests</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={filters.room} onValueChange={(value) => setFilters({ ...filters, room: value })}>
-            <SelectTrigger className="w-32 bg-card">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="any">Any room</SelectItem>
-              <SelectItem value="standard">Standard</SelectItem>
-              <SelectItem value="deluxe">Deluxe</SelectItem>
-              <SelectItem value="suite">Suite</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={filters.meal} onValueChange={(value) => setFilters({ ...filters, meal: value })}>
-            <SelectTrigger className="w-32 bg-card">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="any">Any meal</SelectItem>
-              <SelectItem value="none">No meal</SelectItem>
-              <SelectItem value="breakfast">Breakfast</SelectItem>
-              <SelectItem value="halfboard">Half board</SelectItem>
-              <SelectItem value="fullboard">Full board</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <div className="ml-auto text-sm text-muted-foreground">Updated an hour ago</div>
-        </div>
+        {/* Critical Alerts Panel */}
+        {showAlerts && criticalViolations.length > 0 && (
+          <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/50">
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-red-900 dark:text-red-100">
+                      Critical Parity Violations Detected
+                    </h3>
+                    <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                      {criticalViolations.length} dates with severe parity issues requiring immediate attention
+                    </p>
+                    <div className="mt-2 space-y-1">
+                      {criticalViolations.slice(0, 3).map((violation, index) => (
+                        <div key={index} className="text-xs text-red-600 dark:text-red-400">
+                          • {violation.date}: {violation.lossChannels.join(", ")} - Loss channels active
+                        </div>
+                      ))}
+                      {criticalViolations.length > 3 && (
+                        <div className="text-xs text-red-600 dark:text-red-400">
+                          • And {criticalViolations.length - 3} more violations...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAlerts(false)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  Dismiss
+                </Button>
+              </div>
+              <div className="mt-3 pt-3 border-t border-red-200 dark:border-red-800">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-red-700 dark:text-red-300">
+                    Total violations across all dates: {totalViolations}
+                  </span>
+                  <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white">
+                    View All Issues
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Main Content */}
         {viewMode === "table" ? (
@@ -547,7 +609,9 @@ export default function ParityMonitoringPage() {
             </CardContent>
           </Card>
         )}
-      </div>
-    </div>
+          </div>
+        </div>
+      </ParityChannelProvider>
+    </ParityDateProvider>
   )
 }

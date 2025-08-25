@@ -16,8 +16,15 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T)
     if (typeof window !== 'undefined' && !isInitialized) {
       try {
         const item = window.localStorage.getItem(key)
-        if (item) {
-          setStoredValue(JSON.parse(item))
+        if (item && item !== 'undefined' && item !== 'null') {
+          try {
+            setStoredValue(JSON.parse(item))
+          } catch (parseError) {
+            console.warn(`Invalid JSON in localStorage key "${key}", clearing it:`, parseError)
+            // Clear corrupted data
+            window.localStorage.removeItem(key)
+            setStoredValue(initialValue)
+          }
         }
       } catch (error) {
         console.warn(`Error reading localStorage key "${key}":`, error)
@@ -36,7 +43,13 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T)
       
       // Save to localStorage on client side
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem(key, JSON.stringify(valueToStore))
+        try {
+          window.localStorage.setItem(key, JSON.stringify(valueToStore))
+        } catch (serializeError) {
+          console.warn(`Error serializing localStorage key "${key}":`, serializeError)
+          // If we can't serialize the value, clear it
+          window.localStorage.removeItem(key)
+        }
       }
     } catch (error) {
       console.warn(`Error setting localStorage key "${key}":`, error)
