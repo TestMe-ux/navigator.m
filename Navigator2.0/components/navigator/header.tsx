@@ -265,6 +265,7 @@ export function Header() {
                         placeholder="Search hotels, locations..."
                         value={hotelSearch}
                         onChange={(e) => setHotelSearch(e.target.value)}
+                        onKeyDown={(e) => e.stopPropagation()}
                         className="pl-10 w-full text-sm bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 focus:ring-brand-500 focus:border-brand-500"
                       />
                     </div>
