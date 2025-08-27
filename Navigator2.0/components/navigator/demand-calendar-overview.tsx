@@ -263,9 +263,20 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
         {day.hasEventIcon && (
           <>
             <div className="border-t border-gray-600 my-1 pt-1">
-              <div className="font-semibold text-amber-400 flex items-center gap-1">
+              {/* <div className="font-semibold text-amber-400 flex items-center gap-1">
                 <Star className="w-3 h-3 fill-amber-400" />
                 {day.eventName}
+              </div> */}
+              <div className="font-semibold text-amber-400 flex items-start gap-1">
+                <Star className="w-3 h-3 fill-amber-400 shrink-0" />
+                <span
+                  className={`flex-1 ${(day.eventName?.length ?? 0) > 28
+                    ? "flex-1 whitespace-normal break-words max-w-[28ch]"
+                    : "flex-1 truncate"
+                    }`}
+                >
+                  {day.eventName}
+                </span>
               </div>
               {day.eventCategory && (
                 <div className="text-xs text-gray-300">{day.eventCategory}</div>
@@ -607,14 +618,21 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
                             <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                             <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
                             <div className="border-t border-gray-600 my-1 pt-1">
-                              <div className="text-xs text-gray-300 capitalize">Demand Index {day.demedandIndex}</div>
+                              <div className="text-xs text-gray-300 capitalize">Demand Index : {day.demedandIndex}</div>
                             </div>
                             {day.hasEventIcon && (
                               <>
                                 <div className="border-t border-gray-600 my-1 pt-1">
-                                  <div className="font-semibold text-amber-400 flex items-center gap-1">
-                                    <Star className="w-3 h-3 fill-amber-400" />
-                                    {day.eventName}
+                                  <div className="font-semibold text-amber-400 flex items-start gap-1">
+                                    <Star className="w-3 h-3 fill-amber-400 shrink-0" />
+                                    <span
+                                      className={`flex-1 ${(day.eventName?.length ?? 0) > 28
+                                        ? "flex-1 whitespace-normal break-words max-w-[28ch]"
+                                        : "flex-1 truncate"
+                                        }`}
+                                    >
+                                      {day.eventName}
+                                    </span>
                                   </div>
                                   {day.eventDateRange && (
                                     <div className="text-xs text-gray-300 mb-1">{day.eventDateRange}</div>
@@ -703,14 +721,21 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
                             <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                             <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
                             <div className="border-t border-gray-600 my-1 pt-1">
-                              <div className="text-xs text-gray-300 capitalize">Demand Index {day.demedandIndex}</div>
+                              <div className="text-xs text-gray-300 capitalize">Demand Index : {day.demedandIndex}</div>
                             </div>
                             {day.hasEventIcon && (
                               <>
                                 <div className="border-t border-gray-600 my-1 pt-1">
-                                  <div className="font-semibold text-amber-400 flex items-center gap-1">
-                                    <Star className="w-3 h-3 fill-amber-400" />
-                                    {day.eventName}
+                                  <div className="font-semibold text-amber-400 flex items-start gap-1">
+                                    <Star className="w-3 h-3 fill-amber-400 shrink-0" />
+                                    <span
+                                      className={`flex-1 ${(day.eventName?.length ?? 0) > 28
+                                        ? "flex-1 whitespace-normal break-words max-w-[28ch]"
+                                        : "flex-1 truncate"
+                                        }`}
+                                    >
+                                      {day.eventName}
+                                    </span>
                                   </div>
                                   {day.eventDateRange && (
                                     <div className="text-xs text-gray-300 mb-1">{day.eventDateRange}</div>
@@ -816,14 +841,21 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
                             <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                             <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
                             <div className="border-t border-gray-600 my-1 pt-1">
-                              <div className="text-xs text-gray-300 capitalize">Demand Index {day.demedandIndex}</div>
+                              <div className="text-xs text-gray-300 capitalize">Demand Index : {day.demedandIndex}</div>
                             </div>
                             {day.hasEventIcon && (
                               <>
                                 <div className="border-t border-gray-600 my-1 pt-1">
-                                  <div className="font-semibold text-amber-400 flex items-center gap-1">
-                                    <Star className="w-3 h-3 fill-amber-400" />
-                                    {day.eventName}
+                                  <div className="font-semibold text-amber-400 flex items-start gap-1">
+                                    <Star className="w-3 h-3 fill-amber-400 shrink-0" />
+                                    <span
+                                      className={`flex-1 ${(day.eventName?.length ?? 0) > 28
+                                        ? "flex-1 whitespace-normal break-words max-w-[28ch]"
+                                        : "flex-1 truncate"
+                                        }`}
+                                    >
+                                      {day.eventName}
+                                    </span>
                                   </div>
                                   {day.eventDateRange && (
                                     <div className="text-xs text-gray-300 mb-1">{day.eventDateRange}</div>
