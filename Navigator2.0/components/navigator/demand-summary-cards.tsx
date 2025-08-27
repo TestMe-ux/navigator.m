@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { TrendingUp, TrendingDown, Users, BarChart3, DollarSign, Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import localStorageService from "@/lib/localstorage"
+import { useSelectedProperty } from "@/hooks/use-local-storage"
 
 
 interface SummaryCardProps {
@@ -105,8 +106,14 @@ function SummaryCard({
 }
 
 export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverageData }: any) {
-  const selectedProperty: any = localStorageService.get('SelectedProperty')
+  const [selectedProperty] = useSelectedProperty()
   const [trendValue, setTrendValue] = useState(0);
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch by only rendering after client-side hydration
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   console.log("Filter sumarry card", filter)
   useEffect(() => {
@@ -124,10 +131,13 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
   }, [filter, avgDemand]);
 
 
+  // Safe currency symbol that prevents hydration mismatch
+  const currencySymbol = mounted ? (selectedProperty?.currencySymbol ?? '$') : '$';
+  
   const summaryData: SummaryCardProps[] = [
     {
       title: "Avg. Market ADR",
-      value: `\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E  ${avgDemand?.AvrageHotelADR?.toFixed(0)}`,
+      value: `\u200E ${currencySymbol}\u200E  ${avgDemand?.AvrageHotelADR?.toFixed(0) || '0'}`,
       trend: `${trendValue}%`,
       trendDirection: `${trendValue > 0 ? "up" : "down"}`,
       icon: DollarSign,
@@ -139,7 +149,7 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
     },
     {
       title: "Avg. Market RevPAR",
-      value: `\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E  ${avgDemand?.AvrageRevPAR?.toFixed(0)}`,
+      value: `\u200E ${currencySymbol}\u200E  ${avgDemand?.AvrageRevPAR?.toFixed(0) || '0'}`,
       trend: "2.1%",
       trendDirection: "up",
       icon: BarChart3,

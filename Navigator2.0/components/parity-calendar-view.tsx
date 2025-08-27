@@ -1,16 +1,17 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight } from "lucide-react"
+import { TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight, Download } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useParityDateContext, useParityChannelContext } from "@/components/parity-filter-bar"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
+// Note: Keeping imports for potential future use, but currently using static data only
 import { GetParityData } from "@/lib/parity"
 import { conevrtDateforApi } from "@/lib/utils"
 import { format, addDays, eachDayOfInterval } from "date-fns"
@@ -46,6 +47,41 @@ interface ParityCalendarViewProps {
 }
 
 export function ParityCalendarView({ className }: ParityCalendarViewProps) {
+  // Benchmark channel name with truncation logic
+  const BENCHMARK_CHANNEL_NAME = "MakeMyTrip"
+  const getBenchmarkDisplayName = () => {
+    return BENCHMARK_CHANNEL_NAME.length > 12 ? `${BENCHMARK_CHANNEL_NAME.substring(0, 9)}...` : BENCHMARK_CHANNEL_NAME
+  }
+  
+  // Currency settings for Indonesian Rupiah
+  const BASE_RATE_IDR = 12398873 // Base rate in Indonesian Rupiah (8 digits)
+  const CURRENCY_SYMBOL = "Rp"
+  
+  // Format currency with Indonesian Rupiah (using commas for thousands separator)
+  const formatIDR = (amount: number) => {
+    // Use custom formatting to ensure commas are used as thousand separators
+    const formattedAmount = amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+    return `${CURRENCY_SYMBOL} ${formattedAmount}`
+  }
+
+
+  
+  // Calculate optimal number of rows based on screen space and data
+  const calculateOptimalRows = () => {
+    const dateCount = dateRange.length
+    const availableViewportHeight = window.innerHeight - 300 // Reserve space for header/filters
+    const estimatedRowHeight = 80 // Approximate height per row including content
+    
+    // Calculate how many rows can fit in viewport
+    const maxRowsBySpace = Math.floor(availableViewportHeight / estimatedRowHeight)
+    
+    // Consider data complexity - IDR values are longer, need more space
+    const maxRowsByData = dateCount <= 14 ? 12 : dateCount <= 30 ? 8 : 6
+    
+    // Return the minimum to ensure good UX
+    return Math.min(Math.max(maxRowsBySpace, 6), maxRowsByData, parityData.length)
+  }
+  
   const { startDate, endDate } = useParityDateContext()
   const { selectedChannels, channelFilter } = useParityChannelContext()
   const [selectedProperty] = useSelectedProperty()
@@ -55,60 +91,64 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
   const [selectedHotel, setSelectedHotel] = useState("Hotel 2") // Default as per requirement
   const [showDays, setShowDays] = useState(14)
   const [currentPage, setCurrentPage] = useState(0)
+  const [optimalRowCount, setOptimalRowCount] = useState(10)
 
-  // Generate date range for display (14 days by default)
-  const generateDateRange = useCallback(() => {
+  // Calculate total days and determine pagination based on rate length and total days
+  const totalDays = startDate && endDate ? Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1 : 0
+  
+  // Determine optimal columns based on rate length to optimize table display
+  const getOptimalColumns = () => {
+    const sampleRate = formatIDR(BASE_RATE_IDR) // Example: "Rp 12,398,873" (13 chars)
+    const rateLength = sampleRate.length
+    
+    // Dynamic column count based on rate length for optimal cell width
+    if (rateLength > 12) {
+      // Long rates (like IDR: "Rp 12,398,873") - show 8 columns for better readability
+      return 8
+    } else if (rateLength > 8) {
+      // Medium rates (like USD: "$1,234.56") - show 10 columns
+      return 10
+    } else {
+      // Short rates (like "€123" or "¥456") - show full 14 columns
+      return 14
+    }
+  }
+  
+  const optimalColumns = getOptimalColumns()
+  const needsPagination = totalDays > optimalColumns
+  const isSticky = needsPagination
+
+  // Generate date range for display based on total days and pagination
+  const generateDateRange = () => {
     if (!startDate || !endDate) return []
     
     const start = new Date(startDate)
-    const end = new Date(Math.min(endDate.getTime(), addDays(start, showDays - 1).getTime()))
+    const end = new Date(endDate)
+    const allDates = eachDayOfInterval({ start, end })
     
-    return eachDayOfInterval({ start, end }).slice(currentPage * showDays, (currentPage + 1) * showDays)
-  }, [startDate, endDate, showDays, currentPage])
+    // If total days <= optimal columns, show all dates
+    if (totalDays <= optimalColumns) {
+      return allDates
+    }
+    
+    // For more days, paginate in chunks of optimal columns
+    const startIndex = currentPage * optimalColumns
+    const endIndex = Math.min(startIndex + optimalColumns, allDates.length)
+    
+    return allDates.slice(startIndex, endIndex)
+  }
 
   const dateRange = generateDateRange()
 
-  // Fetch parity data
-  const fetchParityData = useCallback(async () => {
-    if (!selectedProperty?.sid || !startDate || !endDate) {
-      console.warn('Missing required parameters for parity data fetch')
-      return
-    }
 
-    setIsLoading(true)
-    try {
-      const filtersValue = {
-        "sid": selectedProperty.sid,
-        "checkInStartDate": conevrtDateforApi(startDate.toString()),
-        "checkInEndDate": conevrtDateforApi(endDate.toString()),
-        "channelName": channelFilter.channelId.length > 0 ? channelFilter.channelId : [-1],
-        "guest": null,
-        "los": null,
-        "promotion": null,
-        "qualification": null,
-        "restriction": null,
-      }
-
-      const response = await GetParityData(filtersValue)
-      
-      if (response.status && response.body) {
-        const processedData = processParityDataForCalendar(response.body)
-        setParityData(processedData)
-      }
-    } catch (error) {
-      console.error('Failed to fetch parity data:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [selectedProperty?.sid, startDate, endDate, channelFilter])
 
   // Sample data for 10 channels (when no API data is available)
   const generateSampleData = (): ChannelParityData[] => {
     const sampleChannels = [
-      { name: "Hotel 2", isHotel: true, winPercent: 45, meetPercent: 35, lossPercent: 20, parityScore: 65 },
-      { name: "Booking.com", winPercent: 55, meetPercent: 10, lossPercent: 35, parityScore: 60 },
+      { name: "MakeMYTrip.comdummy text", isHotel: true, winPercent: 45, meetPercent: 35, lossPercent: 20, parityScore: 65 },
       { name: "Trivago", winPercent: 50, meetPercent: 25, lossPercent: 25, parityScore: 70 },
-      { name: "Google Hotels", winPercent: 45, meetPercent: 35, lossPercent: 20, parityScore: 65 },
+      { name: "Booking.com Super Long Channel Name for Testing Truncation", winPercent: 55, meetPercent: 10, lossPercent: 35, parityScore: 60 },
+      { name: "Google Hotels Extended Name Test", winPercent: 45, meetPercent: 35, lossPercent: 20, parityScore: 65 },
       { name: "Expedia", winPercent: 55, meetPercent: 10, lossPercent: 35, parityScore: 60 },
       { name: "Trip Advisor", winPercent: 50, meetPercent: 25, lossPercent: 25, parityScore: 70 },
       { name: "Agoda", winPercent: 40, meetPercent: 30, lossPercent: 30, parityScore: 55 },
@@ -147,7 +187,7 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
         let parityScore = 50
         
         if (index === 0) {
-          // Hotel 2 - show percentage scores
+          // MakeMyTrip - show percentage scores
           const scores = [67, 25, 45, 29, 55, 45, 26, 26, 55, 26, 77, 72, 67, 87, 55]
           parityScore = scores[dayIndex % scores.length]
           result = parityScore >= 50 ? 'W' : parityScore >= 30 ? 'M' : 'L'
@@ -223,6 +263,28 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
           if (winCount > meetCount && winCount > lossCount) result = 'W'
           else if (lossCount > winCount && lossCount > meetCount) result = 'L'
           
+          // Add room types and inclusions that vary by date
+          const roomTypes = [
+            "Apartment",
+            "Bungalow", 
+            "Deluxe Room",
+            "Standard Room",
+            "Studio",
+            "Suite",
+            "Superior Room"
+          ]
+          
+          const inclusions = [
+            "Full Board",
+            "Breakfast", 
+            "Room Only",
+            "Free Wifi"
+          ]
+          
+          // Use dayIndex and channel index to determine room type and inclusion for variety
+          const roomType = roomTypes[(dayIndex + index) % roomTypes.length]
+          const inclusion = inclusions[(dayIndex + index) % inclusions.length]
+          
           return {
             date: dateStr,
             dateFormatted: format(date, 'dd MMM'),
@@ -231,11 +293,18 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
             lossCount,
             parityScore,
             result,
-            violations: (dayData.rateViolation ? 1 : 0) + (dayData.availViolation ? 1 : 0)
+            violations: (dayData.rateViolation ? 1 : 0) + (dayData.availViolation ? 1 : 0),
+            roomType,
+            inclusion,
           }
         }
         
         // Default data if no API data
+        const roomTypes = ["Apartment", "Bungalow", "Deluxe Room", "Standard Room", "Studio", "Suite", "Superior Room"]
+        const inclusions = ["Full Board", "Breakfast", "Room Only", "Free Wifi"]
+        const roomType = roomTypes[(dayIndex + index) % roomTypes.length]
+        const inclusion = inclusions[(dayIndex + index) % inclusions.length]
+        
         return {
           date: dateStr,
           dateFormatted: format(date, 'dd MMM'),
@@ -244,7 +313,9 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
           lossCount: 0,
           parityScore: 0,
           result: 'M' as const,
-          violations: 0
+          violations: 0,
+          roomType,
+          inclusion,
         }
       })
 
@@ -275,9 +346,93 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
     })
   }
 
+  // Load static parity data when dependencies change
   useEffect(() => {
-    fetchParityData()
-  }, [fetchParityData])
+    console.log('🔄 Loading static parity calendar data')
+    setIsLoading(true)
+    
+    // Always use static sample data
+    const staticData = generateSampleData()
+    setParityData(staticData)
+    
+    // Simulate loading delay for better UX
+    const timer = setTimeout(() => {
+      setIsLoading(false)
+      console.log('✅ Static parity calendar data loaded successfully')
+    }, 500)
+
+    // Cleanup timer
+    return () => clearTimeout(timer)
+  }, [startDate, endDate, channelFilter.channelId])
+  
+  // Reset pagination when date range changes
+  useEffect(() => {
+    setCurrentPage(0)
+  }, [startDate, endDate])
+  
+  // Update optimal row count when data or viewport changes
+  useEffect(() => {
+    const updateOptimalRows = () => {
+      if (typeof window !== 'undefined' && parityData.length > 0) {
+        const optimal = calculateOptimalRows()
+        setOptimalRowCount(optimal)
+      }
+    }
+    
+    updateOptimalRows()
+    
+    // Add resize listener for responsive behavior
+    window.addEventListener('resize', updateOptimalRows)
+    return () => window.removeEventListener('resize', updateOptimalRows)
+  }, [parityData, dateRange.length])
+
+  // Get overall competitive status for a specific date across all channels
+  const getOverallStatusForDate = (dateString: string) => {
+    const allResults: string[] = []
+    
+    // Check all channels for this date (skip channel 0 which is our own)
+    if (parityData && Array.isArray(parityData)) {
+      parityData.forEach((channel, index) => {
+        if (index === 0) return // Skip first channel (our own channel)
+        
+        // Add null check for channel.dailyData
+        if (channel && channel.dailyData && Array.isArray(channel.dailyData)) {
+          const dayData = channel.dailyData.find(day => day && day.date === dateString)
+          if (dayData?.result) {
+            allResults.push(dayData.result)
+          }
+        }
+      })
+    }
+    
+    // Determine overall status based on priority rules
+    if (allResults.includes('L')) {
+      return 'L' // Loss state - if any channel has Loss
+    } else if (allResults.includes('W') && !allResults.includes('L')) {
+      return 'W' // Win state - if there's Win but no Loss
+    } else if (allResults.every(result => result === 'M')) {
+      return 'M' // Meet state - if all channels are Meet
+    } else {
+      return 'M' // Default to Meet if mixed W/M results
+    }
+  }
+
+  // Get color class based on competitive status (for date cell backgrounds)
+  const getStatusColorClass = (status: string) => {
+    switch (status) {
+      case 'L': return 'bg-red-100 text-red-800 border-red-300' // Loss - Red
+      case 'W': return 'bg-orange-100 text-orange-800 border-orange-300' // Win - Orange  
+      case 'M': return 'bg-blue-100 text-blue-800 border-blue-300' // Meet - Blue (default)
+      default: return 'bg-blue-100 text-blue-800 border-blue-300'
+    }
+  }
+
+  // Get result color for benchmark 2nd row based on overall channel results for that date
+  const getBenchmarkCellColor = (dateString: string, defaultResult: string, defaultScore?: number, isBrand?: boolean) => {
+    // For 2nd row (MakeMyTrip Benchmark), use overall status color
+    const overallStatus = getOverallStatusForDate(dateString)
+    return getStatusColorClass(overallStatus)
+  }
 
   const getResultColor = (result: string, score?: number, isHotel?: boolean) => {
     if (isHotel) {
@@ -288,14 +443,14 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
       return "bg-red-100 text-red-800 border-red-300"
     }
     
-    // Channel rows - W/M/L with exact colors from reference
+    // Channel rows - W/M/L with colors matching legends
     switch (result) {
       case "W":
-        return "bg-green-100 text-green-800 border-green-300"
+        return "bg-orange-100 text-orange-800 border-orange-300" // Win = Orange
       case "M":
-        return "bg-green-100 text-green-800 border-green-300"
+        return "bg-green-100 text-green-800 border-green-300"    // Meet = Green  
       case "L":
-        return "bg-red-100 text-red-800 border-red-300"
+        return "bg-red-100 text-red-800 border-red-300"         // Loss = Red
       default:
         return "bg-gray-50 text-gray-600 border-gray-200"
     }
@@ -324,133 +479,235 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
     }
   }
 
-  const totalPages = Math.ceil(Math.max(30, (endDate && startDate) ? Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) : 0) / showDays)
+  const totalPages = needsPagination ? Math.ceil(totalDays / optimalColumns) : 1
+  const isPaginationDisabled = totalDays <= optimalColumns
 
   return (
-    <TooltipProvider>
-      <Card className={cn("bg-white border border-gray-200 shadow-sm overflow-hidden", className)}>
-        <CardHeader className="py-3 px-4 bg-gradient-to-r from-blue-500 to-teal-500 text-white">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium text-white">Parity Calendar View</CardTitle>
-            <div className="flex items-center gap-3">
-              {/* Hotel Selection */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-white">Hotel:</span>
-                <Select value={selectedHotel} onValueChange={setSelectedHotel}>
-                  <SelectTrigger className="w-24 h-6 text-xs border-white/30 bg-white/10 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Hotel 1">Hotel 1</SelectItem>
-                    <SelectItem value="Hotel 2">Hotel 2</SelectItem>
-                    <SelectItem value="Hotel 3">Hotel 3</SelectItem>
-                  </SelectContent>
-                </Select>
+    <TooltipProvider delayDuration={0} skipDelayDuration={0} disableHoverableContent={true}>
+      <Card className={cn("shadow-lg", className)}>
+        <CardHeader className="pb-2 px-4 sm:px-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+            <div className="flex items-start space-x-3">
+              <div className="flex-1">
+                <CardTitle className="text-lg sm:text-xl font-bold">Parity Calendar View</CardTitle>
               </div>
-              
-              {/* Highlight Threshold */}
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                <span className="text-xs text-white">Highlight below</span>
-                <Select value={highlightThreshold} onValueChange={setHighlightThreshold}>
-                  <SelectTrigger className="w-14 h-6 text-xs border-white/30 bg-white/10 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="30">30%</SelectItem>
-                    <SelectItem value="40">40%</SelectItem>
-                    <SelectItem value="50">50%</SelectItem>
-                    <SelectItem value="60">60%</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-blue-200 hover:text-white hover:bg-white/10 px-2 py-1 h-6 text-xs"
-                >
-                  Change
-                </Button>
-              </div>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              {/* Download Button - Responsive */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" className="mr-1 sm:mr-2 p-2 sm:px-3">
+                      <Download className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline ml-2">Download</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                    <p className="text-xs font-normal">Download CSV</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
-                    disabled={currentPage === 0}
-                    className="h-6 w-6 p-0 text-white hover:bg-white/10"
-                  >
-                    <ChevronLeft className="h-3 w-3" />
-                  </Button>
-                  <span className="text-xs text-white px-2">
-                    {currentPage + 1} / {totalPages}
+              {/* Pagination - Responsive */}
+              {needsPagination && (
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                        disabled={isPaginationDisabled || currentPage === 0}
+                        className="h-6 w-6 sm:h-8 sm:w-8 p-0"
+                      >
+                        <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                      <p className="text-xs font-normal">Previous</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <span className="text-xs sm:text-sm text-muted-foreground px-1 sm:px-2 whitespace-nowrap">
+                    {currentPage + 1}/{totalPages}
                   </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
-                    disabled={currentPage === totalPages - 1}
-                    className="h-6 w-6 p-0 text-white hover:bg-white/10"
-                  >
-                    <ChevronRight className="h-3 w-3" />
-                  </Button>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+                        disabled={isPaginationDisabled || currentPage === totalPages - 1}
+                        className="h-6 w-6 sm:h-8 sm:w-8 p-0"
+                      >
+                        <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                      <p className="text-xs font-normal">Next</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               )}
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="p-0">
+        <CardContent className="px-2 sm:px-4 md:px-6 pt-1 pb-2">
           {isLoading ? (
             <div className="p-8 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
               <p className="text-sm text-muted-foreground mt-2">Loading parity data...</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="rounded-lg border border-border relative overflow-x-auto">
+              <table className="w-full table-fixed min-w-[800px] sm:min-w-[900px] md:min-w-[1000px]">
                 {/* Header */}
                 <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="text-left py-2 px-3 text-xs font-semibold text-gray-700 w-44">Channels</th>
-                    <th className="text-left py-2 px-3 text-xs font-semibold text-gray-700 w-36">Win/Meet/Loss</th>
-                    <th className="text-left py-2 px-3 text-xs font-semibold text-gray-700 w-20">Parity Score</th>
-                    {dateRange.map((date, index) => (
-                      <th key={index} className="text-center py-2 px-1 text-xs font-semibold text-gray-700 w-12">
-                        <div className="text-xs font-bold">{format(date, 'dd')}</div>
-                        <div className="text-[10px] text-gray-500">{format(date, 'MMM')}</div>
-                      </th>
-                    ))}
+                  <tr className="border-b bg-muted/50">
+                    <th className={cn(
+                      "text-left py-1.5 sm:py-2 px-2 sm:px-3 text-xs font-medium text-muted-foreground w-32 sm:w-40 md:w-44 border-r border-border",
+                      isSticky && "sticky left-0 bg-muted/50 z-10"
+                    )}>Channels</th>
+                    <th className={cn(
+                      "text-left py-1.5 sm:py-2 px-2 sm:px-3 text-xs font-medium text-muted-foreground w-28 sm:w-32 md:w-36 border-r border-border",
+                      isSticky && "sticky left-32 sm:left-40 md:left-44 bg-muted/50 z-10"
+                    )}>Win/Meet/Loss</th>
+                    <th className={cn(
+                      "text-left py-1.5 sm:py-2 px-2 sm:px-3 text-xs font-medium text-muted-foreground w-12 sm:w-14 md:w-16 border-r border-border mr-2.5",
+                      isSticky && "sticky left-60 sm:left-72 md:left-80 bg-muted/50 z-10"
+                    )}>Parity Score</th>
+                    {/* Spacer column */}
+                    <th className={cn(
+                      "w-1.5 p-0 m-0",
+                      isSticky && "sticky left-72 sm:left-86 md:left-96 bg-muted/50 z-10"
+                    )}></th>
+                    {Array.from({ length: needsPagination ? optimalColumns : dateRange.length }, (_, index) => {
+                      const date = dateRange[index]
+                      const hasDate = date && index < dateRange.length
+                      // Dynamic width based on column count - larger cells for fewer columns
+                      const cellWidth = needsPagination ? Math.max(60, Math.floor(672 / optimalColumns)) : Math.max(48, Math.floor(672 / dateRange.length))
+                      const adaptiveWidth = needsPagination ? `w-[${cellWidth}px]` : `min-w-[${cellWidth}px]`
+                      
+                      return (
+                        <th key={index} className={`text-center py-1.5 sm:py-2 px-0.5 sm:px-1 text-xs font-medium text-muted-foreground ${adaptiveWidth}`}>
+                          {hasDate ? (
+                            <>
+                              <div className="text-xs sm:text-sm font-bold">{format(date, 'dd')}</div>
+                              <div className="text-[9px] sm:text-[10px] text-muted-foreground">{format(date, 'MMM')}</div>
+                            </>
+                          ) : (
+                            // Empty header for dates beyond the available range
+                            <div className="h-6 sm:h-8"></div>
+                          )}
+                        </th>
+                      )
+                    })}
                   </tr>
                 </thead>
 
-                <tbody>
-                  {parityData.map((channel) => (
-                    <tr key={channel.channelId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                <tbody className="[&_tr:last-child]:border-0">
+                  {parityData.map((channel, channelIndex) => {
+                    const isBenchmark = channelIndex === 0
+                    return (
+                    <tr key={channel.channelId} className={cn(
+                      "border-b border-border",
+                      isBenchmark || channelIndex === 1
+                        ? "bg-blue-50 dark:bg-blue-950/30 cursor-default" 
+                        : "hover:bg-muted/50 transition-colors"
+                    )}>
                       {/* Channel Name */}
-                      <td className="py-2 px-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1.5">
+                      {channelIndex !== 1 && (
+                        <td 
+                          className={cn(
+                            "py-1.5 sm:py-2 px-2 sm:px-3 border-r border-border",
+                            isSticky && (isBenchmark || channelIndex === 1) && "sticky left-0 bg-blue-50 dark:bg-blue-950/30 z-10",
+                            isSticky && !isBenchmark && channelIndex !== 1 && "sticky left-0 bg-white dark:bg-slate-950 z-10"
+                          )}
+                          rowSpan={isBenchmark ? 2 : 1}
+                        >
+                        <div className={cn("flex items-center gap-1.5", isBenchmark && "cursor-default")}>
                             {channel.channelIcon && (
                               <img
                                 src={channel.channelIcon}
                                 alt={channel.channelName}
-                                className="w-4 h-4 rounded"
+                                className="w-3 h-3 sm:w-4 sm:h-4 rounded"
                               />
                             )}
-                            <span className="text-xs font-medium text-gray-900">{channel.channelName}</span>
+                          {(isBenchmark && channel.channelName.length > 8) || (!isBenchmark && channel.channelName.length > 12) ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-xs font-medium text-gray-900 cursor-default truncate">
+                                  {isBenchmark 
+                                    ? `${channel.channelName.substring(0, 8)}...`
+                                    : `${channel.channelName.substring(0, 12)}...`
+                                  }
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                                <div className="text-xs font-normal">
+                                  {(() => {
+                                    const name = channel.channelName
+                                    if (name.length <= 24) {
+                                      return <p>{name}</p>
+                                    }
+                                    
+                                    const lines = []
+                                    let remainingText = name
+                                    
+                                    // Split into lines of 24 characters each, max 3 lines
+                                    for (let i = 0; i < 3 && remainingText.length > 0; i++) {
+                                      if (remainingText.length <= 24) {
+                                        lines.push(remainingText)
+                                        break
+                                      } else {
+                                        lines.push(remainingText.substring(0, 24))
+                                        remainingText = remainingText.substring(24)
+                                      }
+                                    }
+                                    
+                                    return lines.map((line, index) => (
+                                      <p key={index}>{line}</p>
+                                    ))
+                                  })()}
                           </div>
-                          {getTrendIcon(channel.trend)}
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <span className={`text-xs font-medium ${channelIndex === 1 ? 'text-transparent' : 'text-gray-900'}`}>
+                              {channelIndex === 1 ? '' : channel.channelName}
+                            </span>
+                          )}
+                          {isBenchmark && (
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 cursor-default hover:bg-blue-100">
+                              Benchmark
+                            </Badge>
+                          )}
                         </div>
-                      </td>
+                        </td>
+                      )}
 
                       {/* Win/Meet/Loss Distribution */}
-                      <td className="py-2 px-3">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center h-4 bg-gray-100 rounded overflow-hidden border border-gray-200 cursor-help">
+                      {channelIndex !== 1 && (
+                        <td 
+                          className={cn(
+                            "py-2 px-3 border-r border-border",
+                            isSticky && (isBenchmark || channelIndex === 1) && "sticky left-44 bg-blue-50 dark:bg-blue-950/30 z-10",
+                            isSticky && !isBenchmark && channelIndex !== 1 && "sticky left-44 bg-white dark:bg-slate-950 z-10"
+                          )}
+                          rowSpan={isBenchmark ? 2 : 1}
+                        >
+                        {channelIndex === 1 ? (
+                          // Hide Win/Meet/Loss for Trivago (2nd row)
+                          <div className="relative h-5">
+                            {/* Hidden content */}
+                          </div>
+                        ) : (
+                          <div className="relative group">
+                            <div className={cn(
+                              "flex items-center h-5 bg-gray-100 rounded overflow-hidden border border-gray-200 cursor-pointer"
+                            )}>
                               <div
                                 className="h-full bg-orange-400 flex items-center justify-center"
                                 style={{ width: `${channel.winPercent}%` }}
@@ -476,112 +733,468 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                                 )}
                               </div>
                             </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <div className="text-sm">
-                              <div className="font-semibold mb-1">{channel.channelName}</div>
+                            
+                            {/* CSS-based Tooltip for all rows including benchmark */}
+                            <div className={cn(
+                              "absolute invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-200 left-1/2 transform -translate-x-1/2 px-3 py-2 bg-white text-gray-900 text-sm rounded-lg shadow-xl border border-gray-200 min-w-[200px] max-w-[300px] pointer-events-none z-[99999]",
+                              // Smart positioning: top 4 rows show tooltip below, bottom 4+ rows show tooltip above
+                              channelIndex < 4 ? "top-full mt-4" : "bottom-full mb-2"
+                            )}>
+                              <div className="font-semibold mb-1">
+                                <div className="break-words overflow-hidden" style={{ 
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  lineHeight: 'calc(1.2em + 2px)',
+                                  maxHeight: 'calc(2.4em + 4px)'
+                                }}>
+                                  {channel.channelName}
+                                  {isBenchmark && (
+                                    <span className="text-xs text-blue-600 font-normal"> (Benchmark)</span>
+                                  )}
+                                </div>
+                              </div>
                               <div className="space-y-1 text-xs">
                                 <div className="flex items-center gap-2">
                                   <div className="w-2 h-2 bg-orange-500 rounded-sm"></div>
-                                  <span>Win: {channel.winPercent}%</span>
+                                  <span>Win: <span className="font-semibold">{channel.winPercent}%</span></span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <div className="w-2 h-2 bg-green-500 rounded-sm"></div>
-                                  <span>Meet: {channel.meetPercent}%</span>
+                                  <span>Meet: <span className="font-semibold">{channel.meetPercent}%</span></span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <div className="w-2 h-2 bg-red-500 rounded-sm"></div>
-                                  <span>Loss: {channel.lossPercent}%</span>
+                                  <span>Loss: <span className="font-semibold">{channel.lossPercent}%</span></span>
                                 </div>
                               </div>
                             </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </td>
+                          </div>
+                        )}
+                        </td>
+                      )}
 
                       {/* Overall Parity Score */}
-                      <td className="py-2 px-3">
-                        <div className="flex items-center gap-1">
+                      {channelIndex !== 1 && (
+                        <td 
+                          className={cn(
+                            "py-2 px-3 border-r border-border mr-2.5",
+                            isSticky && (isBenchmark || channelIndex === 1) && "sticky left-80 bg-blue-50 dark:bg-blue-950/30 z-10",
+                            isSticky && !isBenchmark && channelIndex !== 1 && "sticky left-80 bg-white dark:bg-slate-950 z-10"
+                          )}
+                          rowSpan={isBenchmark ? 2 : 1}
+                        >
+                        <div className={cn("flex items-center gap-1", isBenchmark && "cursor-default")}>
                           <span
-                            className={cn(
-                              "text-sm font-bold",
-                              channel.overallParityScore >= 70
-                                ? "text-green-600"
-                                : channel.overallParityScore >= 50
-                                  ? "text-orange-600"
-                                  : "text-red-600",
-                            )}
+                            className={`font-bold cursor-default ${channelIndex === 1 ? 'text-transparent' : 'text-gray-900'}`}
+                            style={{ fontSize: '13px' }}
                           >
-                            {channel.overallParityScore}%
+                            {channelIndex === 1 ? '' : `${channel.overallParityScore}%`}
                           </span>
                         </div>
-                      </td>
+                        </td>
+                      )}
+
+                      {/* Spacer column */}
+                      <td className={cn(
+                        "w-1.5 p-0 m-0",
+                        isSticky && (isBenchmark || channelIndex === 1) && "sticky left-96 bg-blue-50 dark:bg-blue-950/30 z-10",
+                        isSticky && !isBenchmark && channelIndex !== 1 && "sticky left-96 bg-white dark:bg-slate-950 z-10"
+                      )}></td>
 
                       {/* Daily Results */}
-                      {channel.dailyData.map((dayData, index) => (
-                        <td key={index} className="py-1 px-0.5 text-center">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div
-                                className={cn(
-                                  "relative w-10 h-6 flex items-center justify-center rounded text-[10px] font-bold border cursor-help transition-all hover:scale-105",
-                                  getResultColor(dayData.result, dayData.parityScore, channel.isBrand),
-                                  shouldHighlight(dayData.parityScore) && "ring-1 ring-red-500 ring-offset-1",
-                                )}
-                              >
-                                {channel.isBrand ? `${dayData.parityScore}%` : dayData.result}
-                                {/* Red dot for highlighted values */}
-                                {shouldHighlight(dayData.parityScore) && (
-                                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
-                                )}
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <div className="text-xs">
-                                <div className="font-semibold">{channel.channelName}</div>
-                                <div>{dayData.dateFormatted}: {dayData.parityScore}%</div>
-                                <div className="mt-1">
-                                  <div>Win: {dayData.winCount} | Meet: {dayData.meetCount} | Loss: {dayData.lossCount}</div>
+                      {Array.from({ length: needsPagination ? optimalColumns : dateRange.length }, (_, index) => {
+                        const dayData = channel.dailyData[index]
+                        const hasData = dayData && index < dateRange.length
+                        
+                        // Dynamic width based on column count - larger cells for fewer columns
+                        const cellWidth = needsPagination ? Math.max(60, Math.floor(672 / optimalColumns)) : Math.max(48, Math.floor(672 / dateRange.length))
+                        const adaptiveWidth = needsPagination ? `w-[${cellWidth}px]` : `min-w-[${cellWidth}px]`
+                        
+                        // Calculate colored cell width based on column count
+                        const baseColoredCellWidth = needsPagination 
+                          ? Math.max(50, Math.floor(672 / optimalColumns) - 8)
+                          : Math.max(40, Math.floor(672 / dateRange.length) - 8)
+                        const shouldReduceWidth = !needsPagination && [3, 7, 10].includes(dateRange.length)
+                        const reducedWidth = shouldReduceWidth ? Math.floor(baseColoredCellWidth * 0.95) : baseColoredCellWidth
+                        const adaptiveCellWidth = needsPagination ? `w-[${reducedWidth}px]` : `w-[${reducedWidth}px]`
+                        
+                        // Position tooltip on left for last 2 columns to prevent overflow
+                        const totalColumns = needsPagination ? optimalColumns : dateRange.length
+                        const isLastTwoColumns = index >= totalColumns - 2
+                        const tooltipSide = isLastTwoColumns ? "left" : "top"
+                        
+                        return (
+                          <td key={index} className={cn(
+                            "py-1 px-0.5 text-center",
+                            adaptiveWidth,
+                            isBenchmark && "cursor-default"
+                          )}>
+                            {hasData ? (
+                              isBenchmark ? (
+                                                                  // Benchmark row - no tooltip, no border, default cursor
+                                  <div
+                                    className={`relative ${adaptiveCellWidth} h-6 flex items-center justify-center rounded font-bold bg-transparent text-gray-900 cursor-default`}
+                                    style={{ fontSize: '13px' }}
+                                  >
+                                  {channel.isBrand ? `${dayData.parityScore}%` : dayData.result}
                                 </div>
-                                {shouldHighlight(dayData.parityScore) && (
-                                  <div className="text-red-600 font-semibold mt-1">⚠️ Below threshold</div>
-                                )}
-                                {dayData.violations > 0 && (
-                                  <div className="text-orange-600 font-semibold mt-1">
-                                    {dayData.violations} violation{dayData.violations > 1 ? 's' : ''}
-                                  </div>
-                                )}
+                              ) : (
+                                // Regular rows - with tooltip and styling
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      className={cn(
+                                        `relative ${adaptiveCellWidth} h-6 flex items-center justify-center rounded text-[10px] font-bold border cursor-pointer transition-all hover:scale-105`,
+                                        channelIndex === 1 && parityData.length > 0 
+                                          ? getBenchmarkCellColor(dayData.date, dayData.result, dayData.parityScore, channel.isBrand)
+                                          : getResultColor(dayData.result, dayData.parityScore, channel.isBrand),
+                                      )}
+                                    >
+                                      {channel.isBrand ? formatIDR(BASE_RATE_IDR) : (() => {
+                                        const myRate = BASE_RATE_IDR  // MakeMyTrip rate (our rate)
+                                        const result = dayData.result
+                                        const channelVariation = channel.channelName.length * 100000 // Larger variation for IDR
+                                        const currentDate = new Date(dayData.date)
+                                        const dayVariation = (currentDate.getDate() % 10) * 50000 // Larger day variation
+                                        
+                                        let channelRate = myRate
+                                        
+                                        if (result === 'W') {
+                                          // Win: Channel rate is HIGHER than my rate (I'm cheaper)
+                                          channelRate = myRate + 500000 + (channelVariation % 2000000) + dayVariation
+                                        } else if (result === 'L') {
+                                          // Loss: Channel rate is LOWER than my rate (I'm more expensive)
+                                          channelRate = myRate - 500000 - (channelVariation % 1500000) - dayVariation
+                                        } else {
+                                          // Meet: Channel rate equals my rate
+                                          channelRate = myRate
+                                        }
+                                        
+                                        const finalRate = Math.max(channelRate, 8000000) // Minimum 8M IDR
+                                        return formatIDR(finalRate)
+                                      })()}
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent 
+                                    side={tooltipSide}
+                                    sideOffset={8}
+                                    avoidCollisions={true}
+                                    collisionPadding={16}
+                                    className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-3 min-w-[400px] max-w-[500px] pointer-events-none"
+                                  >
+                                    {/* Date Heading - Left Aligned */}
+                                    <div className="mb-2">
+                                      <h3 className="text-gray-900 dark:text-white text-left">
+                                        <span className="text-base font-bold">{format(new Date(dayData.date), "dd MMM yyyy")}</span>
+                                        <span className="text-sm font-normal">{`, ${format(new Date(dayData.date), 'EEE')}`}</span>
+                                      </h3>
+                                </div>
+
+                                    {/* Semantic Table Structure */}
+                                    <div className="mt-4">
+                                      <table className="w-full text-xs" style={{ tableLayout: 'auto' }}>
+                                        <thead>
+                                          <tr className="text-gray-500 dark:text-slate-400 font-medium">
+                                            <th className="text-left pb-2" style={{ width: '80px', paddingLeft: '4px' }}>Channel</th>
+                                            <th className="text-left pb-2 pl-4" style={{ minWidth: '90px', maxWidth: '140px' }}>Rate</th>
+                                            <th className="text-left pb-2 pl-4" style={{ minWidth: '120px', maxWidth: '200px', paddingRight: '16px' }}>Room</th>
+                                            <th className="text-left pb-2 pl-4" style={{ minWidth: '70px', maxWidth: '120px' }}>Inclusion</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="space-y-1">
+                                          {isBenchmark || channelIndex === 1 ? (
+                                            /* Benchmark channels (1st and 2nd row) - single row with actual channel name only */
+                                            <tr className="bg-blue-50 dark:bg-blue-900/30">
+                                              {/* Channel */}
+                                              <td className="py-1.5 pr-2 rounded-l" style={{ width: '80px', paddingLeft: '4px' }}>
+                                                <span className="font-medium truncate text-blue-900 dark:text-blue-200" title={channelIndex === 1 ? "MakeMyTrip Benchmark" : channel.channelName}>
+                                                  {channelIndex === 1 ? 
+                                                    ("MakeMyTrip Benchmark".length > 12 ? "MakeMyTri..." : "MakeMyTrip Benchmark") : 
+                                                    channel.channelName
+                                                  }
+                                                </span>
+                                              </td>
+                                              
+                                              {/* Rate */}
+                                              <td className="py-1.5 pl-4 pr-2 text-left font-bold text-blue-900 dark:text-blue-200" style={{ minWidth: '90px', maxWidth: '140px' }}>
+                                                {formatIDR(BASE_RATE_IDR)}
+                                              </td>
+                                              
+                                              {/* Room with abbreviation */}
+                                              <td className="py-1.5 pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ minWidth: '120px', maxWidth: '200px', paddingRight: '16px' }}>
+                                                {(() => {
+                                                  const roomType = dayData.roomType || 'Deluxe Room'
+                                                  const getRoomAbbreviation = (room: string) => {
+                                                    if (room.includes('Apartment')) return 'APT'
+                                                    if (room.includes('Bungalow')) return 'BNW'
+                                                    if (room.includes('Deluxe')) return 'DLX'
+                                                    if (room.includes('Standard')) return 'STD'
+                                                    if (room.includes('Studio')) return 'STU'
+                                                    if (room.includes('Suite')) return 'SUI'
+                                                    if (room.includes('Superior')) return 'SUP'
+                                                    return 'ROO'
+                                                  }
+                                                  const roomAbbr = getRoomAbbreviation(roomType)
+                                                  const roomWithAbbr = `${roomAbbr} - ${roomType}`
+                                                  
+                                                  // Adaptive truncation based on available space
+                                                  const maxDisplayLength = 25 // Increased for adaptive width
+                                                  if (roomWithAbbr.length > maxDisplayLength) {
+                                                    return `${roomWithAbbr.substring(0, maxDisplayLength - 3)}...`
+                                                  }
+                                                  return roomWithAbbr
+                                                })()}
+                                              </td>
+                                              
+                                              {/* Inclusion */}
+                                              <td className="py-1.5 pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ minWidth: '70px', maxWidth: '120px' }}>
+                                                {(() => {
+                                                  const inclusion = dayData.inclusion || 'Free Wifi'
+                                                  return inclusion.length > 15 ? `${inclusion.substring(0, 12)}...` : inclusion
+                                                })()}
+                                              </td>
+                                            </tr>
+                                          ) : (
+                                            /* Regular channel - show all 3 rows as before */
+                                            <>
+                                              {/* Benchmark Channel Row (MakeMyTrip) */}
+                                              <tr className="bg-blue-50 dark:bg-blue-900/30">
+                                                {/* Channel */}
+                                                <td className="py-1.5 pr-2 rounded-l" style={{ width: '80px', paddingLeft: '4px' }}>
+                                                  <span className="font-medium truncate text-blue-900 dark:text-blue-200" title={BENCHMARK_CHANNEL_NAME}>
+                                                    {getBenchmarkDisplayName()}
+                                                  </span>
+                                                </td>
+                                                
+                                                {/* Rate */}
+                                                <td className="py-1.5 pl-4 pr-2 text-left font-bold text-blue-900 dark:text-blue-200" style={{ minWidth: '90px', maxWidth: '140px' }}>
+                                                  {formatIDR(BASE_RATE_IDR)}
+                                                </td>
+                                                
+                                                {/* Room with abbreviation */}
+                                                <td className="py-1.5 pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ minWidth: '120px', maxWidth: '200px', paddingRight: '16px' }}>
+                                                  {(() => {
+                                                    const roomType = dayData.roomType || 'Deluxe Room'
+                                                    const getRoomAbbreviation = (room: string) => {
+                                                      if (room.includes('Apartment')) return 'APT'
+                                                      if (room.includes('Bungalow')) return 'BNW'
+                                                      if (room.includes('Deluxe')) return 'DLX'
+                                                      if (room.includes('Standard')) return 'STD'
+                                                      if (room.includes('Studio')) return 'STU'
+                                                      if (room.includes('Suite')) return 'SUI'
+                                                      if (room.includes('Superior')) return 'SUP'
+                                                      return 'ROO'
+                                                    }
+                                                    const roomAbbr = getRoomAbbreviation(roomType)
+                                                    const roomWithAbbr = `${roomAbbr} - ${roomType}`
+                                                    
+                                                    // Adaptive truncation based on available space
+                                                    const maxDisplayLength = 25 // Increased for adaptive width
+                                                    if (roomWithAbbr.length > maxDisplayLength) {
+                                                      return `${roomWithAbbr.substring(0, maxDisplayLength - 3)}...`
+                                                    }
+                                                    return roomWithAbbr
+                                                  })()}
+                                                </td>
+                                                
+                                                {/* Inclusion */}
+                                                <td className="py-1.5 pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ minWidth: '70px', maxWidth: '120px' }}>
+                                                  {(() => {
+                                                    const inclusion = dayData.inclusion || 'Free Wifi'
+                                                    return inclusion.length > 15 ? `${inclusion.substring(0, 12)}...` : inclusion
+                                                  })()}
+                                                </td>
+                                              </tr>
+                                              
+                                              {/* Hovered Channel Row */}
+                                              <tr>
+                                                {/* Channel */}
+                                                <td className="py-1.5 pr-2 rounded-l" style={{ width: '80px', paddingLeft: '4px' }}>
+                                                  <span className="font-medium truncate text-gray-900 dark:text-slate-100" title={channel.channelName}>
+                                                    {channel.channelName.length > 12 ? `${channel.channelName.substring(0, 9)}...` : channel.channelName}
+                                                  </span>
+                                                </td>
+                                                
+                                                {/* Rate */}
+                                                <td className="py-1.5 pl-4 pr-2 text-left font-bold text-gray-900 dark:text-slate-100" style={{ minWidth: '90px', maxWidth: '140px' }}>
+                                                  {(() => {
+                                                    const myRate = BASE_RATE_IDR  // MakeMyTrip rate (our rate)
+                                                    const result = dayData.result
+                                                    
+                                                    // Calculate channel rate based on W/M/L result
+                                                    // Win: My rate is lower than channel rate (I win by being cheaper)
+                                                    // Meet: My rate equals channel rate (same price)
+                                                    // Loss: My rate is higher than channel rate (I lose by being more expensive)
+                                                    
+                                                    const channelVariation = channel.channelName.length * 100000 // Larger variation for IDR
+                                                    const currentDate = new Date(dayData.date)
+                                                    const startOfRange = dateRange[0] || currentDate
+                                                    const dayVariation = Math.floor((currentDate.getTime() - startOfRange.getTime()) / (1000 * 60 * 60 * 24)) * 50000
+                                                    
+                                                    let channelRate = myRate
+                                                    
+                                                    if (result === 'W') {
+                                                      // Win: Channel rate is HIGHER than my rate (I'm cheaper)
+                                                      channelRate = myRate + 500000 + (channelVariation % 2000000) + dayVariation
+                                                    } else if (result === 'L') {
+                                                      // Loss: Channel rate is LOWER than my rate (I'm more expensive)
+                                                      channelRate = myRate - 500000 - (channelVariation % 1500000) - dayVariation
+                                                    } else {
+                                                      // Meet: Channel rate equals my rate
+                                                      channelRate = myRate
+                                                    }
+                                                    
+                                                    channelRate = Math.max(channelRate, 8000000) // Ensure minimum 8M IDR
+                                                    
+                                                    return formatIDR(channelRate)
+                                                  })()}
+                                                </td>
+                                                
+                                                {/* Room with abbreviation */}
+                                                <td className="py-1.5 pl-4 pr-2 text-left text-gray-900 dark:text-slate-100" style={{ minWidth: '120px', maxWidth: '200px', paddingRight: '16px' }}>
+                                                  {(() => {
+                                                    const roomType = dayData.roomType || 'Deluxe Room'
+                                                    const getRoomAbbreviation = (room: string) => {
+                                                      if (room.includes('Apartment')) return 'APT'
+                                                      if (room.includes('Bungalow')) return 'BNW'
+                                                      if (room.includes('Deluxe')) return 'DLX'
+                                                      if (room.includes('Standard')) return 'STD'
+                                                      if (room.includes('Studio')) return 'STU'
+                                                      if (room.includes('Suite')) return 'SUI'
+                                                      if (room.includes('Superior')) return 'SUP'
+                                                      return 'ROO'
+                                                    }
+                                                    const roomAbbr = getRoomAbbreviation(roomType)
+                                                    const roomWithAbbr = `${roomAbbr} - ${roomType}`
+                                                    
+                                                    // Adaptive truncation based on available space
+                                                    const maxDisplayLength = 25 // Increased for adaptive width
+                                                    if (roomWithAbbr.length > maxDisplayLength) {
+                                                      return `${roomWithAbbr.substring(0, maxDisplayLength - 3)}...`
+                                                    }
+                                                    return roomWithAbbr
+                                                  })()}
+                                                </td>
+                                                
+                                                {/* Inclusion */}
+                                                <td className="py-1.5 pl-4 pr-2 text-left text-gray-900 dark:text-slate-100" style={{ minWidth: '70px', maxWidth: '120px' }}>
+                                                  {(() => {
+                                                    const inclusion = dayData.inclusion || 'Free Wifi'
+                                                    return inclusion.length > 15 ? `${inclusion.substring(0, 12)}...` : inclusion
+                                                  })()}
+                                                </td>
+                                              </tr>
+                                              
+                                              {/* Rate Difference Row */}
+                                              <tr>
+                                                {/* Empty cell for Channel column */}
+                                                <td className="py-1.5 pr-2" style={{ width: '80px', paddingLeft: '4px', borderTop: '1px solid #e5e7eb' }}>
+                                                </td>
+                                                
+                                                {/* Merged Rate, Room & Inclusion columns for difference */}
+                                                <td 
+                                                  colSpan={3}
+                                                  className="py-1.5 pl-4 pr-2 text-left font-bold" 
+                                                  style={{ borderTop: '1px solid #e5e7eb' }}
+                                                >
+                                                  {(() => {
+                                                    const myRate = BASE_RATE_IDR  // MakeMyTrip rate (our rate)
+                                                    const result = dayData.result
+                                                    
+                                                    // Calculate channel rate based on W/M/L result
+                                                    const channelVariation = channel.channelName.length * 100000 // Larger variation for IDR
+                                                    const currentDate = new Date(dayData.date)
+                                                    const startOfRange = dateRange[0] || currentDate
+                                                    const dayVariation = Math.floor((currentDate.getTime() - startOfRange.getTime()) / (1000 * 60 * 60 * 24)) * 50000
+                                                    
+                                                    let channelRate = myRate
+                                                    
+                                                    if (result === 'W') {
+                                                      // Win: Channel rate is HIGHER than my rate (I'm cheaper)
+                                                      channelRate = myRate + 500000 + (channelVariation % 2000000) + dayVariation
+                                                    } else if (result === 'L') {
+                                                      // Loss: Channel rate is LOWER than my rate (I'm more expensive)
+                                                      channelRate = myRate - 500000 - (channelVariation % 1500000) - dayVariation
+                                                    } else {
+                                                      // Meet: Channel rate equals my rate
+                                                      channelRate = myRate
+                                                    }
+                                                    
+                                                    channelRate = Math.max(channelRate, 8000000) // Ensure minimum 8M IDR
+                                                    const difference = myRate - channelRate  // My rate - Channel rate
+                                                    
+                                                    // Color and text based on difference
+                                                    let varianceColor, varianceText
+                                                    
+                                                    if (difference === 0) {
+                                                      // Meet: Same price
+                                                      varianceColor = 'text-gray-500 dark:text-slate-400'
+                                                      varianceText = 'No Difference from benchmark'
+                                                    } else if (difference < 0) {
+                                                      // Win: My price is lower (negative difference)
+                                                      varianceColor = 'text-green-600 dark:text-green-400'
+                                                      varianceText = `-${Math.abs(difference)} Difference from benchmark`
+                                                    } else {
+                                                      // Loss: My price is higher (positive difference)
+                                                      varianceColor = 'text-red-600 dark:text-red-400'
+                                                      varianceText = `+${Math.abs(difference)} Difference from benchmark`
+                                                    }
+                                                    
+                                                    return (
+                                                      <span className={varianceColor}>
+                                                        {difference === 0 ? (
+                                                          <span className="font-normal">No Difference from benchmark</span>
+                                                        ) : (
+                                                          <>
+                                                            <span className="font-bold">{difference < 0 ? `-${formatIDR(Math.abs(difference)).replace('Rp ', '')}` : `+${formatIDR(Math.abs(difference)).replace('Rp ', '')}`}</span>
+                                                            <span className="font-normal"> Difference from benchmark</span>
+                                                          </>
+                                                        )}
+                                                      </span>
+                                                    )
+                                                  })()}
+                                                </td>
+                                              </tr>
+                                            </>
+                                          )}
+                                        </tbody>
+                                      </table>
                               </div>
                             </TooltipContent>
                           </Tooltip>
+                              )
+                            ) : (
+                              // Empty cell for dates beyond the available range
+                              <div className={`${adaptiveCellWidth} h-6`}></div>
+                            )}
                         </td>
-                      ))}
+                        )
+                      })}
                     </tr>
-                  ))}
+                  )
+                  })}
                 </tbody>
               </table>
             </div>
           )}
 
           {/* Legend */}
-          <div className="py-2 px-4 border-t border-gray-200 bg-gray-50">
+          <div className="py-2 px-4 mb-6">
             <div className="flex items-center justify-center gap-6 text-xs">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 bg-orange-400 rounded border border-orange-500"></div>
-                <span className="text-gray-700 font-medium">Win</span>
+                <span className="text-foreground font-medium">Win</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 bg-green-400 rounded border border-green-500"></div>
-                <span className="text-gray-700 font-medium">Meet</span>
+                <span className="text-foreground font-medium">Meet</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 bg-red-400 rounded border border-red-500"></div>
-                <span className="text-gray-700 font-medium">Loss</span>
+                <span className="text-foreground font-medium">Loss</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 border border-red-500 rounded bg-white"></div>
-                <span className="text-gray-700 font-medium">Alert</span>
-              </div>
+
             </div>
           </div>
         </CardContent>

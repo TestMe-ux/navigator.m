@@ -21,6 +21,34 @@
   }
 }
 
+/* Custom Scrollbar Styles */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+  padding-right: 14px; /* 8px scrollbar + 6px spacing */
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-left: 6px solid transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  border-left: 6px solid transparent;
+  background-clip: content-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
 /**
  * Modern Professional Global Styles
  * Optimized for revenue dashboard with reduced borders and enhanced spacing
@@ -457,6 +485,10 @@ a {
 
 .btn-ghost-brand {
   @apply text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50 transition-all duration-200 border-0;
+}
+
+.btn-minimal {
+  @apply hover:bg-accent/50 transition-all duration-200;
 }
 
 /* Enhanced Layout System */

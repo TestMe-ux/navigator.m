@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import { getChannels } from "@/lib/channels"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { useState, useEffect, useCallback, useRef } from "react"
+import { useParityDateContext, useParityChannelContext } from "@/components/parity-filter-bar"
 
 interface ParityOverviewFilterBarProps {
   className?: string
@@ -29,29 +30,27 @@ interface ParityOverviewFilterBarProps {
  */
 export function ParityOverviewFilterBar({ className }: ParityOverviewFilterBarProps) {
   const [selectedProperty] = useSelectedProperty()
+  const { startDate, endDate, setDateRange } = useParityDateContext()
+  const { selectedChannels, setSelectedChannels, availableChannels, setAvailableChannels } = useParityChannelContext()
   
-  // Independent state with _2 suffix for parity page
-  const didFetch_2 = useRef(false)
-  const [startDate_2, setStartDate_2] = useState<Date | undefined>(undefined)
-  const [endDate_2, setEndDate_2] = useState<Date | undefined>(undefined)
-  const [channelData_2, setChannelData_2] = useState<any>([])
-  const [selectedChannels_2, setSelectedChannels_2] = useState<number[]>([])
+  // Keep track of channels fetch
+  const didFetch = useRef(false)
 
   // Reset didFetch when property changes
   useEffect(() => {
-    didFetch_2.current = false
+    didFetch.current = false
   }, [selectedProperty?.sid])
 
-  // Fetch channels for parity page (independent from Overview)
+  // Fetch channels for parity page
   useEffect(() => {
-    if (!selectedProperty?.sid || didFetch_2.current) return
+    if (!selectedProperty?.sid || didFetch.current) return
 
-    didFetch_2.current = true
+    didFetch.current = true
     getChannels({ SID: selectedProperty?.sid })
       .then((res) => {
-        console.log("Parity Channels_2", res.body)
+        console.log("Parity Channels", res.body)
         res.body.sort((a: any, b: any) => a.name.localeCompare(b.name))
-        const allChannel_2 = {
+        const allChannel = {
           cid: -1,
           channelMasterId: null,
           name: "All Channels",
@@ -75,53 +74,52 @@ export function ParityOverviewFilterBar({ className }: ParityOverviewFilterBarPr
           isOthers: false,
           displayName: "All Channels",
         }
-        const channelList_2 = [allChannel_2, ...res.body]
+        const channelList = [allChannel, ...res.body]
         
         // Set data for parity page
-        setChannelData_2(channelList_2)
+        setAvailableChannels(channelList)
         
         // Set selected channels as array of cids for parity page
-        setSelectedChannels_2(channelList_2.map(c => c.cid))
-        console.log(`📋 Parity channels_2 initialized with ${channelList_2.length} channels`)
+        setSelectedChannels(channelList.map(c => c.cid))
+        console.log(`📋 Parity channels initialized with ${channelList.length} channels`)
       })
-      .catch((err) => console.error("Parity channels_2 fetch error:", err))
+      .catch((err) => console.error("Parity channels fetch error:", err))
   }, [selectedProperty?.sid])
 
   /**
    * Handle date range updates for parity page
    */
-  const handleDateRangeChange_2 = useCallback((newStartDate?: Date, newEndDate?: Date) => {
+  const handleDateRangeChange = useCallback((newStartDate?: Date, newEndDate?: Date) => {
     if (newStartDate && newEndDate) {
-      setStartDate_2(newStartDate)
-      setEndDate_2(newEndDate)
-      console.log(`📅 Parity date range_2 changed: ${newStartDate.toLocaleDateString()} - ${newEndDate.toLocaleDateString()}`)
+      setDateRange(newStartDate, newEndDate)
+      console.log(`📅 Parity date range changed: ${newStartDate.toLocaleDateString()} - ${newEndDate.toLocaleDateString()}`)
     }
-  }, [])
+  }, [setDateRange])
 
   /**
    * Get display text for channel button (parity page)
    */
-  const getChannelDisplayText_2 = useCallback(() => {
-    if (selectedChannels_2.length === 0) {
+  const getChannelDisplayText = useCallback(() => {
+    if (selectedChannels.length === 0) {
       return "All Channels"
-    } else if (selectedChannels_2.includes(-1)) {
+    } else if (selectedChannels.includes(-1)) {
       return "All Channels"
-    } else if (selectedChannels_2.length === 1) {
-      const channel = channelData_2.find((c: any) => c.cid === selectedChannels_2[0])
+    } else if (selectedChannels.length === 1) {
+      const channel = availableChannels.find((c: any) => c.cid === selectedChannels[0])
       if (channel) {
         return channel.name
       }
       return "Select Channels"
     } else {
-      return `${selectedChannels_2.length} Channels`
+      return `${selectedChannels.length} Channels`
     }
-  }, [selectedChannels_2, channelData_2])
+  }, [selectedChannels, availableChannels])
 
   /**
    * Handle channel selection with multi-select logic for parity page
    */
-  const handleChannelSelect_2 = useCallback((channel: any, channelData: any) => {
-    setSelectedChannels_2(prev => {
+  const handleChannelSelect = useCallback((channel: any, channelData: any) => {
+    setSelectedChannels(prev => {
       const isSelected = prev.includes(channel)
       let newSelection: number[]
 
@@ -144,15 +142,15 @@ export function ParityOverviewFilterBar({ className }: ParityOverviewFilterBarPr
       } else {
         newSelection = newSelection.filter(c => c !== -1) // Ensure "All Channels" is not included
       }
-      console.log(`📋 Parity channel_2 selection changed: ${newSelection.join(", ")}`)
+      console.log(`📋 Parity channel selection changed: ${newSelection.join(", ")}`)
       return newSelection
     })
-  }, [])
+  }, [setSelectedChannels])
 
-  const onOpenChangeSelect_2 = (open: any) => {
+  const onOpenChangeSelect = (open: any) => {
     if (!open) {
       // Reset channel filter when dropdown closes for parity page
-      console.log(`🔄 Parity channel filter_2 reset to: ${selectedChannels_2.join(", ")}`)
+      console.log(`🔄 Parity channel filter reset to: ${selectedChannels.join(", ")}`)
     }
   }
 
@@ -168,15 +166,15 @@ export function ParityOverviewFilterBar({ className }: ParityOverviewFilterBarPr
               {/* Check-in Date Range Picker */}
               <div className="shrink-0">
                 <EnhancedDatePicker
-                  startDate={startDate_2}
-                  endDate={endDate_2}
-                  onChange={handleDateRangeChange_2}
+                  startDate={startDate}
+                  endDate={endDate}
+                  onChange={handleDateRangeChange}
                 />
               </div>
 
               {/* Channels Filter */}
               <div className="shrink-0">
-                <DropdownMenu key="channel_2" onOpenChange={(event) => onOpenChangeSelect_2(event)}>
+                <DropdownMenu key="channel" onOpenChange={(event) => onOpenChangeSelect(event)}>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
@@ -185,7 +183,7 @@ export function ParityOverviewFilterBar({ className }: ParityOverviewFilterBarPr
                     >
                       <Globe className="w-4 h-4 shrink-0" />
                       <span className="truncate max-w-[80px] font-semibold">
-                        {getChannelDisplayText_2()}
+                        {getChannelDisplayText()}
                       </span>
                       <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
                     </Button>
@@ -195,7 +193,7 @@ export function ParityOverviewFilterBar({ className }: ParityOverviewFilterBarPr
                       <div className="w-56 p-4">
                         <h4 className="font-semibold text-sm text-gray-700 mb-3">Channels</h4>
                         <div className="space-y-1 max-h-80 overflow-y-auto">
-                          {channelData_2?.map((option: any) => (
+                          {availableChannels?.map((option: any) => (
                             <label
                               key={option.cid}
                               className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
@@ -203,8 +201,8 @@ export function ParityOverviewFilterBar({ className }: ParityOverviewFilterBarPr
                               <input
                                 type="checkbox"
                                 className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
-                                checked={selectedChannels_2.includes(option?.cid)}
-                                onChange={() => handleChannelSelect_2(option?.cid, channelData_2)}
+                                checked={selectedChannels.includes(option?.cid)}
+                                onChange={() => handleChannelSelect(option?.cid, availableChannels)}
                               />
                               <span className="font-medium text-sm flex-1">
                                 {option?.name}

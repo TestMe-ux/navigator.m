@@ -31,10 +31,10 @@ export function useParityDateContext() {
 }
 
 export function ParityDateProvider({ children }: { children: React.ReactNode }) {
-  // Default to next 30 days
+  // Default to next 7 days
   const today = new Date()
   const [startDate, setStartDate] = useState<Date | null>(today)
-  const [endDate, setEndDate] = useState<Date | null>(addDays(today, 30))
+  const [endDate, setEndDate] = useState<Date | null>(addDays(today, 6))
 
   const setDateRange = (start: Date | null, end: Date | null) => {
     setStartDate(start)
