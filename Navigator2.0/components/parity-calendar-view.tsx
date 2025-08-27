@@ -562,7 +562,7 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
             </div>
           ) : (
             <div className="rounded-lg border border-border relative overflow-x-auto">
-              <table className="w-full table-fixed min-w-[800px] sm:min-w-[900px] md:min-w-[1000px]">
+              <table className="w-full table-fixed min-w-[600px] sm:min-w-[700px] md:min-w-[900px] lg:min-w-[1000px]">
                 {/* Header */}
                 <thead>
                   <tr className="border-b bg-muted/50">
@@ -692,9 +692,9 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                       {channelIndex !== 1 && (
                         <td 
                           className={cn(
-                            "py-2 px-3 border-r border-border",
-                            isSticky && (isBenchmark || channelIndex === 1) && "sticky left-44 bg-blue-50 dark:bg-blue-950/30 z-10",
-                            isSticky && !isBenchmark && channelIndex !== 1 && "sticky left-44 bg-white dark:bg-slate-950 z-10"
+                            "py-1.5 sm:py-2 px-2 sm:px-3 border-r border-border",
+                            isSticky && (isBenchmark || channelIndex === 1) && "sticky left-32 sm:left-40 md:left-44 bg-blue-50 dark:bg-blue-950/30 z-10",
+                            isSticky && !isBenchmark && channelIndex !== 1 && "sticky left-32 sm:left-40 md:left-44 bg-white dark:bg-slate-950 z-10"
                           )}
                           rowSpan={isBenchmark ? 2 : 1}
                         >
@@ -778,16 +778,15 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                       {channelIndex !== 1 && (
                         <td 
                           className={cn(
-                            "py-2 px-3 border-r border-border mr-2.5",
-                            isSticky && (isBenchmark || channelIndex === 1) && "sticky left-80 bg-blue-50 dark:bg-blue-950/30 z-10",
-                            isSticky && !isBenchmark && channelIndex !== 1 && "sticky left-80 bg-white dark:bg-slate-950 z-10"
+                            "py-1.5 sm:py-2 px-2 sm:px-3 border-r border-border mr-2.5",
+                            isSticky && (isBenchmark || channelIndex === 1) && "sticky left-60 sm:left-72 md:left-80 bg-blue-50 dark:bg-blue-950/30 z-10",
+                            isSticky && !isBenchmark && channelIndex !== 1 && "sticky left-60 sm:left-72 md:left-80 bg-white dark:bg-slate-950 z-10"
                           )}
                           rowSpan={isBenchmark ? 2 : 1}
                         >
                         <div className={cn("flex items-center gap-1", isBenchmark && "cursor-default")}>
                           <span
-                            className={`font-bold cursor-default ${channelIndex === 1 ? 'text-transparent' : 'text-gray-900'}`}
-                            style={{ fontSize: '13px' }}
+                            className={`text-xs sm:text-sm font-bold cursor-default ${channelIndex === 1 ? 'text-transparent' : 'text-gray-900'}`}
                           >
                             {channelIndex === 1 ? '' : `${channel.overallParityScore}%`}
                           </span>
@@ -798,8 +797,8 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                       {/* Spacer column */}
                       <td className={cn(
                         "w-1.5 p-0 m-0",
-                        isSticky && (isBenchmark || channelIndex === 1) && "sticky left-96 bg-blue-50 dark:bg-blue-950/30 z-10",
-                        isSticky && !isBenchmark && channelIndex !== 1 && "sticky left-96 bg-white dark:bg-slate-950 z-10"
+                        isSticky && (isBenchmark || channelIndex === 1) && "sticky left-72 sm:left-86 md:left-96 bg-blue-50 dark:bg-blue-950/30 z-10",
+                        isSticky && !isBenchmark && channelIndex !== 1 && "sticky left-72 sm:left-86 md:left-96 bg-white dark:bg-slate-950 z-10"
                       )}></td>
 
                       {/* Daily Results */}
@@ -826,7 +825,7 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                         
                         return (
                           <td key={index} className={cn(
-                            "py-1 px-0.5 text-center",
+                            "py-0.5 sm:py-1 px-0.5 text-center",
                             adaptiveWidth,
                             isBenchmark && "cursor-default"
                           )}>
@@ -834,8 +833,7 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                               isBenchmark ? (
                                                                   // Benchmark row - no tooltip, no border, default cursor
                                   <div
-                                    className={`relative ${adaptiveCellWidth} h-6 flex items-center justify-center rounded font-bold bg-transparent text-gray-900 cursor-default`}
-                                    style={{ fontSize: '13px' }}
+                                    className={`relative ${adaptiveCellWidth} h-5 sm:h-6 flex items-center justify-center rounded font-bold bg-transparent text-gray-900 cursor-default text-xs sm:text-sm`}
                                   >
                                   {channel.isBrand ? `${dayData.parityScore}%` : dayData.result}
                                 </div>
@@ -845,7 +843,7 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                                   <TooltipTrigger asChild>
                                     <div
                                       className={cn(
-                                        `relative ${adaptiveCellWidth} h-6 flex items-center justify-center rounded text-[10px] font-bold border cursor-pointer transition-all hover:scale-105`,
+                                        `relative ${adaptiveCellWidth} h-5 sm:h-6 flex items-center justify-center rounded text-[9px] sm:text-[10px] font-bold border cursor-pointer transition-all hover:scale-105`,
                                         channelIndex === 1 && parityData.length > 0 
                                           ? getBenchmarkCellColor(dayData.date, dayData.result, dayData.parityScore, channel.isBrand)
                                           : getResultColor(dayData.result, dayData.parityScore, channel.isBrand),
@@ -881,19 +879,19 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                                     sideOffset={8}
                                     avoidCollisions={true}
                                     collisionPadding={16}
-                                    className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-3 min-w-[400px] max-w-[500px] pointer-events-none"
+                                    className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-2 sm:p-3 min-w-[300px] sm:min-w-[400px] max-w-[350px] sm:max-w-[500px] pointer-events-none"
                                   >
                                     {/* Date Heading - Left Aligned */}
                                     <div className="mb-2">
                                       <h3 className="text-gray-900 dark:text-white text-left">
-                                        <span className="text-base font-bold">{format(new Date(dayData.date), "dd MMM yyyy")}</span>
-                                        <span className="text-sm font-normal">{`, ${format(new Date(dayData.date), 'EEE')}`}</span>
+                                        <span className="text-sm sm:text-base font-bold">{format(new Date(dayData.date), "dd MMM yyyy")}</span>
+                                        <span className="text-xs sm:text-sm font-normal">{`, ${format(new Date(dayData.date), 'EEE')}`}</span>
                                       </h3>
                                 </div>
 
                                     {/* Semantic Table Structure */}
                                     <div className="mt-4">
-                                      <table className="w-full text-xs" style={{ tableLayout: 'auto' }}>
+                                      <table className="w-full text-xs sm:text-sm" style={{ tableLayout: 'auto' }}>
                                         <thead>
                                           <tr className="text-gray-500 dark:text-slate-400 font-medium">
                                             <th className="text-left pb-2" style={{ width: '80px', paddingLeft: '4px' }}>Channel</th>
