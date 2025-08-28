@@ -375,7 +375,7 @@ export function PropertyHealthScoreWidget(props: any) {
           </div>
 
           {/* Enhanced Summary Stats */}
-          <div className="flex items-center gap-minimal-md">
+          {/* <div className="flex items-center gap-minimal-md">
             <div className="card-minimal p-3 text-center">
               <div className="text-2xl font-semibold text-foreground tracking-tight">{combinedData?.length}</div>
               <div className="text-minimal-caption text-muted-foreground">Channels</div>
@@ -393,7 +393,7 @@ export function PropertyHealthScoreWidget(props: any) {
               </div>
               <div className="text-minimal-caption text-muted-foreground">Total Violations</div>
             </div>
-          </div>
+          </div> */}
         </div>
       </CardHeader>
 
@@ -433,7 +433,7 @@ export function PropertyHealthScoreWidget(props: any) {
                                 : "text-red-600 dark:text-red-400"
                                 }`}>
                                 {subsOtaranData[0]?.changeInRank > 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-                                {Math.abs(subsOtaranData[0]?.changeInRank)}
+                                {/* {Math.abs(subsOtaranData[0]?.changeInRank)} */}
                               </span>
                             )}
                           </div>

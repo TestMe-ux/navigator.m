@@ -111,7 +111,8 @@ const transformRateData = (rateData: RateDataResponse): RateData[] => {
       }
 
       const dateData = dateMap.get(checkInDate)
-      const rate = parseFloat(rateEntry.rate) || 0
+
+      const rate = parseFloat(rateEntry.rate) || 0;
 
       // Map property types to chart data
       if (entity.propertyType === 0) {
@@ -310,6 +311,7 @@ function CustomXAxisTick({ x, y, payload, data }: CustomXAxisTickProps) {
  * Enhanced Custom Tooltip with price positioning analysis
  */
 function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$' }: CustomTooltipProps & { coordinate?: { x: number, y: number }, currencySymbol?: string }) {
+
   if (active && payload && payload.length) {
     const data = payload[0]?.payload
 
@@ -486,13 +488,14 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
                       )}
                     </div>
                     {/* Ranking column - only for competitors, not for Avg Compset */}
-                    <div className={`text-xs font-medium min-w-[50px] ${!isAvgCompset && positionText === 'Lowest'
-                      ? 'text-emerald-600 dark:text-emerald-400 font-bold'
-                      : !isAvgCompset && positionText === 'Highest'
-                        ? 'text-red-600 dark:text-red-400 font-bold'
-                        : !isAvgCompset && positionText
-                          ? 'text-gray-600 dark:text-gray-400'
-                          : ''
+                    <div className={`text-xs font-medium min-w-[50px] 
+                       ${!isAvgCompset && positionText === 'Lowest'
+                        ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                        : !isAvgCompset && positionText === 'Highest'
+                          ? 'text-red-600 dark:text-red-400 font-bold'
+                          : !isAvgCompset && positionText
+                            ? 'text-gray-600 dark:text-gray-400'
+                            : ''
                       }`}>
                       {!isAvgCompset && positionText}
                     </div>
@@ -526,7 +529,7 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
 export function RateTrendsChart({ rateData }: any) {
   const { startDate, endDate } = useDateContext()
   const [selectedProperty, setSelectedProperty] = useState<any>(null)
-  
+
   // Safely get selectedProperty on client side only
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -934,7 +937,7 @@ export function RateTrendsChart({ rateData }: any) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", 'RateShopping_Rate_' + selectedProperty?.sid + '_' + new Date().getTime()+".csv");
+    link.setAttribute("download", 'RateShopping_Rate_' + selectedProperty?.sid + '_' + new Date().getTime() + ".csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1044,7 +1047,7 @@ export function RateTrendsChart({ rateData }: any) {
             </DropdownMenu>
 
             {/* Download Button */}
-            <DropdownMenu>
+            {/* <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="btn-minimal">
                   <Download className="w-4 h-4" />
@@ -1054,7 +1057,7 @@ export function RateTrendsChart({ rateData }: any) {
                 <DropdownMenuItem onClick={() => handleDownloadImageRate()}>Export as Image</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleDownload()}>Export as CSV</DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
+            </DropdownMenu> */}
           </div>
         </div>
       </CardHeader>
