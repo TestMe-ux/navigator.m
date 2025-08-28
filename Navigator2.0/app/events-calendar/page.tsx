@@ -53,7 +53,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn, conevrtDateforApi } from "@/lib/utils"
-import { getAllEvents, saveEvents, deleteEvents, getEventCitiesCountryList, getAllHoliday, getAllSubscribeEvents, getSubscribeUnsubscribeEvent, updateEvents } from "@/lib/events"
+import { getAllEvents, saveEvents, deleteEvents, getEventCitiesCountryList, getAllHoliday, getAllSubscribeEvents, setSubscribeUnsubscribeEvent, setSubsUnSubsHolidayEvent, updateEvents } from "@/lib/events"
 import { useDateContext } from "@/components/date-context"
 import { addDays, endOfMonth, format, getDaysInMonth, startOfMonth } from "date-fns"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
@@ -150,14 +150,18 @@ const loadCustomEventsFromStorage = (): Event[] => {
       events = JSON.parse(stored)
     } catch (parseError) {
       console.error('Failed to parse stored events, clearing localStorage:', parseError)
+      // if (typeof window !== 'undefined') {
       localStorage.removeItem(CUSTOM_EVENTS_KEY)
+      //}
       return []
     }
 
     // Ensure events is an array
     if (!Array.isArray(events)) {
       console.error('Stored events is not an array, clearing localStorage')
+      // if (typeof window !== 'undefined') {
       localStorage.removeItem(CUSTOM_EVENTS_KEY)
+      //}
       return []
     }
 
@@ -181,8 +185,10 @@ const loadCustomEventsFromStorage = (): Event[] => {
     // Save back the filtered events to clean up expired ones
     if (validEvents.length !== events.length) {
       try {
+        // if (typeof window !== 'undefined') {
         localStorage.setItem(CUSTOM_EVENTS_KEY, JSON.stringify(validEvents))
         console.log(`🗑️ Cleaned up ${expiredCount} expired events (older than 3 days)`)
+        //  }
       } catch (saveError) {
         console.error('Failed to save cleaned events:', saveError)
       }
@@ -194,7 +200,9 @@ const loadCustomEventsFromStorage = (): Event[] => {
     console.error('Failed to load custom events from localStorage:', error)
     // Clear corrupted data
     try {
+      // if (typeof window !== 'undefined') {
       localStorage.removeItem(CUSTOM_EVENTS_KEY)
+      //}
     } catch (clearError) {
       console.error('Failed to clear corrupted localStorage data:', clearError)
     }
@@ -2004,12 +2012,12 @@ export default function EventsCalendarPage() {
 
       const filtersValues = {
         eventId: event.id,
-        action: newStatus === "bookmarked" ? 1 : 2,
+        action: newStatus === "bookmarked" ? 2 : 1,
         isCustom: event.isCustom,
       };
 
       try {
-        const response = await getSubscribeUnsubscribeEvent(filtersValues);
+        const response = await setSubscribeUnsubscribeEvent(filtersValues);
         if (response?.status) {
           //  Update UI only after success
           setEvents(prevEvents =>
@@ -2023,10 +2031,32 @@ export default function EventsCalendarPage() {
       } catch (err) {
         console.error("API Error:", err);
       }
+    } else if (event.type === "holiday") {
+      if (!event) return;
+      var filtersValue = {
+        "EventHolidayID": event.id,
+        "SID": selectedProperty?.sid,
+        "IsActive": event.status == "bookmarked" ? 0 : 1,
+        "Imapact": event.priority === "high" ? 1 : event.priority === "medium" ? 2 : 3,
+        "Type": 0
+      }
+      try {
+        //Call backend API
+        const resSubsUnsubsHoliday = await setSubsUnSubsHolidayEvent(filtersValue)
+        const result = resSubsUnsubsHoliday
+        if (result.status) {
+          setEvents((prev) => [...prev, result.data ?? event]);
+          setMessage("Non Custom Event Subscribe Successfully");
+        } else {
+          setMessage("Non Custom Event Not Subscribe Or Failed :" + (result.message || ""));
+        }
+      } catch (error) {
+        console.error("Error inserting event:", error);
+      }
     } else if (event.status == 'suggested' || event.status == 'available') {
       let addEventObj = {
         EventType: event.type,
-        EventImpact: 1,
+        EventImpact: event.priority === "high" ? 1 : event.priority === "medium" ? 2 : 3,
         EventTo: event.endDate,
         EventFrom: event.startDate,
         EventLocation: event.location,
@@ -2037,19 +2067,18 @@ export default function EventsCalendarPage() {
         RepeatsBy: "50986",
         IsCustom: false,
         IsRepeat: false,
-        Latitude: 51.52937650320423,
-        Longitude: -0.12381210923194885
+        Latitude: 13.7451222401638,
+        Longitude: 100.556809902191
 
       }
       try {
         //Call backend API
         const response: any = await saveEvents(addEventObj)
-        const result = await response.json();
-        if (result.status) {
-          setEvents((prev) => [...prev, result.data ?? event]);
+        if (response.status) {
+          setEvents((prev) => [...prev, response.body.eventId ?? event]);
           setMessage("Non Custom Event Subscribe Successfully");
         } else {
-          setMessage("Non Custom Event Not Subscribe Or Failed :" + (result.message || ""));
+          setMessage("Non Custom Event Not Subscribe Or Failed :" + (response.message || ""));
         }
       } catch (error) {
         console.error("Error inserting event:", error);
@@ -2063,7 +2092,7 @@ export default function EventsCalendarPage() {
         isCustom: event.isCustom,
       };
       try {
-        const response = await getSubscribeUnsubscribeEvent(filtersValues);
+        const response = await setSubscribeUnsubscribeEvent(filtersValues);
         if (response?.status) {
           //  Update UI only after success
           setEvents(prevEvents =>
@@ -2162,16 +2191,20 @@ export default function EventsCalendarPage() {
   const handleDeleteEvent = async (eventId: any) => {
 
     try {
-      const response = await deleteEvents(eventId);
-      const result = await response.json();
-
-      if (result.status) {
+      const response = await deleteEvents(Number(eventId));
+      if (response.status) {
         //delete  state with new event   
-
+        setEvents((prev) => {
+          const updatedEvents = prev.filter((event) => event.id !== eventId)
+          const customEvents = updatedEvents.filter(e => e.isCustom)
+          saveCustomEventsToStorage(customEvents)
+          return updatedEvents
+        })
         setMessage("Event deleted successfully!");
-        setIsDeleteDialogOpen(false);
+        setIsDeleteDialogOpen(false)
+        setEventToDelete(null)
       } else {
-        setMessage("Failed to delete  event: " + (result.message || ""));
+        setMessage("Failed to delete  event: " + (response.message || ""));
       }
     } catch (error) {
       console.error("Error delete  event:", error);
@@ -2204,7 +2237,7 @@ export default function EventsCalendarPage() {
       type: newEvent.category as Event["type"],
       country: newEvent.country,
     }
-    let addEventObj = {
+    let updateEventObj = {
       Sid: selectedProperty?.sid,
       EventId: updatedEvent.id,
       EventName: updatedEvent.name,
@@ -2222,10 +2255,8 @@ export default function EventsCalendarPage() {
       Longitude: 100.556809902191
     }
     try {
-      const response = await updateEvents(updatedEvent);
-      const result = await response.json();
-
-      if (result.status) {
+      const response = await updateEvents(updateEventObj);
+      if (response.status) {
         //Update state with new event
         setEvents((prev) => {
           const updatedEvents = prev.map((event) =>
@@ -2237,7 +2268,7 @@ export default function EventsCalendarPage() {
           return updatedEvents
         })
       } else {
-        setMessage("Failed to update event: " + (result.message || ""));
+        setMessage("Failed to update event: " + (response.message || ""));
       }
     } catch (error) {
       console.error("Error updating event:", error);
@@ -2345,7 +2376,7 @@ export default function EventsCalendarPage() {
           console.log("holidays===>>", holidays)
           holidays.map((x, index) => {
             const convertedEvent: Event = {
-              id: `api-${index}-00`,
+              id: `${x.eventHolidayID}`,
               name: x.holidayName || '',
               startDate: x.holidayDispalyDate || new Date().toISOString().split('T')[0],
               endDate: x.holidayDispalyDate || new Date().toISOString().split('T')[0],
@@ -2396,14 +2427,14 @@ export default function EventsCalendarPage() {
           console.log("Subscribes===>>", Subscribes)
           Subscribes.filter(x => x.isSubscribed === true).map((apiEvent, index) => {
             const convertedSubscribeEvent: Event = {
-              id: `api-${index}`,
+              id: `${apiEvent.eventId}`,
               name: apiEvent.eventName || 'Unnamed Event',
               startDate: apiEvent.startDate || apiEvent.eventFrom || new Date().toISOString().split('T')[0],
               endDate: apiEvent.endDate || apiEvent.eventTo || new Date().toISOString().split('T')[0],
               category: apiEvent.eventType?.trim(),
               location: apiEvent.eventLocation || 'Dubai, UAE',
               description: apiEvent.eventDescription || 'Event details not available',
-              status: apiEvent.isSubscribed ? "bookmarked" : "available" as const,
+              status: apiEvent.isSubscribed === true ? "bookmarked" : "available" as const,
               country: apiEvent.eventCountry || '',
               flag: apiEvent.flag || '🇦🇪',
               isCustom: apiEvent.isCustom || false,
@@ -2438,7 +2469,7 @@ export default function EventsCalendarPage() {
     // Convert API events to our Event interface format
     apiEvents.forEach((apiEvent, index) => {
       const convertedEvent: Event = {
-        id: `api-${index}`,
+        id: `${apiEvent?.eventId}`,
         name: apiEvent.eventName || 'Unnamed Event',
         startDate: apiEvent.startDate || apiEvent.eventFrom || new Date().toISOString().split('T')[0],
         endDate: apiEvent.endDate || apiEvent.eventTo || new Date().toISOString().split('T')[0],
@@ -2619,8 +2650,9 @@ export default function EventsCalendarPage() {
 
   const handleAddEvent = async () => {
 
-    const event: Event = {
-      id: Date.now().toString(),
+    const tempId = `tmp_${Date.now()}`;
+    const tempEvent: Event = {
+      id: tempId,
       name: newEvent.name,
       startDate: newEvent.startDate,
       endDate: newEvent.endDate,
@@ -2635,34 +2667,45 @@ export default function EventsCalendarPage() {
       createdAt: Date.now(),
     };
     let addEventObj = {
-      EventType: event.type,
-      EventImpact: 1,
-      EventTo: event.endDate,
-      EventFrom: event.startDate,
-      EventLocation: event.location,
-      EventDescription: event.description,
-      EventName: event.name,
+      EventType: tempEvent.type,
+      EventImpact: tempEvent.priority === "high" ? 1 : tempEvent.priority === "medium" ? 2 : 3,
+      EventTo: tempEvent.endDate,
+      EventFrom: tempEvent.startDate,
+      EventLocation: tempEvent.location,
+      EventDescription: tempEvent.description,
+      EventName: tempEvent.name,
       Charge: "Free",
       Sid: selectedProperty?.sid,
       RepeatsBy: "50986",
       IsCustom: true,
       IsRepeat: false,
-      Latitude: 51.52937650320423,
-      Longitude: -0.12381210923194885
+      Latitude: 13.7451222401638,
+      Longitude: 100.556809902191
 
     }
 
+    setEvents(prev => [...prev, tempEvent]);
     try {
-      //Call backend API
-      const response: any = await saveEvents(addEventObj)
-      const result = await response.json();
-      if (result.status) {
-        //body response   ===>>  action: 1 eventId: 14717 isCustom: true
+      const res: any = await saveEvents(addEventObj);
+      if (res?.status) {
+        setApiEvents(prev => [...prev, tempEvent]);
+        const serverId = String(res?.body?.eventId ?? "");
+        const serverEvent: Event = {
+          ...tempEvent,
+          id: serverId,  
+        };
+
         //success (similar to Angular if(response.status))
-        setEvents((prev) => [...prev, result.data ?? event]);
-        setMessage("Event added successfully!");
+        setEvents(prev =>
+          prev.map(e => (e.id === tempId ? serverEvent : e))
+        );
+        setEvents(prev => {
+          const customEvents = prev.map(e => (e.id === tempId ? serverEvent : e));
+          saveCustomEventsToStorage(customEvents.filter(e => e.isCustom));
+          return customEvents;
+        });
       } else {
-        setMessage("Failed to add event: " + (result.message || ""));
+        setMessage("Failed to add event: " + (res.message || ""));
       }
     } catch (error) {
       console.error("Error inserting event:", error);
@@ -2671,13 +2714,13 @@ export default function EventsCalendarPage() {
 
 
 
-    setEvents((prev) => {
-      const updatedEvents = [...prev, event]
-      // Save only custom events to localStorage
-      const customEvents = updatedEvents.filter(e => e.isCustom)
-      saveCustomEventsToStorage(customEvents)
-      return updatedEvents
-    })
+    // setEvents((prev) => {
+    //   const updatedEvents = [...prev, event]
+    //   // Save only custom events to localStorage
+    //   const customEvents = updatedEvents.filter(e => e.isCustom)
+    //   saveCustomEventsToStorage(customEvents)
+    //   return updatedEvents
+    // })
 
     setNewEvent({
       name: "",
@@ -3483,7 +3526,10 @@ export default function EventsCalendarPage() {
                             onClick={(e) => {
                               e.stopPropagation() // Prevent event bubbling to parent popover
                               setIsCountrySearchFocused(true)
-                              e.target.focus()
+                              // if (e.target instanceof HTMLInputElement) {
+                              //   e.target.focus()
+                              // }
+                              e.currentTarget.focus()
                             }}
                             onFocus={() => setIsCountrySearchFocused(true)}
                             onBlur={() => setIsCountrySearchFocused(false)}
@@ -3555,7 +3601,10 @@ export default function EventsCalendarPage() {
                             onClick={(e) => {
                               e.stopPropagation() // Prevent event bubbling to parent popover
                               setIsCitySearchFocused(true)
-                              e.target.focus()
+                              // if (e.target instanceof HTMLInputElement) {
+                              //   e.target.focus()
+                              // }
+                              e.currentTarget.focus()
                             }}
                             onFocus={() => setIsCitySearchFocused(true)}
                             onBlur={() => setIsCitySearchFocused(false)}

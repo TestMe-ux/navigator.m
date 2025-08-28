@@ -1122,6 +1122,9 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
                                 <div className="flex items-center gap-1">
                                   <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
                                   <span className="font-semibold text-sm text-white">{dataPoint.eventData.title}</span>
+                                  {dataPoint.eventData.flag && (
+                                    <span className="text-sm">{dataPoint.eventData.flag}</span>
+                                  )}
                                 </div>
 
                                 <div className="text-xs text-gray-300">
@@ -1133,6 +1136,26 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
                                     {dataPoint.eventData.impact} Impact
                                   </span>
                                 </div>
+                                
+                                {/* Show additional details for sample event */}
+                                {dataPoint.eventData.description && (
+                                  <div className="text-xs text-gray-300 mt-1 border-t border-gray-600 pt-1">
+                                    <div className="font-medium text-gray-200">Description:</div>
+                                    <div>{dataPoint.eventData.description}</div>
+                                  </div>
+                                )}
+                                
+                                {dataPoint.eventData.attendees && (
+                                  <div className="text-xs text-gray-300">
+                                    <span className="font-medium text-gray-200">Expected Attendees:</span> {dataPoint.eventData.attendees.toLocaleString()}
+                                  </div>
+                                )}
+                                
+                                {dataPoint.eventData.country && dataPoint.eventData.country !== 'Global' && (
+                                  <div className="text-xs text-gray-300">
+                                    <span className="font-medium text-gray-200">Country:</span> {dataPoint.eventData.country}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </TooltipContent>

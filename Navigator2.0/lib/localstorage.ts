@@ -1,5 +1,17 @@
 class LocalStorageService {
+  /**
+   * Check if localStorage is available (client-side only)
+   */
+  private isLocalStorageAvailable(): boolean {
+    return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+  }
+
   set<T>(key: string, value: T): void {
+    if (!this.isLocalStorageAvailable()) {
+      console.warn("localStorage is not available (SSR environment)");
+      return;
+    }
+    
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         localStorage.setItem(key, JSON.stringify(value));
@@ -10,6 +22,11 @@ class LocalStorageService {
   }
 
   get<T>(key: string): T | null {
+    if (!this.isLocalStorageAvailable()) {
+      console.warn("localStorage is not available (SSR environment)");
+      return null;
+    }
+    
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         const data = localStorage.getItem(key);

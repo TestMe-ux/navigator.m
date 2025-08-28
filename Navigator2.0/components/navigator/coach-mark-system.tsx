@@ -547,8 +547,12 @@ export function CoachMarkTrigger() {
   const handleCloseTour = () => {
     setShowCoachMarks(false)
     if (typeof window !== 'undefined') {
-      localStorage.setItem('revenue-dashboard-tour-completed', 'true')
-      localStorage.setItem('revenue-dashboard-tour-version', '2.1')
+      try {
+        localStorage.setItem('revenue-dashboard-tour-completed', 'true')
+        localStorage.setItem('revenue-dashboard-tour-version', '2.1')
+      } catch (error) {
+        console.warn('Failed to save coach mark completion status:', error)
+      }
     }
   }
 

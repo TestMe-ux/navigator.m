@@ -48,6 +48,7 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
   )
   const [currentMonth, setCurrentMonth] = React.useState<Date>(selectedStartDate || new Date())
   const [mode, setMode] = React.useState<DateMode>("next7days")
+  const [previousMode, setPreviousMode] = React.useState<DateMode>("next7days")
   const [isOpen, setIsOpen] = React.useState(false)
 
   // Initialize with next 7 days if no dates provided
@@ -93,6 +94,11 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
   }
 
   const handleModeChange = (newMode: DateMode) => {
+    // Store previous mode before changing to Custom Date Range
+    if (newMode === "customRange" && mode !== "customRange") {
+      setPreviousMode(mode)
+    }
+    
     setMode(newMode)
     const today = new Date()
     let newStartDate: Date | undefined
@@ -314,9 +320,18 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
     } else if (selectedStartDate) {
       return `${format(selectedStartDate, "dd MMM ''yy")} - Select end date`
     } else {
+      // Show previous selection when Custom Date Range is selected but no dates are chosen
+      if (mode === "customRange") {
+        const previousDateRange = getDateRangeForMode(previousMode)
+        const previousOption = quickDateOptions.find(opt => opt.mode === previousMode)
+        if (previousOption && previousDateRange) {
+          return `${previousOption.label} • ${previousDateRange}`
+        }
+        return previousOption?.label || "Select date range"
+      }
       return "Select date range"
     }
-  }, [selectedStartDate, selectedEndDate])
+  }, [selectedStartDate, selectedEndDate, mode, previousMode])
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
