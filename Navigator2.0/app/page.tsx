@@ -229,7 +229,7 @@ export default function Home() {
   const [parityDataComp, setParityDataComp] = useState(Object);
   const [rateData, setRateData] = useState(Object);
   const [rateCompData, setRateCompData] = useState(Object);
-  const [losGuest, setLosGuest] = useState({ "Los": [], "Guest": [] });
+  const [losGuest, setLosGuest] = useState<{ "Los": any[], "Guest": any[] }>({ "Los": [], "Guest": [] });
   const { hasTriggered, resetTrigger } = useScrollDetection({
     threshold: 0.9, // Show when 90% scrolled (very close to bottom)
     minScrollDistance: 1200, // After scrolling at least 1200px
@@ -240,37 +240,49 @@ export default function Home() {
 
   // Show CSAT card when triggered
   useEffect(() => {
-    if (hasTriggered && !showCSATCard && !csatClosed) {
-      console.log('🎯 Showing CSAT card after scroll trigger')
-      // Add a small delay for better UX
-      const timer = setTimeout(() => {
-        setShowCSATCard(true)
-      }, 1500)
-      return () => clearTimeout(timer)
+    try {
+      if (hasTriggered && !showCSATCard && !csatClosed) {
+        console.log('🎯 Showing CSAT card after scroll trigger')
+        // Add a small delay for better UX
+        const timer = setTimeout(() => {
+          setShowCSATCard(true)
+        }, 1500)
+        return () => clearTimeout(timer)
+      }
+      if (!startDate ||
+        !endDate ||
+        !selectedProperty?.sid) return;
+      Promise.all([
+        GetParityDatas(),
+        getRateDate(),
+        getCompRateData(),
+        GetParityDatas_Comp()
+      ]).catch((error) => {
+        console.error('🚨 Dashboard data loading error:', error)
+      });
+    } catch (error) {
+      console.error('🚨 Dashboard effect error:', error)
     }
-    if (!startDate ||
-      !endDate ||
-      !selectedProperty?.sid) return;
-    Promise.all([
-      GetParityDatas(),
-      getRateDate(),
-      getCompRateData(),
-      GetParityDatas_Comp()
-    ]);
   }, [hasTriggered, showCSATCard, csatClosed, startDate, endDate, selectedProperty, compsetFilter, sideFilter, channelFilter?.channelId])
 
   useEffect(() => {
-    if (!startDate ||
-      !endDate ||
-      !selectedProperty?.sid) return;
-    Promise.all([
-      getCompRateData(),
-      GetParityDatas_Comp()
-    ]);
+    try {
+      if (!startDate ||
+        !endDate ||
+        !selectedProperty?.sid) return;
+      Promise.all([
+        getCompRateData(),
+        GetParityDatas_Comp()
+      ]).catch((error) => {
+        console.error('🚨 Comparison data loading error:', error)
+      });
+    } catch (error) {
+      console.error('🚨 Comparison effect error:', error)
+    }
   }, [selectedComparison])
 
   const getRateDate = () => {
-    debugger;
+    // debugger; // Temporarily commented out
     setRateData({});
     const filtersValue = {
       "SID": selectedProperty?.sid,
@@ -357,7 +369,7 @@ export default function Home() {
     getRateTrends(filtersValue)
       .then((res) => {
         if (res.status) {
-          debugger
+          // debugger // Temporarily commented out
           var CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
             const allSubscriberRate = x.subscriberPropertyRate?.map((r: any) => parseInt(r.rate) > 0 ? parseInt(r.rate) : 0) || [];
             const ty = allSubscriberRate.length
@@ -507,6 +519,18 @@ export default function Home() {
     setShowCSATCard(false)
     setCSATClosed(true)
     console.log('🎯 CSAT card closed by user')
+  }
+
+  // Check if we're in a loading state
+  if (!startDate || !endDate) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-slate-600 dark:text-slate-400">Loading dashboard...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

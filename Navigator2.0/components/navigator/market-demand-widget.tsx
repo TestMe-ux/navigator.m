@@ -60,14 +60,13 @@ export function MarketDemandWidget() {
   const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0, AvrageRevPAR: 0, AvrageOccupancy: 0 });
   type AvgDemandType = typeof avgDemand;
   const compMap: Record<ComparisonOption, { avgDICompare: keyof AvgDemandType; avgADRCompare: keyof AvgDemandType, compareText: string }> = {
-    1: { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Yesterday' },
-    7: { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Last 7 Days' },
-    28: { avgDICompare: "AverageMom", avgADRCompare: "AvrageHotelADRMom", compareText: 'Last 28 Days' },
+    7: { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Last Week' },
+    30: { avgDICompare: "AverageMom", avgADRCompare: "AvrageHotelADRMom", compareText: 'Last Month' },
     91: { avgDICompare: "AverageMom", avgADRCompare: "AvrageHotelADRMom", compareText: 'Last Quarter' },
   };
-  const { avgDICompare, avgADRCompare, compareText } = compMap[selectedComparison as ComparisonOption] || { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Yesterday' };
+  const { avgDICompare, avgADRCompare, compareText } = compMap[selectedComparison as ComparisonOption] || { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Last Week' };
   useEffect(() => {
-    debugger;
+    // debugger; // Temporarily commented out
     if (!startDate || !endDate || !selectedProperty?.sid) return;
     console.log("selectedComparison", startDate, endDate);
     Promise.all([

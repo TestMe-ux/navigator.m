@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useMemo } from "react"
 
-export type ComparisonOption = 1 | 7 | 28 | 91
+export type ComparisonOption = 7 | 30 | 91
 export type ChannelSelection = { channelId?: number[] | []; channelName?: any[] | [] };
 export type CompsetSelection = true | false;
 export type SideFilterSelection = any;
@@ -20,7 +20,23 @@ interface ComparisonContextType {
 const ComparisonContext = createContext<ComparisonContextType | undefined>(undefined)
 
 export function ComparisonProvider({ children }: { children: ReactNode }) {
-  const [selectedComparison, setSelectedComparison] = useState<ComparisonOption>(1)
+  // Ensure the default value is always valid
+  const [selectedComparison, setSelectedComparison] = useState<ComparisonOption>(() => {
+    // Clear any invalid localStorage values that might exist from old versions
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('selectedComparison')
+      if (stored) {
+        const parsed = parseInt(stored)
+        // Only use stored value if it's one of our new valid options
+        if ([7, 30, 91].includes(parsed)) {
+          return parsed as ComparisonOption
+        }
+        // Clear invalid value from localStorage
+        localStorage.removeItem('selectedComparison')
+      }
+    }
+    return 7 // Default to Last Week
+  })
   const [channelFilter, setChannelFilter] = useState<ChannelSelection>({ channelId: [], channelName: [] });
   const [compsetFilter, setCompsetFilter] = useState<CompsetSelection>(false);
   const [sideFilter, setSideFilter] = useState<CompsetSelection>(Object);

@@ -3,11 +3,13 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Activity, Calendar, DollarSign } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Activity, Calendar, DollarSign, Star, Percent, ArrowUp, ArrowDown, Download } from "lucide-react"
 import { RateTrendGraph } from "./rate-trend-graph"
+import { RateTrendsChart } from "./rate-trends-chart"
 import { RateDetailModal } from "./rate-detail-modal"
 import { useDateContext } from "@/components/date-context"
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 
 interface CalendarDay {
   date: number
@@ -23,6 +25,16 @@ interface CalendarDay {
   indicatorColor?: string
   isFuture?: boolean
   dayOfWeek?: string
+  // New fields for the image layout
+  subscriberRate: string
+  rateDifference: string
+  roomType: string
+  hasInclusion: boolean
+  inclusionIcon: string
+  hasEvent: boolean
+  eventIcon: string
+  isHighest: boolean
+  isLowest: boolean
   reasoning?: {
     strategy: string
     factors: string[]
@@ -138,6 +150,10 @@ const getRecommendedPrice = (currentPrice: string, reasoning: CalendarDay['reaso
   const basePrice = parseInt(currentPrice.replace('$', '').replace(',', ''))
   let multiplier = 1.0
   
+  if (!reasoning) {
+    return currentPrice
+  }
+  
   switch (reasoning.strategy) {
     case 'Event Premium Pricing':
       multiplier = 1.47 // +47% for events
@@ -181,8 +197,13 @@ const generateCalendarData = (startDateRange: Date, endDateRange: Date): Calenda
   const calendarStartDate = new Date(startDateRange)
   calendarStartDate.setHours(0, 0, 0, 0)
   
-  // Extend to show some future dates for recommendations
-  const maxWeeks = Math.max(totalWeeks, 6) // Show at least 6 weeks
+  // Ensure we start from Monday of the week containing the start date
+  const dayOfWeek = calendarStartDate.getDay()
+  const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1 // Convert Sunday=0 to Monday=0
+  calendarStartDate.setDate(calendarStartDate.getDate() - daysToMonday)
+  
+  // Show exactly the number of weeks needed
+  const maxWeeks = Math.max(totalWeeks, 2) // Show at least 2 weeks for the image layout
   
   for (let weekIndex = 0; weekIndex < maxWeeks; weekIndex++) {
     const week: CalendarDay[] = []
@@ -214,7 +235,17 @@ const generateCalendarData = (startDateRange: Date, endDateRange: Date): Calenda
         currentPrice,
         comparison: `${Math.random() > 0.5 ? '-' : '+'}${Math.floor(Math.random() * 30 + 40)}% vs. Comp`,
         isFuture,
-        dayOfWeek: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][currentDate.getDay()]
+        dayOfWeek: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][currentDate.getDay()],
+        // New fields for the image layout
+        subscriberRate: `€${Math.floor(Math.random() * 100 + 50)}`,
+        rateDifference: `${Math.random() > 0.5 ? '+' : '-'}${Math.floor(Math.random() * 80 + 20)}`,
+        roomType: "STD",
+        hasInclusion: true,
+        inclusionIcon: "☕",
+        hasEvent: Math.random() > 0.6,
+        eventIcon: "⭐",
+        isHighest: Math.random() > 0.7,
+        isLowest: Math.random() > 0.8,
       }
       
       // Add recommendations ONLY for actual future dates
@@ -231,6 +262,8 @@ const generateCalendarData = (startDateRange: Date, endDateRange: Date): Calenda
         dayData.hasIndicator = true
         dayData.indicatorType = "circle"
         dayData.indicatorColor = "bg-purple-500"
+        dayData.hasEvent = true
+        dayData.eventIcon = "🎬"
       }
       
       if (currentDate.getDay() === 5 || currentDate.getDay() === 6) { // Weekend
@@ -254,11 +287,28 @@ const generateCalendarData = (startDateRange: Date, endDateRange: Date): Calenda
 
 const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
-interface RateTrendCalendarProps {
-  currentView: "calendar" | "chart" | "table"
+// Helper function to get month name
+const getMonthName = (month: number): string => {
+  const monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ]
+  return monthNames[month] || ''
 }
 
-export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
+interface RateTrendCalendarProps {
+  currentView: "calendar" | "chart" | "table"
+  onDateSelect?: (date: Date) => void
+  highlightToday?: boolean
+  showWeekNumbers?: boolean
+}
+
+export function RateTrendCalendar({ 
+  currentView, 
+  onDateSelect,
+  highlightToday = true,
+  showWeekNumbers = false 
+}: RateTrendCalendarProps) {
   const { startDate, endDate, isLoading } = useDateContext()
   const [currentWeekIndex, setCurrentWeekIndex] = useState(0)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -266,6 +316,12 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
   
   // Generate calendar data based on selected date range
   const calendarData = useMemo(() => {
+    if (!startDate || !endDate) {
+      const defaultStart = new Date()
+      const defaultEnd = new Date()
+      defaultEnd.setDate(defaultStart.getDate() + 7) // Default to next 7 days
+      return generateCalendarData(defaultStart, defaultEnd)
+    }
     return generateCalendarData(startDate, endDate)
   }, [startDate, endDate])
   
@@ -273,15 +329,21 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
     return calendarData.flat()
   }, [calendarData])
 
-  const handleDateClick = (dayData: CalendarDay) => {
-    setSelectedDateForModal(new Date(dayData.year, dayData.month, dayData.date))
+  const handleDateClick = useCallback((dayData: CalendarDay) => {
+    const selectedDate = new Date(dayData.year, dayData.month, dayData.date)
+    setSelectedDateForModal(selectedDate)
     setIsModalOpen(true)
+    
+    // Call optional onDateSelect callback
+    if (onDateSelect) {
+      onDateSelect(selectedDate)
   }
+  }, [onDateSelect])
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setIsModalOpen(false)
     setSelectedDateForModal(null)
-  }
+  }, [])
 
   const findDayIndex = (date: Date | null): number => {
     if (!date) return -1
@@ -290,7 +352,7 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
     )
   }
 
-  const navigateDay = (direction: "prev" | "next") => {
+  const navigateDay = useCallback((direction: "prev" | "next") => {
     if (!selectedDateForModal) return
     const currentIndex = findDayIndex(selectedDateForModal)
     const newIndex = direction === "prev" ? currentIndex - 1 : currentIndex + 1
@@ -299,7 +361,7 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
       const newDayData = allDays[newIndex]
       setSelectedDateForModal(new Date(newDayData.year, newDayData.month, newDayData.date))
     }
-  }
+  }, [selectedDateForModal, allDays, findDayIndex])
 
   const nextWeek = () => {
     setCurrentWeekIndex((prev) => Math.min(prev + 1, calendarData.length - 1))
@@ -307,6 +369,30 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
 
   const prevWeek = () => {
     setCurrentWeekIndex((prev) => Math.max(prev - 1, 0))
+  }
+
+  // Navigate to today's week
+  const goToToday = () => {
+    const today = new Date()
+    const todayIndex = allDays.findIndex(day => 
+      day.year === today.getFullYear() && 
+      day.month === today.getMonth() && 
+      day.date === today.getDate()
+    )
+    
+    if (todayIndex !== -1) {
+      const weekIndex = Math.floor(todayIndex / 7)
+      setCurrentWeekIndex(weekIndex)
+    }
+  }
+
+  // Helper to check if a day is today
+  const isToday = (day: CalendarDay) => {
+    if (!highlightToday) return false
+    const today = new Date()
+    return day.year === today.getFullYear() && 
+           day.month === today.getMonth() && 
+           day.date === today.getDate()
   }
 
   // Generate table data from calendar data (always compute, regardless of view)
@@ -335,87 +421,164 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
         reasoning: day.reasoning,
         isWeekend: date.getDay() === 5 || date.getDay() === 6, // Friday or Saturday in Dubai
         eventInfluence: day.reasoning?.eventInfluence,
-        confidence: day.reasoning?.confidence
+        confidence: day.reasoning?.confidence || undefined
       }
     })
   }, [calendarData])
 
   if (currentView === "chart") {
-    return <RateTrendGraph />
+    return <RateTrendsChart rateData={{}} />
   }
 
   if (currentView === "table") {
+    const handleExportCSV = () => {
+      const csvHeaders = ['Date', 'Day', 'Current Rate', 'AI Recommended', 'Change %', 'Strategy', 'Confidence', 'Market Trends', 'Events']
+      const csvData = tableData.map(row => [
+        row.date,
+        row.dayName,
+        row.currentPrice,
+        row.recommendedPrice,
+        row.priceChange !== 0 ? `${row.priceChange.toFixed(1)}%` : '-',
+        row.reasoning?.strategy || 'Historical',
+        row.confidence || '-',
+        row.comparison,
+        row.hasFlag ? row.flagCountry : (row.eventInfluence ? 'Event' : '-')
+      ])
+      
+      const csvContent = [
+        csvHeaders.join(','),
+        ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n')
+
+      const blob = new Blob([csvContent], { type: 'text/csv' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `rate-trends-table-${new Date().toISOString().split('T')[0]}.csv`
+      link.click()
+      window.URL.revokeObjectURL(url)
+    }
 
     return (
-      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm">
-        {/* Table Header */}
-        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between">
+      <div className="w-full">
+        {/* Table Filter Bar - Copy from calendar view */}
+        <div className="mb-6 p-4 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            {/* Left Section - Table Title */}
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30">
+                <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
             <div>
-              <h3 className="text-lg font-semibold text-foreground">Rate Trends Data Table</h3>
+                <h3 className="text-xl font-bold text-foreground">Rate Trends Data Table</h3>
               <p className="text-sm text-muted-foreground">
-                Detailed view with current rates, AI recommendations, and pricing strategies
+                  Comprehensive rate analysis with AI recommendations
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+            </div>
+            
+            {/* Right Section - Filter Controls */}
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Quick Stats */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700 font-medium">
+                  <Star className="w-3 h-3 mr-1" />
                 {tableData.filter(row => row.isFuture && row.recommendedPrice !== 'N/A').length} AI Recommendations
               </Badge>
-              <Badge variant="outline">
+                <Badge variant="outline" className="font-medium">
+                  <Calendar className="w-3 h-3 mr-1" />
                 {tableData.length} Total Days
               </Badge>
+              </div>
+              
+              {/* Export Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-10">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleExportCSV}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export as CSV
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
 
-        {/* Table Content */}
+        {/* Enhanced Table Container */}
+        <div className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 rounded-lg overflow-hidden">
+          {/* Table Content with proper overflow handling */}
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50 dark:bg-slate-800">
+            <table className="w-full min-w-full table-fixed">
+              <thead className="bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700 border-b border-slate-200 dark:border-slate-600">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="w-32 px-4 py-4 text-left text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
                   Date
+                    </div>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="w-24 px-4 py-4 text-left text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                   Day
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="w-32 px-4 py-4 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    <div className="flex items-center justify-end gap-2">
+                      <DollarSign className="w-4 h-4" />
                   Current Rate
+                    </div>
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="w-32 px-4 py-4 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    <div className="flex items-center justify-end gap-2">
+                      <TrendingUp className="w-4 h-4" />
                   AI Recommended
+                    </div>
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Change %
+                  <th className="w-24 px-4 py-4 text-center text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    <div className="flex items-center justify-center gap-2">
+                      <Percent className="w-4 h-4" />
+                      Change
+                    </div>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="w-48 px-4 py-4 text-left text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-4 h-4" />
                   Strategy
+                    </div>
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="w-24 px-4 py-4 text-center text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                   Confidence
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="w-28 px-4 py-4 text-center text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                   Market Trends
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="w-24 px-4 py-4 text-center text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                   Events
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-700">
-              {tableData.map((row) => (
+                {tableData.map((row, index) => (
                 <tr 
                   key={row.id} 
-                  className={`hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${
-                    row.isFuture ? 'bg-gradient-to-r from-emerald-50/20 to-teal-50/10 dark:from-emerald-950/20 dark:to-teal-950/10' : ''
+                    className={`group hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-200 ${
+                      row.isFuture 
+                        ? 'bg-gradient-to-r from-emerald-50/30 to-teal-50/20 dark:from-emerald-950/20 dark:to-teal-950/10 border-l-4 border-emerald-500' 
+                        : index % 2 === 0 
+                        ? 'bg-slate-25 dark:bg-slate-900/50' 
+                        : 'bg-white dark:bg-slate-900'
                   }`}
                 >
                   {/* Date */}
-                  <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-foreground">{row.date}</span>
+                        <div className="text-sm font-bold text-foreground">{row.date}</div>
                       {row.isFuture && (
-                        <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
+                          <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700">
                           Future
                         </Badge>
                       )}
@@ -423,15 +586,15 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
                   </td>
 
                   {/* Day */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm font-medium ${
-                        row.isWeekend ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-400'
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="flex flex-col gap-1">
+                        <span className={`text-sm font-semibold ${
+                          row.isWeekend ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-300'
                       }`}>
                         {row.dayName}
                       </span>
                       {row.isWeekend && (
-                        <Badge variant="secondary" className="text-xs bg-red-50 text-red-700 border-red-200">
+                          <Badge variant="secondary" className="text-xs bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700">
                           Weekend
                         </Badge>
                       )}
@@ -439,69 +602,72 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
                   </td>
 
                   {/* Current Rate */}
-                  <td className="px-4 py-3 whitespace-nowrap text-right">
+                    <td className="px-4 py-4 whitespace-nowrap text-right">
+                      <div className="bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-2 inline-block">
                     <span className="text-sm font-bold text-foreground">{row.currentPrice}</span>
+                      </div>
                   </td>
 
                   {/* AI Recommended */}
-                  <td className="px-4 py-3 whitespace-nowrap text-right">
+                    <td className="px-4 py-4 whitespace-nowrap text-right">
                     {row.recommendedPrice !== 'N/A' ? (
-                      <div className="text-right">
+                        <div className="bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-lg px-3 py-2 inline-block border border-emerald-200 dark:border-emerald-700">
                         <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
                           {row.recommendedPrice}
                         </span>
                       </div>
                     ) : (
-                      <span className="text-sm text-slate-400">N/A</span>
+                        <span className="text-sm text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-2 inline-block">N/A</span>
                     )}
                   </td>
 
                   {/* Change % */}
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
+                    <td className="px-4 py-4 whitespace-nowrap text-center">
                     {row.priceChange !== 0 ? (
-                      <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        <div className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold shadow-sm ${
                         row.priceChange > 0 
-                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700'
                           : row.priceChange < 0 
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                          : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400'
+                            ? 'bg-red-100 text-red-800 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700'
+                            : 'bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600'
                       }`}>
-                        {row.priceChange > 0 ? '+' : ''}{row.priceChange.toFixed(1)}%
+                          {row.priceChange > 0 ? <ArrowUp className="w-3 h-3 mr-1" /> : <ArrowDown className="w-3 h-3 mr-1" />}
+                          {Math.abs(row.priceChange).toFixed(1)}%
                       </div>
                     ) : (
-                      <span className="text-xs text-slate-400">-</span>
+                        <span className="text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-lg px-2 py-1 inline-block">-</span>
                     )}
                   </td>
 
                   {/* Strategy */}
-                  <td className="px-4 py-3">
+                    <td className="px-4 py-4">
                     {row.reasoning ? (
-                      <div className="max-w-xs">
-                        <div className="text-xs font-medium text-foreground mb-1">
+                        <div className="max-w-xs space-y-1">
+                          <div className="text-xs font-semibold text-foreground bg-slate-100 dark:bg-slate-800 rounded-md px-2 py-1 inline-block">
                           {row.reasoning.strategy}
                         </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
-                          {row.reasoning.factors.slice(0, 2).join(', ')}
+                          <div className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2">
+                            {row.reasoning.factors.slice(0, 2).join(' • ')}
                         </div>
                       </div>
                     ) : (
-                      <span className="text-xs text-slate-400">Historical</span>
+                        <span className="text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-lg px-2 py-1 inline-block">Historical Data</span>
                     )}
                   </td>
 
                   {/* Confidence */}
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
+                    <td className="px-4 py-4 whitespace-nowrap text-center">
                     {row.confidence ? (
-                      <div className="flex items-center justify-center">
-                        <div className={`w-2 h-2 rounded-full ${
-                          row.confidence === 'high' ? 'bg-green-500' : 
-                          row.confidence === 'medium' ? 'bg-yellow-500' : 'bg-red-500'
+                        <div className="flex items-center justify-center gap-1">
+                          <div className={`w-2 h-2 rounded-full shadow-sm ${
+                            row.confidence === 'high' ? 'bg-green-500 shadow-green-200' : 
+                            row.confidence === 'medium' ? 'bg-yellow-500 shadow-yellow-200' : 'bg-red-500 shadow-red-200'
                         }`} />
-                        <span className={`ml-1 text-xs font-medium ${
+                          <span className={`text-xs font-semibold ${
                           row.confidence === 'high' ? 'text-green-700 dark:text-green-400' : 
                           row.confidence === 'medium' ? 'text-yellow-700 dark:text-yellow-400' : 'text-red-700 dark:text-red-400'
                         }`}>
-                          {row.confidence}
+                            {row.confidence.charAt(0).toUpperCase() + row.confidence.slice(1)}
                         </span>
                       </div>
                     ) : (
@@ -510,14 +676,14 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
                   </td>
 
                   {/* Market Trends */}
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
-                    <div className="text-xs text-slate-600 dark:text-slate-400">
+                    <td className="px-4 py-4 whitespace-nowrap text-center">
+                      <div className="text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg px-2 py-1 inline-block">
                       {row.comparison}
                     </div>
                   </td>
 
                   {/* Events */}
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
+                    <td className="px-4 py-4 whitespace-nowrap text-center">
                     <div className="flex items-center justify-center gap-1">
                       {row.hasFlag && row.flagCountry && (
                         <span className="text-lg">{row.flagCountry}</span>
@@ -526,7 +692,8 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger>
-                              <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                                <Badge variant="outline" className="text-xs bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-700 shadow-sm">
+                                  <Activity className="w-3 h-3 mr-1" />
                                 Event
                               </Badge>
                             </TooltipTrigger>
@@ -547,272 +714,48 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
           </table>
         </div>
 
-        {/* Table Footer with Summary */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
-            <div>
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Days</div>
-              <div className="text-lg font-bold text-foreground">{tableData.length}</div>
+          {/* Enhanced Table Footer with Detailed Summary */}
+          <div className="p-6 border-t border-slate-200 dark:border-slate-700 bg-gradient-to-r from-slate-50/50 to-blue-50/30 dark:from-slate-800/50 dark:to-slate-700/30">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+                  <div className="text-sm font-semibold text-slate-600 dark:text-slate-400">Total Days</div>
             </div>
-            <div>
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Future Days</div>
-              <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                <div className="text-2xl font-bold text-foreground">{tableData.length}</div>
+              </div>
+              <div className="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm border border-emerald-200 dark:border-emerald-700">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Future Days</div>
+                </div>
+                <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                 {tableData.filter(row => row.isFuture).length}
               </div>
             </div>
-            <div>
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">AI Recommendations</div>
-              <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
+              <div className="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm border border-purple-200 dark:border-purple-700">
+                <div className="flex items-center gap-2 mb-2">
+                  <Star className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  <div className="text-sm font-semibold text-purple-600 dark:text-purple-400">AI Recommendations</div>
+                </div>
+                <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
                 {tableData.filter(row => row.recommendedPrice !== 'N/A').length}
               </div>
             </div>
-            <div>
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Weekend Days</div>
-              <div className="text-lg font-bold text-red-600 dark:text-red-400">
+              <div className="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm border border-red-200 dark:border-red-700">
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="w-4 h-4 text-red-600 dark:text-red-400" />
+                  <div className="text-sm font-semibold text-red-600 dark:text-red-400">Weekend Days</div>
+                </div>
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">
                 {tableData.filter(row => row.isWeekend).length}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
     )
-  }
-
-  if (currentView === "table") {
-    return (
-      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm">
-        {/* Table Header */}
-        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-foreground">Rate Trends Data Table</h3>
-              <p className="text-sm text-muted-foreground">
-                Detailed view with current rates, AI recommendations, and pricing strategies
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                {tableData.filter(row => row.isFuture && row.recommendedPrice !== 'N/A').length} AI Recommendations
-              </Badge>
-              <Badge variant="outline">
-                {tableData.length} Total Days
-              </Badge>
-            </div>
-          </div>
-        </div>
-
-        {/* Table Content */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50 dark:bg-slate-800">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Day
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Current Rate
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  AI Recommended
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Change %
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Strategy
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Confidence
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Market Trends
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Events
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-700">
-              {tableData.map((row) => (
-                <tr 
-                  key={row.id} 
-                  className={`hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${
-                    row.isFuture ? 'bg-gradient-to-r from-emerald-50/20 to-teal-50/10 dark:from-emerald-950/20 dark:to-teal-950/10' : ''
-                  }`}
-                >
-                  {/* Date */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-foreground">{row.date}</span>
-                      {row.isFuture && (
-                        <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
-                          Future
-                        </Badge>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* Day */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm font-medium ${
-                        row.isWeekend ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-400'
-                      }`}>
-                        {row.dayName}
-                      </span>
-                      {row.isWeekend && (
-                        <Badge variant="secondary" className="text-xs bg-red-50 text-red-700 border-red-200">
-                          Weekend
-                        </Badge>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* Current Rate */}
-                  <td className="px-4 py-3 whitespace-nowrap text-right">
-                    <span className="text-sm font-bold text-foreground">{row.currentPrice}</span>
-                  </td>
-
-                  {/* AI Recommended */}
-                  <td className="px-4 py-3 whitespace-nowrap text-right">
-                    {row.recommendedPrice !== 'N/A' ? (
-                      <div className="text-right">
-                        <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
-                          {row.recommendedPrice}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-slate-400">N/A</span>
-                    )}
-                  </td>
-
-                  {/* Change % */}
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
-                    {row.priceChange !== 0 ? (
-                      <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        row.priceChange > 0 
-                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
-                          : row.priceChange < 0 
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                          : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400'
-                      }`}>
-                        {row.priceChange > 0 ? '+' : ''}{row.priceChange.toFixed(1)}%
-                      </div>
-                    ) : (
-                      <span className="text-xs text-slate-400">-</span>
-                    )}
-                  </td>
-
-                  {/* Strategy */}
-                  <td className="px-4 py-3">
-                    {row.reasoning ? (
-                      <div className="max-w-xs">
-                        <div className="text-xs font-medium text-foreground mb-1">
-                          {row.reasoning.strategy}
-                        </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
-                          {row.reasoning.factors.slice(0, 2).join(', ')}
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-slate-400">Historical</span>
-                    )}
-                  </td>
-
-                  {/* Confidence */}
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
-                    {row.confidence ? (
-                      <div className="flex items-center justify-center">
-                        <div className={`w-2 h-2 rounded-full ${
-                          row.confidence === 'high' ? 'bg-green-500' : 
-                          row.confidence === 'medium' ? 'bg-yellow-500' : 'bg-red-500'
-                        }`} />
-                        <span className={`ml-1 text-xs font-medium ${
-                          row.confidence === 'high' ? 'text-green-700 dark:text-green-400' : 
-                          row.confidence === 'medium' ? 'text-yellow-700 dark:text-yellow-400' : 'text-red-700 dark:text-red-400'
-                        }`}>
-                          {row.confidence}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-slate-400">-</span>
-                    )}
-                  </td>
-
-                  {/* Market Trends */}
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
-                    <div className="text-xs text-slate-600 dark:text-slate-400">
-                      {row.comparison}
-                    </div>
-                  </td>
-
-                  {/* Events */}
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      {row.hasFlag && row.flagCountry && (
-                        <span className="text-lg">{row.flagCountry}</span>
-                      )}
-                      {row.eventInfluence && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
-                                Event
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="text-sm">{row.eventInfluence}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                      {!row.hasFlag && !row.eventInfluence && (
-                        <span className="text-xs text-slate-400">-</span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Table Footer with Summary */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
-            <div>
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Days</div>
-              <div className="text-lg font-bold text-foreground">{tableData.length}</div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Future Days</div>
-              <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-                {tableData.filter(row => row.isFuture).length}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">AI Recommendations</div>
-              <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                {tableData.filter(row => row.recommendedPrice !== 'N/A').length}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Weekend Days</div>
-              <div className="text-lg font-bold text-red-600 dark:text-red-400">
-                {tableData.filter(row => row.isWeekend).length}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (currentView === "chart") {
-    return <RateTrendGraph />
   }
 
   // Enhanced Tooltip component with Today's New Logic for pricing reasoning
@@ -958,9 +901,19 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
               <Button variant="outline" size="sm" onClick={prevWeek} disabled={currentWeekIndex === 0}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
+              <div className="flex items-center gap-2">
               <span className="text-sm font-medium">
                 Week {currentWeekIndex + 1} of {calendarData.length}
               </span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={goToToday}
+                  className="text-xs px-2 py-1 h-6"
+                >
+                  Today
+                </Button>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -976,56 +929,61 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
               {calendarData[currentWeekIndex]?.map((day, dayIndex) => (
                                   <PricingTooltip key={`mobile-${dayIndex}`} day={day}>
                   <Card 
-                    className={`p-3 cursor-pointer hover:shadow-md transition-all duration-200 ${
+                    className={`p-3 cursor-pointer hover:shadow-md transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:outline-none ${
+                      isToday(day) ? 'ring-2 ring-blue-400 bg-gradient-to-br from-blue-50/40 to-sky-50/30 dark:ring-blue-500 dark:from-blue-950/40 dark:to-sky-950/30' :
                       day.isFuture ? 'ring-2 ring-emerald-200 dark:ring-emerald-800 bg-gradient-to-br from-emerald-50/30 to-teal-50/20 dark:from-emerald-950/30 dark:to-teal-950/20' : 
                       'hover:bg-slate-50 dark:hover:bg-slate-800'
                     }`} 
                     onClick={() => handleDateClick(day)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Rate information for ${weekDays[dayIndex % 7]} ${day.date}, ${day.currentPrice}${day.isFuture && day.recommendedPrice ? `, AI recommended: ${day.recommendedPrice}` : ''}`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleDateClick(day)
+                      }
+                    }}
                   >
                   <div className="space-y-2">
+                    {/* Top Row: Subscriber Rate and Date */}
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1">
-                          <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
-                            {weekDays[dayIndex % 7]} {day.date}
-                      </span>
-                                                     {day.isFuture && (
-                             <Badge variant="secondary" className="text-xs px-1 py-0 bg-emerald-100 text-emerald-700 border-emerald-200">Future</Badge>
-                           )}
-                        </div>
-                        <div className="flex items-center gap-1">
-                      {day.hasFlag && <span className="text-lg">{day.flagCountry}</span>}
-                      {day.hasIndicator && (
-                        <div
-                              className={`w-2 h-2 rounded-full ${day.indicatorColor || "bg-gray-400"} ${
-                                day.indicatorType === "square" ? "rounded-none" : ""
-                              }`}
-                        />
-                      )}
+                      <div className="text-base font-bold text-gray-800 dark:text-gray-200">
+                        {day.subscriberRate}
+                      </div>
+                      <div className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                        {day.date}
+                      </div>
                     </div>
+
+                    {/* Second Row: Rate Difference and Event Icon */}
+                    <div className="flex items-center justify-between">
+                      <div className={`text-xs font-medium ${
+                        day.rateDifference.startsWith('+') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+                      }`}>
+                        {day.rateDifference}
                       </div>
-                      
-                      {/* Current Price */}
-                      <div className="bg-slate-100 dark:bg-slate-800 rounded-md p-2 text-center">
-                        <div className="text-lg font-bold text-gray-800 dark:text-gray-200">{day.currentPrice}</div>
-                        <div className="text-xs text-slate-600 dark:text-slate-400">Current Rate</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {day.hasEvent ? `[${day.eventIcon}]` : ''}
                       </div>
-                      
-                                             {/* Recommended Price for Future Dates */}
-                       {day.isFuture && day.recommendedPrice && (
-                         <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950 dark:to-teal-950 rounded-md p-2 text-center border border-emerald-200 dark:border-emerald-800">
-                           <div className="flex items-center justify-center gap-1 mb-0.5">
-                             <TrendingUp className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
-                             <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">AI Rec</span>
-                           </div>
-                           <div className="text-sm font-bold text-emerald-800 dark:text-emerald-200">{day.recommendedPrice}</div>
-                           <div className={`w-1.5 h-1.5 rounded-full mx-auto mt-1 ${
-                             day.reasoning?.confidence === 'high' ? 'bg-green-500' : 
-                             day.reasoning?.confidence === 'medium' ? 'bg-yellow-500' : 'bg-red-500'
-                           }`} />
-                         </div>
-                       )}
-                      
-                      <div className="text-xs text-green-700 dark:text-green-400 text-center">{day.comparison}</div>
+                    </div>
+
+                    {/* Third Row: Room Type, Inclusion Icon, and Color Indication */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                          {day.roomType}
+                        </span>
+                        {day.hasInclusion && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {day.inclusionIcon}
+                          </span>
+                        )}
+                      </div>
+                      <div className={`w-2 h-2 rounded-full ${
+                        day.isHighest ? 'bg-red-500' : day.isLowest ? 'bg-green-500' : 'bg-gray-400'
+                      }`} />
+                    </div>
                   </div>
                 </Card>
                 </PricingTooltip>
@@ -1036,23 +994,34 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
 
         {/* Desktop View - Full Calendar Grid */}
         <div className="hidden lg:block p-6">
-          {/* Date Range Header */}
+          {/* Date Range Header with Navigation */}
           <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-            <div className="flex items-center justify-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
               <Calendar className="w-4 h-4" />
               <span>
-                Showing: {startDate.toLocaleDateString()} - {endDate.toLocaleDateString()}
+                  Showing: {startDate?.toLocaleDateString() || 'N/A'} - {endDate?.toLocaleDateString() || 'N/A'}
               </span>
-              {calendarData.some(week => week.some(day => day.isFuture && day.recommendedPrice)) && (
-                <Badge variant="outline" className="ml-2 bg-emerald-50 text-emerald-700 border-emerald-200">
-                  AI Recommendations Available
-                </Badge>
-              )}
+
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={goToToday}
+                className="text-xs"
+              >
+                Go to Today
+              </Button>
             </div>
           </div>
           
           {/* Header */}
-          <div className="grid grid-cols-7 gap-4 mb-4">
+          <div className={`grid ${showWeekNumbers ? 'grid-cols-8' : 'grid-cols-7'} gap-4 mb-4`}>
+            {showWeekNumbers && (
+              <div className="text-sm font-medium text-gray-600 dark:text-gray-300 text-center">
+                Week
+              </div>
+            )}
             {weekDays.map((day) => (
               <div key={day} className="text-sm font-medium text-gray-600 dark:text-gray-300 text-center">
                 {day}
@@ -1063,67 +1032,77 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
           {/* Calendar Grid */}
           <div className="space-y-4">
             {calendarData.map((week, weekIndex) => (
-              <div key={weekIndex} className="grid grid-cols-7 gap-4">
+              <div key={weekIndex} className={`grid ${showWeekNumbers ? 'grid-cols-8' : 'grid-cols-7'} gap-4`}>
+                {showWeekNumbers && (
+                  <div className="flex items-center justify-center">
+                    <div className="text-xs font-medium text-slate-500 dark:text-gray-300 text-center">
+                      {/* Date Range Header */}
+                      <div className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                        {week[0]?.date} {getMonthName(week[0]?.month)} - {week[6]?.date} {getMonthName(week[6]?.month)}
+                      </div>
+                      <div className="text-xs text-blue-600 dark:text-blue-400 underline cursor-pointer">
+                        Show Comp. Rates
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {week.map((day, dayIndex) => (
                   <PricingTooltip key={`desktop-${weekIndex}-${dayIndex}`} day={day}>
                   <Card
-                      className={`p-3 hover:shadow-lg transition-all duration-200 relative cursor-pointer ${
+                      className={`p-3 hover:shadow-lg transition-all duration-200 relative cursor-pointer focus:ring-2 focus:ring-blue-500 focus:outline-none ${
+                        isToday(day) ? 'ring-2 ring-blue-400 bg-gradient-to-br from-blue-50/40 to-sky-50/30 dark:ring-blue-500 dark:from-blue-950/40 dark:to-sky-950/30' :
                         day.isFuture ? 'ring-2 ring-emerald-200 dark:ring-emerald-800 bg-gradient-to-br from-emerald-50/30 to-teal-50/20 dark:from-emerald-950/30 dark:to-teal-950/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800'
                       }`}
                     onClick={() => handleDateClick(day)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Rate information for ${day.date}, ${day.subscriberRate}${day.isFuture && day.recommendedPrice ? `, AI recommended: ${day.recommendedPrice}` : ''}`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleDateClick(day)
+                      }
+                    }}
                   >
-                      <div className="space-y-3">
-                        {/* Date Header */}
-                      <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1">
-                            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{day.date}</span>
-                                                         {day.isFuture && (
-                               <Badge variant="outline" className="text-xs px-1 py-0 bg-emerald-50 text-emerald-700 border-emerald-200">
-                                 Future
-                               </Badge>
-                             )}
+                      <div className="space-y-2">
+                        {/* Top Row: Subscriber Rate and Date */}
+                        <div className="flex items-center justify-between">
+                          <div className="text-lg font-bold text-gray-800 dark:text-gray-200">
+                            {day.subscriberRate}
                           </div>
+                          <div className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                            {day.date}
+                          </div>
+                        </div>
+
+                        {/* Second Row: Rate Difference and Event Icon */}
+                        <div className="flex items-center justify-between">
+                          <div className={`text-sm font-medium ${
+                            day.rateDifference.startsWith('+') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+                          }`}>
+                            {day.rateDifference}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {day.hasEvent ? `[${day.eventIcon}]` : ''}
+                          </div>
+                        </div>
+
+                        {/* Third Row: Room Type, Inclusion Icon, and Color Indication */}
+                        <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1">
-                        {day.hasFlag && <span className="text-lg">{day.flagCountry}</span>}
-                        {day.hasIndicator && (
-                          <div
-                                className={`w-2 h-2 rounded-full ${day.indicatorColor || "bg-gray-400"} ${
-                                  day.indicatorType === "square" ? "rounded-none" : ""
-                                }`}
-                          />
-                        )}
-                      </div>
+                            <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                              {day.roomType}
+                            </span>
+                            {day.hasInclusion && (
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {day.inclusionIcon}
+                              </span>
+                            )}
+                          </div>
+                          <div className={`w-3 h-3 rounded-full ${
+                            day.isHighest ? 'bg-red-500' : day.isLowest ? 'bg-green-500' : 'bg-gray-400'
+                          }`} />
                         </div>
-
-                        {/* Current Price */}
-                        <div className="bg-slate-100 dark:bg-slate-800 rounded-md p-3 text-center">
-                          <div className="text-lg font-bold text-gray-800 dark:text-gray-200">{day.currentPrice}</div>
-                          <div className="text-xs text-slate-600 dark:text-slate-400">Current Rate</div>
-                        </div>
-
-                                                 {/* Recommended Price for Future Dates */}
-                         {day.isFuture && day.recommendedPrice && (
-                           <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950 dark:to-teal-950 rounded-md p-2 text-center border border-emerald-200 dark:border-emerald-800">
-                             <div className="flex items-center justify-center gap-1 mb-1">
-                               <TrendingUp className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                               <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">AI Rec</span>
-                             </div>
-                             <div className="text-base font-bold text-emerald-800 dark:text-emerald-200">{day.recommendedPrice}</div>
-                             <div className="flex items-center justify-center gap-1 mt-1">
-                               <div className={`w-2 h-2 rounded-full ${
-                                 day.reasoning?.confidence === 'high' ? 'bg-green-500' : 
-                                 day.reasoning?.confidence === 'medium' ? 'bg-yellow-500' : 'bg-red-500'
-                               }`} />
-                               <span className="text-xs text-emerald-600 dark:text-emerald-400">
-                                 {day.reasoning?.confidence === 'high' ? 'High' : 
-                                  day.reasoning?.confidence === 'medium' ? 'Med' : 'Low'}
-                               </span>
-                             </div>
-                           </div>
-                         )}
-
-                        {/* Comparison */}
-                        <div className="text-xs text-center text-green-700 dark:text-green-400">{day.comparison}</div>
                     </div>
                   </Card>
                   </PricingTooltip>
