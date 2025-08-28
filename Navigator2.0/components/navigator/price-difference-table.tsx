@@ -43,7 +43,7 @@ export function PriceDifferenceTable() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[250px]">Hotel name</TableHead>
-              <TableHead className="w-[150px]">Rate (vs. Previous Period)</TableHead>
+              <TableHead className="w-[150px]">Rate (vs. Yesterday)</TableHead>
               <TableHead>Room name</TableHead>
             </TableRow>
           </TableHeader>

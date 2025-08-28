@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
-import { TrendingUp, Filter, Download, ChevronDown, Eye, EyeOff, ArrowUp, ArrowDown, Minus, BarChart3, Star, Maximize2, Calendar, Activity } from "lucide-react"
+import { TrendingUp, Filter, Download, ChevronDown, Eye, EyeOff, ArrowUp, ArrowDown, Minus, BarChart3, Star, Maximize2, Calendar } from "lucide-react"
 import { useDateContext } from "@/components/date-context"
 import { format, eachDayOfInterval, differenceInDays } from "date-fns"
 import localStorageService from "@/lib/localstorage"
@@ -68,59 +68,6 @@ interface RateDataResponse {
   }>
   losList?: number[]
   guestList?: number[]
-}
-
-/**
- * Generate demo rate data with guaranteed valid dates
- */
-const generateDemoRateDataSafe = (startDate: Date, endDate: Date): RateData[] => {
-  const data: RateData[] = []
-  const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
-  const totalDays = Math.min(daysDiff + 1, 30) // Limit to 30 days for demo
-
-  for (let i = 0; i < totalDays; i++) {
-    const currentDate = new Date(startDate.getTime())
-    currentDate.setDate(startDate.getDate() + i)
-    
-    const dateStr = currentDate.toISOString().split('T')[0]
-    
-    // Generate realistic rate data with some variation
-    const baseRate = 680 + (Math.sin(i / 7) * 150) // Weekly pattern
-    const competitorBase = 2200 + (Math.sin(i / 7) * 200) // Higher competitor rates
-    
-    data.push({
-      date: dateStr,
-      timestamp: currentDate.getTime(),
-      direct: Math.round(baseRate + (Math.random() - 0.5) * 100),
-      avgCompset: Math.round(competitorBase + (Math.random() - 0.5) * 150),
-      competitor_101: Math.round(competitorBase * 1.1 + (Math.random() - 0.5) * 100),
-      competitor_101_name: "Resort Competitor A",
-      competitor_102: Math.round(competitorBase * 0.9 + (Math.random() - 0.5) * 100),
-      competitor_102_name: "Resort Competitor B",
-      competitor_103: Math.round(competitorBase * 1.05 + (Math.random() - 0.5) * 100),
-      competitor_103_name: "Resort Competitor C",
-    })
-  }
-  
-  return data
-}
-
-/**
- * Generate demo rate data for visualization when no real data is available
- */
-const generateDemoRateData = (startDate: Date, endDate: Date): RateData[] => {
-  const data: RateData[] = []
-  
-  // Safety check for valid dates
-  if (!startDate || !endDate || isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-    // Return default demo data for 30 days from today
-    const today = new Date()
-    const defaultEnd = new Date()
-    defaultEnd.setDate(today.getDate() + 30)
-    return generateDemoRateDataSafe(today, defaultEnd)
-  }
-  
-  return generateDemoRateDataSafe(startDate, endDate)
 }
 
 /**
@@ -202,59 +149,6 @@ interface ChannelConfig {
   type: 'ota' | 'direct' | 'competitor'
   description: string
   isVisible: boolean
-}
-
-/**
- * Generate demo channel configs for visualization when no real data is available
- */
-const generateDemoChannelConfigs = (): ChannelConfig[] => {
-  return [
-    {
-      key: 'direct',
-      name: 'My Hotel',
-      color: '#2563eb',
-      strokeWidth: 4,
-      type: 'direct',
-      description: 'Your hotel rates',
-      isVisible: true,
-    },
-    {
-      key: 'avgCompset',
-      name: 'Avg. Compset',
-      color: '#9ca3af',
-      strokeWidth: 3,
-      type: 'ota',
-      description: 'Average competitor rates',
-      isVisible: true,
-    },
-    {
-      key: 'competitor_101',
-      name: 'Resort Competitor A',
-      color: '#ef4444',
-      strokeWidth: 2,
-      type: 'competitor',
-      description: 'Competitor resort rates',
-      isVisible: true,
-    },
-    {
-      key: 'competitor_102',
-      name: 'Resort Competitor B',
-      color: '#10b981',
-      strokeWidth: 2,
-      type: 'competitor',
-      description: 'Competitor resort rates',
-      isVisible: true,
-    },
-    {
-      key: 'competitor_103',
-      name: 'Resort Competitor C',
-      color: '#f59e0b',
-      strokeWidth: 2,
-      type: 'competitor',
-      description: 'Competitor resort rates',
-      isVisible: false,
-    },
-  ]
 }
 
 /**
@@ -580,7 +474,17 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
                       }`}>
                       {`\u200E${currencySymbol}\u200E ${entry.value?.toLocaleString()}`}
                     </div>
-
+                    {/* Variance column - empty for Avg. Compset to maintain alignment */}
+                    <div className="text-xs font-medium min-w-[40px]">
+                      {!isAvgCompset && (
+                        <span className={`${priceDiff > 0
+                          ? 'text-red-600 dark:text-red-400 font-bold'
+                          : 'text-green-600 dark:text-green-400 font-bold'
+                          }`}>
+                          {priceDiff > 0 ? '+' : ''}{priceDiff.toFixed(0)}%
+                        </span>
+                      )}
+                    </div>
                     {/* Ranking column - only for competitors, not for Avg Compset */}
                     <div className={`text-xs font-medium min-w-[50px] ${!isAvgCompset && positionText === 'Lowest'
                       ? 'text-emerald-600 dark:text-emerald-400 font-bold'
@@ -632,16 +536,7 @@ export function RateTrendsChart({ rateData }: any) {
   }, [])
 
   // Generate channel configs based on actual data
-  const channelConfigs = useMemo(() => {
-    const configs = generateChannelConfigs(rateData)
-    
-    // If no real data, generate demo channel configs
-    if (configs.length === 0) {
-      return generateDemoChannelConfigs()
-    }
-    
-    return configs
-  }, [rateData])
+  const channelConfigs = useMemo(() => generateChannelConfigs(rateData), [rateData])
 
   // State management
   const [errorMessage, setErrorMessage] = useState<string>('')
@@ -659,13 +554,6 @@ export function RateTrendsChart({ rateData }: any) {
 
   // Tab state
   const [activeTab, setActiveTab] = useState<string>('chart')
-  
-  // Filter states - similar to calendar view
-  const [selectedRateType, setSelectedRateType] = useState<string>('All Rates')
-  const [selectedLengthOfStay, setSelectedLengthOfStay] = useState<string>('1 Night')
-  const [selectedGuests, setSelectedGuests] = useState<string>('2 Guests')
-  const [selectedRoomType, setSelectedRoomType] = useState<string>('All Rooms')
-  const [selectedChartType, setSelectedChartType] = useState<string>('Line Chart')
 
   // Generate data - with fallback dates if context dates are null
   const data = useMemo(() => {
@@ -674,13 +562,8 @@ export function RateTrendsChart({ rateData }: any) {
 
     console.log("transformedData", transformedData);
 
-    // If no real data, generate demo data for visualization
-    if (transformedData.length === 0) {
-      return generateDemoRateData(startDate, endDate)
-    }
-
     return transformedData
-  }, [rateData, startDate, endDate])
+  }, [rateData])
 
   // Initialize visibility states when channel configs change
   useEffect(() => {
@@ -1059,227 +942,15 @@ export function RateTrendsChart({ rateData }: any) {
 
   return (
     <Card ref={cardRef} className="chart-container-minimal animate-fade-in bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700">
-      {/* Top Filter Bar - Similar to Calendar View */}
-      <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-            <Calendar className="w-4 h-4" />
-            <span>
-              Date Range: {startDate?.toLocaleDateString() || 'N/A'} - {endDate?.toLocaleDateString() || 'N/A'}
-            </span>
-            {!hasData && (
-              <Badge variant="outline" className="ml-2 bg-amber-50 text-amber-700 border-amber-200">
-                Demo Data Active
-              </Badge>
-            )}
-            {data.length > 0 && (
-              <Badge variant="outline" className="ml-2 bg-emerald-50 text-emerald-700 border-emerald-200">
-                {data.length} Days of Data
-              </Badge>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {/* View Options */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Filter className="w-4 h-4" />
-                  View Options
-                  <ChevronDown className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setActiveTab('chart')}>
-                  <BarChart3 className="w-4 h-4 mr-2" />
-                  Chart View
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setActiveTab('table')}>
-                  <Activity className="w-4 h-4 mr-2" />
-                  Data Table
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            
-            {/* Quick Time Range Filters */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Quick Range
-                  <ChevronDown className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => console.log('Last 7 days')}>
-                  Last 7 Days
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => console.log('Last 14 days')}>
-                  Last 14 Days
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => console.log('Last 30 days')}>
-                  Last 30 Days
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => console.log('This month')}>
-                  This Month
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => console.log('Next 30 days')}>
-                  Next 30 Days
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Chart Type Toggle */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Activity className="w-4 h-4" />
-                  {selectedChartType}
-                  <ChevronDown className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setSelectedChartType('Line Chart')}>
-                  <TrendingUp className="w-4 h-4 mr-2" />
-                  Line Chart
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedChartType('Area Chart')}>
-                  <Activity className="w-4 h-4 mr-2" />
-                  Area Chart
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedChartType('Bar Chart')}>
-                  <BarChart3 className="w-4 h-4 mr-2" />
-                  Bar Chart
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Refresh Data Button */}
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => window.location.reload()}
-              className="gap-2"
-            >
-              <TrendingUp className="w-4 h-4" />
-              Refresh
-            </Button>
-          </div>
-        </div>
-        
-        {/* Secondary Filter Row - Advanced Options */}
-        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Quick Filters:</span>
-            
-            {/* Rate Type Filter */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs border border-slate-200 dark:border-slate-600">
-                  {selectedRateType} <ChevronDown className="w-3 h-3 ml-1" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => setSelectedRateType('All Rates')}>All Rates</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedRateType('Best Available Rate')}>Best Available Rate</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedRateType('Package Rates')}>Package Rates</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedRateType('Promotional Rates')}>Promotional Rates</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Length of Stay Filter */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs border border-slate-200 dark:border-slate-600">
-                  {selectedLengthOfStay} <ChevronDown className="w-3 h-3 ml-1" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => setSelectedLengthOfStay('1 Night')}>1 Night</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedLengthOfStay('2 Nights')}>2 Nights</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedLengthOfStay('3 Nights')}>3 Nights</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedLengthOfStay('4+ Nights')}>4+ Nights</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedLengthOfStay('Weekly')}>Weekly</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Guests Filter */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs border border-slate-200 dark:border-slate-600">
-                  {selectedGuests} <ChevronDown className="w-3 h-3 ml-1" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => setSelectedGuests('1 Guest')}>1 Guest</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedGuests('2 Guests')}>2 Guests</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedGuests('3 Guests')}>3 Guests</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedGuests('4+ Guests')}>4+ Guests</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedGuests('Family (5+)')}>Family (5+)</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Room Type Filter */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs border border-slate-200 dark:border-slate-600">
-                  {selectedRoomType} <ChevronDown className="w-3 h-3 ml-1" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => setSelectedRoomType('All Rooms')}>All Rooms</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedRoomType('Standard')}>Standard</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedRoomType('Deluxe')}>Deluxe</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedRoomType('Suite')}>Suite</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedRoomType('Family Room')}>Family Room</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedRoomType('Premium')}>Premium</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Clear Filters */}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-7 px-2 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-              onClick={() => {
-                setSelectedRateType('All Rates')
-                setSelectedLengthOfStay('1 Night')
-                setSelectedGuests('2 Guests')
-                setSelectedRoomType('All Rooms')
-                setSelectedChartType('Line Chart')
-                console.log('All filters cleared')
-              }}
-            >
-              Clear All
-            </Button>
-          </div>
-        </div>
-      </div>
-
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
-            <CardTitle className="text-xl lg:text-2xl xl:text-3xl font-bold text-foreground flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-gradient-to-r from-brand-50 to-purple-50 dark:from-brand-950 dark:to-purple-950">
-                <BarChart3 className="w-5 h-5 lg:w-6 lg:h-6 text-brand-600 dark:text-brand-400" />
-              </div>
+            <CardTitle className="text-minimal-title flex items-center gap-2">
               Rate Trends Analysis
             </CardTitle>
-            <p className="text-sm lg:text-base text-muted-foreground">
-              {!hasData ? 'Showing demo data - connect your rate feed for live data' : 'Comprehensive rate comparison across all channels with market insights'}
+            <p className="text-minimal-body text-gray-600 dark:text-slate-400">
+              {!hasData ? 'No rate data available' : 'Comprehensive rate comparison across all channels with market insights'}
             </p>
-            <div className="flex items-center gap-2 mt-2">
-              <Badge variant="outline" className="text-xs">
-                {data.length} Days
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                {visibleChannels.length} Channels
-              </Badge>
-              {!hasData && (
-                <Badge variant="secondary" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
-                  Demo Mode
-                </Badge>
-              )}
-            </div>
           </div>
 
           {/* General Action Controls - Competitors and Export */}
