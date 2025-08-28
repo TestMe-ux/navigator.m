@@ -129,7 +129,7 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
     },
     {
       id: 'market-position',
-      title: 'Market Ranking',
+      title: 'Competitor Ranking', // 'Market Ranking',
       value: indexOfSubscriber,
       previousValue: indexOfSubscriber_Comp,
       change: !!indexOfSubscriber_Comp ? ((indexOfSubscriber - indexOfSubscriber_Comp) / indexOfSubscriber_Comp) * 100 : 0, // Inverted for ranking

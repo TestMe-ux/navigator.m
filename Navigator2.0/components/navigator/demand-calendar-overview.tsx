@@ -202,7 +202,7 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
         startDate: conevrtDateforApi(today.toString()),
         endDate: conevrtDateforApi(endDates.toString())
       }).then((response: any) => {
-        debugger;
+      
         if (response.status && response.body?.optimaDemand) {
           setDemandData(response.body.optimaDemand)
           console.log('✅ Demand data fetched:', response.body.optimaDemand.length, 'days')
@@ -218,7 +218,7 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
 
   // Fetch demand data for 75 days - only once when component mounts or SID changes
   useEffect(() => {
-    debugger;
+    
     const currentSID = selectedProperty?.sid
 
     // Only fetch if we have a SID and haven't fetched for this SID yet
@@ -453,6 +453,7 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
     day ? { ...day, isDisabled: isDateDisabled(day.date) } : day
   ))
   const handleDownloadCSV = () => {
+    
     console.log('📊 Downloading data as CSV...')
     // const eventsData = eventData?.eventDetails || []
     const mergedEventandHoliday = [
@@ -463,8 +464,21 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
     console.log('📊 Merged Events and Holidays:', mergedEventandHoliday)
     console.log('📊 Demand Data:', demandData)
     // Create CSV content from trend data
-    const headers = ['Date', 'Day', 'Demand Index Value', 'Demand Status', 'Event/Holiday Name', 'Event Duration', 'Event Count', 'Event Distance', 'Estimated Visitors']
+    const headers = ['Date', 'Day', 'Demand Index Value', 'Demand Status', 'Event/Holiday Name', 'Event Duration', 'Event Count']
+    //const headers = ['Date', 'Day', 'Demand Index Value', 'Demand Status', 'Event/Holiday Name', 'Event Duration', 'Event Count', 'Event Distance', 'Estimated Visitors']
 
+    const formatDate = (dateStr: string) => {
+      const d = new Date(dateStr);
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+
+    const capitalizeFirstLetter = (str: string) => {
+      if (!str) return '';
+      return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    };
     const csvContent = [
       headers.join(','),
       ...demandData.map((demand: any) => {
@@ -475,16 +489,20 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
 
           return dataDate >= fromDate && dataDate <= toDate
         })
+
+        const eventNames = matchingEvents.length > 0 ? matchingEvents.map((e: any) => e.eventName).join(', ') : '';
+        console.log("eventNames", eventNames);
         return [
-          new Date(demand.checkinDate).toLocaleDateString('en-US'),
+          formatDate(demand.checkinDate),
+          //new Date(demand.checkinDate).toLocaleDateString('en-US'),
           new Date(demand.checkinDate).toLocaleDateString('en-US', { weekday: 'short' }),
           demand.demandIndex,
-          getDemandLevelFromIndex(demand.demandIndex),
-          matchingEvents.length > 0 ? matchingEvents[0].eventName : '',
+          capitalizeFirstLetter(getDemandLevelFromIndex(demand.demandIndex)),
+          escapeCSVValue(eventNames),
           matchingEvents.length > 0 ? escapeCSVValue(matchingEvents[0].displayDate) : '',
-          matchingEvents.length || 0,
-          '',
-          ''
+          matchingEvents.length || 0 
+          // '',
+          // ''
         ]
       })
     ].join('\n')
