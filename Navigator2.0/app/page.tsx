@@ -525,7 +525,7 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-minimal-md mb-8">
               <div className="space-y-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  Revenue Dashboard
+                  Overview                  
                 </h1>
                 <p className="text-sm text-muted-foreground">
                   Real-time insights for optimal pricing and revenue performance
