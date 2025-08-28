@@ -65,8 +65,18 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
     const hotelADR = Math.max(Number(myRateData?.rate) || 0, 0);
     const airTravellers = demandI?.oagCapacity ? demandI.oagCapacity : 0
     const compRate =Math.max(Number(myCompRateData?.rate) || 0, 0);
-
-
+    const myPriceVariance =
+      !isNaN(compRate) && compRate > 0
+        ? Number((((hotelADR - compRate) / compRate) * 100).toFixed(2))
+        : 0;
+    const marketADRVariance = Number(getValue(demandI, `${suffix}_Overall_HotelADR`));
+    const airTravellersVariance = Number(getValue(demandI, `${suffix}_Overall_OAGCapacity`));
+    const demandVariance = Number(getValue(demandI, `${suffix}_Overall_Demand_Index`));
+    // Generate variance percentages (realistic fluctuations)
+    // const myPriceVariance = demandI?.woW_Overall_HotelADR ? demandI.woW_Overall_HotelADR : 0
+    // const marketADRVariance = demandI?.woW_Overall_HotelADR ? demandI.woW_Overall_HotelADR : 0
+    // const airTravellersVariance = demandI?.woW_Overall_OAGCapacity ? demandI.woW_Overall_OAGCapacity : 0
+    // const demandVariance = demandI?.woW_Overall_Demand_Index ? demandI.woW_Overall_Demand_Index : 0
 
     // Generate demand index (0-100 scale) - adjusted for 4 levels
     const demandIndex = demandI?.demandIndex ?? 0 // Convert 1-4 to 0-100 scale
@@ -84,6 +94,10 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
       hotelADR,
       marketADR,
       airTravellers,
+      myPriceVariance,
+      marketADRVariance,
+      airTravellersVariance,
+      demandVariance,
       inboundAirline,
       // Keep original keys for backward compatibility
       "Demand level": demandLevel,
@@ -159,7 +173,11 @@ function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
     const avgAirTravellers = Math.round(weekData.reduce((sum, item) => sum + item.airTravellers, 0) / weekData.length)
     const avgDemandIndex = Math.round(weekData.reduce((sum, item) => sum + item.demandIndex, 0) / weekData.length)
 
-
+    // Calculate average variances
+    const avgMyPriceVariance = Math.round(weekData.reduce((sum, item) => sum + item.myPriceVariance, 0) / weekData.length)
+    const avgMarketADRVariance = Math.round(weekData.reduce((sum, item) => sum + item.marketADRVariance, 0) / weekData.length)
+    const avgAirTravellersVariance = Math.round(weekData.reduce((sum, item) => sum + item.airTravellersVariance, 0) / weekData.length)
+    const avgDemandVariance = Math.round(weekData.reduce((sum, item) => sum + item.demandVariance, 0) / weekData.length)
 
     return {
       date: format(weekStart, "MMM d"),
@@ -169,6 +187,10 @@ function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
       hotelADR: avgMyPrice,
       marketADR: avgMarketADR,
       airTravellers: avgAirTravellers,
+      myPriceVariance: avgMyPriceVariance,
+      marketADRVariance: avgMarketADRVariance,
+      airTravellersVariance: avgAirTravellersVariance,
+      demandVariance: avgDemandVariance,
       "Demand level": avgDemandLevel,
       "My ADR": avgMyPrice,
       "Market ADR": avgMarketADR,
@@ -199,7 +221,11 @@ function aggregateDataByMonth(dailyData: any[], startDate: Date, endDate: Date) 
     const avgAirTravellers = Math.round(monthData.reduce((sum, item) => sum + item.airTravellers, 0) / monthData.length)
     const avgDemandIndex = Math.round(monthData.reduce((sum, item) => sum + item.demandIndex, 0) / monthData.length)
 
-
+    // Calculate average variances
+    const avgMyPriceVariance = Math.round(monthData.reduce((sum, item) => sum + item.myPriceVariance, 0) / monthData.length)
+    const avgMarketADRVariance = Math.round(monthData.reduce((sum, item) => sum + item.marketADRVariance, 0) / monthData.length)
+    const avgAirTravellersVariance = Math.round(monthData.reduce((sum, item) => sum + item.airTravellersVariance, 0) / monthData.length)
+    const avgDemandVariance = Math.round(monthData.reduce((sum, item) => sum + item.demandVariance, 0) / monthData.length)
 
     return {
       date: format(monthStart, "MMM yyyy"),
@@ -209,6 +235,10 @@ function aggregateDataByMonth(dailyData: any[], startDate: Date, endDate: Date) 
       hotelADR: avgMyPrice,
       marketADR: avgMarketADR,
       airTravellers: avgAirTravellers,
+      myPriceVariance: avgMyPriceVariance,
+      marketADRVariance: avgMarketADRVariance,
+      airTravellersVariance: avgAirTravellersVariance,
+      demandVariance: avgDemandVariance,
       "Demand level": avgDemandLevel,
       "My ADR": avgMyPrice,
       "Market ADR": avgMarketADR,
@@ -238,7 +268,18 @@ const CustomTooltip = ({ active, payload, label, datasetType }: any & { datasetT
         ? "text-blue-600 dark:text-blue-400" // Blue for Low and Normal
         : "text-red-600 dark:text-red-400" // Red for Elevated and High
 
+    // Helper function to get variance color (green for negative, red for positive)
+    const getVarianceColor = (variance: number) => {
+      if (variance > 0) return "text-red-600 dark:text-red-400"
+      if (variance < 0) return "text-green-600 dark:text-green-400"
+      return "text-gray-600 dark:text-gray-400"
+    }
 
+    // Helper function to format variance
+    const formatVariance = (variance: number) => {
+      const sign = variance > 0 ? "+" : ""
+      return `${sign}${variance}%`
+    }
 
     return (
       <Card className="p-3 shadow-xl border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm min-w-fit max-w-xs">
@@ -252,11 +293,14 @@ const CustomTooltip = ({ active, payload, label, datasetType }: any & { datasetT
           </div>
 
           {/* Demand Level with Index - Right under date */}
-          <div className="mb-1 text-xs">
+          <div className="mb-1 text-xs flex items-center justify-between gap-6 min-w-fit">
             <div className="whitespace-nowrap">
               <span className="font-semibold text-muted-foreground">Demand:</span>{" "}
               <span className={`font-bold ${demandColorClass}`}>{data.demandIndex} {demandLevelMap[data["Demand level"]]}</span>
             </div>
+            <span className={`font-bold ${getVarianceColor(data.demandVariance)} whitespace-nowrap flex-shrink-0`}>
+              {formatVariance(data.demandVariance)}
+            </span>
           </div>
 
           {/* Separator Line */}
@@ -265,26 +309,39 @@ const CustomTooltip = ({ active, payload, label, datasetType }: any & { datasetT
           {/* Other Data */}
           {datasetType === 'pricing' && (
             <div className="space-y-1 text-xs">
-              <div className="whitespace-nowrap">
-                <span className="font-semibold text-muted-foreground">My ADR:</span>{" "}
-                <span className="font-bold text-blue-600 dark:text-blue-400">${data["My ADR"]}</span>
+              <div className="flex items-center justify-between gap-6 min-w-fit">
+                <div className="whitespace-nowrap">
+                  <span className="font-semibold text-muted-foreground">My ADR:</span>{" "}
+                  <span className="font-bold text-blue-600 dark:text-blue-400">${data["My ADR"]}</span>
+                </div>
+                <span className={`font-bold ${getVarianceColor(data.myPriceVariance)} whitespace-nowrap flex-shrink-0`}>
+                  {formatVariance(data.myPriceVariance)}
+                </span>
               </div>
-              <div className="whitespace-nowrap">
-                <span className="font-semibold text-muted-foreground">Market ADR:</span>{" "}
-                <span className="font-bold text-red-600 dark:text-red-400">${data["Market ADR"]}</span>
+              <div className="flex items-center justify-between gap-6 min-w-fit">
+                <div className="whitespace-nowrap">
+                  <span className="font-semibold text-muted-foreground">Market ADR:</span>{" "}
+                  <span className="font-bold text-red-600 dark:text-red-400">${data["Market ADR"]}</span>
+                </div>
+                <span className={`font-bold ${getVarianceColor(data.marketADRVariance)} whitespace-nowrap flex-shrink-0`}>
+                  {formatVariance(data.marketADRVariance)}
+                </span>
               </div>
             </div>
           )}
 
           {datasetType === 'travellers' && (
             <>
-              <div className="text-xs">
+              <div className="text-xs flex items-center justify-between gap-6 min-w-fit">
                 <div className="whitespace-nowrap">
                   <span className="font-semibold text-muted-foreground">Air Travellers:</span>{" "}
                   <span className="font-bold text-purple-600 dark:text-purple-400">
                     {(data["Air Travellers"] / 1000).toFixed(0)}K
                   </span>
                 </div>
+                <span className={`font-bold ${getVarianceColor(data.airTravellersVariance)} whitespace-nowrap flex-shrink-0`}>
+                  {formatVariance(data.airTravellersVariance)}
+                </span>
               </div>
 
               {/* Separator Line */}
@@ -496,8 +553,8 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
 
     // Create CSV content from trend data
     const headers = datasetType === 'pricing'
-      ? ['Date', 'Demand Level', 'My ADR', 'Market ADR']
-      : ['Date', 'Demand Level', 'Air Travellers']
+      ? ['Date', 'Demand Level', 'My ADR', 'Market ADR', 'My ADR Variance %', 'Market ADR Variance %', 'Demand Variance %']
+      : ['Date', 'Demand Level', 'Air Travellers', 'Air Travellers Variance %', 'Demand Variance %']
 
     const csvContent = [
       headers.join(','),
@@ -507,13 +564,18 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
             row.dateFormatted,
             row.demandLevel,
             row.hotelADR,
-            row.marketADR
+            row.marketADR,
+            row.myPriceVariance,
+            row.marketADRVariance,
+            row.demandVariance
           ].join(',')
         } else {
           return [
             row.dateFormatted,
             row.demandLevel,
-            row.airTravellers
+            row.airTravellers,
+            row.airTravellersVariance,
+            row.demandVariance
           ].join(',')
         }
       })
