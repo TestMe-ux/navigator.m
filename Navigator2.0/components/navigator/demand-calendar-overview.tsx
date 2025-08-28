@@ -25,7 +25,7 @@ interface CalendarEvent {
   date: Date
   title: string
   type: "conference" | "festival" | "exhibition" | "sports" | "cultural" | "business"
-  impact: "low" | "normal" | "elevated" | "high"
+  impact: "low" | "normal" | "high" | "veryhigh"
   location?: string
 }
 
@@ -41,7 +41,7 @@ interface CalendarDay {
   isCurrentMonth: boolean
   events: CalendarEvent[]
   hasEvents: boolean
-  demandLevel: 'low' | 'normal' | 'elevated' | 'high' | ''
+  demandLevel: 'low' | 'normal' | 'high' | 'veryhigh' | ''
   demedandIndex?: number
   hasEventIcon?: boolean
   eventName?: string
@@ -59,8 +59,8 @@ interface CalendarDay {
 const getDemandLevelFromIndex = (demandIndex: number): CalendarDay['demandLevel'] => {
   if (demandIndex < 25) return 'low'
   if (demandIndex < 50) return 'normal'
-  if (demandIndex < 75) return 'elevated'
-  return 'high'
+  if (demandIndex < 75) return 'high'
+  return 'veryhigh'
 }
 
 /**
@@ -87,7 +87,7 @@ const getDemandStyling = (demandLevel: CalendarDay['demandLevel'], isSelected = 
           day: 'bg-blue-500',
           indicator: 'bg-blue-500'
         }
-      case 'elevated':
+      case 'high':
         return {
           bg: 'bg-red-300/[76%]', // Light shade of High red
           border: 'border border-red-300',
@@ -95,7 +95,7 @@ const getDemandStyling = (demandLevel: CalendarDay['demandLevel'], isSelected = 
           day: 'bg-red-300',
           indicator: 'bg-red-300'
         }
-      case 'high':
+      case 'veryhigh':
         return {
           bg: 'bg-red-600/[76%]', // Original red - unchanged
           border: 'border border-red-600',
@@ -914,8 +914,8 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
                   const demandLevels = [
                     { key: 'low' as const, label: 'Low', color: 'bg-blue-300' }, // Light blue
                     { key: 'normal' as const, label: 'Normal', color: 'bg-blue-500' }, // Dark blue
-                    { key: 'elevated' as const, label: 'Elevated', color: 'bg-red-300' }, // Light red
-                    { key: 'high' as const, label: 'High', color: 'bg-red-600' } // Dark red
+                    { key: 'high' as const, label: 'High', color: 'bg-red-300' }, // Light red
+                    { key: 'veryhigh' as const, label: 'Very High', color: 'bg-red-600' } // Dark red
                   ]
 
                   return demandLevels.map(level => {

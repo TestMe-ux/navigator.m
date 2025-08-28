@@ -19,4 +19,5 @@ export class Constants {
     public static readonly API_GET_GetAllSubscribeEvent = "Events/GetAllSubscribeEvent"
     public static readonly API_SubscribeUnsubscribeEvent = "Events/SubscribeUnsubscribeEvent"
     public static readonly API_UpdateHolidayList = "Events/UpdateHolidayList"
+    public static readonly API_GetMasterActiveReviews = "OTARank/GetMasterActiveReviews";
 }

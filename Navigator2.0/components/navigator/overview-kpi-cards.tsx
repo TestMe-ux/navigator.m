@@ -39,7 +39,7 @@ interface KPIMetric {
  */
 function generateKPIData(startDate: Date | null, endDate: Date | null, parityData: any, rateData: any, rateCompData: any, parityDataComp: any, selectedProperty: any, selectedComparison: ComparisonOption): KPIMetric[] {
   // Return empty array if dates are null
-  debugger;
+  
   if (!startDate || !endDate) return []
 
   const days = differenceInDays(endDate, startDate) + 1
@@ -129,7 +129,7 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
     },
     {
       id: 'market-position',
-      title: 'Competitor Ranking', // 'Market Ranking',
+      title: 'Price Positioning', // 'Market Ranking',
       value: indexOfSubscriber,
       previousValue: indexOfSubscriber_Comp,
       change: !!indexOfSubscriber_Comp ? ((indexOfSubscriber - indexOfSubscriber_Comp) / indexOfSubscriber_Comp) * 100 : 0, // Inverted for ranking
@@ -361,7 +361,7 @@ function KPICard({ metric }: { metric: KPIMetric }) {
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
-              <metric.icon className={`w-4 h-4 ${getIconColor()}`} />
+              {/* <metric.icon className={`w-4 h-4 ${getIconColor()}`} /> */}
               <h3 className="text-minimal-subtitle font-bold text-slate-900 dark:text-slate-100">
                 {metric.title}
               </h3>
@@ -394,20 +394,37 @@ function KPICard({ metric }: { metric: KPIMetric }) {
                 </Tooltip>
               ) : (
                 <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight" >
-                  {metric.id === 'market-position' ? `#${getDisplayValue()}` : String(getDisplayValue()).toLowerCase().replace('international', 'int.').replace(/\b\w/g, char => char.toUpperCase())}
+                  {metric.id === 'market-position'
+                    ? (() => {
+                      const v = getDisplayValue();
+                      const isZero =
+                        v === 0 || v === '0' || Number(v) === 0; // catches "0" and 0
+                      return isZero ? '' : `#${v}`;
+                    })()
+                    : String(getDisplayValue())
+                      .toLowerCase()
+                      .replace('international', 'int.')
+                      .replace(/\b\w/g, (char) => char.toUpperCase())
+                  }
+                  {/* {metric.id === 'market-position' ? `#${getDisplayValue()}` : String(getDisplayValue()).toLowerCase().replace('international', 'int.').replace(/\b\w/g, char => char.toUpperCase())} */}
                 </p>
               )}
-              {metric.id === 'market-position' && (
+              {metric.id === 'market-position' && metric.outOfIndex !== 0 && (
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  out of {metric.outOfIndex}
+                </span>
+              )}
+              {/* {metric.id === 'market-position' && (
                 <span className="text-sm text-slate-500 dark:text-slate-400">
                   out of {metric.outOfIndex || 0}
                 </span>
-              )}
+              )} */}
             </div>
-            {metric.format === 'text' && metric.change > 0 && (
+            {/* {metric.format === 'text' && metric.change > 0 && (
               <Badge className="badge-minimal bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 hover:bg-amber-200 hover:text-amber-900 dark:hover:bg-amber-800 dark:hover:text-amber-100 transition-colors inline-block pr-4 ml-auto font-bold">
                 +{metric.change}% impact
               </Badge>
-            )}
+            )} */}
           </div>
 
           {/* Change Indicator - Enhanced styling */}

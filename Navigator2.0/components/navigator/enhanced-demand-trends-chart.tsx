@@ -250,8 +250,8 @@ function aggregateDataByMonth(dailyData: any[], startDate: Date, endDate: Date) 
 const demandLevelMap: { [key: number]: string } = {
   1: "Low",
   2: "Normal",
-  3: "Elevated",
-  4: "High",
+  3: "High",
+  4: "Very High",
 }
 function getDemandLevelKey(demandIndex: number): number {
   if (demandIndex < 25) return 1;        // Low
@@ -392,8 +392,8 @@ const CustomLegend = ({
   const demandColors = [
     { level: "Low", color: "#93c5fd", demandLevel: 1 },         // Blue-300 (light shade of Normal)
     { level: "Normal", color: "#3b82f6", demandLevel: 2 },      // Blue-500 (unchanged)
-    { level: "Elevated", color: "#fca5a5", demandLevel: 3 },    // Red-300 (light shade of High)
-    { level: "High", color: "#dc2626", demandLevel: 4 },        // Red-600 (unchanged)
+    { level: "High", color: "#fca5a5", demandLevel: 3 },    // Red-300 (light shade of High)
+    { level: "Very High", color: "#dc2626", demandLevel: 4 },        // Red-600 (unchanged)
   ]
 
   return (
@@ -836,7 +836,7 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
                 type="number"
                 domain={demandDomain}
                 ticks={[1, 2, 3, 4]}
-                tickFormatter={(value) => ["Low", "Normal", "Elevated", "High"][value - 1]}
+                tickFormatter={(value) => ["Low", "Normal", "High", "Very High"][value - 1]}
                 axisLine={false}
                 tickLine={false}
                 width={90}
@@ -921,8 +921,8 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
                   const demandLevelNames: { [key: number]: string } = {
                     1: "Low Demand",
                     2: "Normal Demand",
-                    3: "Elevated Demand",
-                    4: "High Demand"
+                    3: "High Demand",
+                    4: "Very High Demand"
                   }
 
                   const fillColor = isEnabled
