@@ -142,8 +142,9 @@ export function MarketDemandWidget() {
     }
     getAllSubscribeEvents(payload)
       .then((res) => {
+        debugger
         if (res.status && res.body && res.body.eventDetails) {
-          res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum).fillter((x: any) => x.isSubscribed === true);
+          res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum).filter((x: any) => x.isSubscribed === true);
           setEventData(res.body?.eventDetails);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
