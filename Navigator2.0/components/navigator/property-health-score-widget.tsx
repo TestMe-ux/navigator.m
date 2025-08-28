@@ -473,7 +473,7 @@ export function PropertyHealthScoreWidget(props: any) {
                       {subsOtaranData.length > 0 ? (
                         <div className="space-y-1">
                           <div className="text-lg font-semibold text-foreground">{subsOtaranData[0]?.score}</div>
-                          <div className="text-xs text-muted-foreground">{outOfScores}</div>
+                          <div className="text-xs text-muted-foreground">Out of {outOfScores}</div>
                           {/* {Subindex + 1} */}
                         </div>
                       ) : (
