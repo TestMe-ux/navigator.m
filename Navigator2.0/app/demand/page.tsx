@@ -33,7 +33,7 @@ function DemandPageContent() {
   const [allEventData, setAllEventData] = useState<any>({});
   const [allHolidaysData, setAllHolidays] = useState<any>({});
   const [selectedProperty] = useSelectedProperty()
-  const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AverageYoy: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0, AvrageHotelADRYoy: 0, AvrageRevPAR: 0 })
+  const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AverageYoy: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0, AvrageHotelADRYoy: 0, AvrageRevPAR: 0, AvrageOccupancy: 0 })
   const [isInitialized, setIsInitialized] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
@@ -73,7 +73,7 @@ function DemandPageContent() {
         return newProgress;
       });
     }, 80);
-
+    setFilter("wow");
     Promise.all([
       getChannelData(),
       getDemandAIPerCountryAverageData(),
@@ -155,6 +155,7 @@ function DemandPageContent() {
           let sumHotelADRMom = 0
           let sumHotelADRYoy = 0
           let RevPAR = 0
+          let Occupancy = 0
           demandDatas.forEach((element: any) => {
             sumDI += Number(element.demandIndex)
             sumWow += Number(element.woW_Overall_Demand_Index)
@@ -166,17 +167,19 @@ function DemandPageContent() {
             sumHotelADRMom += Number(element.moM_Overall_HotelADR)
             sumHotelADRYoy += Number(element.yoY_Overall_HotelADR)
             RevPAR += Number(element.revpar)
+            Occupancy += Number(element.occupancy)
           });
           setAvgDemand({
-            AverageDI: Math.round(Number((sumDI / demandDatas.length))),
-            AverageWow: Math.round(Number((sumWow / demandDatas.length))),
-            AverageMom: Math.round(Number((sumMom / demandDatas.length))),
-            AverageYoy: Math.round(Number((sumYoy / demandDatas.length))),
-            AvrageHotelADR: Math.round(Number((sumHotelADR / demandDatas.length))),
-            AvrageHotelADRWow: Math.round(Number((sumHotelADRWow / demandDatas.length))),
-            AvrageHotelADRMom: Math.round(Number((sumHotelADRMom / demandDatas.length))),
-            AvrageHotelADRYoy: Math.round(Number((sumHotelADRYoy / demandDatas.length))),
-            AvrageRevPAR: Math.round(Number((RevPAR / demandDatas.length)))
+            AverageDI: Number((sumDI / demandDatas.length).toFixed(2)),
+            AverageWow: Number((sumWow / demandDatas.length).toFixed(2)),
+            AverageMom: Number((sumMom / demandDatas.length).toFixed(2)),
+            AverageYoy: Number((sumYoy / demandDatas.length).toFixed(2)),
+            AvrageHotelADR: Number((sumHotelADR / demandDatas.length).toFixed(2)),
+            AvrageHotelADRWow: Number((sumHotelADRWow / demandDatas.length).toFixed(2)),
+            AvrageHotelADRMom: Number((sumHotelADRMom / demandDatas.length).toFixed(2)),
+            AvrageHotelADRYoy: Number((sumHotelADRYoy / demandDatas.length).toFixed(2)),
+            AvrageRevPAR: Number((RevPAR / demandDatas.length).toFixed(2)),
+            AvrageOccupancy: Number((Occupancy / demandDatas.length).toFixed(2))
           });
         }
       })

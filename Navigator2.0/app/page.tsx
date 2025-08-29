@@ -272,14 +272,15 @@ export default function Home() {
   const getRateDate = () => {
     debugger;
     setRateData({});
+    debugger;
     const filtersValue = {
       "SID": selectedProperty?.sid,
       "channels": (channelFilter?.channelId?.length ?? 0) > 0 ? channelFilter.channelId : [-1],
       "channelsText": (channelFilter?.channelName?.length ?? 0) > 0 ? channelFilter.channelName : ["All Channel"],
       "checkInStartDate": conevrtDateforApi(startDate?.toString()),
       "checkInEndDate": conevrtDateforApi(endDate?.toString()),
-      "LOS": sideFilter?.lengthOfStay || null,
-      "guest": sideFilter?.guest || null,
+      "LOS": sideFilter?.lengthOfStay?.toString() || null,
+      "guest": sideFilter?.guest?.toString() || null,
       "productTypeID": sideFilter?.roomTypes || null,
       "productTypeIDText": sideFilter?.roomTypes || "All",
       "inclusionID": sideFilter?.inclusions || [],
@@ -321,6 +322,7 @@ export default function Home() {
   }
   const getCompRateData = () => {
     setRateCompData({});
+    debugger;
     const startDateComp = startDate
       ? new Date(startDate.getTime() + (-selectedComparison * 24 * 60 * 60 * 1000))
       : new Date();
@@ -333,8 +335,8 @@ export default function Home() {
       "channelsText": channelFilter.channelName,
       "checkInStartDate": conevrtDateforApi(startDateComp.toString()),
       "checkInEndDate": conevrtDateforApi(endDateComp.toString()),
-      "LOS": sideFilter?.lengthOfStay || null,
-      "guest": sideFilter?.guest || null,
+      "LOS": sideFilter?.lengthOfStay?.toString() || null,
+      "guest": sideFilter?.guest?.toString() || null,
       "productTypeID": sideFilter?.roomTypes || null,
       "productTypeIDText": sideFilter?.roomTypes || "All",
       "inclusionID": sideFilter?.inclusions || [],

@@ -107,6 +107,7 @@ function SummaryCard({
 export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverageData }: any) {
   const selectedProperty: any = localStorageService.get('SelectedProperty')
   const [trendValue, setTrendValue] = useState(0);
+  const [demandTrendValue, setDemandTrendValue] = useState(0);
 
   console.log("Filter sumarry card", filter)
   useEffect(() => {
@@ -119,15 +120,35 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
         : filter === "yoy"
           ? avgDemand?.AvrageHotelADRYoy
           : avgDemand?.AvrageHotelADRWow;
-    console.log("newTrend", newTrend)
+    let demandIndexTrend;
+    demandIndexTrend = filter === "wow"
+      ? avgDemand?.AverageWow
+      : filter === "mom"
+        ? avgDemand?.AverageMom
+        : filter === "yoy"
+          ? avgDemand?.AverageYoy
+          : avgDemand?.AverageWow;
+    setDemandTrendValue(demandIndexTrend);
     setTrendValue(newTrend);
   }, [filter, avgDemand]);
 
 
   const summaryData: SummaryCardProps[] = [
     {
+      title: "Avg. Demand Index",
+      value: `${avgDemand?.AverageDI}`,
+      trend: `${demandTrendValue}%`,
+      trendDirection: `${demandTrendValue > 0 ? "up" : "down"}`,
+      icon: DollarSign,
+      iconColorClass: "text-emerald-600 dark:text-emerald-400",
+      bgColorClass: "bg-emerald-50 dark:bg-emerald-950",
+      tooltipId: "avg-demand-index",
+      comparetext: filter,
+      isVisible: true
+    },
+    {
       title: "Avg. Market ADR",
-      value: `\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E  ${avgDemand?.AvrageHotelADR?.toFixed(0)}`,
+      value: `\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E  ${avgDemand?.AvrageHotelADR}`,
       trend: `${trendValue}%`,
       trendDirection: `${trendValue > 0 ? "up" : "down"}`,
       icon: DollarSign,
@@ -139,8 +160,8 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
     },
     {
       title: "Avg. Market RevPAR",
-      value: `\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E  ${avgDemand?.AvrageRevPAR?.toFixed(0)}`,
-      trend: "2.1%",
+      value: `\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E  ${avgDemand?.AvrageRevPAR}`,
+      trend: "0%",
       trendDirection: "up",
       icon: BarChart3,
       iconColorClass: "text-blue-600 dark:text-blue-400",
@@ -150,17 +171,29 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
       isVisible: avgDemand?.AvrageRevPAR > 0 ? true : false
     },
     {
-      title: "Top Source Market",
-      value: `${demandAIPerCountryAverageData[0]?.srcCountryName}`,
-      trend: "",
+      title: "Avg. Market Occupancy",
+      value: `\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E  ${avgDemand?.AvrageOccupancy}`,
+      trend: "0%",
       trendDirection: "up",
-      icon: Users,
-      iconColorClass: "text-amber-600 dark:text-amber-400",
-      bgColorClass: "bg-amber-50 dark:bg-amber-950",
-      tooltipId: "top-source-market",
+      icon: BarChart3,
+      iconColorClass: "text-blue-600 dark:text-blue-400",
+      bgColorClass: "bg-blue-50 dark:bg-blue-950",
+      tooltipId: "avg-market-revpar",
       comparetext: filter,
-      isVisible: !!demandAIPerCountryAverageData[0]?.srcCountryName ? true : false
+      isVisible: avgDemand?.AvrageOccupancy > 0 ? true : false
     },
+    // {
+    //   title: "Top Source Market",
+    //   value: `${demandAIPerCountryAverageData[0]?.srcCountryName}`,
+    //   trend: "",
+    //   trendDirection: "up",
+    //   icon: Users,
+    //   iconColorClass: "text-amber-600 dark:text-amber-400",
+    //   bgColorClass: "bg-amber-50 dark:bg-amber-950",
+    //   tooltipId: "top-source-market",
+    //   comparetext: filter,
+    //   isVisible: !!demandAIPerCountryAverageData[0]?.srcCountryName ? true : false
+    // },
   ]
 
   return (
@@ -170,7 +203,7 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
           <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-1">Market Summary</h2>
           <p className="text-sm text-slate-600 dark:text-slate-400">Key performance indicators and market positioning</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 lg:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 lg:gap-6">
           {summaryData.filter((data) => data.isVisible).map((data) => (
             <SummaryCard key={data.title} {...data} />
           ))}
