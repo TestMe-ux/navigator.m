@@ -125,7 +125,7 @@ const transformRateData = (rateData: RateDataResponse): RateData[] => {
       } else if (entity.propertyType === 1) {
         // Competitor property - create dynamic property key
         const competitorKey = `competitor_${entity.propertyID}`
-        dateData[`${competitorKey}status`] = rateEntry.status === null ? rateEntry.rate : rateEntry.status;
+        dateData[`${competitorKey}_Status`] = rateEntry.status === null ? rateEntry.rate : rateEntry.status;
         dateData[competitorKey] = rate
         dateData[`${competitorKey}_name`] = entity.propertName
       }
@@ -309,6 +309,12 @@ function CustomXAxisTick({ x, y, payload, data }: CustomXAxisTickProps) {
   )
 }
 
+const formatYAxis = (value: string | number): string => {
+  const num = Number(value)
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`
+  if (num >= 1_000) return `${(num / 1_000).toFixed(0)}K`
+  return String(num)
+}
 /**
  * Enhanced Custom Tooltip with price positioning analysis
  */
@@ -438,6 +444,9 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
               // Exclude Avg Compset from ranking - only show position for competitors
               const positionText = !isAvgCompset ? getPositionText(entry.value, entry.name) : ''
 
+              const competitorKey = entry.dataKey;
+              const statusKey = `${competitorKey}_Status`;
+              const statusData = entry.payload[statusKey];
               return (
                 <div key={entry.name} className={`flex items-center justify-between gap-2 p-2 rounded transition-all ${index < 2
                   ? isDirectProperty
@@ -476,10 +485,31 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
                         ? 'text-emerald-700 dark:text-emerald-300'
                         : 'text-gray-900 dark:text-slate-100'
                       }`}>
-                      {entry.value === 0
-                        ? '-'
+
+                      {statusData
+                        ? (() => {
+                          const normalized = statusData.toUpperCase();
+
+                          if (normalized === "O" && entry.value > 0) {
+                            return `\u200E${currencySymbol}\u200E ${entry.value?.toLocaleString()}`;
+                          }
+
+                          if (normalized === "C") {
+                            return "Sold Out";
+                          }
+
+                          if (["NP", "ND", "RF", "TNA"].includes(normalized)) {
+                            return "-";
+                          }
+
+                          return "-";
+                        })()
                         : `\u200E${currencySymbol}\u200E ${entry.value?.toLocaleString()}`}
-                      {/* {`\u200E${currencySymbol}\u200E ${entry.value?.toLocaleString()}`} */}
+
+                      {/* {entry.value === 0
+                        ? '-' + `${statusData}`
+                        : `\u200E${currencySymbol}\u200E ${entry.value?.toLocaleString()}`} */}
+                      {/* {`\u200E${currencySymbol}\u200E ${entry.value?.toLocaleString()}`} ${data?.directStatus} */}
                     </div>
                     {/* Variance column - empty for Avg. Compset to maintain alignment */}
                     <div className="text-xs font-medium min-w-[40px]">
@@ -490,7 +520,29 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
                             : 'text-green-600 dark:text-green-400 font-bold'
                             }`}
                         >
-                          {priceDiff === 0 ? '' : `${priceDiff > 0 ? '+' : ''}${priceDiff.toFixed(0)}%`}
+                          {statusData
+                            ? (() => {
+                              const normalized = statusData.toUpperCase();
+
+                              if (normalized === "O" && entry.value > 0) {
+                                return priceDiff === 0
+                                  ? ""
+                                  : `${priceDiff > 0 ? "+" : ""}${priceDiff.toFixed(0)}%`;
+                              }
+
+                              if (normalized === "C") {
+                                return "-";
+                              }
+
+                              if (["NP", "ND", "RF", "TNA"].includes(normalized)) {
+                                return "-";
+                              }
+
+                              return "-";
+                            })()
+                            : `${priceDiff > 0 ? '+' : ''}${priceDiff.toFixed(0)}%`}
+
+                          {/* {priceDiff === 0 ? '' : `${priceDiff > 0 ? '+' : ''}${priceDiff.toFixed(0)}%`} */}
                         </span>
                       )}
                       {/* {!isAvgCompset && (
@@ -512,7 +564,27 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
                             ? 'text-gray-600 dark:text-gray-400'
                             : ''
                       }`}>
-                      {!isAvgCompset && positionText === '' ? '-' : positionText}
+                      {statusData
+                        ? (() => {
+                          const normalized = statusData.toUpperCase();
+
+                          if (normalized === "O" && entry.value > 0) {
+                            return positionText
+                          }
+
+                          if (normalized === "C") {
+                            return !isAvgCompset && positionText === "" ? "-" : positionText;
+                          }
+
+                          if (["NP", "ND", "RF", "TNA"].includes(normalized)) {
+                            return "-";
+                          }
+
+                          return "-";
+                        })()
+                        : (
+                          !isAvgCompset && positionText === "" ? "-" : positionText
+                        )}
                     </div>
                   </div>
                 </div>
@@ -1127,6 +1199,7 @@ export function RateTrendsChart({ rateData }: any) {
                     }}
                     axisLine={false}
                     tickLine={false}
+                    tickFormatter={formatYAxis}
                   />
                   <Tooltip
                     content={<CustomTooltip currencySymbol={selectedProperty?.currencySymbol ?? '$'} />}
