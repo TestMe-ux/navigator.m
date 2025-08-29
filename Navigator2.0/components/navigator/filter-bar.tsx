@@ -14,6 +14,7 @@ import { getChannels } from "@/lib/channels"
 import localStorageService from "@/lib/localstorage"
 import { useState, useEffect } from "react"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
+import { ScrollArea } from "@radix-ui/react-scroll-area"
 
 
 /**
@@ -85,7 +86,7 @@ interface FilterBarProps {
  */
 export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
   const [selectedProperty] = useSelectedProperty()
-  
+
 
   const didFetch = React.useRef(false);
   const { startDate, endDate, setDateRange } = useDateContext()
@@ -153,8 +154,8 @@ export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
 
   const compareOptions = [
     { id: 1 as ComparisonOption, label: "Yesterday" },
-    { id: 7 as ComparisonOption, label: "Last 7 Days" },
-    { id: 28 as ComparisonOption, label: "Last 28 Days" },
+    { id: 7 as ComparisonOption, label: "Last 1 Week" },
+    { id: 28 as ComparisonOption, label: "Last 4 Week" },
     { id: 91 as ComparisonOption, label: "Last Quarter" }
   ]
 
@@ -388,27 +389,33 @@ export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-auto p-0 shadow-xl border-slate-200 dark:border-slate-700 z-[60]">
+
                     <div className="flex">
                       <div className="w-56 p-4">
                         <h4 className="font-semibold text-sm text-gray-700 mb-3">Channels</h4>
-                        <div className="space-y-1">
-                          {channelData?.map((option: any) => (
-                            <label
-                              key={option.cid}
-                              className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
-                                checked={selectedChannels.includes(option?.cid)}
-                                onChange={() => handleChannelSelect(option?.cid, channelData)}
-                              />
-                              <span className="font-medium text-sm flex-1">
-                                {option?.name}
-                              </span>
-                            </label>
-                          ))}
-                        </div>
+                        <ScrollArea className={cn(
+                          "space-y-1",
+                          channelData.length > 8 ? "h-64" : "h-auto"
+                        )}>
+                          <div className="space-y-1">
+                            {channelData?.map((option: any) => (
+                              <label
+                                key={option.cid}
+                                className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
+                                  checked={selectedChannels.includes(option?.cid)}
+                                  onChange={() => handleChannelSelect(option?.cid, channelData)}
+                                />
+                                <span className="font-medium text-sm flex-1">
+                                  {option?.name}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        </ScrollArea>
                       </div>
                     </div>
                   </DropdownMenuContent>

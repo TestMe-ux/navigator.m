@@ -61,8 +61,8 @@ export function MarketDemandWidget() {
   type AvgDemandType = typeof avgDemand;
   const compMap: Record<ComparisonOption, { avgDICompare: keyof AvgDemandType; avgADRCompare: keyof AvgDemandType, compareText: string }> = {
     1: { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Yesterday' },
-    7: { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Last 7 Days' },
-    28: { avgDICompare: "AverageMom", avgADRCompare: "AvrageHotelADRMom", compareText: 'Last 28 Days' },
+    7: { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Last 1 Week' },
+    28: { avgDICompare: "AverageMom", avgADRCompare: "AvrageHotelADRMom", compareText: 'Last 4 Week' },
     91: { avgDICompare: "AverageMom", avgADRCompare: "AvrageHotelADRMom", compareText: 'Last Quarter' },
   };
   const { avgDICompare, avgADRCompare, compareText } = compMap[selectedComparison as ComparisonOption] || { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Yesterday' };
