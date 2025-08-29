@@ -104,7 +104,7 @@ function SummaryCard({
   )
 }
 
-export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverageData }: any) {
+export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverageData,demandCurrencySymbol }: any) {
   const selectedProperty: any = localStorageService.get('SelectedProperty')
   const [trendValue, setTrendValue] = useState(0);
   const [demandTrendValue, setDemandTrendValue] = useState(0);
@@ -148,7 +148,7 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
     },
     {
       title: "Avg. Market ADR",
-      value: `\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E  ${avgDemand?.AvrageHotelADR}`,
+      value: `\u200E ${demandCurrencySymbol ?? '$'}\u200E  ${avgDemand?.AvrageHotelADR}`,
       trend: `${trendValue}%`,
       trendDirection: `${trendValue > 0 ? "up" : "down"}`,
       icon: DollarSign,
@@ -160,7 +160,7 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
     },
     {
       title: "Avg. Market RevPAR",
-      value: `\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E  ${avgDemand?.AvrageRevPAR}`,
+      value: `\u200E ${'$'}\u200E  ${avgDemand?.AvrageRevPAR}`,
       trend: "0%",
       trendDirection: "up",
       icon: BarChart3,
@@ -172,7 +172,7 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
     },
     {
       title: "Avg. Market Occupancy",
-      value: `\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E  ${avgDemand?.AvrageOccupancy}`,
+      value: avgDemand?.AvrageOccupancy ? `${avgDemand?.AvrageOccupancy}%` : 'N/A',
       trend: "0%",
       trendDirection: "up",
       icon: BarChart3,

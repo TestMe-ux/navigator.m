@@ -10,3 +10,7 @@ export async function GetDemandAIData(filtersValue: any) {
     const { data } = await apiClient.get(`${Constants.DemandAPI_GET_DemandAI}`, { params: filtersValue });
     return data;
 }
+export async function GetCurrencySymbolDetails(filtersValue: any) {
+    const { data } = await apiClient.get(`${Constants.API_GET_GetCurrencySymbolDetails}`, { params: filtersValue });
+    return data;
+}
