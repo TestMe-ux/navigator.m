@@ -14,7 +14,7 @@ import { getChannels } from "@/lib/channels"
 import localStorageService from "@/lib/localstorage"
 import { useState, useEffect } from "react"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
-import { ScrollArea } from "@radix-ui/react-scroll-area"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 
 /**
@@ -393,11 +393,11 @@ export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
                     <div className="flex">
                       <div className="w-56 p-4">
                         <h4 className="font-semibold text-sm text-gray-700 mb-3">Channels</h4>
-                        <ScrollArea className={cn(
-                          "space-y-1",
+                          <ScrollArea className={cn(
+                          "max-h-64 overflow-hidden",
                           channelData.length > 8 ? "h-64" : "h-auto"
                         )}>
-                          <div className="space-y-1">
+                          <div className="space-y-1 pr-4">
                             {channelData?.map((option: any) => (
                               <label
                                 key={option.cid}
