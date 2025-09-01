@@ -64,7 +64,7 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
     const marketADR = demandI?.hotelADR ? Number(demandI.hotelADR) : 0
     const hotelADR = Math.max(Number(myRateData?.rate) || 0, 0);
     const airTravellers = demandI?.oagCapacity ? demandI.oagCapacity : 0
-    const compRate =Math.max(Number(myCompRateData?.rate) || 0, 0);
+    const compRate = Math.max(Number(myCompRateData?.rate) || 0, 0);
     const myPriceVariance =
       !isNaN(compRate) && compRate > 0
         ? Number((((hotelADR - compRate) / compRate) * 100).toFixed(2))
@@ -260,7 +260,8 @@ function getDemandLevelKey(demandIndex: number): number {
   return 4;                              // High
 }
 // Custom tooltip component
-const CustomTooltip = ({ active, payload, label, datasetType }: any & { datasetType: DatasetType }) => {
+const CustomTooltip = ({ active, payload, label, datasetType,demandCurrencySymbolState }: any & { datasetType: DatasetType }) => {
+  debugger;
   if (active && payload && payload.length) {
     const data = payload[0].payload
     const demandColorClass =
@@ -280,6 +281,7 @@ const CustomTooltip = ({ active, payload, label, datasetType }: any & { datasetT
       const sign = variance > 0 ? "+" : ""
       return `${sign}${variance}%`
     }
+    const [selectedProperty] = useSelectedProperty()
 
     return (
       <Card className="p-3 shadow-xl border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm min-w-fit max-w-xs">
@@ -312,7 +314,7 @@ const CustomTooltip = ({ active, payload, label, datasetType }: any & { datasetT
               <div className="flex items-center justify-between gap-6 min-w-fit">
                 <div className="whitespace-nowrap">
                   <span className="font-semibold text-muted-foreground">My ADR:</span>{" "}
-                  <span className="font-bold text-blue-600 dark:text-blue-400">${data["My ADR"]}</span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400">{`\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E ${data["My ADR"]}`}</span>
                 </div>
                 <span className={`font-bold ${getVarianceColor(data.myPriceVariance)} whitespace-nowrap flex-shrink-0`}>
                   {formatVariance(data.myPriceVariance)}
@@ -321,7 +323,7 @@ const CustomTooltip = ({ active, payload, label, datasetType }: any & { datasetT
               <div className="flex items-center justify-between gap-6 min-w-fit">
                 <div className="whitespace-nowrap">
                   <span className="font-semibold text-muted-foreground">Market ADR:</span>{" "}
-                  <span className="font-bold text-red-600 dark:text-red-400">${data["Market ADR"]}</span>
+                  <span className="font-bold text-red-600 dark:text-red-400">{demandCurrencySymbolState}{data["Market ADR"]}</span>
                 </div>
                 <span className={`font-bold ${getVarianceColor(data.marketADRVariance)} whitespace-nowrap flex-shrink-0`}>
                   {formatVariance(data.marketADRVariance)}
@@ -522,7 +524,7 @@ const CustomLegend = ({
   )
 }
 
-export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData, rateCompData }: any) {
+export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData, rateCompData ,demandCurrencySymbol}: any) {
   const { theme } = useTheme()
   const [selectedProperty] = useSelectedProperty()
   const { startDate, endDate, isLoading } = useDemandDateContext()
@@ -894,7 +896,7 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
 
               {/* Tooltip */}
               <Tooltip
-                content={<CustomTooltip datasetType={datasetType} />}
+                content={<CustomTooltip datasetType={datasetType} demandCurrencySymbolState={demandCurrencySymbol}/>}
                 cursor={{ fill: theme === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)" }}
               />
 
@@ -1136,7 +1138,7 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
                                     {dataPoint.eventData.impact} Impact
                                   </span>
                                 </div>
-                                
+
                                 {/* Show additional details for sample event */}
                                 {dataPoint.eventData.description && (
                                   <div className="text-xs text-gray-300 mt-1 border-t border-gray-600 pt-1">
@@ -1144,13 +1146,13 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
                                     <div>{dataPoint.eventData.description}</div>
                                   </div>
                                 )}
-                                
+
                                 {dataPoint.eventData.attendees && (
                                   <div className="text-xs text-gray-300">
                                     <span className="font-medium text-gray-200">Expected Attendees:</span> {dataPoint.eventData.attendees.toLocaleString()}
                                   </div>
                                 )}
-                                
+
                                 {dataPoint.eventData.country && dataPoint.eventData.country !== 'Global' && (
                                   <div className="text-xs text-gray-300">
                                     <span className="font-medium text-gray-200">Country:</span> {dataPoint.eventData.country}

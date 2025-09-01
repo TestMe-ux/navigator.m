@@ -6,7 +6,7 @@ import { MyEventsHolidaysTable } from "./my-events-holidays-table"
 import { WorldMapVisualization, sourceMarkets } from "./world-map-visualization"
 import { useEffect, useState } from "react"
 import { useDateContext } from "../date-context"
-import { GetDemandAIData, GetDemandAIPerCountryAverageData } from "@/lib/demand"
+import { GetCurrencySymbolDetails, GetDemandAIData, GetDemandAIPerCountryAverageData } from "@/lib/demand"
 import { getAllEvents, getAllHoliday, getAllSubscribeEvents } from "@/lib/events"
 import localStorageService from "@/lib/localstorage"
 import { ComparisonOption, useComparison } from "../comparison-context"
@@ -57,12 +57,13 @@ export function MarketDemandWidget() {
   const [holidaysData, setHolidays] = useState<any>({});
   const [demandAIPerCountryAverageData, setDemandAIPerCountryAverageData] = useState<any>([])
   const [selectedProperty] = useSelectedProperty()
+  const [demandCurrencySymbol, setDemandCurrencySymbol] = useState<any>("$");
   const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0, AvrageRevPAR: 0, AvrageOccupancy: 0 });
   type AvgDemandType = typeof avgDemand;
   const compMap: Record<ComparisonOption, { avgDICompare: keyof AvgDemandType; avgADRCompare: keyof AvgDemandType, compareText: string }> = {
     1: { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Yesterday' },
-    7: { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Last 7 Days' },
-    28: { avgDICompare: "AverageMom", avgADRCompare: "AvrageHotelADRMom", compareText: 'Last 28 Days' },
+    7: { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Last 1 Week' },
+    28: { avgDICompare: "AverageMom", avgADRCompare: "AvrageHotelADRMom", compareText: 'Last 4 Week' },
     91: { avgDICompare: "AverageMom", avgADRCompare: "AvrageHotelADRMom", compareText: 'Last Quarter' },
   };
   const { avgDICompare, avgADRCompare, compareText } = compMap[selectedComparison as ComparisonOption] || { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Yesterday' };
@@ -84,6 +85,7 @@ export function MarketDemandWidget() {
     GetDemandAIData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
       .then((res) => {
         if (res.status) {
+          getDemandCurrencySymbol(res?.body.optimaDemand[0]?.currency);
           setDemandData(res.body);
           var demandDatas = res.body.optimaDemand
           let sumDI = 0;
@@ -114,6 +116,20 @@ export function MarketDemandWidget() {
             AvrageRevPAR: Number((RevPAR / demandDatas.length).toFixed(2)),
             AvrageOccupancy: Number((Occupancy / demandDatas.length).toFixed(2))
           });
+          
+        }
+      })
+      .catch((err) => console.error(err));
+  }
+  const getDemandCurrencySymbol = (currency: string) => {
+    GetCurrencySymbolDetails({
+      ISOCurrencyCode: currency
+    })
+      .then((res) => {
+        if (res.status) {
+          console.log("CurrencySymbol", res);
+          setDemandCurrencySymbol(res?.body[0].currencySymbol);
+          // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
       })
       .catch((err) => console.error(err));
@@ -142,6 +158,7 @@ export function MarketDemandWidget() {
     }
     getAllSubscribeEvents(payload)
       .then((res) => {
+        debugger
         if (res.status && res.body && res.body.eventDetails) {
           //res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum).fillter((x: any) => x.isSubscribed === true);
           const filteredEvents = res.body.eventDetails
@@ -232,7 +249,7 @@ export function MarketDemandWidget() {
               <span className="text-sm font-medium text-foreground/80">Market ADR</span>
             </div>
             <div className="space-y-1">
-              <div className="text-xl font-bold text-foreground">{`\u200E${selectedProperty?.currencySymbol ?? '$'}\u200E ${avgDemand?.AvrageHotelADR}`}</div>
+              <div className="text-xl font-bold text-foreground">{`\u200E${demandCurrencySymbol ?? '$'}\u200E ${avgDemand?.AvrageHotelADR}`}</div>
               <div className="flex items-center gap-1">
                 <span className={`text-sm font-medium px-1.5 py-0.5 rounded
                   ${avgDemand?.[avgADRCompare] > 0 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' :
@@ -252,7 +269,7 @@ export function MarketDemandWidget() {
                 <span className="text-sm font-medium text-foreground/80">Market RevPAR</span>
               </div>
               <div className="space-y-1">
-                <div className="text-xl font-bold text-foreground">{avgDemand?.AvrageRevPAR}</div>
+                <div className="text-xl font-bold text-foreground">${avgDemand?.AvrageRevPAR}</div>
                 <div className="flex items-center gap-1">
                   <span className="text-red-600 dark:text-red-400 text-sm font-medium bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded">
                     0%

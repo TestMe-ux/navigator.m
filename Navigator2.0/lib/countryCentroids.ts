@@ -208,7 +208,7 @@ export const countryCoordinates: Record<string, [number, number]> = {
   "Tonga": [-175.198242, -20.429074],
   "Trinidad and Tobago": [-61.222503, 10.691803],
   "Tunisia": [9.537499, 33.886917],
-  "Turkey": [35.243322, 38.963745],
+  "Turkiye": [35.243322, 38.963745],
   "Tuvalu": [177.649330, -7.109535],
   "Taiwan": [120.960515, 23.697810],
   "Tanzania": [34.888822, -6.369028],

@@ -15,7 +15,7 @@ import { DemandHeader } from "@/components/navigator/demand-header"
 import { DemandSummaryCards } from "@/components/navigator/demand-summary-cards"
 import { MyEventsHolidaysTable } from "@/components/navigator/my-events-holidays-table"
 import { useDemandDateContext, DemandDateProvider } from "@/components/demand-date-context"
-import { GetDemandAIData, GetDemandAIPerCountryAverageData } from "@/lib/demand"
+import { GetCurrencySymbolDetails, GetDemandAIData, GetDemandAIPerCountryAverageData } from "@/lib/demand"
 import { getAllEvents, getAllHoliday, getAllSubscribeEvents } from "@/lib/events"
 import localStorageService from "@/lib/localstorage"
 import { getRateTrends } from "@/lib/rate"
@@ -33,7 +33,8 @@ function DemandPageContent() {
   const [allEventData, setAllEventData] = useState<any>({});
   const [allHolidaysData, setAllHolidays] = useState<any>({});
   const [selectedProperty] = useSelectedProperty()
-  const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AverageYoy: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0, AvrageHotelADRYoy: 0, AvrageRevPAR: 0 })
+  const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AverageYoy: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0, AvrageHotelADRYoy: 0, AvrageRevPAR: 0, AvrageOccupancy: 0 })
+  const [demandCurrencySymbol, setDemandCurrencySymbol] = useState<any>("$");
   const [isInitialized, setIsInitialized] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
@@ -73,7 +74,7 @@ function DemandPageContent() {
         return newProgress;
       });
     }, 80);
-
+    setFilter("wow");
     Promise.all([
       getChannelData(),
       getDemandAIPerCountryAverageData(),
@@ -144,6 +145,7 @@ function DemandPageContent() {
     return GetDemandAIData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
       .then((res) => {
         if (res.status) {
+          getDemandCurrencySymbol(res?.body.optimaDemand[0]?.currency);
           setDemandData(res.body);
           var demandDatas = res.body.optimaDemand
           let sumDI = 0;
@@ -155,6 +157,7 @@ function DemandPageContent() {
           let sumHotelADRMom = 0
           let sumHotelADRYoy = 0
           let RevPAR = 0
+          let Occupancy = 0
           demandDatas.forEach((element: any) => {
             sumDI += Number(element.demandIndex)
             sumWow += Number(element.woW_Overall_Demand_Index)
@@ -163,21 +166,36 @@ function DemandPageContent() {
             sumHotelADR += Number(element.hotelADR)
             sumHotelADRWow += Number(element.woW_Overall_HotelADR)
             sumHotelADRMom += Number(element.moM_Overall_HotelADR)
-            sumHotelADRMom += Number(element.moM_Overall_HotelADR)
             sumHotelADRYoy += Number(element.yoY_Overall_HotelADR)
             RevPAR += Number(element.revpar)
+            Occupancy += Number(element.occupancy)
           });
           setAvgDemand({
-            AverageDI: Math.round(Number((sumDI / demandDatas.length))),
-            AverageWow: Math.round(Number((sumWow / demandDatas.length))),
-            AverageMom: Math.round(Number((sumMom / demandDatas.length))),
-            AverageYoy: Math.round(Number((sumYoy / demandDatas.length))),
-            AvrageHotelADR: Math.round(Number((sumHotelADR / demandDatas.length))),
-            AvrageHotelADRWow: Math.round(Number((sumHotelADRWow / demandDatas.length))),
-            AvrageHotelADRMom: Math.round(Number((sumHotelADRMom / demandDatas.length))),
-            AvrageHotelADRYoy: Math.round(Number((sumHotelADRYoy / demandDatas.length))),
-            AvrageRevPAR: Math.round(Number((RevPAR / demandDatas.length)))
+            AverageDI: Number((sumDI / demandDatas.length).toFixed(2)),
+            AverageWow: Number((sumWow / demandDatas.length).toFixed(2)),
+            AverageMom: Number((sumMom / demandDatas.length).toFixed(2)),
+            AverageYoy: Number((sumYoy / demandDatas.length).toFixed(2)),
+            AvrageHotelADR: Number((sumHotelADR / demandDatas.length).toFixed(2)),
+            AvrageHotelADRWow: Number((sumHotelADRWow / demandDatas.length).toFixed(2)),
+            AvrageHotelADRMom: Number((sumHotelADRMom / demandDatas.length).toFixed(2)),
+            AvrageHotelADRYoy: Number((sumHotelADRYoy / demandDatas.length).toFixed(2)),
+            AvrageRevPAR: Number((RevPAR / demandDatas.length).toFixed(2)),
+            AvrageOccupancy: Number((Occupancy / demandDatas.length).toFixed(2))
           });
+
+        }
+      })
+      .catch((err) => console.error(err));
+  }
+  const getDemandCurrencySymbol = (currency: string) => {
+    GetCurrencySymbolDetails({
+      ISOCurrencyCode: currency
+    })
+      .then((res) => {
+        if (res.status) {
+          console.log("CurrencySymbol", res);
+          setDemandCurrencySymbol(res?.body[0].currencySymbol);
+          // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
       })
       .catch((err) => console.error(err));
@@ -430,7 +448,7 @@ function DemandPageContent() {
 
           {/* Summary Cards Section */}
           <section className="w-full">
-            <DemandSummaryCards filter={filter} avgDemand={avgDemand} demandAIPerCountryAverageData={demandAIPerCountryAverageData} />
+            <DemandSummaryCards filter={filter} avgDemand={avgDemand} demandAIPerCountryAverageData={demandAIPerCountryAverageData} demandCurrencySymbol={demandCurrencySymbol} />
           </section>
 
 
@@ -438,7 +456,7 @@ function DemandPageContent() {
           <section className="w-full">
             <Card className="card-elevated animate-fade-in">
               <CardContent className="p-3 md:p-4 lg:p-6 xl:p-8">
-                <EnhancedDemandTrendsChart filter={filter} events={eventData} demandData={demandData} rateData={rateData} rateCompData={rateCompData} />
+                <EnhancedDemandTrendsChart filter={filter} events={eventData} demandData={demandData} rateData={rateData} rateCompData={rateCompData}  demandCurrencySymbol={demandCurrencySymbol} />
               </CardContent>
             </Card>
           </section>
