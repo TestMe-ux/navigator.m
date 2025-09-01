@@ -248,6 +248,9 @@ export default function Home() {
       }, 1500)
       return () => clearTimeout(timer)
     }
+  }, [hasTriggered, showCSATCard, csatClosed])
+  useEffect(() => {
+  
     if (!startDate ||
       !endDate ||
       !selectedProperty?.sid) return;
@@ -257,7 +260,7 @@ export default function Home() {
       getCompRateData(),
       GetParityDatas_Comp()
     ]);
-  }, [hasTriggered, showCSATCard, csatClosed, startDate, endDate, selectedProperty, compsetFilter, sideFilter, channelFilter?.channelId])
+  }, [startDate, endDate, selectedProperty, compsetFilter, sideFilter, channelFilter?.channelId])
 
   useEffect(() => {
     if (!startDate ||
@@ -382,7 +385,7 @@ export default function Home() {
       console.warn('Missing required parameters for parity data fetch');
       return;
     }
-    
+
     setparityData({});
     const filtersValue = {
       "sid": selectedProperty?.sid,
@@ -395,7 +398,7 @@ export default function Home() {
       "qualification": sideFilter?.rateViewBy?.QualificationText === "All" ? null : sideFilter?.rateViewBy?.QualificationText,
       "restriction": sideFilter?.rateViewBy?.RestrictionText === "All" ? null : sideFilter?.rateViewBy?.RestrictionText,
     }
-    
+
     return GetParityData(filtersValue)
       .then((res) => {
         if (res.status) {
@@ -527,7 +530,7 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-minimal-md mb-8">
               <div className="space-y-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  Overview                  
+                  Overview
                 </h1>
                 <p className="text-sm text-muted-foreground">
                   Real-time insights for optimal pricing and revenue performance
@@ -548,7 +551,7 @@ export default function Home() {
 
               {/* Rate Trends Chart - Full width with enhanced styling */}
               <div className="animate-fade-in mb-12" data-coach-mark="rate-trends">
-                <RateTrendsChart rateData={rateData} />
+                <RateTrendsChart rateData={rateData} rateCompData={rateCompData} />
               </div>
 
               {/* Property Health Score and Market Demand Cards - Grouped with consistent spacing */}
