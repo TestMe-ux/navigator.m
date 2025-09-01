@@ -573,7 +573,7 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
                           }
 
                           if (normalized === "C") {
-                            return !isAvgCompset && positionText === "" ? " " : positionText;
+                            return !isAvgCompset && positionText === "#0" ? " " : positionText;
                           }
 
                           if (["NP", "ND", "RF", "TNA"].includes(normalized)) {
