@@ -412,7 +412,6 @@ export function PropertyHealthScoreWidget(props: any) {
         {/* Channel Cards Grid - Enhanced with MUI styling and better spacing */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 -mt-2.5">
           {combinedData.map((channel: any) => {
-            debugger
             // const Icon = channel.channelIcon
             if (!masterActiveReviews) return;
             const sortedData = [...channel.data].sort((a, b) => parseScore(b.score) - parseScore(a.score));
