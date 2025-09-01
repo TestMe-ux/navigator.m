@@ -54,7 +54,6 @@ export function MyEventsHolidaysTable({ events, holidaysData }: MyEventsHolidays
 
   // Format date according to requirements
   const formatEventDate = (row: any) => {
-    debugger;
     // Simple approach: convert existing displayDate to the new format
     try {
       if (!row?.displayDate) {

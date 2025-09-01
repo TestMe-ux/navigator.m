@@ -548,7 +548,7 @@ export default function Home() {
 
               {/* Rate Trends Chart - Full width with enhanced styling */}
               <div className="animate-fade-in mb-12" data-coach-mark="rate-trends">
-                <RateTrendsChart rateData={rateData} />
+                <RateTrendsChart rateData={rateData} rateCompData={rateCompData}/>
               </div>
 
               {/* Property Health Score and Market Demand Cards - Grouped with consistent spacing */}

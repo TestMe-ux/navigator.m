@@ -73,17 +73,17 @@ interface RateDataResponse {
 /**
  * Transform actual rate data to chart format
  */
-const transformRateData = (rateData: RateDataResponse): RateData[] => {
+const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataResponse): RateData[] => {
 
   // Check if rateData is empty or invalid
-  if (!rateData || Object.keys(rateData).length === 0) {
+  if (!rateData || Object.keys(rateData).length === 0 || !rateCompData || Object.keys(rateCompData).length === 0) {
     return []
   }
 
   // Handle both nested (body.pricePositioningEntites) and direct (pricePositioningEntites) data structures
   const entities = rateData?.body?.pricePositioningEntites || rateData?.pricePositioningEntites
-
-  if (!entities) {
+  const compEntities = rateCompData?.body?.pricePositioningEntites || rateCompData?.pricePositioningEntites
+  if (!entities || !compEntities) {
 
     return []
   }
@@ -98,9 +98,9 @@ const transformRateData = (rateData: RateDataResponse): RateData[] => {
 
 
     entity.subscriberPropertyRate.forEach((rateEntry, rateIndex) => {
-
       const checkInDate = rateEntry.checkInDateTime.split('T')[0] // Extract date part
-
+      const compData = compEntities.filter(ce => ce.propertyID === entity.propertyID)[0]?.subscriberPropertyRate.filter(re => re.checkInDateTime.split('T')[0] === checkInDate)[0];
+      rateEntry.compareRate = compData?.rate ? parseFloat(compData.rate) : 0;
       if (!dateMap.has(checkInDate)) {
         dateMap.set(checkInDate, {
           date: checkInDate,
@@ -131,7 +131,7 @@ const transformRateData = (rateData: RateDataResponse): RateData[] => {
       }
     })
   })
-
+debugger
   // Convert map to array and sort by date
   transformedData.push(...Array.from(dateMap.values()))
   transformedData.sort((a, b) => a.timestamp - b.timestamp)
@@ -435,10 +435,10 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
               const isDirectProperty = entry.dataKey === 'direct' || entry.name.includes('Hotel') && !entry.name.includes('Compset')
               const isAvgCompset = entry.name.includes('Compset') || entry.dataKey === 'avgCompset'
               const isCheapest = index === 0
-
+              debugger;
               // Calculate variance against Avg. Compset for all entries except Avg. Compset itself
               const priceDiff = !isAvgCompset && avgCompsetRate > 0 ?
-                ((entry.value - avgCompsetRate) / avgCompsetRate * 100) : 0
+                ((entry.value - avgCompsetRate) / avgCompsetRate * 100) : isAvgCompset && entry.compareRate > 0 ? ((entry.value - entry.compareRate) / entry.compareRate * 100) : 0
 
               const isCompetitiveThreat = !isDirectProperty && !isAvgCompset && entry.value < myHotelRate
               // Exclude Avg Compset from ranking - only show position for competitors
@@ -618,7 +618,7 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
  * @component
  * @version 2.0.0
  */
-export function RateTrendsChart({ rateData }: any) {
+export function RateTrendsChart({ rateData, rateCompData }: any) {
   const { startDate, endDate } = useDateContext()
   const [selectedProperty, setSelectedProperty] = useState<any>(null)
 
@@ -653,9 +653,9 @@ export function RateTrendsChart({ rateData }: any) {
   // Generate data - with fallback dates if context dates are null
   const data = useMemo(() => {
     // Transform actual rate data to chart format
-    const transformedData = transformRateData(rateData)
+    const transformedData = transformRateData(rateData, rateCompData)
     return transformedData
-  }, [rateData])
+  }, [rateData, rateCompData])
 
   // Initialize visibility states when channel configs change
   useEffect(() => {
