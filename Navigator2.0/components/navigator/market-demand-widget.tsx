@@ -160,8 +160,13 @@ export function MarketDemandWidget() {
       .then((res) => {
         debugger
         if (res.status && res.body && res.body.eventDetails) {
-          const filtertedEvevent = res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum).filter((x: any) => x.isSubscribed === true);
-          setEventData(filtertedEvevent);
+          //res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum).fillter((x: any) => x.isSubscribed === true);
+          const filteredEvents = res.body.eventDetails
+            .sort((a: any, b: any) => a.rowNum - b.rowNum)
+            .filter((x: any) => x.isSubscribed === true);
+
+          setEventData(filteredEvents);
+          // setEventData(res.body?.eventDetails);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
       })
