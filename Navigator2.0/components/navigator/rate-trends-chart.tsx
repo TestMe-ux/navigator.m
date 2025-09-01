@@ -319,7 +319,7 @@ const formatYAxis = (value: string | number): string => {
  * Enhanced Custom Tooltip with price positioning analysis
  */
 function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$' }: CustomTooltipProps & { coordinate?: { x: number, y: number }, currencySymbol?: string }) {
-  
+
   if (active && payload && payload.length) {
     const data = payload[0]?.payload
 
@@ -447,6 +447,11 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
               const competitorKey = entry.dataKey;
               const statusKey = `${competitorKey}_Status`;
               const statusData = entry.payload[statusKey];
+              const directStatus = isDirectProperty ? entry.payload.directStatus : "";
+              const avgCompStatus = isAvgCompset ? entry.payload.avgCompsetStatus : "";
+              // const normalizedStatus =
+              //   (statusData ? String(statusData) : directStatus).toUpperCase();
+              const normalizedStatus = (statusData || directStatus || avgCompStatus || "").toString().toUpperCase();
               return (
                 <div key={entry.name} className={`flex items-center justify-between gap-2 p-2 rounded transition-all ${index < 2
                   ? isDirectProperty
@@ -486,11 +491,11 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
                         : 'text-gray-900 dark:text-slate-100'
                       }`}>
 
-                      {statusData
+                      {normalizedStatus
                         ? (() => {
-                          const normalized = statusData.toUpperCase();
+                          const normalized = normalizedStatus.toUpperCase();
 
-                          if (normalized === "O" && entry.value > 0) {
+                          if ((normalized === "O" && entry.value > 0) || avgCompStatus > 0) {
                             return `\u200E${currencySymbol}\u200E ${entry.value?.toLocaleString()}`;
                           }
 
@@ -520,11 +525,11 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
                             : 'text-green-600 dark:text-green-400 font-bold'
                             }`}
                         >
-                          {statusData
+                          {normalizedStatus
                             ? (() => {
-                              const normalized = statusData.toUpperCase();
+                              const normalized = normalizedStatus.toUpperCase();
 
-                              if (normalized === "O" && entry.value > 0) {
+                              if ((normalized === "O" && entry.value > 0) || avgCompStatus > 0) {
                                 return priceDiff === 0
                                   ? ""
                                   : `${priceDiff > 0 ? "+" : ""}${priceDiff.toFixed(0)}%`;
@@ -564,11 +569,11 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
                             ? 'text-gray-600 dark:text-gray-400'
                             : ''
                       }`}>
-                      {statusData
+                      {normalizedStatus
                         ? (() => {
-                          const normalized = statusData.toUpperCase();
+                          const normalized = normalizedStatus.toUpperCase();
 
-                          if (normalized === "O" && entry.value > 0) {
+                          if ((normalized === "O" && entry.value > 0) || avgCompStatus > 0) {
                             return positionText
                           }
 
