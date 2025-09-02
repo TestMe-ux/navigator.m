@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts"
@@ -194,6 +195,9 @@ function ParityMonitoringContent() {
   })
   const [apiParityData, setApiParityData] = useState<any>(null)
   const [isLoadingData, setIsLoadingData] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [loadingCycle, setLoadingCycle] = useState(1)
 
   // Fetch parity data when dependencies change
   useEffect(() => {
@@ -208,6 +212,24 @@ function ParityMonitoringContent() {
       if (isCancelled) return
       
       setIsLoadingData(true)
+      setIsLoading(true)
+      setLoadingProgress(0)
+
+      // Progress interval
+      const progressInterval = setInterval(() => {
+        setLoadingProgress((prev) => {
+          const increment = Math.floor(Math.random() * 9) + 3; // 3-11% increment
+          const newProgress = prev + increment;
+
+          if (newProgress >= 100) {
+            setLoadingCycle(prevCycle => prevCycle + 1);
+            return 0;
+          }
+
+          return newProgress;
+        });
+      }, 80);
+
       try {
         const filtersValue = {
           "sid": selectedProperty.sid,
@@ -238,9 +260,15 @@ function ParityMonitoringContent() {
           setApiParityData(null)
         }
       } finally {
-        if (!isCancelled) {
-          setIsLoadingData(false)
-        }
+        clearInterval(progressInterval);
+        setLoadingProgress(100); // finish instantly
+        setTimeout(() => {
+          if (!isCancelled) {
+            setIsLoadingData(false)
+            setIsLoading(false);
+            setLoadingProgress(0); // reset for next load
+          }
+        }, 300); // brief delay so user sees 100%
       }
     }
 
@@ -671,7 +699,6 @@ function ParityMonitoringContent() {
                 <tr className="text-gray-500 dark:text-slate-400 font-medium">
                   <th className="text-left pb-2 pl-2" style={{ width: '80px' }}>Channel</th>
                   <th className="text-left pb-2 pl-4" style={{ width: '64px' }}>Rate</th>
-                  <th className="text-left pb-2 pl-4" style={{ width: '80px', paddingRight: '4px' }}>Variance</th>
                   <th className="text-left pb-2 pl-4" style={{ width: '128px', paddingRight: '16px' }}>Room</th>
                   <th className="text-left pb-2 pl-4" style={{ width: '80px' }}>Inclusion</th>
                 </tr>
@@ -683,11 +710,7 @@ function ParityMonitoringContent() {
                   const rate = entry.value
                   const isBrandCom = entry.dataKey === 'brandCom'
                   
-                  // Calculate variance from Brand.com rate
-                  const brandComRate = data?.brandCom || rate
-                  const variance = rate - brandComRate
-                  const varianceColor = variance > 0 ? 'text-red-600 dark:text-red-400' : variance < 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-500'
-                  const varianceText = variance === 0 ? '-' : `${variance > 0 ? '+' : '-'}${Math.abs(variance)}`
+
                   
                   // Truncate channel name to 12 characters
                   const truncatedChannelName = channelName.length > 12 ? `${channelName.substring(0, 9)}...` : channelName
@@ -739,11 +762,6 @@ function ParityMonitoringContent() {
                         isBrandCom ? 'text-blue-900 dark:text-blue-200' : 'text-gray-900 dark:text-slate-100'
                       }`} style={{ width: '64px' }}>
                         ${rate}
-                      </td>
-                      
-                      {/* Variance from Brand.com */}
-                      <td className={`py-1.5 pl-4 pr-2 text-left font-medium ${varianceColor}`} style={{ width: '80px', paddingRight: '4px' }}>
-                        {varianceText}
                       </td>
                       
                       {/* Room Type - Fixed width with 24 char limit */}
@@ -806,66 +824,100 @@ function ParityMonitoringContent() {
 
   const propertyCity = selectedProperty?.demandCity || 'Property'
 
+  // Widget Progress Component (same as Demand page)
+  const WidgetProgress = ({ className: progressClassName }: { className?: string }) => (
+    <div className={cn("absolute top-0 left-0 right-0 z-10", progressClassName)}>
+      <div className="h-[3px] w-full bg-gray-200/50 dark:bg-gray-800/50 overflow-hidden rounded-sm">
+        <div 
+          className="h-full bg-blue-500/90 shadow-sm shadow-blue-500/20 transition-all duration-150 ease-out"
+          style={{ 
+            width: `${loadingProgress}%`,
+            transform: `translateX(0%)` 
+          }}
+        />
+      </div>
+    </div>
+  )
+
+  // Show loading state when data is being fetched
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
+        <GlobalProgressBar />
+        <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8 xl:py-10">
+          <div className="max-w-7xl xl:max-w-none mx-auto">
+            <LoadingSkeleton type="parity" showCycleCounter={true} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
           {/* Enhanced Filter Bar with Sticky Positioning */}
-          <div className="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
+          <div className="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200 relative overflow-hidden">
+            {isLoadingData && <WidgetProgress />}
             <ParityOverviewFilterBar />
           </div>
 
-          {/* Professional Header Section - Responsive */}
-          <section className="w-full">
-            <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16">
+          {/* Professional Header Section */}
+          <section className="w-full relative overflow-hidden">
+            {isLoadingData && <WidgetProgress />}
+            <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16">
               <div className="max-w-7xl xl:max-w-none mx-auto">
                 <TooltipProvider>
-                  <div className="flex flex-col items-start justify-between gap-3 sm:gap-4 py-3 sm:py-4 mt-2 sm:mt-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4 mt-4">
                     {/* Left Section - Title & Description */}
-                    <div className="space-y-1 w-full">
+                    <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <h1 className="text-xl sm:text-2xl md:text-2xl font-bold text-foreground">
+                        <h1 className="text-2xl font-bold text-foreground">
                           Parity Analysis
                         </h1>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Info className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground hover:text-foreground cursor-help transition-colors" />
+                            <Info className="w-5 h-5 text-muted-foreground hover:text-foreground cursor-help transition-colors" />
                           </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-xs sm:max-w-sm bg-slate-800 text-white border-slate-700">
-                            <p className="text-xs sm:text-sm">
+                          <TooltipContent side="top" className="max-w-sm bg-slate-800 text-white border-slate-700">
+                            <p className="text-sm">
                               Monitor rate parity across all distribution channels, track violations, and ensure competitive positioning with real-time alerts and comprehensive analytics.
                             </p>
                           </TooltipContent>
                         </Tooltip>
                       </div>
-                      <p className="text-xs sm:text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground">
                         Rate parity monitoring with channel insights and violation tracking
                       </p>
-                    </div>
+          </div>
+
+
                   </div>
                 </TooltipProvider>
-              </div>
-            </div>
+          </div>
+        </div>
           </section>
 
-          {/* Main Content Area - Responsive */}
-          <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 pt-0 pb-3 sm:pb-4 md:pb-6 lg:pb-8 xl:pb-10">
-            <div className="max-w-7xl xl:max-w-none mx-auto space-y-3 sm:space-y-4 md:space-y-6 lg:space-y-8">
+          {/* Main Content Area */}
+          <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 pt-0 md:pt-0 lg:pt-0 xl:pt-2 pb-4 md:pb-6 lg:pb-8 xl:pb-10">
+            <div className="max-w-7xl xl:max-w-none mx-auto space-y-4 md:space-y-6 lg:space-y-8">
 
         {/* Main Content - Channel Performance Insights and Calendar */}
-          <div className="space-y-4 sm:space-y-6">
-            {/* Rate Parity Cards Container - Responsive */}
-            <Card className="shadow-lg">
-              <CardHeader className="pb-2 mb-1.5 sm:mb-2.5 px-4 sm:px-6">
+          <div className="space-y-6">
+            {/* Rate Parity Cards Container */}
+            <Card className="shadow-lg relative overflow-hidden">
+              {isLoadingData && <WidgetProgress />}
+              <CardHeader className="pb-2 mb-2.5">
                 <div className="flex items-start space-x-3">
                   <div className="flex-1">
-                    <CardTitle className="text-lg sm:text-xl font-bold">Channel Performance Insights</CardTitle>
-                  </div>
+                    <CardTitle className="text-xl font-bold">Channel Performance Insights</CardTitle>
+            </div>
                 </div>
               </CardHeader>
-              <CardContent className="px-4 sm:px-6 pt-1 pb-4 sm:pb-6">
+              <CardContent className="px-6 pt-1 pb-6">
             {/* Channel Cards Grid */}
             {isLoadingData ? (
                   <div 
-                    className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-6 ${cardData.length > 6 ? 'max-h-[400px] sm:max-h-[500px] md:max-h-[616px] overflow-y-auto custom-scrollbar' : ''}`}
+                    className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${cardData.length > 6 ? 'max-h-[616px] overflow-y-auto custom-scrollbar' : ''}`}
                     style={cardData.length > 6 ? {
                       scrollbarWidth: 'thin',
                       scrollbarColor: '#cbd5e1 transparent'
@@ -873,7 +925,7 @@ function ParityMonitoringContent() {
                   >
                     {Array.from({ length: 8 }).map((_, index) => (
                       <Card key={index} className="bg-white border border-gray-200 shadow-sm">
-                        <CardContent className="p-4 sm:p-5 md:p-6">
+                        <CardContent className="p-6">
                       <div className="animate-pulse">
                             {/* Header skeleton */}
                             <div className="flex items-center gap-3 mb-6">
@@ -932,7 +984,7 @@ function ParityMonitoringContent() {
                     </div>
             ) : (
                   <div 
-                    className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-6 ${cardData.length > 6 ? 'max-h-[400px] sm:max-h-[500px] md:max-h-[616px] overflow-y-auto custom-scrollbar' : ''}`}
+                    className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${cardData.length > 6 ? 'max-h-[616px] overflow-y-auto custom-scrollbar' : ''}`}
                     style={cardData.length > 6 ? {
                       scrollbarWidth: 'thin',
                       scrollbarColor: '#cbd5e1 transparent'
@@ -940,39 +992,34 @@ function ParityMonitoringContent() {
                   >
                 {cardData.map((channel: CardDataType, index: number) => (
                       <Card key={index} className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-                        <CardContent className="p-4 sm:p-5 md:p-6">
-                          {/* Header with Icon and Name - Responsive */}
-                          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-5 md:mb-6">
-                            <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-md flex items-center justify-center text-white font-bold text-xs bg-${channel.color} shadow-sm`}>
+                        <CardContent className="p-6">
+                          {/* Header with Icon and Name */}
+                          <div className="flex items-center gap-3 mb-6">
+                            <div className={`w-7 h-7 rounded-md flex items-center justify-center text-white font-bold text-xs bg-${channel.color} shadow-sm`}>
                               {channel.channelIcon}
-                            </div>
-                            <h3 className="text-sm sm:text-base font-semibold text-gray-900 truncate">{channel.channelName}</h3>
-                          </div>
+                  </div>
+                            <h3 className="text-base font-semibold text-gray-900">{channel.channelName}</h3>
+                    </div>
 
-                          {/* Main Parity Score with Vertical Win/Meet/Loss - Responsive */}
-                          <div className="mb-3 sm:mb-3.5">
+                          {/* Main Parity Score with Vertical Win/Meet/Loss */}
+                          <div className="mb-3.5">
                             <div className="flex items-start">
                               {/* Left: Parity Score */}
                               <div>
-                                <div className="flex items-baseline gap-1 sm:gap-2 mb-1">
-                                  <span className="text-xl sm:text-2xl font-bold text-gray-900">{channel.parityScore}%</span>
-                                  <div className="flex items-center gap-1" style={{ paddingLeft: '2px' }}>
-                                    <span className={`text-xs sm:text-sm font-bold ${channel.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                                      {channel.trend === 'up' ? '-' : '+'}{channel.trendValue}%
-                                    </span>
-                                  </div>
-                                </div>
+                                <div className="flex items-baseline gap-2 mb-1">
+                                  <span className="text-2xl font-bold text-gray-900">{channel.parityScore}%</span>
+                    </div>
                                 <p className="text-xs text-gray-500 font-medium">Parity Score</p>
-                              </div>
+                  </div>
 
-                              {/* Right Side: Vertical Win/Meet/Loss Bar with responsive margin */}
-                              <div className="flex items-start gap-1.5 sm:gap-2 ml-6 sm:ml-8 md:ml-12">
+                              {/* Left Side: Vertical Win/Meet/Loss Bar with 64px margin */}
+                              <div className="flex items-start gap-2" style={{ marginLeft: '64px' }}>
                                 <div className="text-left">
-                                  <div className="font-medium text-orange-600 text-xs sm:text-sm" style={{ lineHeight: '16px' }}>Win: {channel.winPercent}%</div>
-                                  <div className="font-medium text-green-600 text-xs sm:text-sm" style={{ lineHeight: '16px' }}>Meet: {channel.meetPercent}%</div>
-                                  <div className="font-medium text-red-600 text-xs sm:text-sm" style={{ lineHeight: '16px' }}>Loss: {channel.lossPercent}%</div>
-                                </div>
-                                <div className="flex flex-col bg-gray-100 rounded-sm overflow-hidden" style={{ width: '6px', height: '48px' }}>
+                                  <div className="font-medium text-orange-600" style={{ fontSize: '11px', lineHeight: '18.5px' }}>Win: {channel.winPercent}%</div>
+                                  <div className="font-medium text-green-600" style={{ fontSize: '11px', lineHeight: '18.5px' }}>Meet: {channel.meetPercent}%</div>
+                                  <div className="font-medium text-red-600" style={{ fontSize: '11px', lineHeight: '18.5px' }}>Loss: {channel.lossPercent}%</div>
+                    </div>
+                                <div className="flex flex-col bg-gray-100 rounded-sm overflow-hidden" style={{ width: '7px', height: '53.5px' }}>
                                   <div 
                                     className="bg-orange-400 w-full" 
                                     style={{ height: `${channel.winPercent}%` }}
@@ -985,66 +1032,60 @@ function ParityMonitoringContent() {
                                     className="bg-red-400 w-full" 
                                     style={{ height: `${channel.lossPercent}%` }}
                                   ></div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+                    </div>
+                      </div>
+                    </div>
+                        </div>
 
                           {/* Dotted Separator */}
-                          <div className="border-b border-dotted border-gray-300 mb-3 sm:mb-3.5"></div>
+                          <div className="border-b border-dotted border-gray-300 mb-3.5"></div>
 
-                          {/* Total Violations - Responsive */}
-                          <div className="mb-3 sm:mb-4">
-                            <div className="flex items-baseline gap-1 sm:gap-2 mb-1">
-                              <span className="text-lg sm:text-xl font-bold text-gray-900">{channel.totalViolations}%</span>
-                              <div className="flex items-center gap-1" style={{ paddingLeft: '4px' }}>
-                                <span className={`text-xs font-medium ${channel.violationsTrend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                                  {channel.violationsTrend === 'up' ? '-' : '+'}{channel.violationsTrendValue}%
-                                </span>
-                              </div>
-                            </div>
+                          {/* Total Violations */}
+                          <div className="mb-4">
+                            <div className="flex items-baseline gap-2 mb-1">
+                              <span className="text-xl font-bold text-gray-900">{channel.totalViolations}%</span>
+                    </div>
                             <p className="text-xs text-gray-500 font-medium">Violations</p>
-                          </div>
+                  </div>
 
-                          {/* Rate and Availability Violations - Responsive */}
-                          <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4">
+                          {/* Rate and Availability Violations */}
+                          <div className="grid grid-cols-2">
                             {/* Rate Violations */}
-                            <div>
-                              <div className="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-1 mb-1">
-                                <span className="text-sm sm:text-base font-bold text-gray-900">{channel.rateViolations}%</span>
-                                <div className="flex items-center gap-1">
-                                  <span className={`text-xs font-bold ${channel.rateViolationsTrend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                                    {channel.rateViolationsTrend === 'up' ? '-' : '+'}{channel.rateViolationsTrendValue}%
-                                  </span>
-                                </div>
-                              </div>
-                              <p className="text-xs text-gray-500 font-medium">Rate Violations</p>
-                            </div>
+                            <div style={{ width: '114px' }}>
+                              <div className="flex items-baseline gap-1 mb-1">
+                                <span className="text-base font-bold text-gray-900">{channel.rateViolations}%</span>
+                        </div>
+                              <p className="text-xs text-gray-500 font-medium">
+                                <span className="hidden xl:inline">Rate Violations</span>
+                                <span className="xl:hidden">Rate Vio.</span>
+                              </p>
+                        </div>
 
                             {/* Availability Violations */}
-                            <div>
-                              <div className="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-1 mb-1">
-                                <span className="text-sm sm:text-base font-bold text-gray-900">{channel.availabilityViolations}%</span>
-                                <div className="flex items-center gap-1">
-                                  <span className={`text-xs font-bold ${channel.availabilityViolationsTrend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                                    {channel.availabilityViolationsTrend === 'up' ? '-' : '+'}{channel.availabilityViolationsTrendValue}%
-                                  </span>
-                                </div>
-                              </div>
-                              <p className="text-xs text-gray-500 font-medium">Availability Violations</p>
-                            </div>
-                          </div>
+                            <div style={{ marginLeft: '-14px' }}>
+                              <div className="flex items-baseline gap-1 mb-1">
+                                <span className="text-base font-bold text-gray-900">{channel.availabilityViolations}%</span>
+                        </div>
+                              <p className="text-xs text-gray-500 font-medium">
+                                <span className="hidden xl:inline">Availability Violations</span>
+                                <span className="xl:hidden">Availability Vio.</span>
+                              </p>
+                        </div>
+            </div>
+          </CardContent>
+        </Card>
+                ))}
+            </div>
+        )}
             </CardContent>
           </Card>
-                ))}
           </div>
-        )}
-              </CardContent>
-            </Card>
-          </div>
-          
+            
           {/* Parity Calendar View */}
-          <ParityCalendarView />
+          <Card className="shadow-lg relative overflow-hidden">
+            {isLoadingData && <WidgetProgress />}
+            <ParityCalendarView />
+          </Card>
 
             </div>
           </div>
