@@ -345,7 +345,7 @@ function DemandPageContent() {
   }
   const getCompRateData = () => {
     setRateCompData(Object);
-    const selectedComparison = filter === "wow" ? 7 : filter === "mom" ? 30 : filter === "yoy" ? 365 : 7;
+    const selectedComparison = filter === "wow" ? 7 : filter === "mom" ? 28 : filter === "yoy" ? 365 : 7;
     var startDateComp = startDate
       ? new Date(startDate.getTime() + (-selectedComparison * 24 * 60 * 60 * 1000))
       : new Date();

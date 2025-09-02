@@ -634,7 +634,7 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
                         {!day.isDisabled && (
                           <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
                             <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                            <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
+                            <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('veryhigh', 'Very High')} demand</div>
                             <div className="border-t border-gray-600 my-1 pt-1">
                               <div className="text-xs text-gray-300 capitalize">Demand Index : {day.demedandIndex}</div>
                             </div>
@@ -737,7 +737,7 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
                         {!day.isDisabled && (
                           <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
                             <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                            <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
+                            <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('veryhigh', 'Very High')} demand</div>
                             <div className="border-t border-gray-600 my-1 pt-1">
                               <div className="text-xs text-gray-300 capitalize">Demand Index : {day.demedandIndex}</div>
                             </div>
@@ -857,7 +857,7 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
                         {!day.isDisabled && (
                           <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
                             <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                            <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
+                            <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('veryhigh', 'Very High')} demand</div>
                             <div className="border-t border-gray-600 my-1 pt-1">
                               <div className="text-xs text-gray-300 capitalize">Demand Index : {day.demedandIndex}</div>
                             </div>

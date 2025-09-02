@@ -28,6 +28,7 @@ import localStorageService from "@/lib/localstorage"
 import { useComparison } from "../comparison-context"
 import { toPng } from "html-to-image"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
+import { getDay } from 'date-fns';
 
 type DatasetType = 'pricing' | 'travellers'
 type AggregationPeriod = 'day' | 'week' | 'month'
@@ -51,7 +52,7 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
     ?.find((x: any) => x.propertyType === 0)
     ?.subscriberPropertyRate || [];
   const suffix = suffixMap[filter] || "wow";
-  const selectedComparison = filter === "wow" ? 7 : filter === "mom" ? 30 : filter === "yoy" ? 365 : 7;
+  const selectedComparison = filter === "wow" ? 7 : filter === "mom" ? 28 : filter === "yoy" ? 365 : 7;
   return demandData?.optimaDemand.map((demandI: any, index: any) => {
     const myRateData = myRateDatas.find((x: any) => x.checkInDateTime === demandI.checkinDate) || {};
     const comparisonDateStr = format(subDays(demandI.checkinDate, selectedComparison), 'yyyy-MM-dd') + 'T00:00:00';
@@ -260,7 +261,7 @@ function getDemandLevelKey(demandIndex: number): number {
   return 4;                              // High
 }
 // Custom tooltip component
-const CustomTooltip = ({ active, payload, label, datasetType,demandCurrencySymbolState }: any & { datasetType: DatasetType }) => {
+const CustomTooltip = ({ active, payload, label, datasetType, demandCurrencySymbolState }: any & { datasetType: DatasetType }) => {
   debugger;
   if (active && payload && payload.length) {
     const data = payload[0].payload
@@ -282,7 +283,7 @@ const CustomTooltip = ({ active, payload, label, datasetType,demandCurrencySymbo
       return `${sign}${variance}%`
     }
     const [selectedProperty] = useSelectedProperty()
-
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     return (
       <Card className="p-3 shadow-xl border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm min-w-fit max-w-xs">
         <div className="space-y-2">
@@ -290,7 +291,7 @@ const CustomTooltip = ({ active, payload, label, datasetType,demandCurrencySymbo
           <div className="mb-2">
             <h3 className="text-foreground whitespace-nowrap">
               <span className="text-base font-bold">{data.dateFormatted}</span>
-              <span className="text-sm font-normal">, {new Date(label).toLocaleDateString('en-GB', { weekday: 'short' })}</span>
+              <span className="text-sm font-normal">, {dayNames[getDay(data.fullDate)]}</span>
             </h3>
           </div>
 
@@ -524,7 +525,7 @@ const CustomLegend = ({
   )
 }
 
-export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData, rateCompData ,demandCurrencySymbol}: any) {
+export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData, rateCompData, demandCurrencySymbol }: any) {
   const { theme } = useTheme()
   const [selectedProperty] = useSelectedProperty()
   const { startDate, endDate, isLoading } = useDemandDateContext()
@@ -551,12 +552,12 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
 
 
   const handleDownloadCSV = () => {
-    console.log('📊 Downloading data as CSV...')
-
+    console.log('📊 Downloading data as CSV...', trendData)
+    const suffixVs = filter === "wow" ? "WoW" : filter === "mom" ? "MoM" : filter === "yoy" ? "YoY" : "WoW";
     // Create CSV content from trend data
     const headers = datasetType === 'pricing'
-      ? ['Date', 'Demand Level', 'My ADR', 'Market ADR', 'My ADR Variance %', 'Market ADR Variance %', 'Demand Variance %']
-      : ['Date', 'Demand Level', 'Air Travellers', 'Air Travellers Variance %', 'Demand Variance %']
+      ? ['Date', 'Demand Level', 'Demand Index', 'Demand Variance % (Vs. ' + suffixVs + ')', 'My ADR', 'My ADR Variance % (Vs. ' + suffixVs + ')', 'Market ADR', 'Market ADR Variance % (Vs. ' + suffixVs + ')']
+      : ['Date', 'Demand Level', 'Demand Index', 'Demand Variance % (Vs. ' + suffixVs + ')', 'Air Travellers', 'Air Travellers Variance % (Vs. ' + suffixVs + ')', "Source Market (Inbound)"]
 
     const csvContent = [
       headers.join(','),
@@ -564,20 +565,26 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
         if (datasetType === 'pricing') {
           return [
             row.dateFormatted,
-            row.demandLevel,
+            demandLevelMap[row.demandLevel],
+            row.demandIndex,
+            row.demandVariance,
             row.hotelADR,
-            row.marketADR,
             row.myPriceVariance,
-            row.marketADRVariance,
-            row.demandVariance
+            row.marketADR,
+            row.marketADRVariance
           ].join(',')
         } else {
+          const resultInbound = row.inboundAirline.map((item: any) => {
+            return `${item.srcCountryName} (${item.totalflights}%)`;
+          }).join(" | ");
           return [
             row.dateFormatted,
-            row.demandLevel,
+            demandLevelMap[row.demandLevel],
+            row.demandIndex,
+            row.demandVariance,
             row.airTravellers,
             row.airTravellersVariance,
-            row.demandVariance
+            resultInbound
           ].join(',')
         }
       })
@@ -588,7 +595,7 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
     const link = document.createElement('a')
     const url = URL.createObjectURL(blob)
     link.setAttribute('href', url)
-    link.setAttribute('download', `demand-trends-${datasetType}-${aggregationPeriod}-${format(new Date(), 'yyyy-MM-dd')}.csv`)
+    link.setAttribute('download', `demand-trends-${datasetType}-${aggregationPeriod}-${format(new Date(), 'yyyyMMddHHmmss')}.csv`)
     link.style.visibility = 'hidden'
     document.body.appendChild(link)
     link.click()
@@ -889,14 +896,14 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
                 })()}
                 tickFormatter={(value) =>
                   datasetType === 'pricing'
-                    ? `$${Math.round(value)}`
+                    ? `\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E ${Math.round(value)}`
                     : `${(value / 1000).toFixed(0)}K`
                 }
               />
 
               {/* Tooltip */}
               <Tooltip
-                content={<CustomTooltip datasetType={datasetType} demandCurrencySymbolState={demandCurrencySymbol}/>}
+                content={<CustomTooltip datasetType={datasetType} demandCurrencySymbolState={demandCurrencySymbol} />}
                 cursor={{ fill: theme === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)" }}
               />
 
