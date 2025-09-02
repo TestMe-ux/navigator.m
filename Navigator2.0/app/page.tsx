@@ -250,7 +250,7 @@ export default function Home() {
     }
   }, [hasTriggered, showCSATCard, csatClosed])
   useEffect(() => {
-  
+
     if (!startDate ||
       !endDate ||
       !selectedProperty?.sid) return;
@@ -260,7 +260,17 @@ export default function Home() {
       getCompRateData(),
       GetParityDatas_Comp()
     ]);
-  }, [startDate, endDate, selectedProperty, compsetFilter, sideFilter, channelFilter?.channelId])
+  }, [startDate, endDate, selectedProperty, compsetFilter, sideFilter])
+  useEffect(() => {
+    console.log("Channel filter changed:", parityData,channelFilter);
+    if (!startDate ||
+      !endDate ||
+      !selectedProperty?.sid) return;
+    Promise.all([
+      getRateDate(),
+      getCompRateData()
+    ]);
+  }, [channelFilter?.channelId])
 
   useEffect(() => {
     if (!startDate ||
