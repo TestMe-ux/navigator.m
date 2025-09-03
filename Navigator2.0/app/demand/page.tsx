@@ -35,6 +35,7 @@ function DemandPageContent() {
   const [selectedProperty] = useSelectedProperty()
   const [avgDemand, setAvgDemand] = useState({ AverageDI: 0, AverageWow: 0, AverageMom: 0, AverageYoy: 0, AvrageHotelADR: 0, AvrageHotelADRWow: 0, AvrageHotelADRMom: 0, AvrageHotelADRYoy: 0, AvrageRevPAR: 0, AvrageOccupancy: 0 })
   const [demandCurrencySymbol, setDemandCurrencySymbol] = useState<any>("$");
+  const [demandCurrencyDetails, setDemandCurrencyDetails] = useState<any>([]);
   const [isInitialized, setIsInitialized] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
@@ -195,6 +196,7 @@ function DemandPageContent() {
         if (res.status) {
           console.log("CurrencySymbol", res);
           setDemandCurrencySymbol(res?.body[0].currencySymbol);
+          setDemandCurrencyDetails(res?.body[0]);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
       })
@@ -448,7 +450,7 @@ function DemandPageContent() {
 
           {/* Summary Cards Section */}
           <section className="w-full">
-            <DemandSummaryCards filter={filter} avgDemand={avgDemand} demandAIPerCountryAverageData={demandAIPerCountryAverageData} demandCurrencySymbol={demandCurrencySymbol} />
+            <DemandSummaryCards filter={filter} avgDemand={avgDemand} demandData={demandData} demandAIPerCountryAverageData={demandAIPerCountryAverageData} demandCurrencySymbol={demandCurrencyDetails}  />
           </section>
 
 
@@ -456,7 +458,7 @@ function DemandPageContent() {
           <section className="w-full">
             <Card className="card-elevated animate-fade-in">
               <CardContent className="p-3 md:p-4 lg:p-6 xl:p-8">
-                <EnhancedDemandTrendsChart filter={filter} events={eventData} demandData={demandData} rateData={rateData} rateCompData={rateCompData}  demandCurrencySymbol={demandCurrencySymbol} />
+                <EnhancedDemandTrendsChart filter={filter} events={eventData} demandData={demandData} rateData={rateData} rateCompData={rateCompData}  demandCurrencySymbol={demandCurrencyDetails} />
               </CardContent>
             </Card>
           </section>

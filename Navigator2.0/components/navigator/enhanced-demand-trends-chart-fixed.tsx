@@ -241,7 +241,7 @@ export function EnhancedDemandTrendsChart() {
         <div>
           <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Trends</h3>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Demand forecast and {datasetType === 'pricing' ? 'pricing analysis' : 'air travel patterns'}
+            Demand forecast and {datasetType === 'pricing' ? 'pricing analysis' : 'air travel data analysis'}
           </p>
         </div>
 
