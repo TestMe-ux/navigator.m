@@ -34,6 +34,7 @@ import { getRateTrends } from "@/lib/rate"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { useDateContext } from "@/components/date-context"
 import { conevrtDateforApi } from "@/lib/utils"
+import { GlobalProgressBar, LoadingSkeleton } from "@/components/loading-skeleton"
 
 /**
  * Modern Quick Actions Configuration
@@ -224,6 +225,9 @@ export default function Home() {
   const [csatClosed, setCSATClosed] = useState(false)
   const { startDate, endDate, setDateRange } = useDateContext()
   const [selectedProperty] = useSelectedProperty()
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [loadingCycle, setLoadingCycle] = useState(1)
   // Scroll detection for CSAT card
   const [parityData, setparityData] = useState(Object);
   const [parityDataComp, setParityDataComp] = useState(Object);
@@ -254,15 +258,38 @@ export default function Home() {
     if (!startDate ||
       !endDate ||
       !selectedProperty?.sid) return;
+    setIsLoading(true);
+    setLoadingProgress(0);
+    // Progress interval
+    const progressInterval = setInterval(() => {
+      setLoadingProgress((prev) => {
+        const increment = Math.floor(Math.random() * 9) + 3; // 3-11% increment
+        const newProgress = prev + increment;
+
+        if (newProgress >= 100) {
+          setLoadingCycle(prevCycle => prevCycle + 1);
+          return 0;
+        }
+
+        return newProgress;
+      });
+    }, 80);
     Promise.all([
       GetParityDatas(),
       getRateDate(),
       getCompRateData(),
       GetParityDatas_Comp()
-    ]);
+    ]).finally(() => {
+      clearInterval(progressInterval);
+      setLoadingProgress(100); // finish instantly
+      setTimeout(() => {
+        setIsLoading(false);
+        setLoadingProgress(0); // reset for next load
+      }, 300); // brief delay so user sees 100%
+    });
   }, [startDate, endDate, selectedProperty, compsetFilter, sideFilter])
   useEffect(() => {
-    console.log("Channel filter changed:", parityData,channelFilter);
+    console.log("Channel filter changed:", parityData, channelFilter);
     if (!startDate ||
       !endDate ||
       !selectedProperty?.sid) return;
@@ -523,7 +550,18 @@ export default function Home() {
     setCSATClosed(true)
     console.log('🎯 CSAT card closed by user')
   }
-
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
+        <GlobalProgressBar />
+        <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8 xl:py-10">
+          <div className="max-w-7xl xl:max-w-none mx-auto">
+            <LoadingSkeleton type="demand" showCycleCounter={true} />
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950" data-coach-mark="dashboard-overview">
       {/* Enhanced Filter Bar with Sticky Positioning */}

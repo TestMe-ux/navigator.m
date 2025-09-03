@@ -394,7 +394,7 @@ export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
                       <div className="w-56 p-4">
                         <h4 className="font-semibold text-sm text-gray-700 mb-3">Channels</h4>
                           <ScrollArea className={cn(
-                          "max-h-64 overflow-hidden",
+                          "max-h-64 overflow-hidden ",
                           channelData.length > 8 ? "h-64" : "h-auto"
                         )}>
                           <div className="space-y-1 pr-4">

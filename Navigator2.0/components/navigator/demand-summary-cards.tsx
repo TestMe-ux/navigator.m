@@ -104,11 +104,11 @@ function SummaryCard({
   )
 }
 
-export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverageData,demandCurrencySymbol }: any) {
+export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverageData, demandCurrencySymbol, demandData }: any) {
   const selectedProperty: any = localStorageService.get('SelectedProperty')
   const [trendValue, setTrendValue] = useState(0);
   const [demandTrendValue, setDemandTrendValue] = useState(0);
-
+  const ischatgptData = demandData?.ischatgptData ?? false;
   console.log("Filter sumarry card", filter)
   useEffect(() => {
     if (!avgDemand) return;
@@ -135,7 +135,7 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
 
   const summaryData: SummaryCardProps[] = [
     {
-      title: "Avg. Demand Index",
+      title: "Demand Index",
       value: `${avgDemand?.AverageDI}`,
       trend: `${demandTrendValue}%`,
       trendDirection: `${demandTrendValue > 0 ? "up" : "down"}`,
@@ -147,8 +147,8 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
       isVisible: true
     },
     {
-      title: "Avg. Market ADR",
-      value: `\u200E ${demandCurrencySymbol ?? '$'}\u200E  ${avgDemand?.AvrageHotelADR}`,
+      title: "Market ADR",
+      value: `\u200E ${demandCurrencySymbol?.currencySymbol ?? '$'}\u200E  ${ischatgptData ? (avgDemand?.AvrageHotelADR * (demandCurrencySymbol?.conversionRate ?? 1)).toFixed(2) : avgDemand?.AvrageHotelADR}`,
       trend: `${trendValue}%`,
       trendDirection: `${trendValue > 0 ? "up" : "down"}`,
       icon: DollarSign,
@@ -159,8 +159,8 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
       isVisible: true
     },
     {
-      title: "Avg. Market RevPAR",
-      value: `\u200E ${'$'}\u200E  ${avgDemand?.AvrageRevPAR}`,
+      title: "Market RevPAR",
+      value: `\u200E${demandCurrencySymbol?.currencySymbol ?? '$'} ${((avgDemand?.AvrageRevPAR ?? 0) * (demandCurrencySymbol?.conversionRate ?? 1)).toFixed(2)}`,
       trend: "0%",
       trendDirection: "up",
       icon: TrendingUp,
@@ -171,7 +171,7 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
       isVisible: avgDemand?.AvrageRevPAR > 0 ? true : false
     },
     {
-      title: "Avg. Market Occupancy",
+      title: "Market Occupancy",
       value: avgDemand?.AvrageOccupancy ? `${avgDemand?.AvrageOccupancy}%` : 'N/A',
       trend: "0%",
       trendDirection: "up",
