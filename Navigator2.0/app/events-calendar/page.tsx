@@ -84,6 +84,7 @@ const formatListHeader = (dateString: string) => {
 
 interface Event {
   id: string
+  eventId: string
   name: string
   startDate: string
   endDate: string
@@ -98,6 +99,16 @@ interface Event {
   attendees?: number
   isCustom?: boolean
   createdAt?: number
+
+  eventCity: string
+  charge: string
+  masterEventId: any
+  EventProfileId: any
+  imageUrl: any
+  isRepeat: boolean
+  repeats: any
+  repeatsBy: any
+  repeatEvery: any | number | null
 }
 
 // Custom events storage key
@@ -209,943 +220,6 @@ const loadCustomEventsFromStorage = (): Event[] => {
     return []
   }
 }
-
-// Curated selection of major global events distributed strategically throughout the year
-const sampleEvents: Event[] = [
-  // JANUARY - Major holidays and tech events
-  {
-    id: "h1",
-    name: "International Day of Friendship",
-    startDate: "2025-08-01",
-    endDate: "2025-08-01",
-    category: "social",
-    location: "Global",
-    description: "UN day promoting friendship between peoples and cultures",
-    status: "suggested",
-    country: "Global",
-    flag: "🤝",
-    type: "holiday",
-    priority: "high",
-  },
-  {
-    id: "b1",
-    name: "Tech Summit 2025",
-    startDate: "2025-08-03",
-    endDate: "2025-08-05",
-    category: "business",
-    location: "Las Vegas, USA",
-    description: "Premier technology conference and innovation showcase",
-    status: "bookmarked",
-    country: "USA",
-    flag: "🇺🇸",
-
-    type: "conference",
-    priority: "high",
-  },
-  {
-    id: "h2",
-    name: "Martin Luther King Jr. Day",
-    startDate: "2025-11-08",
-    endDate: "2025-11-08",
-    category: "social",
-    location: "United States",
-    description: "Federal holiday honoring civil rights leader",
-    status: "suggested",
-    country: "USA",
-    flag: "🇺🇸",
-    type: "holiday",
-    priority: "high",
-  },
-  {
-    id: "s1",
-    name: "World Economic Forum",
-    startDate: "2025-04-03",
-    endDate: "2025-04-06",
-    category: "business",
-    location: "Davos, Switzerland",
-    description: "Annual meeting of global economic leaders",
-    status: "suggested",
-    country: "Switzerland",
-    flag: "🇨🇭",
-
-    type: "conference",
-    priority: "high",
-  },
-
-  // FEBRUARY - Cultural celebrations and mobile tech
-  {
-    id: "h3",
-    name: "Chinese New Year",
-    startDate: "2025-07-22",
-    endDate: "2025-07-22",
-    category: "social",
-    location: "China",
-    description: "Traditional lunar new year celebration",
-    status: "suggested",
-    country: "China",
-    flag: "🇨🇳",
-    type: "holiday",
-    priority: "high",
-  },
-  {
-    id: "h4",
-    name: "Valentine's Day",
-    startDate: "2025-08-14",
-    endDate: "2025-08-14",
-    category: "social",
-    location: "Global",
-    description: "Day of love and romance",
-    status: "suggested",
-    country: "Global",
-    flag: "💝",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "b2",
-    name: "Mobile World Congress",
-    startDate: "2025-06-12",
-    endDate: "2025-06-15",
-    category: "business",
-    location: "Barcelona, Spain",
-    description: "World's largest mobile industry event",
-    status: "bookmarked",
-    country: "Spain",
-    flag: "🇪🇸",
-
-    type: "conference",
-    priority: "high",
-  },
-
-  // MARCH - Spring festivals and tech
-  {
-    id: "mar1",
-    name: "SXSW",
-    startDate: "2025-10-20",
-    endDate: "2025-10-29",
-    category: "social",
-    location: "Austin, USA",
-    description: "South by Southwest - Music, interactive, and film festival",
-    status: "bookmarked",
-    country: "USA",
-    flag: "🇺🇸",
-
-    type: "festival",
-    priority: "high",
-  },
-  {
-    id: "mar2",
-    name: "St. Patrick's Day",
-    startDate: "2025-12-05",
-    endDate: "2025-12-05",
-    category: "social",
-    location: "Ireland",
-    description: "Irish cultural and religious celebration",
-    status: "suggested",
-    country: "Ireland",
-    flag: "🇮🇪",
-    type: "holiday",
-    priority: "medium",
-  },
-
-  // APRIL - Easter and AI
-  {
-    id: "apr1",
-    name: "Easter Sunday",
-    startDate: "2025-04-20",
-    endDate: "2025-04-20",
-    category: "social",
-    location: "Global",
-    description: "Christian holiday celebrating resurrection",
-    status: "suggested",
-    country: "Global",
-    flag: "🐰",
-    type: "holiday",
-    priority: "medium",
-  },
-
-  // MAY - Workers' day and major conferences
-  {
-    id: "may1",
-    name: "World Humanitarian Day",
-    startDate: "2025-08-19",
-    endDate: "2025-08-19",
-    category: "social",
-    location: "Global",
-    description: "UN day honoring humanitarian workers worldwide",
-    status: "suggested",
-    country: "Global",
-    flag: "🤲",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "may2",
-    name: "DevCon 2025",
-    startDate: "2025-08-14",
-    endDate: "2025-08-16",
-    category: "business",
-    location: "Mountain View, USA",
-    description: "Premier developer conference for emerging technologies",
-    status: "bookmarked",
-    country: "USA",
-    flag: "🇺🇸",
-    type: "conference",
-    priority: "high",
-  },
-  {
-    id: "may3",
-    name: "International Cat Day",
-    startDate: "2025-08-08",
-    endDate: "2025-08-08",
-    category: "social",
-    location: "Global",
-    description: "Day celebrating cats and promoting their welfare",
-    status: "suggested",
-    country: "Global",
-    flag: "🐱",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "may4",
-    name: "World Elephant Day",
-    startDate: "2025-08-12",
-    endDate: "2025-08-12",
-    category: "social",
-    location: "Global",
-    description: "Day dedicated to elephant conservation and protection",
-    status: "suggested",
-    country: "Global",
-    flag: "🐘",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "may5",
-    name: "International Left-Handers Day",
-    startDate: "2025-08-13",
-    endDate: "2025-08-13",
-    category: "social",
-    location: "Global",
-    description: "Day celebrating left-handed people and their unique challenges",
-    status: "suggested",
-    country: "Global",
-    flag: "✋",
-    type: "holiday",
-    priority: "low",
-  },
-  {
-    id: "may6",
-    name: "AI Summit 2025",
-    startDate: "2025-08-18",
-    endDate: "2025-08-20",
-    category: "business",
-    location: "Seattle, USA",
-    description: "Leading artificial intelligence and machine learning conference",
-    status: "suggested",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 25000,
-    type: "conference",
-    priority: "high",
-  },
-
-  // JUNE - Summer events and technology conferences
-  {
-    id: "jun1",
-    name: "International Beer Day",
-    startDate: "2025-08-01",
-    endDate: "2025-08-01",
-    category: "social",
-    location: "Global",
-    description: "International celebration of beer and brewing culture",
-    status: "suggested",
-    country: "Global",
-    flag: "🍺",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "jun2",
-    name: "World Ocean Day",
-    startDate: "2025-06-08",
-    endDate: "2025-06-08",
-    category: "social",
-    location: "Global",
-    description: "UN day celebrating ocean conservation",
-    status: "suggested",
-    country: "Global",
-    flag: "🌊",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "jun3",
-    name: "Father's Day",
-    startDate: "2025-06-15",
-    endDate: "2025-06-15",
-    category: "social",
-    location: "Global",
-    description: "Day honoring fathers and fatherhood",
-    status: "suggested",
-    country: "Global",
-    flag: "👨‍👧‍👦",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "jun4",
-    name: "E3 Gaming Expo",
-    startDate: "2025-06-10",
-    endDate: "2025-06-12",
-    category: "business",
-    location: "Los Angeles, USA",
-    description: "Electronic Entertainment Expo - Gaming industry showcase",
-    status: "suggested",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 45000,
-    type: "conference",
-    priority: "high",
-  },
-  {
-    id: "jun5",
-    name: "Summer Solstice",
-    startDate: "2025-06-21",
-    endDate: "2025-06-21",
-    category: "social",
-    location: "Global",
-    description: "Longest day of the year in Northern Hemisphere",
-    status: "suggested",
-    country: "Global",
-    flag: "☀️",
-    type: "holiday",
-    priority: "low",
-  },
-  {
-    id: "jun6",
-    name: "Cannes Lions Festival",
-    startDate: "2025-06-16",
-    endDate: "2025-06-20",
-    category: "business",
-    location: "Cannes, France",
-    description: "International Festival of Creativity in advertising",
-    status: "suggested",
-    country: "France",
-    flag: "🇫🇷",
-    attendees: 15000,
-    type: "festival",
-    priority: "medium",
-  },
-  {
-    id: "jun7",
-    name: "World Music Day",
-    startDate: "2025-06-21",
-    endDate: "2025-06-21",
-    category: "social",
-    location: "Global",
-    description: "Annual celebration of music and cultural diversity",
-    status: "suggested",
-    country: "Global",
-    flag: "🎵",
-    type: "holiday",
-    priority: "medium",
-  },
-
-  // JULY - Independence and summer events
-  {
-    id: "jul1",
-    name: "Independence Day",
-    startDate: "2025-07-04",
-    endDate: "2025-07-04",
-    category: "social",
-    location: "United States",
-    description: "American Independence Day celebration",
-    status: "suggested",
-    country: "USA",
-    flag: "🇺🇸",
-    type: "holiday",
-    priority: "high",
-  },
-
-  // AUGUST - International events
-  {
-    id: "aug1",
-    name: "Edinburgh Festival Fringe",
-    startDate: "2025-08-08",
-    endDate: "2025-08-30",
-    category: "social",
-    location: "Edinburgh, Scotland",
-    description: "World's largest arts festival",
-    status: "suggested",
-    country: "UK",
-    flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
-    attendees: 500000,
-    type: "festival",
-    priority: "high",
-  },
-  {
-    id: "aug2",
-    name: "Independence Day of India",
-    startDate: "2025-08-15",
-    endDate: "2025-08-15",
-    category: "social",
-    location: "India",
-    description: "India's Independence Day celebration",
-    status: "bookmarked",
-    country: "India",
-    flag: "🇮🇳",
-    type: "holiday",
-    priority: "high",
-  },
-  {
-    id: "aug3",
-    name: "DEF CON 33",
-    startDate: "2025-08-07",
-    endDate: "2025-08-10",
-    category: "business",
-    location: "Las Vegas, USA",
-    description: "World's largest hacking conference",
-    status: "available",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 30000,
-    type: "conference",
-    priority: "medium",
-  },
-  {
-    id: "aug4",
-    name: "Burning Man Festival",
-    startDate: "2025-08-25",
-    endDate: "2025-09-02",
-    category: "social",
-    location: "Black Rock Desert, USA",
-    description: "Annual arts and music festival in the desert",
-    status: "suggested",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 80000,
-    type: "festival",
-    priority: "medium",
-  },
-  {
-    id: "aug5",
-    name: "VMworld 2025",
-    startDate: "2025-08-26",
-    endDate: "2025-08-29",
-    category: "business",
-    location: "San Francisco, USA",
-    description: "VMware's premier technology conference",
-    status: "bookmarked",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 20000,
-    type: "conference",
-    priority: "high",
-  },
-  {
-    id: "aug6",
-    name: "La Tomatina",
-    startDate: "2025-08-27",
-    endDate: "2025-08-27",
-    category: "social",
-    location: "Buñol, Spain",
-    description: "Famous tomato-throwing festival",
-    status: "available",
-    country: "Spain",
-    flag: "🇪🇸",
-    attendees: 20000,
-    type: "festival",
-    priority: "low",
-  },
-  {
-    id: "aug7",
-    name: "International Youth Day",
-    startDate: "2025-08-12",
-    endDate: "2025-08-12",
-    category: "social",
-    location: "Global",
-    description: "UN day celebrating youth contributions",
-    status: "suggested",
-    country: "Global",
-    flag: "🌍",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "aug8",
-    name: "Gamescom 2025",
-    startDate: "2025-08-21",
-    endDate: "2025-08-25",
-    category: "business",
-    location: "Cologne, Germany",
-    description: "World's largest gaming trade fair",
-    status: "bookmarked",
-    country: "Germany",
-    flag: "🇩🇪",
-    attendees: 370000,
-    type: "conference",
-    priority: "high",
-  },
-  {
-    id: "aug9",
-    name: "World Photography Day",
-    startDate: "2025-08-19",
-    endDate: "2025-08-19",
-    category: "social",
-    location: "Global",
-    description: "Celebrating the art of photography",
-    status: "available",
-    country: "Global",
-    flag: "📸",
-    type: "holiday",
-    priority: "low",
-  },
-  {
-    id: "aug10",
-    name: "Summer Olympics 2028 Kickoff",
-    startDate: "2025-08-31",
-    endDate: "2025-08-31",
-    category: "social",
-    location: "Los Angeles, USA",
-    description: "Official countdown event for LA 2028 Olympics",
-    status: "suggested",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 50000,
-    type: "sports",
-    priority: "high",
-  },
-  {
-    id: "aug11",
-    name: "BlackHat USA 2025",
-    startDate: "2025-08-02",
-    endDate: "2025-08-07",
-    category: "business",
-    location: "Las Vegas, USA",
-    description: "Premier cybersecurity conference",
-    status: "bookmarked",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 17000,
-    type: "conference",
-    priority: "high",
-  },
-
-  // SEPTEMBER - Oktoberfest and tech events
-  {
-    id: "sep1",
-    name: "Labor Day Weekend",
-    startDate: "2025-09-01",
-    endDate: "2025-09-01",
-    category: "social",
-    location: "United States",
-    description: "American Labor Day holiday",
-    status: "suggested",
-    country: "USA",
-    flag: "🇺🇸",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "sep2",
-    name: "Oktoberfest",
-    startDate: "2025-09-20",
-    endDate: "2025-10-05",
-    category: "social",
-    location: "Munich, Germany",
-    description: "World's largest beer festival",
-    status: "bookmarked",
-    country: "Germany",
-    flag: "🇩🇪",
-    attendees: 6000000,
-    type: "festival",
-    priority: "high",
-  },
-  {
-    id: "sep3",
-    name: "Apple Event",
-    startDate: "2025-09-12",
-    endDate: "2025-09-12",
-    category: "business",
-    location: "Cupertino, USA",
-    description: "Apple's annual iPhone launch event",
-    status: "bookmarked",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 1000,
-    type: "conference",
-    priority: "high",
-  },
-  {
-    id: "sep4",
-    name: "Brazilian Independence Day",
-    startDate: "2025-09-07",
-    endDate: "2025-09-07",
-    category: "social",
-    location: "Brazil",
-    description: "Brazil's National Independence Day",
-    status: "available",
-    country: "Brazil",
-    flag: "🇧🇷",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "sep5",
-    name: "IFA Berlin 2025",
-    startDate: "2025-09-05",
-    endDate: "2025-09-10",
-    category: "business",
-    location: "Berlin, Germany",
-    description: "Global trade show for consumer electronics",
-    status: "suggested",
-    country: "Germany",
-    flag: "🇩🇪",
-    attendees: 245000,
-    type: "conference",
-    priority: "medium",
-  },
-  {
-    id: "sep6",
-    name: "World Tourism Day",
-    startDate: "2025-09-27",
-    endDate: "2025-09-27",
-    category: "social",
-    location: "Global",
-    description: "UN World Tourism Day celebration",
-    status: "available",
-    country: "Global",
-    flag: "✈️",
-    type: "holiday",
-    priority: "low",
-  },
-  {
-    id: "sep7",
-    name: "Burning Man Decompression",
-    startDate: "2025-09-14",
-    endDate: "2025-09-14",
-    category: "social",
-    location: "San Francisco, USA",
-    description: "Post-Burning Man community celebration",
-    status: "suggested",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 15000,
-    type: "festival",
-    priority: "low",
-  },
-  {
-    id: "sep8",
-    name: "React Conf 2025",
-    startDate: "2025-09-25",
-    endDate: "2025-09-26",
-    category: "business",
-    location: "Henderson, USA",
-    description: "Official React JavaScript library conference",
-    status: "bookmarked",
-    country: "USA",
-    flag: "🇺🇸",
-
-    type: "conference",
-    priority: "high",
-  },
-  {
-    id: "sep9",
-    name: "International Day of Peace",
-    startDate: "2025-09-21",
-    endDate: "2025-09-21",
-    category: "social",
-    location: "Global",
-    description: "UN International Day of Peace",
-    status: "suggested",
-    country: "Global",
-    flag: "🕊️",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "sep10",
-    name: "Formula 1 Singapore Grand Prix",
-    startDate: "2025-09-19",
-    endDate: "2025-09-21",
-    category: "social",
-    location: "Singapore",
-    description: "Night race F1 Grand Prix",
-    status: "available",
-    country: "Singapore",
-    flag: "🇸🇬",
-
-    type: "sports",
-    priority: "high",
-  },
-  {
-    id: "sep11",
-    name: "Autodesk University 2025",
-    startDate: "2025-09-17",
-    endDate: "2025-09-19",
-    category: "business",
-    location: "Las Vegas, USA",
-    description: "Autodesk's premier learning conference",
-    status: "available",
-    country: "USA",
-    flag: "🇺🇸",
-
-    type: "conference",
-    priority: "medium",
-  },
-  {
-    id: "sep12",
-    name: "Mid-Autumn Festival",
-    startDate: "2025-09-29",
-    endDate: "2025-09-29",
-    category: "social",
-    location: "China",
-    description: "Traditional Chinese moon festival",
-    status: "bookmarked",
-    country: "China",
-    flag: "🇨🇳",
-    type: "holiday",
-    priority: "high",
-  },
-
-  // OCTOBER - Halloween and major tech summit
-  {
-    id: "oct1",
-    name: "Web Summit",
-    startDate: "2025-10-07",
-    endDate: "2025-10-10",
-    category: "business",
-    location: "Lisbon, Portugal",
-    description: "Europe's largest tech conference",
-    status: "bookmarked",
-    country: "Portugal",
-    flag: "🇵🇹",
-
-    type: "conference",
-    priority: "high",
-  },
-  {
-    id: "oct2",
-    name: "Halloween",
-    startDate: "2025-10-31",
-    endDate: "2025-10-31",
-    category: "social",
-    location: "Global",
-    description: "Halloween celebration worldwide",
-    status: "suggested",
-    country: "Global",
-    flag: "🎃",
-    type: "holiday",
-    priority: "medium",
-  },
-
-  // NOVEMBER - Major holidays
-  {
-    id: "nov1",
-    name: "Diwali",
-    startDate: "2025-11-01",
-    endDate: "2025-11-01",
-    category: "social",
-    location: "India",
-    description: "Hindu festival of lights",
-    status: "suggested",
-    country: "India",
-    flag: "🇮🇳",
-    type: "holiday",
-    priority: "high",
-  },
-  {
-    id: "nov2",
-    name: "Thanksgiving",
-    startDate: "2025-11-27",
-    endDate: "2025-11-27",
-    category: "social",
-    location: "United States",
-    description: "American Thanksgiving holiday",
-    status: "suggested",
-    country: "USA",
-    flag: "🦃",
-    type: "holiday",
-    priority: "high",
-  },
-
-  // NOVEMBER continued - More business and cultural events
-  {
-    id: "nov3",
-    name: "Black Friday",
-    startDate: "2025-11-28",
-    endDate: "2025-11-28",
-    category: "business",
-    location: "Global",
-    description: "Major shopping event and retail sales day",
-    status: "suggested",
-    country: "Global",
-    flag: "🛍️",
-    type: "business",
-    priority: "high",
-  },
-  {
-    id: "nov4",
-    name: "Cyber Monday",
-    startDate: "2025-12-01",
-    endDate: "2025-12-01",
-    category: "business",
-    location: "Global",
-    description: "Online shopping event following Black Friday",
-    status: "suggested",
-    country: "Global",
-    flag: "💻",
-    type: "business",
-    priority: "high",
-  },
-  {
-    id: "nov5",
-    name: "World Cities Day",
-    startDate: "2025-10-31",
-    endDate: "2025-10-31",
-    category: "social",
-    location: "Global",
-    description: "UN day promoting sustainable urban development",
-    status: "suggested",
-    country: "Global",
-    flag: "🏙️",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "nov6",
-    name: "International Men's Day",
-    startDate: "2025-11-19",
-    endDate: "2025-11-19",
-    category: "social",
-    location: "Global",
-    description: "Day celebrating men's contributions to society",
-    status: "suggested",
-    country: "Global",
-    flag: "👨",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "nov7",
-    name: "World Television Day",
-    startDate: "2025-11-21",
-    endDate: "2025-11-21",
-    category: "social",
-    location: "Global",
-    description: "UN day recognizing television's impact on communication",
-    status: "suggested",
-    country: "Global",
-    flag: "📺",
-    type: "holiday",
-    priority: "low",
-  },
-
-  // DECEMBER - Year-end holidays and events
-  {
-    id: "dec1",
-    name: "Christmas Day",
-    startDate: "2025-12-25",
-    endDate: "2025-12-25",
-    category: "social",
-    location: "Global",
-    description: "Christian holiday celebrating birth of Jesus",
-    status: "suggested",
-    country: "Global",
-    flag: "🎄",
-    type: "holiday",
-    priority: "high",
-  },
-  {
-    id: "dec2",
-    name: "New Year's Eve",
-    startDate: "2025-12-31",
-    endDate: "2025-12-31",
-    category: "social",
-    location: "Global",
-    description: "Last day of the year celebration",
-    status: "suggested",
-    country: "Global",
-    flag: "🎆",
-    type: "holiday",
-    priority: "high",
-  },
-  {
-    id: "dec3",
-    name: "AWS re:Invent 2025",
-    startDate: "2025-12-02",
-    endDate: "2025-12-06",
-    category: "business",
-    location: "Las Vegas, USA",
-    description: "Amazon Web Services' premier cloud computing conference",
-    status: "suggested",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 65000,
-    type: "conference",
-    priority: "high",
-  },
-  {
-    id: "dec4",
-    name: "Human Rights Day",
-    startDate: "2025-12-10",
-    endDate: "2025-12-10",
-    category: "social",
-    location: "Global",
-    description: "UN day commemorating the Universal Declaration of Human Rights",
-    status: "suggested",
-    country: "Global",
-    flag: "⚖️",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "dec5",
-    name: "International Mountain Day",
-    startDate: "2025-12-11",
-    endDate: "2025-12-11",
-    category: "social",
-    location: "Global",
-    description: "UN day celebrating mountain ecosystems and cultures",
-    status: "suggested",
-    country: "Global",
-    flag: "🏔️",
-    type: "holiday",
-    priority: "low",
-  },
-  {
-    id: "dec6",
-    name: "International Migrants Day",
-    startDate: "2025-12-18",
-    endDate: "2025-12-18",
-    category: "social",
-    location: "Global",
-    description: "UN day recognizing migrants' contributions and challenges",
-    status: "suggested",
-    country: "Global",
-    flag: "🌍",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "dec7",
-    name: "Winter Solstice",
-    startDate: "2025-12-21",
-    endDate: "2025-12-21",
-    category: "social",
-    location: "Global",
-    description: "Astronomical beginning of winter in Northern Hemisphere",
-    status: "suggested",
-    country: "Global",
-    flag: "❄️",
-    type: "holiday",
-    priority: "low",
-  },
-]
-
-
 
 // Custom Event Tooltip Component with Today's New Logic
 const EventTooltip = ({ children, event, isVisible, day, currentDate }: {
@@ -1378,6 +452,7 @@ export default function EventsCalendarPage() {
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false)
 
   const [isDayViewOpen, setIsDayViewOpen] = useState(false)
+  const [isSaveEvent, setIsSaveEvent] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
   const [bookmarkSearchQuery, setBookmarkSearchQuery] = useState("")
@@ -1553,6 +628,9 @@ export default function EventsCalendarPage() {
   const [isCategoryOpen, setIsCategoryOpen] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<string[]>(["All"])
 
+  const [selectHotelLatitude, setHotelLatitude] = useState("")
+  const [selectHotelLongitude, setHotelLongitude] = useState("")
+
   // Helper function to check if a main category should be checked (main dropdown)
   const isMainCategoryChecked = useCallback((categoryName: string) => {
     // Define all category names statically
@@ -1592,44 +670,44 @@ export default function EventsCalendarPage() {
   const [descriptionError, setDescriptionError] = useState("")
 
 
+  // const sampleEvents: any = []
+  // // Initialize events with sample events and stored custom events
+  // useEffect(() => {
+  //   const initializeEvents = () => {
+  //     try {
+  //       const storedCustomEvents = loadCustomEventsFromStorage()
+  //       const combinedEvents = [...sampleEvents, ...storedCustomEvents]
+  //       setEvents(combinedEvents)
+  //       console.log(`🚀 Initialized with ${sampleEvents.length} sample events and ${storedCustomEvents.length} custom events`)
+  //     } catch (error) {
+  //       console.error('Failed to initialize events:', error)
+  //       // Fallback to just sample events
+  //       setEvents(sampleEvents)
+  //     }
+  //   }
 
-  // Initialize events with sample events and stored custom events
-  useEffect(() => {
-    const initializeEvents = () => {
-      try {
-        const storedCustomEvents = loadCustomEventsFromStorage()
-        const combinedEvents = [...sampleEvents, ...storedCustomEvents]
-        setEvents(combinedEvents)
-        console.log(`🚀 Initialized with ${sampleEvents.length} sample events and ${storedCustomEvents.length} custom events`)
-      } catch (error) {
-        console.error('Failed to initialize events:', error)
-        // Fallback to just sample events
-        setEvents(sampleEvents)
-      }
-    }
+  //   // Initialize immediately
+  //   initializeEvents()
 
-    // Initialize immediately
-    initializeEvents()
+  //   // Also try to reload after a short delay in case of timing issues
+  //   const timeoutId = setTimeout(() => {
+  //     const storedCustomEvents = loadCustomEventsFromStorage()
 
-    // Also try to reload after a short delay in case of timing issues
-    const timeoutId = setTimeout(() => {
-      const storedCustomEvents = loadCustomEventsFromStorage()
+  //     if (storedCustomEvents.length > 0) {
+  //       setEvents(prev => {
+  //         const currentCustomCount = prev.filter(e => e.isCustom).length
 
-      if (storedCustomEvents.length > 0) {
-        setEvents(prev => {
-          const currentCustomCount = prev.filter(e => e.isCustom).length
+  //         if (currentCustomCount !== storedCustomEvents.length) {
+  //           console.log('🔄 Reloading events due to count mismatch')
+  //           return [...sampleEvents, ...storedCustomEvents]
+  //         }
+  //         return prev
+  //       })
+  //     }
+  //   }, 500)
 
-          if (currentCustomCount !== storedCustomEvents.length) {
-            console.log('🔄 Reloading events due to count mismatch')
-            return [...sampleEvents, ...storedCustomEvents]
-          }
-          return prev
-        })
-      }
-    }, 500)
-
-    return () => clearTimeout(timeoutId)
-  }, [])
+  //   return () => clearTimeout(timeoutId)
+  // }, [])
 
   // Simulate data loading with progress tracking (only on first load)
   useEffect(() => {
@@ -1689,110 +767,6 @@ export default function EventsCalendarPage() {
     { id: "social", name: "Social", icon: PartyPopper, color: "text-pink-600" },
     { id: "holidays", name: "Holidays", icon: Sparkles, color: "text-amber-600" }
   ]
-
-  // Country options
-  // const countryOptions = [
-  //   { id: "usa", label: "United States", flag: "🇺🇸" us },
-  //   { id: "uae", label: "United Arab Emirates", flag: "🇦🇪" AE},
-  //   { id: "uk", label: "United Kingdom", flag: "🇬🇧" },
-  //   { id: "france", label: "France", flag: "🇫🇷" },
-  //   { id: "germany", label: "Germany", flag: "🇩🇪" },
-  //   { id: "japan", label: "Japan", flag: "🇯🇵" },
-  //   { id: "spain", label: "Spain", flag: "🇪🇸" },
-  //   { id: "italy", label: "Italy", flag: "🇮🇹" },
-  //   { id: "australia", label: "Australia", flag: "🇦🇺" },
-  //   { id: "canada", label: "Canada", flag: "🇨🇦" },
-  //   { id: "singapore", label: "Singapore", flag: "🇸🇬" },
-  //   { id: "thailand", label: "Thailand", flag: "🇹🇭" }
-  // ]
-
-  // City options based on selected country
-  // const cityOptions = {
-  //   "United States": [
-  //     { id: "nyc", label: "New York" },
-  //     { id: "la", label: "Los Angeles" },
-  //     { id: "chicago", label: "Chicago" },
-  //     { id: "miami", label: "Miami" },
-  //     { id: "vegas", label: "Las Vegas" }
-  //   ],
-  //   "United Arab Emirates": [
-  //     { id: "dubai", label: "Dubai" },
-  //     { id: "abudhabi", label: "Abu Dhabi" },
-  //     { id: "sharjah", label: "Sharjah" },
-  //     { id: "fujairah", label: "Fujairah" }
-  //   ],
-  //   "United Kingdom": [
-  //     { id: "london", label: "London" },
-  //     { id: "manchester", label: "Manchester" },
-  //     { id: "birmingham", label: "Birmingham" },
-  //     { id: "edinburgh", label: "Edinburgh" },
-  //     { id: "liverpool", label: "Liverpool" }
-  //   ],
-  //   "France": [
-  //     { id: "paris", label: "Paris" },
-  //     { id: "marseille", label: "Marseille" },
-  //     { id: "lyon", label: "Lyon" },
-  //     { id: "nice", label: "Nice" },
-  //     { id: "cannes", label: "Cannes" }
-  //   ],
-  //   "Germany": [
-  //     { id: "berlin", label: "Berlin" },
-  //     { id: "munich", label: "Munich" },
-  //     { id: "hamburg", label: "Hamburg" },
-  //     { id: "cologne", label: "Cologne" },
-  //     { id: "frankfurt", label: "Frankfurt" }
-  //   ],
-  //   "Japan": [
-  //     { id: "tokyo", label: "Tokyo" },
-  //     { id: "osaka", label: "Osaka" },
-  //     { id: "kyoto", label: "Kyoto" },
-  //     { id: "yokohama", label: "Yokohama" },
-  //     { id: "kobe", label: "Kobe" }
-  //   ],
-  //   "Spain": [
-  //     { id: "madrid", label: "Madrid" },
-  //     { id: "barcelona", label: "Barcelona" },
-  //     { id: "valencia", label: "Valencia" },
-  //     { id: "seville", label: "Seville" },
-  //     { id: "bilbao", label: "Bilbao" }
-  //   ],
-  //   "Italy": [
-  //     { id: "rome", label: "Rome" },
-  //     { id: "milan", label: "Milan" },
-  //     { id: "venice", label: "Venice" },
-  //     { id: "florence", label: "Florence" },
-  //     { id: "naples", label: "Naples" }
-  //   ],
-  //   "Australia": [
-  //     { id: "sydney", label: "Sydney" },
-  //     { id: "melbourne", label: "Melbourne" },
-  //     { id: "brisbane", label: "Brisbane" },
-  //     { id: "perth", label: "Perth" },
-  //     { id: "adelaide", label: "Adelaide" }
-  //   ],
-  //   "Canada": [
-  //     { id: "toronto", label: "Toronto" },
-  //     { id: "vancouver", label: "Vancouver" },
-  //     { id: "montreal", label: "Montreal" },
-  //     { id: "calgary", label: "Calgary" },
-  //     { id: "ottawa", label: "Ottawa" }
-  //   ],
-  //   "Singapore": [
-  //     { id: "downtown", label: "Downtown Core" },
-  //     { id: "orchard", label: "Orchard" },
-  //     { id: "marina", label: "Marina Bay" },
-  //     { id: "sentosa", label: "Sentosa" }
-  //   ],
-  //   "Thailand": [
-  //     { id: "bangkok", label: "Bangkok" },
-  //     { id: "phuket", label: "Phuket" },
-  //     { id: "chiangmai", label: "Chiang Mai" },
-  //     { id: "pattaya", label: "Pattaya" },
-  //     { id: "krabi", label: "Krabi" }
-  //   ]
-  // }
-
-
 
   const [enabledEventTypes, setEnabledEventTypes] = useState<{
     bookmarked: boolean;
@@ -1889,6 +863,11 @@ export default function EventsCalendarPage() {
 
     return selectedCities.includes(cityName)
   }, [selectedCities, selectedCountry, cityOptions])
+
+  useEffect(() => {
+    setNewEventCountry(selectedProperty?.country || ""); // Default country
+    setNewEventCity(selectedProperty?.city || "");       // Default city
+  }, [selectedProperty]);
 
   // Get display text for city button
   const getCityDisplayText = useCallback(() => {
@@ -2001,18 +980,14 @@ export default function EventsCalendarPage() {
   // }, [])
 
   const toggleBookmark = useCallback(async (eventId: string) => {
-    const event = events.find(ev => ev.id === eventId);
+  
+    const event = events.find(ev => ev.eventId === eventId);
     if (!event) return;
-    const newStatus: "bookmarked" | "suggested" | "available" =
-      event.status === "bookmarked" || event.status === "suggested"
-        ? "available"
-        : "bookmarked";
     if (event.isCustom) {
       // Decide new status before API call
-
       const filtersValues = {
-        eventId: event.id,
-        action: newStatus === "bookmarked" ? 2 : 1,
+        eventId: event.eventId,
+        action: event.status === "bookmarked" ? 2 : 1,
         isCustom: event.isCustom,
       };
 
@@ -2020,11 +995,31 @@ export default function EventsCalendarPage() {
         const response = await setSubscribeUnsubscribeEvent(filtersValues);
         if (response?.status) {
           //  Update UI only after success
-          setEvents(prevEvents =>
-            prevEvents.map(ev =>
-              ev.id === eventId ? { ...ev, status: newStatus } : ev
-            )
-          );
+          setApiSubscribeEvents(prevEvents => {
+            const newEvents = prevEvents.map(event => {
+              if (event.eventId === eventId) {
+                // const newStatus: "bookmarked" | "suggested" | "available" = (event.status === "bookmarked" || event.status === "suggested") ? "available" : "bookmarked"
+                let newStatus: "bookmarked" | "suggested" | "available";
+                switch (event.status) {
+                  case "bookmarked":
+                    newStatus = "available";
+                    break;
+                  case "available":
+                    newStatus = "bookmarked";
+                    break;
+                  case "suggested":
+                    newStatus = "bookmarked";
+                    break;
+                  default:
+                    newStatus = "available";
+                }
+                return { ...event, status: newStatus }
+              }
+              return event
+            })
+            return newEvents
+          })
+
         } else {
           console.warn("API failed, UI not updated");
         }
@@ -2034,9 +1029,9 @@ export default function EventsCalendarPage() {
     } else if (event.type === "holiday") {
       if (!event) return;
       var filtersValue = {
-        "EventHolidayID": event.id,
+        "EventHolidayID": event.eventId,
         "SID": selectedProperty?.sid,
-        "IsActive": event.status == "bookmarked" ? 0 : 1,
+        "IsActive": event.status == "bookmarked" ? false : true,
         "Imapact": event.priority === "high" ? 1 : event.priority === "medium" ? 2 : 3,
         "Type": 0
       }
@@ -2045,7 +1040,32 @@ export default function EventsCalendarPage() {
         const resSubsUnsubsHoliday = await setSubsUnSubsHolidayEvent(filtersValue)
         const result = resSubsUnsubsHoliday
         if (result.status) {
-          setEvents((prev) => [...prev, result.data ?? event]);
+          //setEvents((prev) => [...prev, result.data ?? event]);
+          setApiHolidays(prevEvents => {
+            const newEvents = prevEvents.map(event => {
+              if (event.eventId === eventId) {
+                //const newStatus: "bookmarked" | "suggested" | "available" = (event.status === "bookmarked" || event.status === "suggested") ? "available" : "bookmarked"
+                let newStatus: "bookmarked" | "holidays" | "available";
+                switch (event.status) {
+                  case "bookmarked":
+                    newStatus = "available";
+                    break;
+                  case "available":
+                    newStatus = "bookmarked";
+                    break;
+                  case "holidays":
+                    newStatus = "bookmarked";
+                    break;
+                  default:
+                    newStatus = "holidays";
+                }
+                return { ...event, status: newStatus }
+              }
+              return event
+            })
+            return newEvents
+          })
+
           setMessage("Non Custom Event Subscribe Successfully");
         } else {
           setMessage("Non Custom Event Not Subscribe Or Failed :" + (result.message || ""));
@@ -2054,30 +1074,41 @@ export default function EventsCalendarPage() {
         console.error("Error inserting event:", error);
       }
     } else if (event.status == 'suggested' || event.status == 'available') {
-      let addEventObj = {
-        EventType: event.type,
-        EventImpact: event.priority === "high" ? 1 : event.priority === "medium" ? 2 : 3,
-        EventTo: event.endDate,
-        EventFrom: event.startDate,
-        EventLocation: event.location,
-        EventDescription: event.description,
+      const addEventObj = {
+        EventId: event.eventId,
         EventName: event.name,
-        Charge: "Free",
-        Sid: selectedProperty?.sid,
-        RepeatsBy: "50986",
-        IsCustom: false,
-        IsRepeat: false,
-        Latitude: 13.7451222401638,
-        Longitude: 100.556809902191
+        EventFrom: event.startDate,
+        EventTo: event.endDate,
+        Charge: event.charge,
+        MasterEventId: event.masterEventId,
+        EventProfile: event.EventProfileId,
+        EventLocation: event.location,
+        EventCity: event.eventCity,
+        EventType: event.type,
+        IsCustom: 0,
+        SID: selectedProperty?.sid,
+        ImageUrl: event.imageUrl,
+        EventImpact: event.priority === "high" ? 1 : event.priority === "medium" ? 2 : 3,
+        EventDescription: event.description,
+        isRepeat: event.isRepeat,
+        Repeats: event.isRepeat ? parseInt(event.repeats) : null,
+        RepeatsBy: event.isRepeat ? event.repeatsBy : null,
+        RepeatEvery: event.isRepeat ? parseInt(event.repeatEvery) : null,
+        Latitude: selectHotelLatitude !== "" ? selectHotelLatitude : 0,
+        Longitude: selectHotelLongitude !== "" ? selectHotelLongitude : 0
 
       }
       try {
         //Call backend API
-        const response: any = await saveEvents(addEventObj)
-        if (response.status) {
-          setEvents((prev) => [...prev, response.body.eventId ?? event]);
+        setLoadingProgress(100)
+        const response: any = await saveEvents(addEventObj);
+        if (response?.status) {
+          //const serverId = String(response?.body?.eventId ?? "");
+          setIsSaveEvent(true);
+          setLoadingProgress(0)
           setMessage("Non Custom Event Subscribe Successfully");
-        } else {
+        }
+        else {
           setMessage("Non Custom Event Not Subscribe Or Failed :" + (response.message || ""));
         }
       } catch (error) {
@@ -2085,7 +1116,6 @@ export default function EventsCalendarPage() {
       }
     }
     else {
-
       const filtersValues = {
         eventId: event.id,
         action: 0,
@@ -2095,11 +1125,17 @@ export default function EventsCalendarPage() {
         const response = await setSubscribeUnsubscribeEvent(filtersValues);
         if (response?.status) {
           //  Update UI only after success
-          setEvents(prevEvents =>
-            prevEvents.map(ev =>
-              ev.id === eventId ? { ...ev, status: newStatus } : ev
-            )
-          );
+          setApiSubscribeEvents(prevEvents => {
+            const newEvents = prevEvents.map(event => {
+              if (event.eventId === eventId) {
+                const newStatus: "bookmarked" | "suggested" | "available" = (event.status === "bookmarked" || event.status === "available") ? "available" : "bookmarked"
+                return { ...event, status: newStatus }
+              }
+              return event
+            })
+            return newEvents
+          })
+
         } else {
           console.warn("API failed, UI not updated");
         }
@@ -2110,15 +1146,7 @@ export default function EventsCalendarPage() {
 
   }, [events]);
 
-  const [newEvent, setNewEvent] = useState({
-    name: "",
-    startDate: "",
-    endDate: "",
-    category: "conference" as "conference" | "tradeshow" | "workshop" | "social",
-    country: "",
-    city: "",
-    description: "",
-  })
+
 
   // Add Event modal states
   const [newEventCountry, setNewEventCountry] = useState("")
@@ -2127,6 +1155,16 @@ export default function EventsCalendarPage() {
   // Edit Event modal states
   const [isEditEventOpen, setIsEditEventOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
+
+  const [newEvent, setNewEvent] = useState({
+    name: "",
+    startDate: "",
+    endDate: "",
+    category: "conference" as "conference" | "tradeshow" | "workshop" | "social",
+    country: selectedProperty?.country,
+    city: "",
+    description: "",
+  })
 
   // Handle new event country selection
   const handleNewEventCountrySelect = (country: string) => {
@@ -2140,7 +1178,7 @@ export default function EventsCalendarPage() {
       setNewEventCity(firstCity)
       setNewEvent((prev) => ({ ...prev, city: firstCity }))
     } else {
-      setNewEventCity("")
+      // setNewEventCity("")
       setNewEvent((prev) => ({ ...prev, city: "" }))
     }
   }
@@ -2151,19 +1189,41 @@ export default function EventsCalendarPage() {
     setNewEvent((prev) => ({ ...prev, city }))
   }
 
+  useEffect(() => {
+    const defaultCountry = selectedProperty?.country || selectedCountry;
+
+    if (defaultCountry !== "" && !newEvent.country) {
+      setNewEvent((prev) => ({ ...prev, country: defaultCountry }));
+    }
+    setNewEventCountry(defaultCountry)
+    setNewEvent((prev) => ({ ...prev, defaultCountry }))
+
+    // Auto-select first city of the new country
+    const cities = cityOptions
+    if (cities && cities.length > 0) {
+      const firstCity = cities[0].label
+      setNewEventCity(firstCity)
+      setNewEvent((prev) => ({ ...prev, city: firstCity }))
+    } else {
+      setNewEventCity("")
+      setNewEvent((prev) => ({ ...prev, city: "" }))
+    }
+  }, [countryList]);
+
   // Handle edit event
   const handleEditEvent = async (event: Event) => {
+
     setEditingEvent(event)
     setNewEvent({
       name: event.name,
       startDate: event.startDate,
       endDate: event.endDate,
       category: event.type as typeof newEvent.category,
-      country: event.country || "",
+      country: event.country || event.location.split(", ")[1],
       city: event.location.split(", ")[0] || "",
       description: event.description,
     })
-    setNewEventCountry(event.country || "")
+    setNewEventCountry(event.country || event.location.split(", ")[1])
     setNewEventCity(event.location.split(", ")[0] || "")
     setIsEditEventOpen(true)
   }
@@ -2180,7 +1240,7 @@ export default function EventsCalendarPage() {
 
   // Show delete confirmation dialog
   const showDeleteConfirmation = (eventId: string) => {
-    const event = events.find(e => e.id === eventId)
+    const event = events.find(e => e.eventId === eventId)
     if (event && event.isCustom) {
       setEventToDelete(event)
       setIsDeleteDialogOpen(true)
@@ -2193,9 +1253,9 @@ export default function EventsCalendarPage() {
     try {
       const response = await deleteEvents(Number(eventId));
       if (response.status) {
-        //delete  state with new event   
-        setEvents((prev) => {
-          const updatedEvents = prev.filter((event) => event.id !== eventId)
+        //delete  state with new event  setEvents 
+        setApiSubscribeEvents((prev) => {
+          const updatedEvents = prev.filter((event) => event.eventId !== eventId)
           const customEvents = updatedEvents.filter(e => e.isCustom)
           saveCustomEventsToStorage(customEvents)
           return updatedEvents
@@ -2210,22 +1270,12 @@ export default function EventsCalendarPage() {
       console.error("Error delete  event:", error);
       setMessage("Something went wrong while delete  event!");
     }
-
-    // setEvents((prev) => {
-    //   const updatedEvents = prev.filter((event) => event.id !== eventId)
-    //   // Save only custom events to localStorage
-    //   const customEvents = updatedEvents.filter(e => e.isCustom)
-    //   saveCustomEventsToStorage(customEvents)
-    //   return updatedEvents
-    // })
-    // setIsDeleteDialogOpen(false)
-    // setEventToDelete(null)
   }
 
   // Handle save edited event
   const handleSaveEditedEvent = async () => {
+   
     if (!editingEvent) return
-
     const updatedEvent: Event = {
       ...editingEvent,
       name: newEvent.name,
@@ -2239,7 +1289,7 @@ export default function EventsCalendarPage() {
     }
     let updateEventObj = {
       Sid: selectedProperty?.sid,
-      EventId: updatedEvent.id,
+      EventId: updatedEvent.eventId,
       EventName: updatedEvent.name,
       EventDescription: updatedEvent.description,
       EventLocation: updatedEvent.location,
@@ -2251,53 +1301,49 @@ export default function EventsCalendarPage() {
       RepeatsBy: "50986",
       IsCustom: true,
       IsRepeat: false,
-      Latitude: 13.7451222401638,
-      Longitude: 100.556809902191
+      Latitude: selectHotelLatitude ? selectHotelLatitude : 0,
+      Longitude: selectHotelLongitude ? selectHotelLongitude : 0
     }
     try {
-      const response = await updateEvents(updateEventObj);
-      if (response.status) {
-        //Update state with new event
-        setEvents((prev) => {
-          const updatedEvents = prev.map((event) =>
-            event.id === editingEvent.id ? updatedEvent : event
-          );
-          const customEvents = updatedEvents.filter(e => e.isCustom)
-          saveCustomEventsToStorage(customEvents)
-          setMessage("Event updated successfully!");
-          return updatedEvents
-        })
-      } else {
-        setMessage("Failed to update event: " + (response.message || ""));
+      setLoadingProgress(100)
+      const resEdit = await updateEvents(updateEventObj);
+      if (resEdit?.status) {
+        // setEvents(prev => [...prev, tempEvent]);
+        const serverId = String(resEdit?.body?.eventId ?? "");
+        setIsSaveEvent(true);
+        setLoadingProgress(0)
+        //  setEvents((prev) => {
+        //   const updatedEvents = prev.map((event) =>
+        //     event.eventId === editingEvent.eventId ? updatedEvent : event
+        //   );
+        //   const customEvents = updatedEvents.filter(e => e.isCustom)
+        //   saveCustomEventsToStorage(customEvents)
+        //   setMessage("Event updated successfully!");
+        //   return updatedEvents
+        // })
+
+      }
+      else {
+        setMessage("Failed to update event: " + (resEdit.message || ""));
       }
     } catch (error) {
       console.error("Error updating event:", error);
       setMessage("Something went wrong while updating event!");
     }
 
-    // setEvents((prev) => {
-    //   const updatedEvents = prev.map((event) =>
-    //     event.id === editingEvent.id ? updatedEvent : event
-    //   )
-    //   // Save only custom events to localStorage
-    //   const customEvents = updatedEvents.filter(e => e.isCustom)
-    //   saveCustomEventsToStorage(customEvents)
-    //   return updatedEvents
-    // })
-
     setIsEditEventOpen(false)
     setEditingEvent(null)
-    setNewEvent({
+    setNewEvent((prev) => ({
       name: "",
       startDate: "",
       endDate: "",
       category: "conference",
-      country: "",
-      city: "",
+      country: prev.country,
+      city: prev.city,
       description: "",
-    })
-    setNewEventCountry("")
-    setNewEventCity("")
+    }));
+    // setNewEventCountry("")
+    // setNewEventCity("")
   }
 
   // Fetch events from API
@@ -2328,7 +1374,10 @@ export default function EventsCalendarPage() {
             flag: "https://optima.rategain.com/optima/Content/images/flag/" + country + ".jpg"
           }))
           setCountryList(countryList);
+          setHotelLatitude(response.body.hotelLatitude)
+          setHotelLongitude(response.body.hotelLongitude)
           setSelectedCountry(selectedProperty?.country || countryList[0]?.label || "")
+
         }
       } catch (error) {
         console.error('Failed to fetch events:', error)
@@ -2348,7 +1397,6 @@ export default function EventsCalendarPage() {
           }))
           console.log(`🌆 Fetched ${cities} cities for country ${selectedProperty?.country || ''}`)
           setCityOptions(cities);
-          // setSelectedCity(cities[0]?.label || '')
         }
       } catch (error) {
         console.error('Failed to fetch country list:', error)
@@ -2373,10 +1421,10 @@ export default function EventsCalendarPage() {
         if (response?.status && response?.body) {
           var holidays = [...response.body[0].holidayDetail];
           const combinedEvents = [] as Event[]
-          console.log("holidays===>>", holidays)
           holidays.map((x, index) => {
             const convertedEvent: Event = {
-              id: `${x.eventHolidayID}`,
+              id: `apiHoliday_${index}`,
+              eventId: x.eventHolidayID,
               name: x.holidayName || '',
               startDate: x.holidayDispalyDate || new Date().toISOString().split('T')[0],
               endDate: x.holidayDispalyDate || new Date().toISOString().split('T')[0],
@@ -2387,7 +1435,16 @@ export default function EventsCalendarPage() {
               country: x.holidayCountry || '',
               flag: '🇦🇪',
               type: 'holiday',
-              priority: 'high'
+              priority: 'high',
+              eventCity: "",
+              charge: "",
+              masterEventId: "",
+              EventProfileId: "",
+              imageUrl: "",
+              isRepeat: false,
+              repeats: "",
+              repeatsBy: "",
+              repeatEvery: null
             }
             combinedEvents.push(convertedEvent)
           }
@@ -2403,73 +1460,33 @@ export default function EventsCalendarPage() {
       }
     }
 
-    const fetchAllSubscribeEvents = async () => {
-      const startDate = startOfMonth(currentDate)
-      const endDate = endOfMonth(currentDate);
-      try {
-        setIsLoading(true)
-        const filtersValue = {
-          //"Country": [selectedProperty?.country ?? ''],
-          //"City": [selectedProperty?.city ?? ''],
-          "SID": selectedProperty?.sid,
-          "StartDate": conevrtDateforApi(startDate?.toString()),
-          "EndDate": conevrtDateforApi(endDate?.toString()),
-          "Distance": 100,
-          "pageNumber": 1,
-          "pageCount": 500,
-          "lattitude": 0,
-          "longitude": 0
-        }
-        const response = await getAllSubscribeEvents(filtersValue)
-        if (response?.status && response?.body) {
-          var Subscribes = [...response.body.eventDetails];
-          const combinedSubscribeEvents = [] as Event[]
-          console.log("Subscribes===>>", Subscribes)
-          Subscribes.filter(x => x.isSubscribed === true).map((apiEvent, index) => {
-            const convertedSubscribeEvent: Event = {
-              id: `${apiEvent.eventId}`,
-              name: apiEvent.eventName || 'Unnamed Event',
-              startDate: apiEvent.startDate || apiEvent.eventFrom || new Date().toISOString().split('T')[0],
-              endDate: apiEvent.endDate || apiEvent.eventTo || new Date().toISOString().split('T')[0],
-              category: apiEvent.eventType?.trim(),
-              location: apiEvent.eventLocation || 'Dubai, UAE',
-              description: apiEvent.eventDescription || 'Event details not available',
-              status: apiEvent.isSubscribed === true ? "bookmarked" : "available" as const,
-              country: apiEvent.eventCountry || '',
-              flag: apiEvent.flag || '🇦🇪',
-              isCustom: apiEvent.isCustom || false,
-              type: apiEvent.eventType?.trim() || 'business',
-              priority: apiEvent.eventColor === 'PositiveHigh' ? 'high' : apiEvent.eventColor === 'medium' ? 'medium' : 'low'
 
-            }
-            combinedSubscribeEvents.push(convertedSubscribeEvent)
-          })
-          setApiSubscribeEvents(combinedSubscribeEvents);
-        }
-      } catch (error) {
-        console.error('Failed to fetch events:', error)
-        // Fallback to sample data if API fails
-        setApiSubscribeEvents([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
 
     if (!!currentDate && selectedProperty?.sid) {
       // Only fetch events if both start and end dates are set
       Promise.all([fetchEventsData(), fetchEventCitiesCountryList(), fetchHolidayData(), fetchAllSubscribeEvents()]);
-      // fetchEventsData();
-      // fetchEventCitiesCountryList();
     }
   }, [currentDate, selectedProperty?.sid])
 
-  // Combine API events with sample events
   useEffect(() => {
+    if (isSaveEvent) {
+      // load events from API
+      fetchAllSubscribeEvents();
+
+      // reset so it can trigger next time too
+      setIsSaveEvent(false);
+    }
+  }, [isSaveEvent]);
+
+
+  // Combine API events with sample events
+  useEffect(() => {  
     const combinedEvents = [] as Event[]
     // Convert API events to our Event interface format
     apiEvents.forEach((apiEvent, index) => {
       const convertedEvent: Event = {
-        id: `${apiEvent?.eventId}`,
+        id: `api_${index}`,
+        eventId: apiEvent.eventId,
         name: apiEvent.eventName || 'Unnamed Event',
         startDate: apiEvent.startDate || apiEvent.eventFrom || new Date().toISOString().split('T')[0],
         endDate: apiEvent.endDate || apiEvent.eventTo || new Date().toISOString().split('T')[0],
@@ -2481,23 +1498,26 @@ export default function EventsCalendarPage() {
         flag: apiEvent.flag || '🇦🇪',
         isCustom: apiEvent.isCustom || false,
         type: apiEvent.eventType?.trim() || 'business',
-        priority: apiEvent.eventColor === 'PositiveHigh' ? 'high' : apiEvent.eventColor === 'medium' ? 'medium' : 'low'
-
+        priority: apiEvent.eventColor === 'PositiveHigh' ? 'high' : apiEvent.eventColor === 'medium' ? 'medium' : 'low',
+        eventCity: apiEvent.eventCity,
+        charge: apiEvent.charge || "",
+        masterEventId: apiEvent.masterEventId || "",
+        EventProfileId: apiEvent.eventProfileId || "",
+        imageUrl: apiEvent.imageUrl || "",
+        isRepeat: apiEvent.isRepeat || false,
+        repeats: apiEvent.repeats || "",
+        repeatsBy: apiEvent.repeatsBy || "",
+        repeatEvery: apiEvent.repeatEvery || null
       }
       combinedEvents.push(convertedEvent)
     })
-    // const merged = [...combinedEvents, ...apiHolidays, ...apiSubscribeEvents];
-    // const uniqueEvents = Array.from(
-    //   new Map(merged.map(item => [item.name, item])).values()
-    // );
     setEvents([...combinedEvents, ...apiHolidays])
-
     setApiSubscribeEventList([...apiHolidays, ...apiSubscribeEvents])
   }, [apiEvents, apiHolidays, apiSubscribeEvents])
 
   // Filter events based on current view and enabled event types
   useEffect(() => {
-    let filtered = events.filter((event) => {
+    let filtered = apiSubscribeEvents.filter((event) => {
       // Check each event type independently and only show if enabled
 
       // Status-based filtering (bookmarked)
@@ -2584,6 +1604,65 @@ export default function EventsCalendarPage() {
     setIsMonthPickerOpen(false)
   }
 
+  const fetchAllSubscribeEvents = async () => {
+    const startDate = startOfMonth(currentDate)
+    const endDate = endOfMonth(currentDate);
+    try {
+      setIsLoading(true)
+      const filtersValue = {
+        "SID": selectedProperty?.sid,
+        "StartDate": conevrtDateforApi(startDate?.toString()),
+        "EndDate": conevrtDateforApi(endDate?.toString()),
+        "Distance": 100,
+        "pageNumber": 1,
+        "pageCount": 500,
+        "lattitude": 0,
+        "longitude": 0
+      }
+      const response = await getAllSubscribeEvents(filtersValue)
+      if (response?.status && response?.body) {
+        var Subscribes = [...response.body.eventDetails];
+        const combinedSubscribeEvents = [] as Event[]
+        Subscribes.filter(x => x.isSubscribed === true).map((apiEvent, index) => {
+          const convertedSubscribeEvent: Event = {
+            id: `apiSubsCribe_${index}`,
+            eventId: apiEvent.eventId,
+            name: apiEvent.eventName || 'Unnamed Event',
+            startDate: apiEvent.startDate || apiEvent.eventFrom || new Date().toISOString().split('T')[0],
+            endDate: apiEvent.endDate || apiEvent.eventTo || new Date().toISOString().split('T')[0],
+            category: apiEvent.eventType?.trim(),
+            location: apiEvent.eventLocation || 'Dubai, UAE',
+            description: apiEvent.eventDescription || 'Event details not available',
+            status: apiEvent.isSubscribed === true ? "bookmarked" : "available" as const,
+            country: apiEvent.eventCountry || '',
+            flag: apiEvent.flag || '🇦🇪',
+            isCustom: apiEvent.isCustom || false,
+            type: apiEvent.eventType?.trim() || 'business',
+            priority: apiEvent.eventColor === 'PositiveHigh' ? 'high' : apiEvent.eventColor === 'medium' ? 'medium' : 'low',
+            eventCity: apiEvent.eventCity,
+            charge: apiEvent.charge,
+            masterEventId: apiEvent.masterEventId || "",
+            EventProfileId: apiEvent.eventProfileId || "",
+            imageUrl: apiEvent.imageUrl || "",
+            isRepeat: apiEvent.isRepeat || false,
+            repeats: apiEvent.repeats || "",
+            repeatsBy: apiEvent.repeatsBy || "",
+            repeatEvery: apiEvent.repeatEvery || null
+          }
+          combinedSubscribeEvents.push(convertedSubscribeEvent)
+        })
+        setApiSubscribeEvents(combinedSubscribeEvents);
+      }
+    } catch (error) {
+      console.error('Failed to fetch events:', error)
+      // Fallback to sample data if API fails
+      setApiSubscribeEvents([])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+
   // Update month picker year when currentDate changes
   // useEffect(() => {
 
@@ -2649,10 +1728,10 @@ export default function EventsCalendarPage() {
   const [message, setMessage] = useState<string>("");
 
   const handleAddEvent = async () => {
-
-    const tempId = `tmp_${Date.now()}`;
+      const tempId = `temp_${Date.now()}`;
     const tempEvent: Event = {
       id: tempId,
+      eventId: "",
       name: newEvent.name,
       startDate: newEvent.startDate,
       endDate: newEvent.endDate,
@@ -2665,6 +1744,15 @@ export default function EventsCalendarPage() {
       country: newEvent.country,
       isCustom: true,
       createdAt: Date.now(),
+      eventCity: "",
+      charge: "Free",
+      masterEventId: "",
+      EventProfileId: "",
+      imageUrl: "",
+      isRepeat: false,
+      repeats: "",
+      repeatsBy: "",
+      repeatEvery: null
     };
     let addEventObj = {
       EventType: tempEvent.type,
@@ -2674,65 +1762,51 @@ export default function EventsCalendarPage() {
       EventLocation: tempEvent.location,
       EventDescription: tempEvent.description,
       EventName: tempEvent.name,
-      Charge: "Free",
-      Sid: selectedProperty?.sid,
+      Charge: tempEvent.charge,
+      SID: selectedProperty?.sid,
       RepeatsBy: "50986",
       IsCustom: true,
       IsRepeat: false,
-      Latitude: 13.7451222401638,
-      Longitude: 100.556809902191
-
+      Latitude: selectHotelLatitude !== "" ? selectHotelLatitude : 0,
+      Longitude: selectHotelLongitude !== "" ? selectHotelLongitude : 0
     }
 
-    setEvents(prev => [...prev, tempEvent]);
     try {
+      setLoadingProgress(100)
       const res: any = await saveEvents(addEventObj);
       if (res?.status) {
-        setApiEvents(prev => [...prev, tempEvent]);
         const serverId = String(res?.body?.eventId ?? "");
-        const serverEvent: Event = {
-          ...tempEvent,
-          id: serverId,  
-        };
+        setIsSaveEvent(true);
 
-        //success (similar to Angular if(response.status))
-        setEvents(prev =>
-          prev.map(e => (e.id === tempId ? serverEvent : e))
-        );
-        setEvents(prev => {
-          const customEvents = prev.map(e => (e.id === tempId ? serverEvent : e));
-          saveCustomEventsToStorage(customEvents.filter(e => e.isCustom));
-          return customEvents;
-        });
       } else {
         setMessage("Failed to add event: " + (res.message || ""));
       }
+      setLoadingProgress(0)
     } catch (error) {
       console.error("Error inserting event:", error);
       setMessage("Something went wrong!");
     }
-
-
-
-    // setEvents((prev) => {
-    //   const updatedEvents = [...prev, event]
-    //   // Save only custom events to localStorage
-    //   const customEvents = updatedEvents.filter(e => e.isCustom)
-    //   saveCustomEventsToStorage(customEvents)
-    //   return updatedEvents
-    // })
-
-    setNewEvent({
+    setNewEvent((prev) => ({
       name: "",
       startDate: "",
       endDate: "",
       category: "conference",
-      country: "",
-      city: "",
+      country: prev.country,
+      city: prev.city,
       description: "",
-    })
-    setNewEventCountry("")
-    setNewEventCity("")
+    }));
+    // setNewEvent({
+    //   name: "",
+    //   startDate: "",
+    //   endDate: "",
+    //   category: "conference",
+    //   country: "",
+    //   city: "",
+    //   description: "",
+    // })
+    // setNewEventCountry("")
+    // setNewEventCity("")
+
     setIsStartDateOpen(false)
     setIsEndDateOpen(false)
     setDescriptionError("")
@@ -3272,7 +2346,7 @@ export default function EventsCalendarPage() {
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  toggleBookmark(event.id)
+                                  toggleBookmark(event.eventId)
                                 }}
                                 className="h-8 w-8 p-0"
                               >
@@ -3313,7 +2387,7 @@ export default function EventsCalendarPage() {
                                     size="sm"
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      showDeleteConfirmation(event.id)
+                                      showDeleteConfirmation(event.eventId)
                                     }}
                                     className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
                                   >
@@ -3948,7 +3022,7 @@ export default function EventsCalendarPage() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => showDeleteConfirmation(event.id)}
+                                    onClick={() => showDeleteConfirmation(event.eventId)}
                                     className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
                                     title="Delete Event"
                                   >
@@ -3963,7 +3037,7 @@ export default function EventsCalendarPage() {
                                 onMouseDown={(e) => {
                                   e.preventDefault()
                                   e.stopPropagation()
-                                  toggleBookmark(event.id)
+                                  toggleBookmark(event.eventId)
                                 }}
                                 className={cn(
                                   "px-3 gap-2 text-xs",
@@ -4212,12 +3286,13 @@ export default function EventsCalendarPage() {
                         <div className="mt-1">
                           <Popover open={isCreateCountryOpen} onOpenChange={setIsCreateCountryOpen}>
                             <PopoverTrigger asChild>
-                              <Button
+                              <Button disabled
                                 variant="outline"
                                 role="combobox"
                                 aria-expanded={isCreateCountryOpen}
                                 className="w-full justify-between"
                               >
+
                                 {newEventCountry ? (
                                   <div className="flex items-center gap-2">
                                     <span className="text-sm">
@@ -4242,8 +3317,10 @@ export default function EventsCalendarPage() {
                                       <CommandItem
                                         key={option.id}
                                         value={option.label}
-                                        onSelect={(currentValue) => {
+                                        onSelect={(currentValue: string) => {
                                           handleNewEventCountrySelect(currentValue)
+                                          setNewEventCountry(currentValue);
+                                          setNewEvent((prev) => ({ ...prev, country: currentValue }));
                                           setIsCreateCountryOpen(false)
                                         }}
                                         className="flex items-center gap-2 cursor-pointer"
@@ -4269,14 +3346,15 @@ export default function EventsCalendarPage() {
                       <div>
                         <Label htmlFor="city">City *</Label>
                         <div className="mt-1">
+                          {/* //disabled={!newEventCountry} */}
                           <Popover open={isCreateCityOpen} onOpenChange={setIsCreateCityOpen}>
                             <PopoverTrigger asChild>
-                              <Button
+                              <Button disabled
                                 variant="outline"
                                 role="combobox"
                                 aria-expanded={isCreateCityOpen}
                                 className="w-full justify-between"
-                                disabled={!newEventCountry}
+
                               >
                                 {newEventCity ? newEventCity : (newEventCountry ? "Select a city" : "Select country first")}
                                 <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -4292,8 +3370,10 @@ export default function EventsCalendarPage() {
                                       <CommandItem
                                         key={option.id}
                                         value={option.label}
-                                        onSelect={(currentValue) => {
+                                        onSelect={(currentValue: string) => {
                                           handleNewEventCitySelect(currentValue)
+                                          setNewEventCity(currentValue);
+                                          setNewEvent((prev) => ({ ...prev, city: currentValue }));
                                           setIsCreateCityOpen(false)
                                         }}
                                         className="cursor-pointer"
@@ -4562,7 +3642,7 @@ export default function EventsCalendarPage() {
                         <div className="mt-1">
                           <Popover open={isEditCountryOpen} onOpenChange={setIsEditCountryOpen}>
                             <PopoverTrigger asChild>
-                              <Button
+                              <Button disabled
                                 variant="outline"
                                 role="combobox"
                                 aria-expanded={isEditCountryOpen}
@@ -4619,6 +3699,7 @@ export default function EventsCalendarPage() {
                       <div>
                         <Label htmlFor="edit-city">City *</Label>
                         <div className="mt-1">
+                          {/* disabled={!newEventCountry} */}
                           <Popover open={isEditCityOpen} onOpenChange={setIsEditCityOpen}>
                             <PopoverTrigger asChild>
                               <Button
@@ -4626,7 +3707,7 @@ export default function EventsCalendarPage() {
                                 role="combobox"
                                 aria-expanded={isEditCityOpen}
                                 className="w-full justify-between"
-                                disabled={!newEventCountry}
+                                disabled
                               >
                                 {newEventCity ? newEventCity : (newEventCountry ? "Select a city" : "Select country first")}
                                 <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -4923,7 +4004,7 @@ export default function EventsCalendarPage() {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation()
-                            showDeleteConfirmation(event.id)
+                            showDeleteConfirmation(event.eventId)
                           }}
                           className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
                           title="Delete Event"
@@ -4938,7 +4019,7 @@ export default function EventsCalendarPage() {
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation()
-                        toggleBookmark(event.id)
+                        toggleBookmark(event.eventId)
                       }}
                       className={cn(
                         "px-3 gap-2 text-xs",
@@ -5037,7 +4118,7 @@ export default function EventsCalendarPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => showDeleteConfirmation(selectedEvent.id)}
+                        onClick={() => showDeleteConfirmation(selectedEvent.eventId)}
                         className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -5058,7 +4139,7 @@ export default function EventsCalendarPage() {
                       onMouseDown={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
-                        toggleBookmark(selectedEvent.id)
+                        toggleBookmark(selectedEvent.eventId)
                       }}
                       className={cn(
                         "px-4 gap-3",
@@ -5078,7 +4159,7 @@ export default function EventsCalendarPage() {
                       onMouseDown={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
-                        toggleBookmark(selectedEvent.id)
+                        toggleBookmark(selectedEvent.eventId)
                       }}
                       className="px-4 gap-3 hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
                     >
@@ -5112,7 +4193,7 @@ export default function EventsCalendarPage() {
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => eventToDelete && handleDeleteEvent(eventToDelete.id)}
+              onClick={() => eventToDelete && handleDeleteEvent(eventToDelete.eventId)}
               className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
             >
               Delete
