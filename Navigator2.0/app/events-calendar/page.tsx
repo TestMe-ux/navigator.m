@@ -1296,7 +1296,7 @@ export default function EventsCalendarPage() {
       EventFrom: updatedEvent.startDate,
       EventTo: updatedEvent.endDate,
       EventType: updatedEvent.type,
-      EventImpact: 1,
+      EventImpact: updatedEvent.priority === "high" ? 1 : updatedEvent.priority === "medium" ? 2 : 3,
       Charge: "Free",
       RepeatsBy: "50986",
       IsCustom: true,
