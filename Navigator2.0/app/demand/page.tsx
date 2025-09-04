@@ -130,7 +130,7 @@ function DemandPageContent() {
       getAllEventData(),
       getAllHolidayData()
     ]);
-  }, [selectedProperty?.sid]);
+  }, [startDate, endDate,selectedProperty?.sid]);
 
   const getChannelData = () => {
     return getChannels({ SID: selectedProperty?.sid })
@@ -458,7 +458,7 @@ function DemandPageContent() {
           <section className="w-full">
             <Card className="card-elevated animate-fade-in">
               <CardContent className="p-3 md:p-4 lg:p-6 xl:p-8">
-                <EnhancedDemandTrendsChart filter={filter} events={eventData} demandData={demandData} rateData={rateData} rateCompData={rateCompData}  demandCurrencySymbol={demandCurrencyDetails} />
+                <EnhancedDemandTrendsChart filter={filter} events={eventData} holidaysData={holidaysData} demandData={demandData} rateData={rateData} rateCompData={rateCompData}  demandCurrencySymbol={demandCurrencyDetails} />
               </CardContent>
             </Card>
           </section>

@@ -112,10 +112,16 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
 }
 
 // Generate events for chart dates (similar to calendar logic)
-function generateChartEvents(trendData: any[], events: any) {
-  const eventsData = Array.isArray(events) ? events : [];
+function generateChartEvents(trendData: any[], events: any, holidaysData: any) {
+  debugger
+  const eventsData = [
+    ...(Array.isArray(events) ? events : []),
+    ...(Array.isArray(holidaysData) ? holidaysData : [])
+  ];
+  // const eventsData = Array.isArray(events) ? events : [];
 
   return trendData.map((dataPoint) => {
+
     const dataDate = new Date(dataPoint.fullDate);
 
     // Find the first matching event where dataDate is between eventFrom and eventTo
@@ -125,6 +131,12 @@ function generateChartEvents(trendData: any[], events: any) {
 
       return dataDate >= fromDate && dataDate <= toDate;
     });
+    const matchingEventCount = eventsData.filter((event: any) => {
+      const fromDate = new Date(event.eventFrom);
+      const toDate = new Date(event.eventTo);
+
+      return dataDate >= fromDate && dataDate <= toDate;
+    }).length;
 
     if (matchingEvent) {
       return {
@@ -142,7 +154,8 @@ function generateChartEvents(trendData: any[], events: any) {
             day: 'numeric'
           }),
           imageUrl: matchingEvent.imageUrl
-        }
+        },
+        eventCount: matchingEventCount
       };
     }
 
@@ -154,7 +167,23 @@ function generateChartEvents(trendData: any[], events: any) {
   });
 }
 
+function countryAvgMap(data: any[][]) {
+  const totals = new Map<string, { sum: number; count: number }>();
 
+  data.forEach(day =>
+    day.forEach(({ srcCountryName, totalflights }) => {
+      const curr = totals.get(srcCountryName) || { sum: 0, count: 0 };
+      curr.sum += totalflights;
+      curr.count += 1;
+      totals.set(srcCountryName, curr);
+    })
+  );
+
+  return Array.from(totals.entries()).map(([srcCountryName, { sum, count }]) => ({
+    srcCountryName,
+    totalflights: +(sum / count).toFixed(0),
+  }));
+}
 // Aggregate daily data into weeks
 function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
   const weeks = eachWeekOfInterval({ start: startDate, end: endDate }, { weekStartsOn: 1 }) // Start week on Monday
@@ -170,7 +199,7 @@ function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
       );
     });
     if (weekData.length === 0) return null
-
+    debugger;
     // Calculate averages for the week
     const hotelADRStatus = weekData.find(item => item.hotelADRStatus === "O") ? "O" : weekData.find(item => item.hotelADRStatus === "C") ? "C" : "-";
     const avgMyPrice = Math.round(weekData.reduce((sum, item) => sum + item.hotelADR, 0) / weekData.length)
@@ -184,7 +213,7 @@ function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
     const avgMarketADRVariance = Math.round(weekData.reduce((sum, item) => sum + item.marketADRVariance, 0) / weekData.length)
     const avgAirTravellersVariance = Math.round(weekData.reduce((sum, item) => sum + item.airTravellersVariance, 0) / weekData.length)
     const avgDemandVariance = Math.round(weekData.reduce((sum, item) => sum + item.demandVariance, 0) / weekData.length)
-
+    const avgInboundAirlineData = countryAvgMap(weekData.map(item => item.inboundAirline || []));
     return {
       date: format(weekStart, "MMM d"),
       dateFormatted: `Week of ${format(weekStart, "MMM d")}`,
@@ -198,6 +227,7 @@ function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
       airTravellersVariance: avgAirTravellersVariance,
       demandVariance: avgDemandVariance,
       hotelADRStatus,
+      inboundAirline: avgInboundAirlineData,
       "Demand level": avgDemandLevel,
       "My ADR": avgMyPrice,
       "Market ADR": avgMarketADR,
@@ -274,7 +304,6 @@ function getDemandLevelKey(demandIndex: number): number {
 }
 // Custom tooltip component
 const CustomTooltip = ({ active, payload, label, datasetType, demandCurrencySymbolState }: any & { datasetType: DatasetType }) => {
-  debugger;
   if (active && payload && payload.length) {
     const data = payload[0].payload
     const demandColorClass =
@@ -544,7 +573,7 @@ const CustomLegend = ({
   )
 }
 
-export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData, rateCompData, demandCurrencySymbol }: any) {
+export function EnhancedDemandTrendsChart({ filter, events, holidaysData, demandData, rateData, rateCompData, demandCurrencySymbol }: any) {
   const { theme } = useTheme()
   const [selectedProperty] = useSelectedProperty()
   const { startDate, endDate, isLoading } = useDemandDateContext()
@@ -655,7 +684,7 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
     const dailyData = generateTrendData(actualStartDate!, actualEndDate!, demandData, rateData, filter, rateCompData)
 
     // Add event data to daily data
-    const dailyDataWithEvents = generateChartEvents(dailyData, events)
+    const dailyDataWithEvents = generateChartEvents(dailyData, events, holidaysData)
 
     // Apply aggregation based on selected period
     switch (aggregationPeriod) {
@@ -666,7 +695,7 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
       default:
         return dailyDataWithEvents
     }
-  }, [startDate, endDate, aggregationPeriod, demandData, rateData, filter, rateCompData])
+  }, [startDate, endDate, aggregationPeriod, demandData, rateData, filter, rateCompData, events, holidaysData])
 
   // Calculate Y-axis domains dynamically
   const demandDomain = [0, 4]
@@ -1149,7 +1178,7 @@ export function EnhancedDemandTrendsChart({ filter, events, demandData, rateData
                               <div className="space-y-1">
                                 <div className="flex items-center gap-1">
                                   <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                                  <span className="font-semibold text-sm text-white">{dataPoint.eventData.title}</span>
+                                  <span className="font-semibold text-sm text-white">{dataPoint.eventData.title} {dataPoint.eventCount > 1 ? "+" + dataPoint.eventCount + " more" : ""}</span>
                                   {dataPoint.eventData.flag && (
                                     <span className="text-sm">{dataPoint.eventData.flag}</span>
                                   )}

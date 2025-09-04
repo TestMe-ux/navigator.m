@@ -359,8 +359,13 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
     // Find the actual Avg Compset rate from the payload
     const actualAvgCompsetEntry = payload.find(entry => entry.name.includes('Compset') || entry.dataKey === 'avgCompset')
     const actualAvgCompsetRate = actualAvgCompsetEntry?.value || 0
-
-    const competitorRatesForRanking = allRates.filter(rate => rate !== actualAvgCompsetRate)
+    debugger;
+    const competitorRatesForRanking = (() => {
+      const cloneallRates = [...allRates];
+      const idx = cloneallRates.findIndex(r => r === actualAvgCompsetRate);
+      if (idx !== -1) cloneallRates.splice(idx, 1);
+      return cloneallRates;
+    })();
     const sortedRates = competitorRatesForRanking.sort((a, b) => a - b)
     const myPosition = sortedRates.indexOf(myHotelRate) + 1
     const totalHotels = sortedRates.length
@@ -370,7 +375,7 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
     // Get position text for each hotel (excluding Avg Compset)
     const getPositionText = (rate: number, hotelName: string) => {
       // Don't calculate position for Avg Compset
-      if (rate === actualAvgCompsetRate) return ''
+      if (rate === actualAvgCompsetRate && hotelName === "Compset Avg. Rate") return ''
 
       const position = sortedRates.indexOf(rate) + 1
 
@@ -407,9 +412,9 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
         {/* Tooltip Header */}
         <div className="mb-2 p-2 bg-gray-50 dark:bg-slate-800/50 rounded-md border border-gray-200 dark:border-slate-600">
           <div className="flex items-center justify-between gap-2 text-xs font-semibold text-gray-700 dark:text-slate-300">
-            <div className="flex-1">Hotel</div>
+            <div className="flex-1">Property</div>
             <div className="min-w-[60px] text-right">Price ({`\u200E${currencySymbol}\u200E`})</div>
-            <div className="min-w-[40px] flex items-center justify-end gap-1">
+            <div className="min-w-[40px] flex items-right justify-end gap-1">
               <Triangle className="h-4 w-4" />
               <span>%</span>
             </div>
@@ -457,6 +462,7 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
               return aValue - bValue
             })
 
+            debugger;
             return sortedPayload.map((entry, index) => {
               // Check if this is the direct property (propertyType=0) or Avg Compset (propertyType=2)
               const isDirectProperty = entry.dataKey === 'direct' || entry.name.includes('Hotel') && !entry.name.includes('Compset')
@@ -808,6 +814,7 @@ export function RateTrendsChart({ rateData, rateCompData }: any) {
       if (totalSelected <= 10) {
         newLegendVisibility[config.key] = newValue
       } else {
+
         // If we're over the limit, only show legend for first channels
         const competitorIndex = selectedCompetitors.findIndex(c => c.key === config.key)
         newLegendVisibility[config.key] = competitorIndex < (10 - (myHotelKey && newVisibility[myHotelKey] ? 1 : 0)) ? newValue : false
@@ -816,7 +823,10 @@ export function RateTrendsChart({ rateData, rateCompData }: any) {
 
     setChannelVisibility(newVisibility)
     setLegendVisibility(newLegendVisibility)
-    setErrorMessage('')
+    if (competitorChannels.length > 10) {
+      setErrorMessage('Maximum 10 channels can be displayed on the graph. Please hide a channel first to show a new one.')
+      setTimeout(() => setErrorMessage(''), 5000)
+    }
 
   }, [channelVisibility, legendVisibility, competitorChannels, myHotelChannel])
 
@@ -864,7 +874,7 @@ export function RateTrendsChart({ rateData, rateCompData }: any) {
     })
 
     // Always clear error message on successful toggle (backup)
-    setTimeout(() => setErrorMessage(''), 0)
+    // setTimeout(() => setErrorMessage(''), 0)
   }, [channelVisibility])
 
   // Custom tooltip position to keep it within chart bounds
