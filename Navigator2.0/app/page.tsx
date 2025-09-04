@@ -343,13 +343,24 @@ export default function Home() {
     getRateTrends(filtersValue)
       .then((res) => {
         if (res.status) {
-          var CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
-            const allSubscriberRate = x.subscriberPropertyRate?.map((r: any) => parseInt(r.rate) > 0 ? parseInt(r.rate) : 0) || [];
-            const ty = allSubscriberRate.length
-              ? allSubscriberRate.reduce((sum: any, rate: any) => sum + rate, 0) / allSubscriberRate.length
-              : 0;
+          const CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
+            const rates = x.subscriberPropertyRate || [];
 
-            return { ...x, AvgData: ty };
+            const [avgRate, avgStatus] = (() => {
+              const valid = rates.filter((r: any) => parseInt(r.rate) > 0 && r.status === "O").map((r: any) => parseInt(r.rate));
+              if (valid.length) return [valid.reduce((a: any, b: any) => a + b, 0) / valid.length, "O"];
+
+              const statuses = new Set(rates.map((r: any) => r.status));
+              if (statuses.has("C")) return [0, "C"];
+              if (statuses.has("ND")) return [0, "ND"];
+              return [0, "ND"];
+            })();
+
+            return {
+              ...x,
+              AvgData: avgRate,
+              AvgStatus: avgStatus
+            };
           });
           res.body.pricePositioningEntites = CalulatedData;
           console.log('Rate trends data:', res.body);
@@ -399,14 +410,24 @@ export default function Home() {
     getRateTrends(filtersValue)
       .then((res) => {
         if (res.status) {
-          debugger
-          var CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
-            const allSubscriberRate = x.subscriberPropertyRate?.map((r: any) => parseInt(r.rate) > 0 ? parseInt(r.rate) : 0) || [];
-            const ty = allSubscriberRate.length
-              ? allSubscriberRate.reduce((sum: any, rate: any) => sum + rate, 0) / allSubscriberRate.length
-              : 0;
+          const CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
+            const rates = x.subscriberPropertyRate || [];
 
-            return { ...x, AvgData: ty };
+            const [avgRate, avgStatus] = (() => {
+              const valid = rates.filter((r: any) => parseInt(r.rate) > 0 && r.status === "O").map((r: any) => parseInt(r.rate));
+              if (valid.length) return [valid.reduce((a: any, b: any) => a + b, 0) / valid.length, "O"];
+
+              const statuses = new Set(rates.map((r: any) => r.status));
+              if (statuses.has("C")) return [0, "C"];
+              if (statuses.has("ND")) return [0, "ND"];
+              return [0, "ND"];
+            })();
+
+            return {
+              ...x,
+              AvgData: avgRate,
+              AvgStatus: avgStatus
+            };
           });
           res.body.pricePositioningEntites = CalulatedData;
           console.log('Rate trends data:', res.body);
