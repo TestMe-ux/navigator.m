@@ -88,13 +88,13 @@ interface Event {
   name: string
   startDate: string
   endDate: string
-  category: "conference" | "tradeshow" | "workshop" | "social" | "holidays" | "business"
+  category: "conferences" | "tradeshow" | "workshop" | "social" | "holidays" | "business"
   location: string
   description: string
   status: "bookmarked" | "suggested" | "available" | "holidays"
   country?: string
   flag?: string
-  type: "holiday" | "conference" | "festival" | "sports" | "business" | "social"
+  type: "holiday" | "conferences" | "festival" | "sports" | "business" | "social"
   priority: "high" | "medium" | "low"
   attendees?: number
   isCustom?: boolean
@@ -456,7 +456,7 @@ export default function EventsCalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
   const [bookmarkSearchQuery, setBookmarkSearchQuery] = useState("")
-  const [bookmarkCategoryFilter, setBookmarkCategoryFilter] = useState<string[]>(["all", "conference", "tradeshow", "workshop", "social", "holidays"])
+  const [bookmarkCategoryFilter, setBookmarkCategoryFilter] = useState<string[]>(["all", "conferences", "tradeshow", "workshop", "social", "holidays"])
   const [bookmarkTypeFilter, setBookmarkTypeFilter] = useState<string[]>(["all", "bookmarked", "holiday", "suggested", "available"])
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [dropdownKey, setDropdownKey] = useState(0) // Force re-render of dropdown
@@ -464,7 +464,7 @@ export default function EventsCalendarPage() {
   // Helper function to check if a category should be checked (bookmark popup)
   const isCategoryChecked = useCallback((categoryId: string) => {
     // Always return true for individual categories when "all" is present
-    const allCategories = ["conference", "tradeshow", "workshop", "social", "holidays"]
+    const allCategories = ["conferences", "tradeshow", "workshop", "social", "holidays"]
 
     if (categoryId === "all") {
       return bookmarkCategoryFilter.includes("all")
@@ -501,7 +501,7 @@ export default function EventsCalendarPage() {
   useEffect(() => {
     // Double-check that state is consistent for UI rendering
     if (bookmarkCategoryFilter.includes("all")) {
-      const allCategories = ["all", "conference", "tradeshow", "workshop", "social", "holidays"]
+      const allCategories = ["all", "conferences", "tradeshow", "workshop", "social", "holidays"]
       const hasAllCategories = allCategories.every(cat => bookmarkCategoryFilter.includes(cat))
 
       if (!hasAllCategories) {
@@ -517,22 +517,22 @@ export default function EventsCalendarPage() {
   useEffect(() => {
     // Focus only on bookmark dropdown for now to avoid reference issues
     // Immediate sync for bookmark dropdown
-    setBookmarkCategoryFilter(["all", "conference", "tradeshow", "workshop", "social", "holidays"])
+    setBookmarkCategoryFilter(["all", "conferences", "tradeshow", "workshop", "social", "holidays"])
     setDropdownKey(prev => prev + 1)
 
     // Multiple delayed syncs to ensure UI renders correctly
     const timer1 = setTimeout(() => {
-      setBookmarkCategoryFilter(["all", "conference", "tradeshow", "workshop", "social", "holidays"])
+      setBookmarkCategoryFilter(["all", "conferences", "tradeshow", "workshop", "social", "holidays"])
       setDropdownKey(prev => prev + 1)
     }, 100)
 
     const timer2 = setTimeout(() => {
-      setBookmarkCategoryFilter(["all", "conference", "tradeshow", "workshop", "social", "holidays"])
+      setBookmarkCategoryFilter(["all", "conferences", "tradeshow", "workshop", "social", "holidays"])
       setDropdownKey(prev => prev + 1)
     }, 300)
 
     const timer3 = setTimeout(() => {
-      setBookmarkCategoryFilter(["all", "conference", "tradeshow", "workshop", "social", "holidays"])
+      setBookmarkCategoryFilter(["all", "conferences", "tradeshow", "workshop", "social", "holidays"])
       setDropdownKey(prev => prev + 1)
     }, 500)
 
@@ -634,8 +634,8 @@ export default function EventsCalendarPage() {
   // Helper function to check if a main category should be checked (main dropdown)
   const isMainCategoryChecked = useCallback((categoryName: string) => {
     // Define all category names statically
-    const allCategoryNames = ["All", "Conference", "Trade Shows", "Workshop", "Social", "Holidays"]
-    const nonAllCategories = ["Conference", "Trade Shows", "Workshop", "Social", "Holidays"]
+    const allCategoryNames = ["All", "Conferences", "Trade Shows", "Workshop", "Social", "Holidays"]
+    const nonAllCategories = ["Conferences", "Trade Shows", "Workshop", "Social", "Holidays"]
 
     if (categoryName === "All") {
       return selectedCategories.includes("All")
@@ -710,58 +710,14 @@ export default function EventsCalendarPage() {
   // }, [])
 
   // Simulate data loading with progress tracking (only on first load)
-  useEffect(() => {
-    // Only show loading for initial load, not every re-render
-    if (events.length > 0) return;
 
-    const simulateLoading = () => {
-      setIsLoading(true)
-      setLoadingProgress(0)
-
-      // Progress interval
-      const progressInterval = setInterval(() => {
-        setLoadingProgress((prev) => {
-          const increment = Math.floor(Math.random() * 9) + 3 // 3-11% increment
-          const newProgress = prev + increment
-
-          if (newProgress >= 100) {
-            setLoadingCycle(prevCycle => prevCycle + 1)
-            return 0
-          }
-
-          return newProgress
-        })
-      }, 80)
-
-      // Simulate API call completion after 1-2 seconds (shorter for better UX)
-      const loadingTimeout = setTimeout(() => {
-        clearInterval(progressInterval)
-        setLoadingProgress(100)
-
-        // Show completion for 300ms before hiding
-        setTimeout(() => {
-          setIsLoading(false)
-          setLoadingProgress(0)
-        }, 300)
-      }, 2000) // 2 seconds
-
-      return () => {
-        clearInterval(progressInterval)
-        clearTimeout(loadingTimeout)
-      }
-    }
-
-    // Only trigger loading on component mount when there are no events
-    const cleanup = simulateLoading()
-    return cleanup
-  }, [])
 
 
 
   // Category options with distinct colors
   const categoryData = [
     { id: "all", name: "All", icon: Globe, color: "text-slate-600" },
-    { id: "conference", name: "Conference", icon: Presentation, color: "text-blue-600" },
+    { id: "conferences", name: "Conferences", icon: Presentation, color: "text-blue-600" },
     { id: "tradeshow", name: "Trade Shows", icon: Building, color: "text-purple-600" },
     { id: "workshop", name: "Workshop", icon: GraduationCap, color: "text-green-600" },
     { id: "social", name: "Social", icon: PartyPopper, color: "text-pink-600" },
@@ -811,6 +767,7 @@ export default function EventsCalendarPage() {
 
   // Handle city selection with multi-select logic
   const handleCitySelect = useCallback((city: string) => {
+    debugger
     setSelectedCities(prev => {
       if (city === "All") {
         // If selecting "All", toggle between all selected and all unselected
@@ -818,7 +775,7 @@ export default function EventsCalendarPage() {
           return [] // Unselect all
         } else {
           // Get all available cities for the selected country
-          const availableCities = cityOptions[selectedCountry as keyof typeof cityOptions] || []
+          const availableCities = cityOptions || []
           return ["All", ...availableCities.map((option: any) => option.label)] // Select all
         }
       }
@@ -835,7 +792,7 @@ export default function EventsCalendarPage() {
         newSelection = [...filteredPrev, city]
 
         // Check if all cities are now selected
-        const availableCities = cityOptions[selectedCountry as keyof typeof cityOptions] || []
+        const availableCities = cityOptions || []
         if (newSelection.length === availableCities.length && availableCities.every((option: any) => newSelection.includes(option.label))) {
           newSelection = ["All", ...newSelection]
         }
@@ -849,7 +806,7 @@ export default function EventsCalendarPage() {
   // Helper function to check if a city should be checked
   const isCityChecked = useCallback((cityName: string) => {
     // Get available cities for the selected country
-    const availableCities = cityOptions[selectedCountry as keyof typeof cityOptions] || []
+    const availableCities = cityOptions || []
     const cityNames = availableCities.map((option: any) => option.label)
 
     if (cityName === "All") {
@@ -980,7 +937,7 @@ export default function EventsCalendarPage() {
   // }, [])
 
   const toggleBookmark = useCallback(async (eventId: string) => {
-  
+
     const event = events.find(ev => ev.eventId === eventId);
     if (!event) return;
     if (event.isCustom) {
@@ -1160,7 +1117,7 @@ export default function EventsCalendarPage() {
     name: "",
     startDate: "",
     endDate: "",
-    category: "conference" as "conference" | "tradeshow" | "workshop" | "social",
+    category: "conferences" as "conferences" | "tradeshow" | "workshop" | "social",
     country: selectedProperty?.country,
     city: "",
     description: "",
@@ -1274,7 +1231,7 @@ export default function EventsCalendarPage() {
 
   // Handle save edited event
   const handleSaveEditedEvent = async () => {
-   
+
     if (!editingEvent) return
     const updatedEvent: Event = {
       ...editingEvent,
@@ -1337,7 +1294,7 @@ export default function EventsCalendarPage() {
       name: "",
       startDate: "",
       endDate: "",
-      category: "conference",
+      category: "conferences",
       country: prev.country,
       city: prev.city,
       description: "",
@@ -1395,8 +1352,8 @@ export default function EventsCalendarPage() {
             label: city,
             id: city
           }))
-          console.log(`🌆 Fetched ${cities} cities for country ${selectedProperty?.country || ''}`)
           setCityOptions(cities);
+          // setSelectedCities([["All"], ...(response.body?.cities ?? [])])
         }
       } catch (error) {
         console.error('Failed to fetch country list:', error)
@@ -1463,8 +1420,41 @@ export default function EventsCalendarPage() {
 
 
     if (!!currentDate && selectedProperty?.sid) {
-      // Only fetch events if both start and end dates are set
-      Promise.all([fetchEventsData(), fetchEventCitiesCountryList(), fetchHolidayData(), fetchAllSubscribeEvents()]);
+      setIsLoading(true);
+      setLoadingProgress(0);
+
+      let progressInterval: NodeJS.Timeout;
+
+      const startProgress = () => {
+        progressInterval = setInterval(() => {
+          setLoadingProgress((prev) => {
+            const increment = Math.floor(Math.random() * 9) + 3; // 3–11%
+            const next = prev + increment;
+
+            // Loop back or cap it just below 100 (e.g., 97%)
+            return next >= 97 ? 97 : next;
+          });
+        }, 80);
+      };
+
+      startProgress();
+
+      // Fetch all APIs
+      Promise.all([
+        fetchEventsData(),
+        fetchEventCitiesCountryList(),
+        fetchHolidayData(),
+        fetchAllSubscribeEvents()
+      ]).then(() => {
+        // APIs done — show 100% progress and hide loader after brief delay
+        clearInterval(progressInterval);
+        setLoadingProgress(100);
+
+        setTimeout(() => {
+          setIsLoading(false);
+          setLoadingProgress(0); // reset for next load cycle
+        }, 500); // Delay gives smooth transition
+      });
     }
   }, [currentDate, selectedProperty?.sid])
 
@@ -1480,19 +1470,19 @@ export default function EventsCalendarPage() {
 
 
   // Combine API events with sample events
-  useEffect(() => {  
+  useEffect(() => {
     const combinedEvents = [] as Event[]
     // Convert API events to our Event interface format
     apiEvents.forEach((apiEvent, index) => {
       const convertedEvent: Event = {
-        id: `api_${index}`,
+        id: apiEvent.eventId > 0 ? apiEvent.eventId : `api_${index}`,
         eventId: apiEvent.eventId,
-        name: apiEvent.eventName || 'Unnamed Event',
+        name: apiEvent.eventName || '',
         startDate: apiEvent.startDate || apiEvent.eventFrom || new Date().toISOString().split('T')[0],
         endDate: apiEvent.endDate || apiEvent.eventTo || new Date().toISOString().split('T')[0],
         category: apiEvent.eventType?.trim(),
-        location: apiEvent.eventLocation || 'Dubai, UAE',
-        description: apiEvent.eventDescription || 'Event details not available',
+        location: apiEvent.eventLocation || '',
+        description: apiEvent.eventDescription || '',
         status: apiEvent.isSubscribed ? "bookmarked" : "available" as const,
         country: apiEvent.eventCountry || '',
         flag: apiEvent.flag || '🇦🇪',
@@ -1627,12 +1617,12 @@ export default function EventsCalendarPage() {
           const convertedSubscribeEvent: Event = {
             id: `apiSubsCribe_${index}`,
             eventId: apiEvent.eventId,
-            name: apiEvent.eventName || 'Unnamed Event',
+            name: apiEvent.eventName || '',
             startDate: apiEvent.startDate || apiEvent.eventFrom || new Date().toISOString().split('T')[0],
             endDate: apiEvent.endDate || apiEvent.eventTo || new Date().toISOString().split('T')[0],
             category: apiEvent.eventType?.trim(),
-            location: apiEvent.eventLocation || 'Dubai, UAE',
-            description: apiEvent.eventDescription || 'Event details not available',
+            location: apiEvent.eventLocation || '',
+            description: apiEvent.eventDescription || '',
             status: apiEvent.isSubscribed === true ? "bookmarked" : "available" as const,
             country: apiEvent.eventCountry || '',
             flag: apiEvent.flag || '🇦🇪',
@@ -1728,7 +1718,7 @@ export default function EventsCalendarPage() {
   const [message, setMessage] = useState<string>("");
 
   const handleAddEvent = async () => {
-      const tempId = `temp_${Date.now()}`;
+    const tempId = `temp_${Date.now()}`;
     const tempEvent: Event = {
       id: tempId,
       eventId: "",
@@ -1790,7 +1780,7 @@ export default function EventsCalendarPage() {
       name: "",
       startDate: "",
       endDate: "",
-      category: "conference",
+      category: "conferences",
       country: prev.country,
       city: prev.city,
       description: "",
@@ -1799,7 +1789,7 @@ export default function EventsCalendarPage() {
     //   name: "",
     //   startDate: "",
     //   endDate: "",
-    //   category: "conference",
+    //   category: "conferences",
     //   country: "",
     //   city: "",
     //   description: "",
@@ -1893,7 +1883,7 @@ export default function EventsCalendarPage() {
       case "holiday":
         return <Sparkles className="h-2 w-2" />
       case "business":
-      case "conference":
+      case "conferences":
         return <Briefcase className="h-2 w-2" />
       case "sports":
         return <Trophy className="h-2 w-2" />
@@ -1940,7 +1930,8 @@ export default function EventsCalendarPage() {
 
   // Filter events for bookmark modal
   const getFilteredBookmarkEvents = useMemo(() => {
-    let filtered = apiSubscribeEventList
+    debugger;
+    let filtered = [...events]
     //events
 
     // Apply bookmark search filter
@@ -1983,22 +1974,29 @@ export default function EventsCalendarPage() {
         })
       })
     }
-
     return filtered.sort((a, b) => {
-      // Sort only by date to maintain consistent positioning
-      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-    })
+      const aIsBookmarked = a.status === 'bookmarked' ? 1 : 0;
+      const bIsBookmarked = b.status === 'bookmarked' ? 1 : 0;
+
+      if (bIsBookmarked - aIsBookmarked !== 0) {
+        return bIsBookmarked - aIsBookmarked; // Bookmarked first
+      }
+
+      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime(); // Then by date
+    });
+
   }, [apiSubscribeEventList, bookmarkSearchQuery, bookmarkCategoryFilter, bookmarkTypeFilter])
 
   // Handle category selection with multi-select logic
   const handleCategorySelection = (category: string) => {
+    debugger;
     setBookmarkCategoryFilter(prev => {
       if (category === "all") {
         // If selecting "All", toggle between all selected and all unselected
         if (prev.includes("all")) {
           return [] // Unselect all
         } else {
-          return ["all", "conference", "tradeshow", "workshop", "social", "holidays"] // Select all
+          return ["all", "conferences", "tradeshow", "workshop", "social", "holidays"] // Select all
         }
       }
 
@@ -2014,7 +2012,7 @@ export default function EventsCalendarPage() {
         newSelection = [...filteredPrev, category]
 
         // If all individual categories are now selected, add "all"
-        const allCategories = ["conference", "tradeshow", "workshop", "social", "holidays"]
+        const allCategories = ["conferences", "tradeshow", "workshop", "social", "holidays"]
         if (newSelection.length === allCategories.length && allCategories.every(cat => newSelection.includes(cat))) {
           newSelection = ["all", ...newSelection]
         }
@@ -2444,6 +2442,12 @@ export default function EventsCalendarPage() {
       </span>
     );
   }
+  function bookMarkDialogClose(): void {
+    setIsBookmarkModalOpen(false);
+    setBookmarkSearchQuery("");
+    setBookmarkCategoryFilter(["all", "conferences", "tradeshow", "workshop", "social", "holidays"]);
+    setBookmarkTypeFilter(["all", "bookmarked", "holiday", "suggested", "available"]);
+  }
   // Show loading state when data is being fetched
   if (isLoading) {
     return (
@@ -2457,6 +2461,8 @@ export default function EventsCalendarPage() {
       </div>
     );
   }
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
@@ -2834,12 +2840,12 @@ export default function EventsCalendarPage() {
                             <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
-                                checked={isCategoryChecked("conference")}
-                                onChange={() => handleCategorySelection("conference")}
+                                checked={isCategoryChecked("conferences")}
+                                onChange={() => handleCategorySelection("conferences")}
                                 className="rounded h-3.5 w-3.5"
                               />
-                              <Presentation className={`h-3.5 w-3.5 ${getCategoryColor("conference")}`} />
-                              <span>Conference</span>
+                              <Presentation className={`h-3.5 w-3.5 ${getCategoryColor("conferences")}`} />
+                              <span>Conferences</span>
                             </label>
                             <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
@@ -2937,7 +2943,7 @@ export default function EventsCalendarPage() {
                               <span>Suggested</span>
                             </label>
 
-                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
+                            {/* <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={isTypeChecked("available")}
@@ -2945,7 +2951,7 @@ export default function EventsCalendarPage() {
                                 className="rounded h-3.5 w-3.5"
                               />
                               <span>Available</span>
-                            </label>
+                            </label> */}
                           </div>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -3062,7 +3068,7 @@ export default function EventsCalendarPage() {
                     <div className="text-xs text-muted-foreground">
                       {events.filter((e) => e.status === "bookmarked").length} events bookmarked
                     </div>
-                    <Button onClick={() => setIsBookmarkModalOpen(false)} className="px-4 py-2 text-sm">Done</Button>
+                    <Button onClick={() => bookMarkDialogClose()} className="px-4 py-2 text-sm">Done</Button>
                   </div>
                 </DialogContent>
               </Dialog>
@@ -3116,15 +3122,15 @@ export default function EventsCalendarPage() {
                             </SelectTrigger>
                             <SelectContent className="max-h-60" hideScrollButtons={true}>
                               <SelectItem
-                                value="conference"
+                                value="conferences"
                                 className={cn(
                                   "flex items-center gap-2 cursor-pointer pl-3 [&>span:first-child]:hidden",
-                                  newEvent.category === "conference" ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
+                                  newEvent.category === "conferences" ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
                                 )}
                               >
                                 <div className="flex items-center gap-2">
-                                  <Presentation className={`h-4 w-4 ${getCategoryColor("conference")}`} />
-                                  <span>Conference</span>
+                                  <Presentation className={`h-4 w-4 ${getCategoryColor("conferences")}`} />
+                                  <span>Conferences</span>
                                 </div>
                               </SelectItem>
                               <SelectItem
@@ -3476,15 +3482,15 @@ export default function EventsCalendarPage() {
                             </SelectTrigger>
                             <SelectContent className="max-h-60" hideScrollButtons={true}>
                               <SelectItem
-                                value="conference"
+                                value="conferences"
                                 className={cn(
                                   "flex items-center gap-2 cursor-pointer pl-3 [&>span:first-child]:hidden",
-                                  newEvent.category === "conference" ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
+                                  newEvent.category === "conferences" ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
                                 )}
                               >
                                 <div className="flex items-center gap-2">
-                                  <Presentation className={`h-4 w-4 ${getCategoryColor("conference")}`} />
-                                  <span>Conference</span>
+                                  <Presentation className={`h-4 w-4 ${getCategoryColor("conferences")}`} />
+                                  <span>Conferences</span>
                                 </div>
                               </SelectItem>
                               <SelectItem
@@ -4056,123 +4062,125 @@ export default function EventsCalendarPage() {
       </Dialog>
 
       {/* Event Detail Modal */}
-      {selectedEvent && (
-        <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle className="text-left">
-                <div className="mb-3">
-                  <div className="leading-relaxed break-words">
-                    {selectedEvent.name}
-                    {selectedEvent.status === "bookmarked" && <Star className="h-5 w-5 fill-current text-green-600 inline ml-2" />}
-                    {selectedEvent.type === "holiday" && <Sparkles className={`h-5 w-5 ${getCategoryColor("holidays")} inline ml-2`} />}
-                  </div>
-                </div>
-                <Badge className={cn(getStatusColor(selectedEvent.status))}>
-                  {selectedEvent.status === "available" ? "Available" : selectedEvent.status}
-                </Badge>
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <CalendarIcon className="h-4 w-4" />
-                  {formatDateRange(selectedEvent.startDate, selectedEvent.endDate)}
-                </div>
-
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <AlertCircle className="h-4 w-4" />
-                  <span className="capitalize">{selectedEvent.category} Event</span>
-                </div>
-              </div>
-
-              {selectedEvent.description && (
-                <div>
-                  <Label className="text-sm font-medium">Description</Label>
-                  <p className="text-muted-foreground mt-1">{selectedEvent.description}</p>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between pt-4 border-t">
-                {/* Edit and Delete buttons for custom events */}
-                {selectedEvent.isCustom ? (
-                  <div className="flex items-center gap-2">
-                    <div className="relative group">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          handleEditEvent(selectedEvent)
-                          setSelectedEvent(null)
-                        }}
-                        className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                        Edit Event
-                      </div>
-                    </div>
-                    <div className="relative group">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => showDeleteConfirmation(selectedEvent.eventId)}
-                        className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                        Delete Event
-                      </div>
+      {
+        selectedEvent && (
+          <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-left">
+                  <div className="mb-3">
+                    <div className="leading-relaxed break-words">
+                      {selectedEvent.name}
+                      {selectedEvent.status === "bookmarked" && <Star className="h-5 w-5 fill-current text-green-600 inline ml-2" />}
+                      {selectedEvent.type === "holiday" && <Sparkles className={`h-5 w-5 ${getCategoryColor("holidays")} inline ml-2`} />}
                     </div>
                   </div>
-                ) : (
-                  <div></div>
+                  <Badge className={cn(getStatusColor(selectedEvent.status))}>
+                    {selectedEvent.status === "available" ? "Available" : selectedEvent.status}
+                  </Badge>
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <CalendarIcon className="h-4 w-4" />
+                    {formatDateRange(selectedEvent.startDate, selectedEvent.endDate)}
+                  </div>
+
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <AlertCircle className="h-4 w-4" />
+                    <span className="capitalize">{selectedEvent.category} Event</span>
+                  </div>
+                </div>
+
+                {selectedEvent.description && (
+                  <div>
+                    <Label className="text-sm font-medium">Description</Label>
+                    <p className="text-muted-foreground mt-1">{selectedEvent.description}</p>
+                  </div>
                 )}
 
-                <div className="flex items-center gap-2">
-                  {selectedEvent.status !== "available" ? (
-                    <Button
-                      variant={selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested" ? "default" : "outline"}
-                      onMouseDown={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        toggleBookmark(selectedEvent.eventId)
-                      }}
-                      className={cn(
-                        "px-4 gap-3",
-                        selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested"
-                          ? "bg-green-600 hover:bg-green-700 text-white"
-                          : "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
-                      )}
-                    >
-                      <BookmarkIcon
-                        className={cn("h-4 w-4", (selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") && "fill-current")}
-                      />
-                      {(selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") ? "Remove Bookmark" : "Bookmark Event"}
-                    </Button>
+                <div className="flex items-center justify-between pt-4 border-t">
+                  {/* Edit and Delete buttons for custom events */}
+                  {selectedEvent.isCustom ? (
+                    <div className="flex items-center gap-2">
+                      <div className="relative group">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            handleEditEvent(selectedEvent)
+                            setSelectedEvent(null)
+                          }}
+                          className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                          Edit Event
+                        </div>
+                      </div>
+                      <div className="relative group">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => showDeleteConfirmation(selectedEvent.eventId)}
+                          className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                          Delete Event
+                        </div>
+                      </div>
+                    </div>
                   ) : (
-                    <Button
-                      variant="outline"
-                      onMouseDown={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        toggleBookmark(selectedEvent.eventId)
-                      }}
-                      className="px-4 gap-3 hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
-                    >
-                      <BookmarkIcon className="h-4 w-4" />
-                      Bookmark Event
-                    </Button>
+                    <div></div>
                   )}
+
+                  <div className="flex items-center gap-2">
+                    {selectedEvent.status !== "available" ? (
+                      <Button
+                        variant={selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested" ? "default" : "outline"}
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          toggleBookmark(selectedEvent.eventId)
+                        }}
+                        className={cn(
+                          "px-4 gap-3",
+                          selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested"
+                            ? "bg-green-600 hover:bg-green-700 text-white"
+                            : "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
+                        )}
+                      >
+                        <BookmarkIcon
+                          className={cn("h-4 w-4", (selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") && "fill-current")}
+                        />
+                        {(selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") ? "Remove Bookmark" : "Bookmark Event"}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          toggleBookmark(selectedEvent.eventId)
+                        }}
+                        className="px-4 gap-3 hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
+                      >
+                        <BookmarkIcon className="h-4 w-4" />
+                        Bookmark Event
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+            </DialogContent>
+          </Dialog>
+        )
+      }
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -4201,6 +4209,6 @@ export default function EventsCalendarPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </div >
   )
 }
