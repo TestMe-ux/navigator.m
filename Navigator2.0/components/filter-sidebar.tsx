@@ -45,7 +45,7 @@ interface FilterSidebarProps {
   onClose: () => void
   onApply: (filters: FilterValue) => void
   initialFilters?: Partial<FilterValue>
-  losGuest: { "Los": [], "Guest": [] }
+  losGuest: { "Los": any[], "Guest": any[] }
 }
 
 export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, losGuest }: FilterSidebarProps) {
