@@ -754,6 +754,34 @@ export default function EventsCalendarPage() {
   ) || []
 
   // Handle country selection
+  // const handleCountrySelect = useCallback((country: string) => {
+  //   setSelectedCountry(country)
+  //   setIsCountryOpen(false)
+  //   setCountrySearchQuery("") // Clear search when selecting
+  //   setIsCountrySearchFocused(false) // Clear focus state
+
+  //   // Auto-select cities for this country
+  //   const availableCities = cityOptions[country as keyof typeof cityOptions] || []
+
+  //   let defaultCities: string[] = []
+
+  //   if (selectedProperty?.city) {
+  //     // Include selectedProperty.city if it exists
+  //     if (availableCities.some((c: any) => c.label === selectedProperty.city)) {
+  //       defaultCities = [selectedProperty.city]
+  //     } else {
+  //       // If city not in availableCities, still include it
+  //       defaultCities = [selectedProperty.city]
+  //     }
+  //   } else if (availableCities.length > 0) {
+  //     // Default to "All" if no selectedProperty.city
+  //     defaultCities = ["All", ...availableCities.map((c: any) => c.label)]
+  //   }
+
+  //   setSelectedCities(defaultCities)
+  //   console.log(`🌍 Country changed: ${country}, selected cities:`, defaultCities)
+  // }, [cityOptions, selectedProperty?.city])
+
   const handleCountrySelect = useCallback((country: string) => {
     setSelectedCountry(country)
     setIsCountryOpen(false)
@@ -767,7 +795,7 @@ export default function EventsCalendarPage() {
 
   // Handle city selection with multi-select logic
   const handleCitySelect = useCallback((city: string) => {
-    debugger
+
     setSelectedCities(prev => {
       if (city === "All") {
         // If selecting "All", toggle between all selected and all unselected
@@ -847,6 +875,7 @@ export default function EventsCalendarPage() {
 
   // Handle category selection with multi-select logic
   const handleCategorySelect = useCallback((categoryName: string) => {
+
     setSelectedCategories(prev => {
       const isSelected = prev.includes(categoryName)
       let newSelection: string[]
@@ -937,7 +966,7 @@ export default function EventsCalendarPage() {
   // }, [])
 
   const toggleBookmark = useCallback(async (eventId: string) => {
-
+    debugger
     const event = events.find(ev => ev.eventId === eventId);
     if (!event) return;
     if (event.isCustom) {
@@ -949,34 +978,30 @@ export default function EventsCalendarPage() {
       };
 
       try {
+
         const response = await setSubscribeUnsubscribeEvent(filtersValues);
         if (response?.status) {
-          //  Update UI only after success
+          //  Update UI only after success    
           setApiSubscribeEvents(prevEvents => {
             const newEvents = prevEvents.map(event => {
               if (event.eventId === eventId) {
-                // const newStatus: "bookmarked" | "suggested" | "available" = (event.status === "bookmarked" || event.status === "suggested") ? "available" : "bookmarked"
-                let newStatus: "bookmarked" | "suggested" | "available";
-                switch (event.status) {
-                  case "bookmarked":
-                    newStatus = "available";
-                    break;
-                  case "available":
-                    newStatus = "bookmarked";
-                    break;
-                  case "suggested":
-                    newStatus = "bookmarked";
-                    break;
-                  default:
-                    newStatus = "available";
-                }
+                const newStatus: "bookmarked" | "suggested" | "available" =
+                  event.status === "bookmarked"
+                    ? "available"  // 1
+                    : event.status === "available"
+                      ? "bookmarked" // 2
+                      : event.status === "suggested"
+                        ? "bookmarked" // 3
+                        : "suggested";
                 return { ...event, status: newStatus }
               }
               return event
             })
             return newEvents
           })
-
+          setLoadingProgress(100);
+          setIsSaveEvent(true);
+          setTimeout(() => setLoadingProgress(0), 100);
         } else {
           console.warn("API failed, UI not updated");
         }
@@ -994,10 +1019,11 @@ export default function EventsCalendarPage() {
       }
       try {
         //Call backend API
+        // setLoadingProgress(100)
         const resSubsUnsubsHoliday = await setSubsUnSubsHolidayEvent(filtersValue)
         const result = resSubsUnsubsHoliday
         if (result.status) {
-          //setEvents((prev) => [...prev, result.data ?? event]);
+          // setEvents((prev) => [...prev, result.data ?? event]);
           setApiHolidays(prevEvents => {
             const newEvents = prevEvents.map(event => {
               if (event.eventId === eventId) {
@@ -1022,7 +1048,9 @@ export default function EventsCalendarPage() {
             })
             return newEvents
           })
-
+          // setLoadingProgress(100);
+          // setIsSaveEvent(true);
+          // setTimeout(() => setLoadingProgress(0), 100);
           setMessage("Non Custom Event Subscribe Successfully");
         } else {
           setMessage("Non Custom Event Not Subscribe Or Failed :" + (result.message || ""));
@@ -1057,12 +1085,13 @@ export default function EventsCalendarPage() {
       }
       try {
         //Call backend API
-        setLoadingProgress(100)
-        const response: any = await saveEvents(addEventObj);
+
+        const response: any = await saveEvents(addEventObj);       
         if (response?.status) {
           //const serverId = String(response?.body?.eventId ?? "");
+          setLoadingProgress(100);
           setIsSaveEvent(true);
-          setLoadingProgress(0)
+          setTimeout(() => setLoadingProgress(0), 100);
           setMessage("Non Custom Event Subscribe Successfully");
         }
         else {
@@ -1079,19 +1108,26 @@ export default function EventsCalendarPage() {
         isCustom: event.isCustom,
       };
       try {
+
         const response = await setSubscribeUnsubscribeEvent(filtersValues);
         if (response?.status) {
           //  Update UI only after success
+        
           setApiSubscribeEvents(prevEvents => {
             const newEvents = prevEvents.map(event => {
               if (event.eventId === eventId) {
-                const newStatus: "bookmarked" | "suggested" | "available" = (event.status === "bookmarked" || event.status === "available") ? "available" : "bookmarked"
+                const newStatus: "bookmarked" | "suggested" | "available" =
+                  (event.status === "bookmarked" || event.status === "available")
+                    ? "available" : "bookmarked"
                 return { ...event, status: newStatus }
               }
               return event
             })
             return newEvents
           })
+         setLoadingProgress(100);
+          setIsSaveEvent(true);
+          setTimeout(() => setLoadingProgress(0), 100);
 
         } else {
           console.warn("API failed, UI not updated");
@@ -1100,6 +1136,7 @@ export default function EventsCalendarPage() {
         console.error("API Error:", err);
       }
     }
+
 
   }, [events]);
 
@@ -1125,23 +1162,47 @@ export default function EventsCalendarPage() {
 
   // Handle new event country selection
   const handleNewEventCountrySelect = (country: string) => {
-    setNewEventCountry(country)
-    setNewEvent((prev) => ({ ...prev, country }))
+    setNewEventCountry(country);
+    setNewEvent(prev => ({ ...prev, country }));
 
-    // Auto-select first city of the new country
-    const cities = cityOptions
-    if (cities && cities.length > 0) {
-      const firstCity = cities[0].label
-      setNewEventCity(firstCity)
-      setNewEvent((prev) => ({ ...prev, city: firstCity }))
+    // Auto-select first city for the selected country
+    const countryCities: { id: string; label: string }[] =
+      cityOptions[country as keyof typeof cityOptions] ||
+      (selectedProperty?.city ? [{ id: selectedProperty.city, label: selectedProperty.city }] : []);
+
+    if (countryCities.length > 0) {
+      // Pick selectedProperty city if it belongs to this country, else first city
+      const matchedCity = countryCities.find((c: any) => c.label === selectedProperty?.city);
+      const firstCityLabel = matchedCity ? matchedCity.label : countryCities[0].label;
+
+      setNewEventCity(firstCityLabel);
+      setNewEvent(prev => ({ ...prev, city: firstCityLabel }));
     } else {
-      // setNewEventCity("")
-      setNewEvent((prev) => ({ ...prev, city: "" }))
+      setNewEventCity("");
+      setNewEvent(prev => ({ ...prev, city: "" }));
     }
-  }
+  };
+
+  // const handleNewEventCountrySelect = (country: string) => {
+
+  //   setNewEventCountry(country)
+  //   setNewEvent((prev) => ({ ...prev, country }))
+
+  //   // Auto-select first city of the new country
+  //   const cities = cityOptions
+  //   if (cities && cities.length > 0) {
+  //     const firstCity = cities.find(c => c.label === (selectedProperty?.city ?? "")) || cities[0].label
+  //     setNewEventCity(firstCity)
+  //     setNewEvent((prev) => ({ ...prev, city: firstCity }))
+  //   } else {
+  //     // setNewEventCity("")
+  //     setNewEvent((prev) => ({ ...prev, city: "" }))
+  //   }
+  // }
 
   // Handle new event city selection
   const handleNewEventCitySelect = (city: string) => {
+
     setNewEventCity(city)
     setNewEvent((prev) => ({ ...prev, city }))
   }
@@ -1149,23 +1210,58 @@ export default function EventsCalendarPage() {
   useEffect(() => {
     const defaultCountry = selectedProperty?.country || selectedCountry;
 
-    if (defaultCountry !== "" && !newEvent.country) {
-      setNewEvent((prev) => ({ ...prev, country: defaultCountry }));
+    if (defaultCountry && !newEvent.country) {
+      setNewEvent(prev => ({ ...prev, country: defaultCountry }));
     }
-    setNewEventCountry(defaultCountry)
-    setNewEvent((prev) => ({ ...prev, defaultCountry }))
+    setNewEventCountry(defaultCountry);
 
     // Auto-select first city of the new country
     const cities = cityOptions
-    if (cities && cities.length > 0) {
-      const firstCity = cities[0].label
-      setNewEventCity(firstCity)
-      setNewEvent((prev) => ({ ...prev, city: firstCity }))
+    const countryCities: { id: string; label: string }[] =
+      cities[defaultCountry as keyof typeof cityOptions] ||
+      (selectedProperty?.city ? [{ id: selectedProperty.city, label: selectedProperty.city }] : []);
+
+
+    if (countryCities.length > 0) {
+      //const matchedCity = countryCities.find((c: any) => c.label === (`${selectedProperty?.city}` ? `${selectedProperty?.city}` : ""));
+      const matchedCity = selectedProperty?.city
+        ? countryCities.find(c =>
+          c.label &&
+          selectedProperty.city &&
+          c.label.trim().toLowerCase() === selectedProperty.city.trim().toLowerCase()
+        )
+        : undefined;
+
+      const firstCityLabel = matchedCity ? matchedCity.label : countryCities[0].label;
+
+      setNewEventCity(firstCityLabel);
+      setNewEvent(prev => ({ ...prev, city: firstCityLabel }));
     } else {
-      setNewEventCity("")
-      setNewEvent((prev) => ({ ...prev, city: "" }))
+      setNewEventCity("");
+      setNewEvent(prev => ({ ...prev, city: "" }));
     }
-  }, [countryList]);
+  }, [countryList, selectedProperty?.city, selectedCountry]);
+
+  // useEffect(() => {
+  //   const defaultCountry = selectedProperty?.country || selectedCountry;
+
+  //   if (defaultCountry !== "" && !newEvent.country) {
+  //     setNewEvent((prev) => ({ ...prev, country: defaultCountry }));
+  //   }
+  //   setNewEventCountry(defaultCountry)
+  //   setNewEvent((prev) => ({ ...prev, defaultCountry }))
+
+  //   // Auto-select first city of the new country
+  //   const cities = cityOptions
+  //   if (cities && cities.length > 0) {
+  //     const firstCity = cities.find(c => c.label === (selectedProperty?.city ?? "")) || cities[0].label;
+  //     setNewEventCity(firstCity)
+  //     setNewEvent((prev) => ({ ...prev, city: firstCity }))
+  //   } else {
+  //     setNewEventCity("")
+  //     setNewEvent((prev) => ({ ...prev, city: "" }))
+  //   }
+  // }, [countryList]);
 
   // Handle edit event
   const handleEditEvent = async (event: Event) => {
@@ -1208,9 +1304,11 @@ export default function EventsCalendarPage() {
   const handleDeleteEvent = async (eventId: any) => {
 
     try {
+
       const response = await deleteEvents(Number(eventId));
       if (response.status) {
         //delete  state with new event  setEvents 
+        setLoadingProgress(100)
         setApiSubscribeEvents((prev) => {
           const updatedEvents = prev.filter((event) => event.eventId !== eventId)
           const customEvents = updatedEvents.filter(e => e.isCustom)
@@ -1220,9 +1318,12 @@ export default function EventsCalendarPage() {
         setMessage("Event deleted successfully!");
         setIsDeleteDialogOpen(false)
         setEventToDelete(null)
+        setIsSaveEvent(true);
+        setLoadingProgress(0)
       } else {
         setMessage("Failed to delete  event: " + (response.message || ""));
       }
+
     } catch (error) {
       console.error("Error delete  event:", error);
       setMessage("Something went wrong while delete  event!");
@@ -1312,8 +1413,8 @@ export default function EventsCalendarPage() {
       try {
         setIsLoading(true)
         const filtersValue = {
-          "Country": [selectedProperty?.country ?? ''],
-          "City": [],
+          "Country": [selectedCountry == "" ? selectedProperty?.country : selectedCountry],
+          "City": selectedCities.includes("All") ? [] : selectedCities,
           "SID": selectedProperty?.sid,
           "PageNumber": 1,
           "PageCount": 500,
@@ -1333,7 +1434,9 @@ export default function EventsCalendarPage() {
           setCountryList(countryList);
           setHotelLatitude(response.body.hotelLatitude)
           setHotelLongitude(response.body.hotelLongitude)
-          setSelectedCountry(selectedProperty?.country || countryList[0]?.label || "")
+          if (selectedCountry === "" || selectedCountry === undefined) {
+            setSelectedCountry(selectedProperty?.country || countryList[0]?.label || "")
+          }
 
         }
       } catch (error) {
@@ -1346,7 +1449,8 @@ export default function EventsCalendarPage() {
     }
     const fetchEventCitiesCountryList = async () => {
       try {
-        const response = await getEventCitiesCountryList({ CountryName: selectedProperty?.country || '' })
+        let getCountryValue = selectedCountry == "" ? selectedProperty?.country : selectedCountry
+        const response = await getEventCitiesCountryList({ CountryName: getCountryValue || "" })
         if (response?.status && response?.body?.cities) {
           const cities = response.body.cities.map((city: any) => ({
             label: city,
@@ -1365,12 +1469,12 @@ export default function EventsCalendarPage() {
       try {
         setIsLoading(true)
         const filtersValue = {
-          "Country": [selectedProperty?.country ?? ''],
-          "City": [selectedProperty?.city ?? ''],
+          "Country": [selectedCountry == "" ? selectedProperty?.country : selectedCountry],
+          "City": selectedCities.includes("All") ? [] : selectedCities,
           "SID": selectedProperty?.sid,
           "FromDate": conevrtDateforApi(startDate?.toString()),
           "ToDate": conevrtDateforApi(endDate?.toString()),
-          "Type": [],
+          "Type": selectedCategories.includes("All") ? [] : selectedCategories,
           "Impact": [],
           "SearchType": ""
         }
@@ -1456,7 +1560,7 @@ export default function EventsCalendarPage() {
         }, 500); // Delay gives smooth transition
       });
     }
-  }, [currentDate, selectedProperty?.sid])
+  }, [currentDate, selectedProperty?.sid, selectedCountry])
 
   useEffect(() => {
     if (isSaveEvent) {
@@ -1468,6 +1572,38 @@ export default function EventsCalendarPage() {
     }
   }, [isSaveEvent]);
 
+
+  useEffect(() => {
+
+    let filtered = apiSubscribeEvents.filter(x => x.status === "bookmarked");
+
+    if (!selectedCategories.includes("All")) {
+      filtered = filtered.filter(x =>
+        selectedCategories.some(c =>
+          c.toLowerCase() === String(x.category).toLowerCase() ||
+          normalizeCategory(c) === normalizeCategory(x.category)
+        )
+      );
+    }
+
+    setFilteredEvents(filtered);
+  }, [apiSubscribeEvents, selectedCategories]);
+
+  const normalizeCategory = (cat?: string) => {
+    if (!cat) return "";
+    const map: Record<string, string> = {
+      "conference": "conferences",
+      "conferences": "conferences"
+      // "tradeshow": "tradeshow",
+      // "trade show": "tradeshow",
+      // "workshop": "workshop",
+      // "social": "social",
+      // "holiday": "holidays",
+      // "holidays": "holidays",
+      // "business": "business"
+    };
+    return map[cat.toLowerCase()] || cat.toLowerCase();
+  };
 
   // Combine API events with sample events
   useEffect(() => {
@@ -1528,6 +1664,8 @@ export default function EventsCalendarPage() {
     setFilteredEvents(filtered)
   }, [events, enabledEventTypes])
 
+
+
   const monthNames = [
     "Jan",
     "Feb",
@@ -1550,15 +1688,44 @@ export default function EventsCalendarPage() {
     return firstDay
   }
 
+  // const navigateMonth = (direction: "prev" | "next") => {
+  //   setCurrentDate((prev) => {
+  //     const newDate = new Date(prev)
+  //     if (direction === "prev") {
+  //       newDate.setMonth(prev.getMonth() - 1)
+  //     } else {
+  //       newDate.setMonth(prev.getMonth() + 1)
+  //     }
+  //     return newDate
+  //   })
+  // }
+
+  // Previous/Next month navigation
   const navigateMonth = (direction: "prev" | "next") => {
-    setCurrentDate((prev) => {
-      const newDate = new Date(prev)
+    setCurrentDate(prevDate => {
+      const restrictions = getDateRestrictions()
+      const newDate = new Date(prevDate)
+
       if (direction === "prev") {
-        newDate.setMonth(prev.getMonth() - 1)
+        newDate.setMonth(prevDate.getMonth() - 1)
       } else {
-        newDate.setMonth(prev.getMonth() + 1)
+        newDate.setMonth(prevDate.getMonth() + 1)
       }
-      return newDate
+
+      // stop navigation if out of range
+      const newYear = newDate.getFullYear()
+      const newMonth = newDate.getMonth()
+
+      if (
+        newYear < restrictions.minYear ||
+        newYear > restrictions.maxYear ||
+        (newYear === restrictions.minYear && newMonth < restrictions.minMonth) ||
+        (newYear === restrictions.maxYear && newMonth > restrictions.maxMonth)
+      ) {
+        return prevDate // ❌ don't change
+      }
+
+      return newDate // ✅ valid new date
     })
   }
 
@@ -1595,25 +1762,30 @@ export default function EventsCalendarPage() {
   }
 
   const fetchAllSubscribeEvents = async () => {
+
     const startDate = startOfMonth(currentDate)
     const endDate = endOfMonth(currentDate);
     try {
       setIsLoading(true)
       const filtersValue = {
+        // "Country": [selectedCountry == "" ? selectedProperty?.country : selectedCountry],
+        // "EventType": selectedCategories.includes("All") ? [] : selectedCategories,
+        // "City": selectedCities.includes("All") ? [] : selectedCities,
         "SID": selectedProperty?.sid,
         "StartDate": conevrtDateforApi(startDate?.toString()),
         "EndDate": conevrtDateforApi(endDate?.toString()),
         "Distance": 100,
         "pageNumber": 1,
         "pageCount": 500,
-        "lattitude": 0,
-        "longitude": 0
+        "lattitude": selectHotelLatitude == "" ? 0 : selectHotelLatitude,
+        "longitude": selectHotelLongitude == "" ? 0 : selectHotelLongitude
       }
       const response = await getAllSubscribeEvents(filtersValue)
       if (response?.status && response?.body) {
         var Subscribes = [...response.body.eventDetails];
         const combinedSubscribeEvents = [] as Event[]
-        Subscribes.filter(x => x.isSubscribed === true).map((apiEvent, index) => {
+        Subscribes.filter(x => x.isSubscribed === true
+        ).map((apiEvent, index) => {
           const convertedSubscribeEvent: Event = {
             id: `apiSubsCribe_${index}`,
             eventId: apiEvent.eventId,
@@ -1661,11 +1833,11 @@ export default function EventsCalendarPage() {
   // Get date restrictions for month picker
   const getDateRestrictions = () => {
     const currentYear = new Date().getFullYear()
-    const nextYear = currentYear + 1
+    //    const nextYear = currentYear + 1
 
     return {
-      minYear: currentYear,
-      maxYear: nextYear,
+      minYear: currentYear - 1,
+      maxYear: currentYear + 1,
       minMonth: 0, // January of current year
       maxMonth: 11 // December of next year
     }
@@ -1682,23 +1854,29 @@ export default function EventsCalendarPage() {
   // Check if a month is selectable
   const isMonthSelectable = (month: number, year: number) => {
     const restrictions = getDateRestrictions()
-    const currentYear = new Date().getFullYear()
+    //const currentYear = new Date().getFullYear()
 
     if (year < restrictions.minYear || year > restrictions.maxYear) {
       return false
     }
 
-    // For current year, can select from January onwards
-    if (year === currentYear) {
-      return month >= 0 // January onwards
-    }
+    return true
 
-    // For next year, can select all months
-    if (year === currentYear + 1) {
-      return true
-    }
+    // if (year < restrictions.minYear || year > restrictions.maxYear) {
+    //   return false
+    // }
 
-    return false
+    // // For current year, can select from January onwards
+    // if (year === currentYear) {
+    //   return month >= 0 // January onwards
+    // }
+
+    // // For next year, can select all months
+    // if (year === currentYear + 1) {
+    //   return true
+    // }
+
+    // return false
   }
 
   // Month picker year navigation
@@ -1930,7 +2108,7 @@ export default function EventsCalendarPage() {
 
   // Filter events for bookmark modal
   const getFilteredBookmarkEvents = useMemo(() => {
-    debugger;
+
     let filtered = [...events]
     //events
 
@@ -1989,7 +2167,7 @@ export default function EventsCalendarPage() {
 
   // Handle category selection with multi-select logic
   const handleCategorySelection = (category: string) => {
-    debugger;
+
     setBookmarkCategoryFilter(prev => {
       if (category === "all") {
         // If selecting "All", toggle between all selected and all unselected
@@ -2476,7 +2654,18 @@ export default function EventsCalendarPage() {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => navigateMonth("prev")} className="hover:bg-primary/10">
+                        {/* <Button variant="ghost" size="icon" onClick={() => navigateMonth("prev")} 
+                        className="hover:bg-primary/10"> */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigateMonth("prev")}
+                          className="hover:bg-primary/10"
+                          disabled={
+                            currentDate.getFullYear() === getDateRestrictions().minYear &&
+                            currentDate.getMonth() === getDateRestrictions().minMonth
+                          }
+                        >
                           <ChevronLeft className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
@@ -2556,7 +2745,17 @@ export default function EventsCalendarPage() {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => navigateMonth("next")} className="hover:bg-primary/10">
+                        {/* <Button variant="ghost" size="icon" onClick={() => navigateMonth("next")} className="hover:bg-primary/10"> */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigateMonth("next")}
+                          className="hover:bg-primary/10"
+                          disabled={
+                            currentDate.getFullYear() === getDateRestrictions().maxYear &&
+                            currentDate.getMonth() === getDateRestrictions().maxMonth
+                          }
+                        >
                           <ChevronRight className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
@@ -2793,7 +2992,7 @@ export default function EventsCalendarPage() {
                     <span className="xl:hidden inline">Bookmark</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-4xl h-[600px] min-h-[500px] flex flex-col">
+                <DialogContent className="max-w-4xl h-[500px] min-h-[500px] flex flex-col">
                   <DialogHeader className="flex-shrink-0">
                     <DialogTitle className="flex items-center gap-3 text-lg">
                       <BookmarkIcon className="h-5 w-5 text-green-600" />
@@ -3371,6 +3570,7 @@ export default function EventsCalendarPage() {
                                 <CommandInput placeholder="Search cities..." className="border-0" />
                                 <CommandList className="max-h-[200px] overflow-y-scroll">
                                   <CommandEmpty>No city found.</CommandEmpty>
+
                                   <CommandGroup>
                                     {newEventCountry && cityOptions[newEventCountry as keyof typeof cityOptions]?.map((option: any) => (
                                       <CommandItem
