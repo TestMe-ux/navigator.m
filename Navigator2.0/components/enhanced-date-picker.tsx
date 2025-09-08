@@ -53,7 +53,6 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
 
   // Initialize with next 7 days if no dates provided
   React.useEffect(() => {
-    debugger;
     if (!startDate && !endDate) {
       // Ensure Next 7 Days is selected and applied by default
       const today = new Date()

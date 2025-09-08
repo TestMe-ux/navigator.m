@@ -116,6 +116,12 @@ const CUSTOM_EVENTS_KEY = 'events-calendar-custom-events'
 
 // Function to save custom events to localStorage
 const saveCustomEventsToStorage = (customEvents: Event[]) => {
+  // Check if we're on the client side
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    console.warn('localStorage is not available (SSR environment)')
+    return
+  }
+
   try {
     // Ensure we only save custom events with proper timestamps
     const eventsWithTimestamp = customEvents.filter(event => event.isCustom).map(event => ({
@@ -143,12 +149,13 @@ const saveCustomEventsToStorage = (customEvents: Event[]) => {
 
 // Function to load custom events from localStorage
 const loadCustomEventsFromStorage = (): Event[] => {
+  // Check if we're on the client side
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    console.warn('localStorage is not available (SSR environment)')
+    return []
+  }
+
   try {
-    // Check if localStorage is available
-    if (typeof localStorage === 'undefined') {
-      console.warn('localStorage is not available')
-      return []
-    }
 
     const stored = localStorage.getItem(CUSTOM_EVENTS_KEY)
     if (!stored || stored === 'null' || stored === 'undefined') {
@@ -161,18 +168,14 @@ const loadCustomEventsFromStorage = (): Event[] => {
       events = JSON.parse(stored)
     } catch (parseError) {
       console.error('Failed to parse stored events, clearing localStorage:', parseError)
-      // if (typeof window !== 'undefined') {
       localStorage.removeItem(CUSTOM_EVENTS_KEY)
-      //}
       return []
     }
 
     // Ensure events is an array
     if (!Array.isArray(events)) {
       console.error('Stored events is not an array, clearing localStorage')
-      // if (typeof window !== 'undefined') {
       localStorage.removeItem(CUSTOM_EVENTS_KEY)
-      //}
       return []
     }
 
@@ -196,10 +199,8 @@ const loadCustomEventsFromStorage = (): Event[] => {
     // Save back the filtered events to clean up expired ones
     if (validEvents.length !== events.length) {
       try {
-        // if (typeof window !== 'undefined') {
         localStorage.setItem(CUSTOM_EVENTS_KEY, JSON.stringify(validEvents))
         console.log(`🗑️ Cleaned up ${expiredCount} expired events (older than 3 days)`)
-        //  }
       } catch (saveError) {
         console.error('Failed to save cleaned events:', saveError)
       }
@@ -211,9 +212,7 @@ const loadCustomEventsFromStorage = (): Event[] => {
     console.error('Failed to load custom events from localStorage:', error)
     // Clear corrupted data
     try {
-      // if (typeof window !== 'undefined') {
       localStorage.removeItem(CUSTOM_EVENTS_KEY)
-      //}
     } catch (clearError) {
       console.error('Failed to clear corrupted localStorage data:', clearError)
     }
@@ -966,7 +965,6 @@ export default function EventsCalendarPage() {
   // }, [])
 
   const toggleBookmark = useCallback(async (eventId: string) => {
-    
     const event = events.find(ev => ev.eventId === eventId);
     if (!event) return;
     if (event.isCustom) {
@@ -3121,7 +3119,7 @@ export default function EventsCalendarPage() {
                               />
                               <span>Bookmarked</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
+                            {/* <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={isTypeChecked("holiday")}
@@ -3129,7 +3127,7 @@ export default function EventsCalendarPage() {
                                 className="rounded h-3.5 w-3.5"
                               />
                               <span>Holidays</span>
-                            </label>
+                            </label> */}
                             <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"

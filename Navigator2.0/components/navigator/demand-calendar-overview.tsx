@@ -496,7 +496,6 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
 
         const eventNames = matchingEvents.length > 0 ? matchingEvents.map((e: any) => e.eventName).join(', ') : '';
         console.log("eventNames", eventNames);
-        debugger
         return [
           formatDate(demand.checkinDate),
           //new Date(demand.checkinDate).toLocaleDateString('en-US'),
