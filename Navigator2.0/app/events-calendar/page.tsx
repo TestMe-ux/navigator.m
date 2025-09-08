@@ -985,12 +985,12 @@ export default function EventsCalendarPage() {
               if (event.eventId === eventId) {
                 const newStatus: "bookmarked" | "suggested" | "available" =
                   event.status === "bookmarked"
-                    ? "available"  // 1
+                    ? "suggested"  // 1
                     : event.status === "available"
                       ? "bookmarked" // 2
                       : event.status === "suggested"
                         ? "bookmarked" // 3
-                        : "suggested";
+                        : "available";
                 return { ...event, status: newStatus }
               }
               return event
@@ -1134,8 +1134,6 @@ export default function EventsCalendarPage() {
         console.error("API Error:", err);
       }
     }
-
-
   }, [events]);
 
 
