@@ -107,7 +107,6 @@ export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, l
     })
   }
   const handleInclusionCheckboxChange = (category: keyof FilterValue, value: string) => {
-    debugger;
     var allOptions: string[] = inclusionValues.map((option: any) => option.id);
     setFilters((prev) => {
       const currentValues = prev[category] as string[];
@@ -152,7 +151,6 @@ export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, l
   }
 
   const handleApply = () => {
-    debugger;
     let filtersValue = { ...filters }
     filtersValue.guest = filtersValue.guest === "All" ? null : filtersValue.guest;
     filtersValue.lengthOfStay = filtersValue.lengthOfStay === "All" ? null : filtersValue.lengthOfStay;

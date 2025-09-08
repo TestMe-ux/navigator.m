@@ -95,8 +95,6 @@ const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataRes
   const dateMap = new Map<string, any>()
 
   entities.forEach((entity, entityIndex) => {
-
-    debugger;
     entity.subscriberPropertyRate.forEach((rateEntry, rateIndex) => {
       const checkInDate = rateEntry.checkInDateTime.split('T')[0] // Extract date part
       const compData = compEntities
@@ -139,7 +137,6 @@ const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataRes
       }
     })
   })
-  debugger
   // Convert map to array and sort by date
   transformedData.push(...Array.from(dateMap.values()))
   transformedData.sort((a, b) => a.timestamp - b.timestamp)
@@ -359,7 +356,6 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
     // Find the actual Avg Compset rate from the payload
     const actualAvgCompsetEntry = payload.find(entry => entry.name.includes('Compset') || entry.dataKey === 'avgCompset')
     const actualAvgCompsetRate = actualAvgCompsetEntry?.value || 0
-    debugger;
     const competitorRatesForRanking = (() => {
       const cloneallRates = [...allRates];
       const idx = cloneallRates.findIndex(r => r === actualAvgCompsetRate);
@@ -462,13 +458,11 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
               return aValue - bValue
             })
 
-            debugger;
             return sortedPayload.map((entry, index) => {
               // Check if this is the direct property (propertyType=0) or Avg Compset (propertyType=2)
               const isDirectProperty = entry.dataKey === 'direct' || entry.name.includes('Hotel') && !entry.name.includes('Compset')
               const isAvgCompset = entry.name.includes('Compset') || entry.dataKey === 'avgCompset'
               const isCheapest = index === 0
-              debugger;
               // Calculate variance against Avg. Compset for all entries except Avg. Compset itself
               const priceDiff = !isAvgCompset && entry.payload.compareRate > 0 ?
                 ((entry.value - entry.payload.compareRate) / entry.payload.compareRate * 100) : 0
@@ -563,9 +557,7 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
                               const normalized = normalizedStatus.toUpperCase();
 
                               if ((normalized === "O" && entry.value > 0) || avgCompStatus > 0) {
-                                return priceDiff === 0
-                                  ? ""
-                                  : `${priceDiff > 0 ? "+" : ""}${Math.round(priceDiff)}%`;
+                                return `${priceDiff > 0 ? "+" : ""}${Math.round(priceDiff)}%`;
                               }
 
                               if (normalized === "C") {
@@ -824,7 +816,7 @@ export function RateTrendsChart({ rateData, rateCompData }: any) {
     setChannelVisibility(newVisibility)
     setLegendVisibility(newLegendVisibility)
     if (competitorChannels.length > 10) {
-      setErrorMessage('Maximum 10 channels can be displayed on the graph. Please hide a channel first to show a new one.')
+      setErrorMessage('Maximum 10 properties can be displayed on the graph. Please hide a property first to show a new one.')
       setTimeout(() => setErrorMessage(''), 5000)
     }
 
@@ -834,7 +826,6 @@ export function RateTrendsChart({ rateData, rateCompData }: any) {
   const toggleLegendVisibility = useCallback((dataKey: string) => {
     // Use functional state update to avoid stale closure issues
     setLegendVisibility(prev => {
-      debugger;
       // Calculate current state using fresh state from setter
       const isCurrentlyVisible = prev[dataKey]
 
@@ -848,7 +839,7 @@ export function RateTrendsChart({ rateData, rateCompData }: any) {
 
         // Block if already at 10 visible legends
         if (currentVisibleCount >= 10) {
-          setErrorMessage('Maximum 10 channels can be displayed on the graph. Please hide a channel first to show a new one.')
+          setErrorMessage('Maximum 10 properties can be displayed on the graph. Please hide a property first to show a new one.')
           setTimeout(() => setErrorMessage(''), 5000)
           return prev // Return unchanged state
         }

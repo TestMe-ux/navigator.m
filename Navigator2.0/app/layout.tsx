@@ -9,6 +9,7 @@ import { DateProvider } from "@/components/date-context"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { Toaster } from "@/components/ui/toaster"
 import { ComparisonProvider } from "@/components/comparison-context"
+import { DatadogProvider } from "@/lib/datadogRum"
 
 /**
  * Root Layout Metadata
@@ -63,6 +64,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="antialiased font-sans bg-background text-foreground">
+         <DatadogProvider />
         <ErrorBoundary>
           <ThemeProvider
             attribute="class"

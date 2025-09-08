@@ -310,9 +310,7 @@ export default function Home() {
   }, [selectedComparison])
 
   const getRateDate = () => {
-    debugger;
     setRateData({});
-    debugger;
     const filtersValue = {
       "SID": selectedProperty?.sid,
       "channels": (channelFilter?.channelId?.length ?? 0) > 0 ? channelFilter.channelId : [-1],
@@ -373,7 +371,6 @@ export default function Home() {
   }
   const getCompRateData = () => {
     setRateCompData({});
-    debugger;
     const startDateComp = startDate
       ? new Date(startDate.getTime() + (-selectedComparison * 24 * 60 * 60 * 1000))
       : new Date();
