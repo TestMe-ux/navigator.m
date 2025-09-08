@@ -966,7 +966,7 @@ export default function EventsCalendarPage() {
   // }, [])
 
   const toggleBookmark = useCallback(async (eventId: string) => {
-    debugger
+    
     const event = events.find(ev => ev.eventId === eventId);
     if (!event) return;
     if (event.isCustom) {
@@ -987,12 +987,12 @@ export default function EventsCalendarPage() {
               if (event.eventId === eventId) {
                 const newStatus: "bookmarked" | "suggested" | "available" =
                   event.status === "bookmarked"
-                    ? "available"  // 1
+                    ? "suggested"  // 1
                     : event.status === "available"
                       ? "bookmarked" // 2
                       : event.status === "suggested"
                         ? "bookmarked" // 3
-                        : "suggested";
+                        : "available";
                 return { ...event, status: newStatus }
               }
               return event
@@ -1136,8 +1136,6 @@ export default function EventsCalendarPage() {
         console.error("API Error:", err);
       }
     }
-
-
   }, [events]);
 
 
