@@ -26,6 +26,8 @@ interface ParityDayData {
   parityScore: number
   result: 'W' | 'M' | 'L' // Overall result for the day
   violations: number
+  roomType?: string // Optional for tooltip
+  inclusion?: string // Optional for tooltip
 }
 
 interface ChannelParityData {
@@ -87,6 +89,144 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
     return abbreviations[roomType] || 'RM'
   }
 
+  // Helper function to format Channel text with hyphen word-breaking (120px width)
+  const formatChannelText = (text: string) => {
+    if (text.length <= 16) return text // Single line for short text
+    if (text.length <= 32) {
+      // Break at character 16, add hyphen if breaking a word
+      const firstLine = text.substring(0, 16)
+      const secondLine = text.substring(16)
+      
+      // Check if we're breaking in the middle of a word
+      if (text[15] !== ' ' && text[16] !== ' ' && text[16]) {
+        return {
+          firstLine: firstLine + '-',
+          secondLine: secondLine
+        }
+      }
+      return {
+        firstLine: firstLine,
+        secondLine: secondLine
+      }
+    }
+    // Truncate after 32 chars with ellipsis
+    const truncated = text.substring(0, 29) + '...'
+    const firstLine = truncated.substring(0, 16)
+    const secondLine = truncated.substring(16)
+    
+    // Check if we're breaking in the middle of a word
+    if (truncated[15] !== ' ' && truncated[16] !== ' ' && truncated[16]) {
+      return {
+        firstLine: firstLine + '-',
+        secondLine: secondLine
+      }
+    }
+    return {
+      firstLine: firstLine,
+      secondLine: secondLine
+    }
+  }
+
+  // Helper function to format Rate text with 2-line truncation (100px width)
+  const formatRateText = (text: string) => {
+    if (text.length <= 13) return text // Single line for short text
+    if (text.length <= 26) {
+      // Break to 2 lines
+      const firstLine = text.substring(0, 13)
+      const lastSpaceInFirstLine = firstLine.lastIndexOf(' ')
+      const splitPoint = lastSpaceInFirstLine > 8 ? lastSpaceInFirstLine : 13
+      return {
+        firstLine: text.substring(0, splitPoint),
+        secondLine: text.substring(splitPoint).trim()
+      }
+    }
+    // Truncate after 26 chars with ellipsis
+    const truncated = text.substring(0, 23) + '...'
+    const firstLine = truncated.substring(0, 13)
+    const lastSpaceInFirstLine = firstLine.lastIndexOf(' ')
+    const splitPoint = lastSpaceInFirstLine > 8 ? lastSpaceInFirstLine : 13
+    return {
+      firstLine: truncated.substring(0, splitPoint),
+      secondLine: truncated.substring(splitPoint).trim()
+    }
+  }
+
+  // Helper function to format Room text with hyphen word-breaking (150px width)
+  const formatRoomText = (text: string) => {
+    if (text.length <= 20) return text // Single line for short text
+    if (text.length <= 40) {
+      // Break at character 20, add hyphen if breaking a word
+      const firstLine = text.substring(0, 20)
+      const secondLine = text.substring(20)
+      
+      // Check if we're breaking in the middle of a word
+      if (text[19] !== ' ' && text[20] !== ' ' && text[20]) {
+        return {
+          firstLine: firstLine + '-',
+          secondLine: secondLine
+        }
+      }
+      return {
+        firstLine: firstLine,
+        secondLine: secondLine
+      }
+    }
+    // Truncate after 40 chars with ellipsis
+    const truncated = text.substring(0, 37) + '...'
+    const firstLine = truncated.substring(0, 20)
+    const secondLine = truncated.substring(20)
+    
+    // Check if we're breaking in the middle of a word
+    if (truncated[19] !== ' ' && truncated[20] !== ' ' && truncated[20]) {
+      return {
+        firstLine: firstLine + '-',
+        secondLine: secondLine
+      }
+    }
+    return {
+      firstLine: firstLine,
+      secondLine: secondLine
+    }
+  }
+
+  // Helper function to format Inclusion text with hyphen word-breaking (150px width)
+  const formatInclusionText = (text: string) => {
+    if (text.length <= 20) return text // Single line for short text
+    if (text.length <= 40) {
+      // Break at character 20, add hyphen if breaking a word
+      const firstLine = text.substring(0, 20)
+      const secondLine = text.substring(20)
+      
+      // Check if we're breaking in the middle of a word
+      if (text[19] !== ' ' && text[20] !== ' ' && text[20]) {
+        return {
+          firstLine: firstLine + '-',
+          secondLine: secondLine
+        }
+      }
+      return {
+        firstLine: firstLine,
+        secondLine: secondLine
+      }
+    }
+    // Truncate after 40 chars with ellipsis
+    const truncated = text.substring(0, 37) + '...'
+    const firstLine = truncated.substring(0, 20)
+    const secondLine = truncated.substring(20)
+    
+    // Check if we're breaking in the middle of a word
+    if (truncated[19] !== ' ' && truncated[20] !== ' ' && truncated[20]) {
+      return {
+        firstLine: firstLine + '-',
+        secondLine: secondLine
+      }
+    }
+    return {
+      firstLine: firstLine,
+      secondLine: secondLine
+    }
+  }
+
   // Calculate optimal number of rows based on screen space and data
   const calculateOptimalRows = () => {
     const dateCount = dateRange.length
@@ -113,32 +253,15 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
   const [showDays, setShowDays] = useState(14)
   const [currentPage, setCurrentPage] = useState(0)
   const [optimalRowCount, setOptimalRowCount] = useState(10)
-  const [optimalColumns, setOptimalColumns] = useState(8)
+  const [optimalColumns, setOptimalColumns] = useState(7)
 
   // Static total days for demo purposes (Jan 28 - Feb 10, 2025 = 14 days)
   const totalDays = 14
   
-  // Determine optimal columns based on rate length and screen resolution
+  // Determine optimal columns - fixed to 7 days with wider cells
   const getOptimalColumns = () => {
-    // Check for 1280x768 resolution (or similar small screens)
-    if (typeof window !== 'undefined' && window.innerWidth <= 1280 && window.innerHeight <= 768) {
-      return 5 // Show only 5 days for 1280x768 resolution
-    }
-    
-    const sampleRate = formatIDR(BASE_RATE_IDR) // Example: "Rp 12,398,873" (13 chars)
-    const rateLength = sampleRate.length
-    
-    // Dynamic column count based on rate length for optimal cell width
-    if (rateLength > 12) {
-      // Long rates (like IDR: "Rp 12,398,873") - show 8 columns for better readability
-      return 8
-    } else if (rateLength > 8) {
-      // Medium rates (like USD: "$1,234.56") - show 10 columns
-      return 10
-    } else {
-      // Short rates (like "€123" or "¥456") - show full 14 columns
-      return 14
-    }
+    // Always return 7 to show only 7 days with wider cells for better A/R indicator visibility
+    return 7
   }
   
   const needsPagination = totalDays > optimalColumns
@@ -191,7 +314,7 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
       { name: "Kayak", winPercent: 25, meetPercent: 40, lossPercent: 35, parityScore: 40 }
     ]
 
-    return sampleChannels.map((channel, index) => {
+    const generatedData = sampleChannels.map((channel, index) => {
       // Generate sample daily data for each channel for all 14 static dates
       const staticStartDate = new Date('2025-01-28')
       const allStaticDates = []
@@ -202,6 +325,10 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
       }
       
       const dailyData: ParityDayData[] = allStaticDates.map((date, dayIndex) => {
+        // Check if this is January 29th - if so, return null data to trigger no-data display
+        const dateStr = format(date, 'dd MMM')
+        const isJan29 = dateStr === '29 Jan'
+        
         const patterns = [
           // Hotel 2 pattern
           ['67%', '25%', '45%', '29%', '55%', '45%', '26%', '26%', '55%', '26%', '77%', '72%', '67%', '87%', '55%'],
@@ -264,6 +391,28 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
           }
         }
 
+        // For January 29th, return null data only for specific channels (index 2 and 3 - Trivago and Google Hotels)
+        // But add sample data for Expedia (index 5) and Trip Advisor (index 6) to test truncation
+        if (isJan29 && (index === 2 || index === 3)) {
+          return null as any // This will cause hasData to be false in the rendering logic
+        }
+        
+        // Add long sample data for Expedia and Trip Advisor on Jan 29 to test truncation
+        if (isJan29 && (index === 5 || index === 6)) {
+          return {
+            date: format(date, 'yyyy-MM-dd'),
+            dateFormatted: format(date, 'dd MMM'),
+            winCount: result === 'W' ? 1 : 0,
+            meetCount: result === 'M' ? 1 : 0,
+            lossCount: result === 'L' ? 1 : 0,
+            parityScore,
+            result,
+            violations: (dayIndex + index) % 5 === 0 ? 1 : 0,
+            roomType: 'Deluxe Room Superior Executive Suite with Ocean View and Private Balcony Premium', // Long room name to test truncation
+            inclusion: 'Free WiFi, Breakfast, Pool Access, Spa Services, Gym Access, Concierge Service, Parking' // Long inclusion to test truncation
+          }
+        }
+        
         return {
           date: format(date, 'yyyy-MM-dd'),
           dateFormatted: format(date, 'dd MMM'),
@@ -272,7 +421,9 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
           lossCount: result === 'L' ? 1 : 0,
           parityScore,
           result,
-          violations: (dayIndex + index) % 5 === 0 ? 1 : 0 // Deterministic violations
+          violations: (dayIndex + index) % 5 === 0 ? 1 : 0, // Deterministic violations
+          roomType: 'Deluxe Room', // Add room type for tooltip
+          inclusion: 'Free WiFi, Breakfast' // Add inclusion for tooltip
         }
       })
 
@@ -290,17 +441,17 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
         trendValue: 0
       }
     })
-
+    
     // Swap daily data between first two rows (only for date columns)
-    if (result.length >= 2) {
-      const firstRowDailyData = result[0].dailyData
-      const secondRowDailyData = result[1].dailyData
+    if (generatedData.length >= 2) {
+      const firstRowDailyData = generatedData[0].dailyData
+      const secondRowDailyData = generatedData[1].dailyData
       
-      result[0] = { ...result[0], dailyData: secondRowDailyData }
-      result[1] = { ...result[1], dailyData: firstRowDailyData }
+      generatedData[0] = { ...generatedData[0], dailyData: secondRowDailyData }
+      generatedData[1] = { ...generatedData[1], dailyData: firstRowDailyData }
     }
 
-    return result
+    return generatedData
   }
 
   // Process API data into calendar format
@@ -312,11 +463,11 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
       return generateSampleData()
     }
     
-    return channels.map((channel: any) => {
+    return channels.map((channel: any, channelIndex: number) => {
       const dailyRates = channel.checkInDateWiseRates || []
       
       // Process daily data
-      const dailyData: ParityDayData[] = dateRange.map(date => {
+      const dailyData: ParityDayData[] = dateRange.map((date, dayIndex) => {
         const dateStr = conevrtDateforApi(date.toString())
         const dayData = dailyRates.find((rate: any) => rate.checkInDate === dateStr)
         
@@ -352,8 +503,8 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
           ]
           
           // Use dayIndex and channel index to determine room type and inclusion for variety
-          const roomType = roomTypes[(dayIndex + index) % roomTypes.length]
-          const inclusion = inclusions[(dayIndex + index) % inclusions.length]
+          const roomType = roomTypes[(dayIndex + channelIndex) % roomTypes.length]
+          const inclusion = inclusions[(dayIndex + channelIndex) % inclusions.length]
           
           return {
             date: dateStr,
@@ -372,8 +523,8 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
         // Default data if no API data
         const roomTypes = ["Apartment", "Bungalow", "Deluxe Room", "Standard Room", "Studio", "Suite", "Superior Room"]
         const inclusions = ["Full Board", "Breakfast", "Room Only", "Free Wifi"]
-        const roomType = roomTypes[(dayIndex + index) % roomTypes.length]
-        const inclusion = inclusions[(dayIndex + index) % inclusions.length]
+        const roomType = roomTypes[(dayIndex + channelIndex) % roomTypes.length]
+        const inclusion = inclusions[(dayIndex + channelIndex) % inclusions.length]
         
         return {
           date: dateStr,
@@ -1039,7 +1190,7 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                                     sideOffset={8}
                                     avoidCollisions={true}
                                     collisionPadding={16}
-                                    className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-3 min-w-[400px] max-w-[500px] pointer-events-none"
+                                    className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-3 min-w-[500px] max-w-[700px] w-fit pointer-events-none"
                                   >
                                     {/* Date Heading - Left Aligned */}
                                     <div className="mb-2">
@@ -1051,63 +1202,113 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
 
                                     {/* Semantic Table Structure */}
                                     <div className="mt-4">
-                                      <table className="w-full text-xs" style={{ tableLayout: 'auto' }}>
-                                        <thead>
-                                          <tr className="text-gray-500 dark:text-slate-400 font-medium">
-                                            <th className="text-left pb-2" style={{ width: '80px', paddingLeft: '4px' }}>Channel</th>
-                                            <th className="text-left pb-2 pl-4" style={{ minWidth: '90px', maxWidth: '140px' }}>Rate (Rp)</th>
-                                            <th className="text-left pb-2 pl-4" style={{ minWidth: '120px', maxWidth: '200px', paddingRight: '16px' }}>Room</th>
-                                            <th className="text-left pb-2 pl-4" style={{ minWidth: '70px', maxWidth: '120px' }}>Inclusion</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody className="space-y-1">
-                                          <tr className="bg-blue-50 dark:bg-blue-900/30">
-                                            {/* Channel */}
-                                            <td className="py-1.5 pr-2 rounded-l" style={{ width: '80px', paddingLeft: '4px' }}>
-                                              <span className="font-medium truncate text-blue-900 dark:text-blue-200" title="MakeMyTrip Benchmark">
-                                                MakeMyTri...
-                                              </span>
-                                            </td>
-                                            
-                                            {/* Rate */}
-                                            <td className="py-1.5 pl-4 pr-2 text-left font-bold text-blue-900 dark:text-blue-200" style={{ minWidth: '90px', maxWidth: '140px' }}>
-                                              {(() => {
-                                                const dayOfMonth = parseInt(dayData.date.split('-')[2])
-                                                if (dayOfMonth === 30 || dayOfMonth === 31) {
-                                                  return 'Sold Out'
-                                                }
-                                                return formatNumber(BASE_RATE_IDR)
-                                              })()}
-                                            </td>
-                                            
-                                            {/* Room with abbreviation */}
-                                            <td className="py-1.5 pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ minWidth: '120px', maxWidth: '200px', paddingRight: '16px' }}>
-                                              {(() => {
-                                                const roomType = dayData.roomType || 'Deluxe Room'
-                                                const roomAbbr = getRoomAbbreviation(roomType)
-                                                const roomWithAbbr = `${roomAbbr} - ${roomType}`
-                                                const maxDisplayLength = 25
-                                                if (roomWithAbbr.length > maxDisplayLength) {
-                                                  return `${roomWithAbbr.substring(0, maxDisplayLength - 3)}...`
-                                                }
-                                                return roomWithAbbr
-                                              })()}
-                                            </td>
-                                            
-                                            {/* Inclusion */}
-                                            <td className="py-1.5 pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ minWidth: '70px', maxWidth: '120px' }}>
-                                              {(() => {
-                                                const inclusion = dayData.inclusion || 'Free WiFi, Breakfast'
-                                                const maxDisplayLength = 15
-                                                if (inclusion.length > maxDisplayLength) {
-                                                  return `${inclusion.substring(0, maxDisplayLength - 3)}...`
-                                                }
-                                                return inclusion
-                                              })()}
-                                            </td>
-                                          </tr>
-                                        </tbody>
-                                      </table>
+                                      {(() => {
+                                        // Calculate content for fixed widths
+                                        const channelName = "MakeMyTrip Benchmark"
+                                        const truncatedChannelName = channelName.length > 12 ? `${channelName.substring(0, 9)}...` : channelName
+                                        const dayOfMonth = parseInt(dayData.date.split('-')[2])
+                                        const rateText = (dayOfMonth === 30 || dayOfMonth === 31) ? 'Sold Out' : formatNumber(BASE_RATE_IDR)
+                                        const truncatedRate = rateText.length > 11 ? `${rateText.substring(0, 8)}...` : rateText
+                                        const roomType = dayData.roomType || 'Deluxe Room'
+                                        const roomAbbr = getRoomAbbreviation(roomType)
+                                        const roomWithAbbr = `${roomAbbr} - ${roomType}`
+                                        const formattedRoom = formatRoomText(roomWithAbbr)
+                                        const inclusion = dayData.inclusion || 'Free WiFi, Breakfast'
+                                        const formattedInclusion = formatInclusionText(inclusion)
+                                        
+                                        // Fixed column widths
+                                        const channelWidth = '120px'
+                                        const rateWidth = '100px'
+                                        const roomWidth = '150px'
+                                        const inclusionWidth = '150px'
+                                        
+                                        return (
+                                          <table className="w-full text-xs" style={{ tableLayout: 'auto', borderSpacing: '0 0' }}>
+                                            <thead>
+                                              <tr className="text-gray-500 dark:text-slate-400 font-medium">
+                                                <th className="text-left pb-2" style={{ width: channelWidth, paddingLeft: '4px', paddingRight: '16px' }}>Channel</th>
+                                                <th className="text-left pb-2" style={{ width: rateWidth, paddingRight: '16px' }}>Rate (Rp)</th>
+                                                <th className="text-left pb-2" style={{ width: roomWidth, paddingRight: '16px' }}>Room</th>
+                                                <th className="text-left pb-2" style={{ width: inclusionWidth }}>Inclusion</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody className="space-y-1">
+                                              <tr className="bg-blue-50 dark:bg-blue-900/30">
+                                                {/* Channel */}
+                                                <td className="py-1.5 align-top rounded-l align-top" style={{ width: channelWidth, paddingLeft: '4px', paddingRight: '16px' }}>
+                                                  <span className="font-medium text-blue-900 dark:text-blue-200" title="MakeMyTrip Benchmark">
+                                                    {(() => {
+                                                      const benchmarkChannelName = "MakeMyTrip Benchmark"
+                                                      
+                                                      // Custom formatting for benchmark to show only 2 lines max with ellipsis and hyphen for word breaks
+                                                      if (benchmarkChannelName.length <= 12) {
+                                                        return benchmarkChannelName
+                                                      } else {
+                                                        // Find the best break point around character 12
+                                                        let breakPoint = 12
+                                                        const char12 = benchmarkChannelName.charAt(12)
+                                                        const char11 = benchmarkChannelName.charAt(11)
+                                                        
+                                                        // Check if we're breaking in the middle of a word
+                                                        const isWordBreak = char12 && char12 !== ' ' && char11 !== ' '
+                                                        
+                                                        let firstLine = benchmarkChannelName.substring(0, breakPoint)
+                                                        let secondLine = benchmarkChannelName.substring(breakPoint)
+                                                        
+                                                        // Add hyphen if breaking in middle of word
+                                                        if (isWordBreak && firstLine.length > 0) {
+                                                          firstLine += '-'
+                                                        }
+                                                        
+                                                        // If second line is too long, truncate with ellipsis
+                                                        if (secondLine.length > 9) {
+                                                          secondLine = secondLine.substring(0, 6) + '...'
+                                                        }
+                                                        
+                                                        return (
+                                                          <div className="text-left">
+                                                            <div className="leading-tight">{firstLine}</div>
+                                                            <div className="leading-tight">{secondLine}</div>
+                                                          </div>
+                                                        )
+                                                      }
+                                                    })()}
+                                                  </span>
+                                                </td>
+                                                
+                                                {/* Rate */}
+                                                <td className="py-1.5 align-top text-left font-bold text-blue-900 dark:text-blue-200" style={{ width: rateWidth, paddingRight: '16px' }}>
+                                                  <div className="truncate" title={rateText}>{truncatedRate}</div>
+                                                </td>
+                                                
+                                                {/* Room with abbreviation */}
+                                                <td className="py-1.5 align-top text-left text-blue-900 dark:text-blue-200" style={{ width: roomWidth, paddingRight: '16px' }}>
+                                                  {typeof formattedRoom === 'string' ? (
+                                                    <div title={roomWithAbbr}>{formattedRoom}</div>
+                                                  ) : (
+                                                    <div title={roomWithAbbr}>
+                                                      <div className="leading-tight">{formattedRoom.firstLine}</div>
+                                                      <div className="leading-tight">{formattedRoom.secondLine}</div>
+                                                    </div>
+                                                  )}
+                                                </td>
+                                                
+                                                {/* Inclusion */}
+                                                <td className="py-1.5 align-top text-left text-blue-900 dark:text-blue-200 rounded-r" style={{ width: inclusionWidth }}>
+                                                  {typeof formattedInclusion === 'string' ? (
+                                                    <div title={inclusion}>{formattedInclusion}</div>
+                                                  ) : (
+                                                    <div title={inclusion}>
+                                                      <div className="leading-tight">{formattedInclusion.firstLine}</div>
+                                                      <div className="leading-tight">{formattedInclusion.secondLine}</div>
+                                                    </div>
+                                                  )}
+                                                </td>
+                                              </tr>
+                                            </tbody>
+                                          </table>
+                                        )
+                                      })()}
                                     </div>
                                   </TooltipContent>
                                 </Tooltip>
@@ -1157,6 +1358,26 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                                         }
                                         
                                         const finalRate = Math.max(channelRate, 8000000) // Minimum 8M IDR
+                                        
+                                        // For Loss cells, add A/R violation indicators
+                                        if (result === 'L') {
+                                          const rateText = formatIDR(finalRate)
+                                          // Determine A or R based on date and channel for consistent display
+                                          const dayNum = parseInt(dayData.date.split('-')[2])
+                                          const violationType = (dayNum + channelIndex) % 2 === 0 ? 'A' : 'R'
+                                          
+                                          return (
+                                            <div className="flex items-center justify-center gap-1">
+                                              <span>{rateText}</span>
+                                              <div className="w-[13px] h-[13px] rounded-full border border-red-500 flex items-center justify-center">
+                                                <span className="text-[8px] font-bold text-red-500">
+                                                  {violationType}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          )
+                                        }
+                                        
                                         return formatIDR(finalRate)
                                       })()}
                               </div>
@@ -1166,7 +1387,7 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                                     sideOffset={8}
                                     avoidCollisions={true}
                                     collisionPadding={16}
-                                    className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-3 min-w-[400px] max-w-[500px] pointer-events-none"
+                                    className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-3 min-w-[500px] max-w-[700px] w-fit pointer-events-none"
                                   >
                                     {/* Date Heading - Left Aligned */}
                                     <div className="mb-2">
@@ -1192,17 +1413,50 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                                             /* Benchmark channels (1st and 2nd row) - single row with actual channel name only */
                                           <tr className="bg-blue-50 dark:bg-blue-900/30">
                                                                                         {/* Channel */}
-                                              <td className="py-1.5 pr-2 rounded-l" style={{ width: '80px', paddingLeft: '4px' }}>
-                                                <span className="font-medium truncate text-blue-900 dark:text-blue-200" title={channelIndex === 1 ? "MakeMyTrip Benchmark" : channel.channelName}>
-                                                  {channelIndex === 1 ? 
-                                                    ("MakeMyTrip Benchmark".length > 12 ? "MakeMyTri..." : "MakeMyTrip Benchmark") : 
-                                                    channel.channelName
+                                              <td className="py-1.5 align-top pr-2 rounded-l" style={{ width: '80px', paddingLeft: '4px' }}>
+                                                <span className="font-medium text-blue-900 dark:text-blue-200" title={channelIndex === 1 ? "MakeMyTrip Benchmark" : channel.channelName}>
+                                                  {channelIndex === 1 ? (() => {
+                                                    const benchmarkChannelName = "MakeMyTrip Benchmark"
+                                                    
+                                                    // Custom formatting for benchmark to show only 2 lines max with ellipsis and hyphen for word breaks
+                                                    if (benchmarkChannelName.length <= 12) {
+                                                      return benchmarkChannelName
+                                                    } else {
+                                                      // Find the best break point around character 12
+                                                      let breakPoint = 12
+                                                      const char12 = benchmarkChannelName.charAt(12)
+                                                      const char11 = benchmarkChannelName.charAt(11)
+                                                      
+                                                      // Check if we're breaking in the middle of a word
+                                                      const isWordBreak = char12 && char12 !== ' ' && char11 !== ' '
+                                                      
+                                                      let firstLine = benchmarkChannelName.substring(0, breakPoint)
+                                                      let secondLine = benchmarkChannelName.substring(breakPoint)
+                                                      
+                                                      // Add hyphen if breaking in middle of word
+                                                      if (isWordBreak && firstLine.length > 0) {
+                                                        firstLine += '-'
+                                                      }
+                                                      
+                                                      // If second line is too long, truncate with ellipsis  
+                                                      if (secondLine.length > 9) {
+                                                        secondLine = secondLine.substring(0, 6) + '...'
+                                                      }
+                                                      
+                                                      return (
+                                                        <div className="text-left">
+                                                          <div className="leading-tight">{firstLine}</div>
+                                                          <div className="leading-tight">{secondLine}</div>
+                                                        </div>
+                                                      )
+                                                    }
+                                                  })() : channel.channelName
                                                   }
                                               </span>
                                             </td>
                                             
                                             {/* Rate */}
-                                              <td className="py-1.5 pl-4 pr-2 text-left font-bold text-blue-900 dark:text-blue-200" style={{ minWidth: '90px', maxWidth: '140px' }}>
+                                              <td className="py-1.5 align-top pl-4 pr-2 text-left font-bold text-blue-900 dark:text-blue-200" style={{ minWidth: '90px', maxWidth: '140px' }}>
                                                 {(() => {
                                                   const dayOfMonth = parseInt(dayData.date.split('-')[2])
                                                   if (dayOfMonth === 30) return 'Sold Out'
@@ -1212,36 +1466,42 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                                             </td>
                                             
                                               {/* Room with abbreviation */}
-                                              <td className="py-1.5 pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ minWidth: '120px', maxWidth: '200px', paddingRight: '16px' }}>
+                                              <td className="py-1.5 align-top pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ width: '150px', paddingRight: '16px' }}>
                                                 {(() => {
                                                   const roomType = dayData.roomType || 'Deluxe Room'
-                                                  const getRoomAbbreviation = (room: string) => {
-                                                    if (room.includes('Apartment')) return 'APT'
-                                                    if (room.includes('Bungalow')) return 'BNW'
-                                                    if (room.includes('Deluxe')) return 'DLX'
-                                                    if (room.includes('Standard')) return 'STD'
-                                                    if (room.includes('Studio')) return 'STU'
-                                                    if (room.includes('Suite')) return 'SUI'
-                                                    if (room.includes('Superior')) return 'SUP'
-                                                    return 'ROO'
-                                                  }
                                                   const roomAbbr = getRoomAbbreviation(roomType)
                                                   const roomWithAbbr = `${roomAbbr} - ${roomType}`
+                                                  const formattedRoom = formatRoomText(roomWithAbbr)
                                                   
-                                                  // Adaptive truncation based on available space
-                                                  const maxDisplayLength = 25 // Increased for adaptive width
-                                                  if (roomWithAbbr.length > maxDisplayLength) {
-                                                    return `${roomWithAbbr.substring(0, maxDisplayLength - 3)}...`
+                                                  if (typeof formattedRoom === 'string') {
+                                                    return <div title={roomWithAbbr}>{formattedRoom}</div>
+                                                  } else {
+                                                    return (
+                                                      <div title={roomWithAbbr}>
+                                                        <div className="leading-tight">{formattedRoom.firstLine}</div>
+                                                        <div className="leading-tight">{formattedRoom.secondLine}</div>
+                                                      </div>
+                                                    )
                                                   }
-                                                  return roomWithAbbr
                                                 })()}
                                               </td>
                                               
                                               {/* Inclusion */}
-                                              <td className="py-1.5 pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ minWidth: '70px', maxWidth: '120px' }}>
+                                              <td className="py-1.5 align-top pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ width: '130px' }}>
                                                 {(() => {
                                                   const inclusion = dayData.inclusion || 'Free Wifi'
-                                                  return inclusion.length > 15 ? `${inclusion.substring(0, 12)}...` : inclusion
+                                                  const formattedInclusion = formatInclusionText(inclusion)
+                                                  
+                                                  if (typeof formattedInclusion === 'string') {
+                                                    return <div title={inclusion}>{formattedInclusion}</div>
+                                                  } else {
+                                                    return (
+                                                      <div title={inclusion}>
+                                                        <div className="leading-tight">{formattedInclusion.firstLine}</div>
+                                                        <div className="leading-tight">{formattedInclusion.secondLine}</div>
+                                                      </div>
+                                                    )
+                                                  }
                                                 })()}
                                               </td>
                                             </tr>
@@ -1251,14 +1511,14 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                                               {/* Benchmark Channel Row (MakeMyTrip) */}
                                               <tr className="bg-blue-50 dark:bg-blue-900/30">
                                                 {/* Channel */}
-                                                <td className="py-1.5 pr-2 rounded-l" style={{ width: '80px', paddingLeft: '4px' }}>
+                                                <td className="py-1.5 align-top pr-2 rounded-l" style={{ width: '80px', paddingLeft: '4px' }}>
                                                   <span className="font-medium truncate text-blue-900 dark:text-blue-200" title={BENCHMARK_CHANNEL_NAME}>
                                                     {getBenchmarkDisplayName()}
                                                   </span>
                                                 </td>
                                                 
                                                 {/* Rate */}
-                                                <td className="py-1.5 pl-4 pr-2 text-left font-bold text-blue-900 dark:text-blue-200" style={{ minWidth: '90px', maxWidth: '140px' }}>
+                                                <td className="py-1.5 align-top pl-4 pr-2 text-left font-bold text-blue-900 dark:text-blue-200" style={{ minWidth: '90px', maxWidth: '140px' }}>
                                                   {(() => {
                                                     const dayOfMonth = parseInt(dayData.date.split('-')[2])
                                                     if (dayOfMonth === 30) return 'Sold Out'
@@ -1277,36 +1537,42 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                                             </td>
                                             
                                             {/* Room with abbreviation */}
-                                                <td className="py-1.5 pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ minWidth: '120px', maxWidth: '200px', paddingRight: '16px' }}>
+                                                <td className="py-1.5 align-top pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ width: '180px', paddingRight: '16px' }}>
                                               {(() => {
                                                 const roomType = dayData.roomType || 'Deluxe Room'
-                                                const getRoomAbbreviation = (room: string) => {
-                                                  if (room.includes('Apartment')) return 'APT'
-                                                  if (room.includes('Bungalow')) return 'BNW'
-                                                  if (room.includes('Deluxe')) return 'DLX'
-                                                  if (room.includes('Standard')) return 'STD'
-                                                  if (room.includes('Studio')) return 'STU'
-                                                  if (room.includes('Suite')) return 'SUI'
-                                                  if (room.includes('Superior')) return 'SUP'
-                                                  return 'ROO'
-                                                }
                                                 const roomAbbr = getRoomAbbreviation(roomType)
                                                 const roomWithAbbr = `${roomAbbr} - ${roomType}`
+                                                const formattedRoom = formatRoomText(roomWithAbbr)
                                                 
-                                                    // Adaptive truncation based on available space
-                                                    const maxDisplayLength = 25 // Increased for adaptive width
-                                                if (roomWithAbbr.length > maxDisplayLength) {
-                                                  return `${roomWithAbbr.substring(0, maxDisplayLength - 3)}...`
+                                                if (typeof formattedRoom === 'string') {
+                                                  return <div title={roomWithAbbr}>{formattedRoom}</div>
+                                                } else {
+                                                  return (
+                                                    <div title={roomWithAbbr}>
+                                                      <div className="leading-tight">{formattedRoom.firstLine}</div>
+                                                      <div className="leading-tight">{formattedRoom.secondLine}</div>
+                                                    </div>
+                                                  )
                                                 }
-                                                return roomWithAbbr
                                               })()}
                                             </td>
                                             
                                             {/* Inclusion */}
-                                                <td className="py-1.5 pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ minWidth: '70px', maxWidth: '120px' }}>
+                                                <td className="py-1.5 align-top pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ width: '180px' }}>
                                               {(() => {
                                                 const inclusion = dayData.inclusion || 'Free Wifi'
-                                                    return inclusion.length > 15 ? `${inclusion.substring(0, 12)}...` : inclusion
+                                                const formattedInclusion = formatInclusionText(inclusion)
+                                                
+                                                if (typeof formattedInclusion === 'string') {
+                                                  return <div title={inclusion}>{formattedInclusion}</div>
+                                                } else {
+                                                  return (
+                                                    <div title={inclusion}>
+                                                      <div className="leading-tight">{formattedInclusion.firstLine}</div>
+                                                      <div className="leading-tight">{formattedInclusion.secondLine}</div>
+                                                    </div>
+                                                  )
+                                                }
                                               })()}
                                             </td>
                                           </tr>
@@ -1314,14 +1580,14 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                                                                                     {/* Hovered Channel Row */}
                                           <tr>
                                             {/* Channel */}
-                                                <td className="py-1.5 pr-2 rounded-l" style={{ width: '80px', paddingLeft: '4px' }}>
+                                                <td className="py-1.5 align-top pr-2 rounded-l" style={{ width: '80px', paddingLeft: '4px' }}>
                                               <span className="font-medium truncate text-gray-900 dark:text-slate-100" title={channel.channelName}>
                                                 {channel.channelName.length > 12 ? `${channel.channelName.substring(0, 9)}...` : channel.channelName}
                                               </span>
                                             </td>
                                             
                                             {/* Rate */}
-                                                <td className="py-1.5 pl-4 pr-2 text-left font-bold text-gray-900 dark:text-slate-100" style={{ minWidth: '90px', maxWidth: '140px' }}>
+                                                <td className="py-1.5 align-top pl-4 pr-2 text-left font-bold text-gray-900 dark:text-slate-100" style={{ minWidth: '90px', maxWidth: '140px' }}>
                                               {(() => {
                                                     const dayOfMonth = parseInt(dayData.date.split('-')[2])
                                                     if (dayOfMonth === 30) {
@@ -1364,36 +1630,42 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                                             </td>
                                             
                                             {/* Room with abbreviation */}
-                                                <td className="py-1.5 pl-4 pr-2 text-left text-gray-900 dark:text-slate-100" style={{ minWidth: '120px', maxWidth: '200px', paddingRight: '16px' }}>
+                                                <td className="py-1.5 align-top pl-4 pr-2 text-left text-gray-900 dark:text-slate-100" style={{ width: '180px', paddingRight: '16px' }}>
                                               {(() => {
                                                 const roomType = dayData.roomType || 'Deluxe Room'
-                                                const getRoomAbbreviation = (room: string) => {
-                                                  if (room.includes('Apartment')) return 'APT'
-                                                  if (room.includes('Bungalow')) return 'BNW'
-                                                  if (room.includes('Deluxe')) return 'DLX'
-                                                  if (room.includes('Standard')) return 'STD'
-                                                  if (room.includes('Studio')) return 'STU'
-                                                  if (room.includes('Suite')) return 'SUI'
-                                                  if (room.includes('Superior')) return 'SUP'
-                                                  return 'ROO'
-                                                }
                                                 const roomAbbr = getRoomAbbreviation(roomType)
                                                 const roomWithAbbr = `${roomAbbr} - ${roomType}`
+                                                const formattedRoom = formatRoomText(roomWithAbbr)
                                                 
-                                                    // Adaptive truncation based on available space
-                                                    const maxDisplayLength = 25 // Increased for adaptive width
-                                                if (roomWithAbbr.length > maxDisplayLength) {
-                                                  return `${roomWithAbbr.substring(0, maxDisplayLength - 3)}...`
+                                                if (typeof formattedRoom === 'string') {
+                                                  return <div title={roomWithAbbr}>{formattedRoom}</div>
+                                                } else {
+                                                  return (
+                                                    <div title={roomWithAbbr}>
+                                                      <div className="leading-tight">{formattedRoom.firstLine}</div>
+                                                      <div className="leading-tight">{formattedRoom.secondLine}</div>
+                                                    </div>
+                                                  )
                                                 }
-                                                return roomWithAbbr
                                               })()}
                                             </td>
                                             
                                             {/* Inclusion */}
-                                                <td className="py-1.5 pl-4 pr-2 text-left text-gray-900 dark:text-slate-100" style={{ minWidth: '70px', maxWidth: '120px' }}>
+                                                <td className="py-1.5 align-top pl-4 pr-2 text-left text-gray-900 dark:text-slate-100" style={{ width: '180px' }}>
                                               {(() => {
                                                 const inclusion = dayData.inclusion || 'Free Wifi'
-                                                    return inclusion.length > 15 ? `${inclusion.substring(0, 12)}...` : inclusion
+                                                const formattedInclusion = formatInclusionText(inclusion)
+                                                
+                                                if (typeof formattedInclusion === 'string') {
+                                                  return <div title={inclusion}>{formattedInclusion}</div>
+                                                } else {
+                                                  return (
+                                                    <div title={inclusion}>
+                                                      <div className="leading-tight">{formattedInclusion.firstLine}</div>
+                                                      <div className="leading-tight">{formattedInclusion.secondLine}</div>
+                                                    </div>
+                                                  )
+                                                }
                                               })()}
                                             </td>
                                           </tr>
@@ -1411,7 +1683,7 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                                                 return (
                                                   <tr>
                                                     {/* Difference label in Channel column - only show for Win/Loss, empty for Meet */}
-                                                    <td className="py-1.5 pr-2 text-left font-normal" style={{ width: '80px', paddingLeft: '4px', borderTop: '1px solid #e5e7eb' }}>
+                                                    <td className="py-1.5 align-top pr-2 text-left font-normal" style={{ width: '80px', paddingLeft: '4px', borderTop: '1px solid #e5e7eb' }}>
                                                       {(() => {
                                                         // Check if this is a meet state by calculating the difference
                                                         const dayOfMonth = parseInt(dayData.date.split('-')[2])
@@ -1447,7 +1719,7 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                                                     
                                                     {/* +/- values with currency in Rate column */}
                                                     <td 
-                                                      className="py-1.5 pl-4 pr-2 text-left" 
+                                                      className="py-1.5 align-top pl-4 pr-2 text-left" 
                                                       style={{ minWidth: '90px', maxWidth: '140px', borderTop: '1px solid #e5e7eb' }}
                                                     >
                                                       {(() => {
@@ -1537,12 +1809,32 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                                                       })()}
                                                     </td>
                                                     
-                                                    {/* Empty Room column */}
-                                                    <td className="py-1.5 pl-4 pr-2" style={{ minWidth: '120px', maxWidth: '200px', paddingRight: '16px', borderTop: '1px solid #e5e7eb' }}>
+                                                    {/* Conditional A/R Legend in Room column - only show if cell has violation */}
+                                                    <td className="py-1.5 align-top pl-4 pr-2" style={{ minWidth: '120px', maxWidth: '200px', paddingRight: '16px', borderTop: '1px solid #e5e7eb' }}>
+                                                      {dayData.result === 'L' && (
+                                                        <div className="flex items-center justify-start">
+                                                          {(() => {
+                                                            // Calculate same violation type as used in cell display
+                                                            const dayNum = parseInt(dayData.date.split('-')[2])
+                                                            const violationType = (dayNum + channelIndex) % 2 === 0 ? 'A' : 'R'
+                                                            
+                                                            return (
+                                                              <div className="flex items-center gap-1">
+                                                                <div className="w-[13px] h-[13px] rounded-full border border-red-500 flex items-center justify-center">
+                                                                  <span className="text-[8px] font-bold text-red-500">{violationType}</span>
+                                                                </div>
+                                                                <span className="text-xs font-normal text-red-600 dark:text-red-400">
+                                                                  {violationType === 'A' ? 'Availability Violation' : 'Rate Violation'}
+                                                                </span>
+                                                              </div>
+                                                            )
+                                                          })()}
+                                                        </div>
+                                                      )}
                                                     </td>
                                                     
                                                     {/* Empty Inclusion column */}
-                                                    <td className="py-1.5 pl-4 pr-2" style={{ minWidth: '70px', maxWidth: '120px', borderTop: '1px solid #e5e7eb' }}>
+                                                    <td className="py-1.5 align-top pl-4 pr-2" style={{ minWidth: '70px', maxWidth: '120px', borderTop: '1px solid #e5e7eb' }}>
                                                     </td>
                                                   </tr>
                                                 )
@@ -1556,8 +1848,29 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
                           </Tooltip>
                               )
                             ) : (
-                              // Empty cell for dates beyond the available range
-                              <div className={`${adaptiveCellWidth} h-6`}></div>
+                              // Empty cell for dates beyond the available range or no-data case
+                              (() => {
+                                // Check if this is specifically January 29th for specific channels no-data showcase
+                                const currentDate = dateRange[actualDayIndex]
+                                const isJan29NoData = currentDate && 
+                                  format(currentDate, 'dd MMM') === '29 Jan' &&
+                                  (channelIndex === 2 || channelIndex === 3) // Show no-data for Trivago and Booking.com channels (after filtering out first row)
+                                
+                                if (isJan29NoData) {
+                                  // Special styling for 29 Jan no-data case for specific channels:
+                                  // - Remove background and border color
+                                  // - Show -- only
+                                  // - No tooltip, no hover effect
+                                  return (
+                                    <div className={`${adaptiveCellWidth} h-6 flex items-center justify-center text-black dark:text-white text-[10px] font-normal`}>
+                                      --
+                                    </div>
+                                  )
+                                } else {
+                                  // Regular empty cell
+                                  return <div className={`${adaptiveCellWidth} h-6`}></div>
+                                }
+                              })()
                             )}
                         </td>
                         )
@@ -1590,6 +1903,18 @@ export function ParityCalendarView({ className }: ParityCalendarViewProps) {
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 bg-red-400 rounded border border-red-500"></div>
                 <span className="text-foreground font-medium">Loss</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-[13px] h-[13px] rounded-full border border-red-500 flex items-center justify-center">
+                  <span className="text-[8px] font-bold text-red-500">A</span>
+                </div>
+                                <span className="text-foreground font-medium">Availability Violation</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-[13px] h-[13px] rounded-full border border-red-500 flex items-center justify-center">
+                  <span className="text-[8px] font-bold text-red-500">R</span>
+                </div>
+                                <span className="text-foreground font-medium">Rate Violation</span>
               </div>
 
             </div>
