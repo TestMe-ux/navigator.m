@@ -31,7 +31,7 @@ interface ParityOverviewFilterBarProps {
 export function ParityOverviewFilterBar({ className }: ParityOverviewFilterBarProps) {
   const [selectedProperty] = useSelectedProperty()
   const { startDate, endDate, setDateRange } = useParityDateContext()
-  const { selectedChannels, setSelectedChannels, availableChannels, setAvailableChannels } = useParityChannelContext()
+  const { selectedChannels, setSelectedChannels, availableChannels, setAvailableChannels, fallbackChannels } = useParityChannelContext()
   
   // Keep track of channels fetch
   const didFetch = useRef(false)
@@ -41,7 +41,7 @@ export function ParityOverviewFilterBar({ className }: ParityOverviewFilterBarPr
     didFetch.current = false
   }, [selectedProperty?.sid])
 
-  // Fetch channels for parity page
+  // Fetch channels for parity page and ensure we have at least 8
   useEffect(() => {
     if (!selectedProperty?.sid || didFetch.current) return
 
@@ -49,42 +49,96 @@ export function ParityOverviewFilterBar({ className }: ParityOverviewFilterBarPr
     getChannels({ SID: selectedProperty?.sid })
       .then((res) => {
         console.log("Parity Channels", res.body)
-        res.body.sort((a: any, b: any) => a.name.localeCompare(b.name))
-        const allChannel = {
-          cid: -1,
-          channelMasterId: null,
-          name: "All Channels",
-          url: null,
-          resultsPerPage: null,
-          isActive: true,
-          isMetaSite: false,
-          orderId: null,
-          isMobileChannel: false,
-          isApproved: true,
-          isNew: false,
-          createdDate: null,
-          lastUpdateDate: null,
-          subscriberChannelMappingId: null,
-          channelGroupName: "",
-          channelIcon: "",
-          isOta: false,
-          isMeta: false,
-          isBrand: false,
-          isGds: false,
-          isOthers: false,
-          displayName: "All Channels",
+        
+        if (res.body && res.body.length > 0) {
+          res.body.sort((a: any, b: any) => a.name.localeCompare(b.name))
+          
+          const allChannel = {
+            cid: -1,
+            channelMasterId: null,
+            name: "All Channels",
+            url: null,
+            resultsPerPage: null,
+            isActive: true,
+            isMetaSite: false,
+            orderId: null,
+            isMobileChannel: false,
+            isApproved: true,
+            isNew: false,
+            createdDate: null,
+            lastUpdateDate: null,
+            subscriberChannelMappingId: null,
+            channelGroupName: "",
+            channelIcon: "",
+            isOta: false,
+            isMeta: false,
+            isBrand: false,
+            isGds: false,
+            isOthers: false,
+            displayName: "All Channels",
+          }
+          
+          let channelList = [allChannel, ...res.body]
+          
+          // Ensure we have at least 8 channels (excluding "All Channels")
+          if (res.body.length < 8) {
+            // Add fallback channels that don't exist in API response
+            fallbackChannels.forEach(fallbackChannel => {
+              if (fallbackChannel.cid === -1) return // Skip "All Channels" from fallbacks
+              
+              const exists = res.body.some((apiChannel: any) => 
+                apiChannel.cid === fallbackChannel.cid || 
+                apiChannel.name?.toLowerCase() === fallbackChannel.name.toLowerCase()
+              )
+              
+              if (!exists && channelList.length < 10) {
+                channelList.push({
+                  ...fallbackChannel,
+                  channelMasterId: null,
+                  url: null,
+                  resultsPerPage: null,
+                  isMetaSite: false,
+                  orderId: null,
+                  isMobileChannel: false,
+                  isApproved: true,
+                  isNew: false,
+                  createdDate: null,
+                  lastUpdateDate: null,
+                  subscriberChannelMappingId: null,
+                  channelGroupName: "",
+                  channelIcon: "",
+                  isOta: true,
+                  isMeta: false,
+                  isBrand: false,
+                  isGds: false,
+                  isOthers: false,
+                  displayName: fallbackChannel.name,
+                })
+              }
+            })
+          }
+          
+          // Set data for parity page
+          setAvailableChannels(channelList)
+          
+          // Set selected channels as array of cids for parity page
+          setSelectedChannels(channelList.map(c => c.cid))
+          console.log(`📋 Parity channels initialized with ${channelList.length} channels (${channelList.length - 1} actual channels + All Channels)`)
+        } else {
+          // Use fallback channels if API returns empty
+          setAvailableChannels(fallbackChannels)
+          setSelectedChannels(fallbackChannels.map(c => c.cid))
+          console.log('📋 Using fallback channels for parity monitoring - API returned empty')
         }
-        const channelList = [allChannel, ...res.body]
-        
-        // Set data for parity page
-        setAvailableChannels(channelList)
-        
-        // Set selected channels as array of cids for parity page
-        setSelectedChannels(channelList.map(c => c.cid))
-        console.log(`📋 Parity channels initialized with ${channelList.length} channels`)
       })
-      .catch((err) => console.error("Parity channels fetch error:", err))
-  }, [selectedProperty?.sid])
+      .catch((err) => {
+        console.error("Parity channels fetch error:", err)
+        // Use fallback channels if API fails
+        setAvailableChannels(fallbackChannels)
+        setSelectedChannels(fallbackChannels.map(c => c.cid))
+        console.log('📋 Using fallback channels due to API error')
+      })
+  }, [selectedProperty?.sid, setAvailableChannels, setSelectedChannels, fallbackChannels])
 
   /**
    * Handle date range updates for parity page

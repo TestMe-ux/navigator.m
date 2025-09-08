@@ -199,6 +199,166 @@ function ParityMonitoringContent() {
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [loadingCycle, setLoadingCycle] = useState(1)
 
+  // Formatting functions for tooltips
+  // Channel: 130px width - Break words with hyphen, use full width
+  const formatChannelText = (text: string) => {
+    if (text.length <= 22) return text // Single line for short text
+    if (text.length <= 44) {
+      // Break at character 22, add hyphen if breaking a word
+      const firstLine = text.substring(0, 22)
+      const secondLine = text.substring(22)
+      
+      // Check if we're breaking in the middle of a word
+      if (text[21] !== ' ' && text[22] !== ' ' && text[22]) {
+        return {
+          firstLine: firstLine + '-',
+          secondLine: secondLine
+        }
+      }
+      return {
+        firstLine: firstLine,
+        secondLine: secondLine
+      }
+    }
+    // Truncate after 44 chars with ellipsis
+    const truncated = text.substring(0, 41) + '...'
+    const firstLine = truncated.substring(0, 22)
+    const secondLine = truncated.substring(22)
+    
+    // Check if we're breaking in the middle of a word
+    if (truncated[21] !== ' ' && truncated[22] !== ' ' && truncated[22]) {
+      return {
+        firstLine: firstLine + '-',
+        secondLine: secondLine
+      }
+    }
+    return {
+      firstLine: firstLine,
+      secondLine: secondLine
+    }
+  }
+
+  // Rate: 100px width - Break words with hyphen, use full width
+  const formatRateText = (text: string) => {
+    if (text.length <= 13) return text // Single line for short text
+    if (text.length <= 26) {
+      // Break at character 13, add hyphen if breaking a word
+      const firstLine = text.substring(0, 13)
+      const secondLine = text.substring(13)
+      
+      // Check if we're breaking in the middle of a word
+      if (text[12] !== ' ' && text[13] !== ' ' && text[13]) {
+        return {
+          firstLine: firstLine + '-',
+          secondLine: secondLine
+        }
+      }
+      return {
+        firstLine: firstLine,
+        secondLine: secondLine
+      }
+    }
+    // Truncate after 26 chars with ellipsis
+    const truncated = text.substring(0, 23) + '...'
+    const firstLine = truncated.substring(0, 13)
+    const secondLine = truncated.substring(13)
+    
+    // Check if we're breaking in the middle of a word
+    if (truncated[12] !== ' ' && truncated[13] !== ' ' && truncated[13]) {
+      return {
+        firstLine: firstLine + '-',
+        secondLine: secondLine
+      }
+    }
+    return {
+      firstLine: firstLine,
+      secondLine: secondLine
+    }
+  }
+
+  // Room: 150px width - Break words with hyphen, use full width
+  const formatRoomText = (text: string) => {
+    if (text.length <= 20) return text // Single line for short text
+    if (text.length <= 40) {
+      // Break at character 20, add hyphen if breaking a word
+      const firstLine = text.substring(0, 20)
+      const secondLine = text.substring(20)
+      
+      // Check if we're breaking in the middle of a word
+      if (text[19] !== ' ' && text[20] !== ' ' && text[20]) {
+        return {
+          firstLine: firstLine + '-',
+          secondLine: secondLine
+        }
+      }
+      return {
+        firstLine: firstLine,
+        secondLine: secondLine
+      }
+    }
+    // Truncate after 40 chars with ellipsis
+    const truncated = text.substring(0, 37) + '...'
+    const firstLine = truncated.substring(0, 20)
+    const secondLine = truncated.substring(20)
+    
+    // Check if we're breaking in the middle of a word
+    if (truncated[19] !== ' ' && truncated[20] !== ' ' && truncated[20]) {
+      return {
+        firstLine: firstLine + '-',
+        secondLine: secondLine
+      }
+    }
+    return {
+      firstLine: firstLine,
+      secondLine: secondLine
+    }
+  }
+
+  // Inclusion: 150px width - Break words with hyphen, use full width
+  const formatInclusionText = (text: string) => {
+    if (text.length <= 20) return text // Single line for short text
+    if (text.length <= 40) {
+      // Break at character 20, add hyphen if breaking a word
+      const firstLine = text.substring(0, 20)
+      const secondLine = text.substring(20)
+      
+      // Check if we're breaking in the middle of a word
+      if (text[19] !== ' ' && text[20] !== ' ' && text[20]) {
+        return {
+          firstLine: firstLine + '-',
+          secondLine: secondLine
+        }
+      }
+      return {
+        firstLine: firstLine,
+        secondLine: secondLine
+      }
+    }
+    // Truncate after 40 chars with ellipsis
+    const truncated = text.substring(0, 37) + '...'
+    const firstLine = truncated.substring(0, 20)
+    const secondLine = truncated.substring(20)
+    
+    // Check if we're breaking in the middle of a word
+    if (truncated[19] !== ' ' && truncated[20] !== ' ' && truncated[20]) {
+      return {
+        firstLine: firstLine + '-',
+        secondLine: secondLine
+      }
+    }
+    return {
+      firstLine: firstLine,
+      secondLine: secondLine
+    }
+  }
+
+  // Helper function to get room abbreviation
+  const getRoomAbbreviation = (roomType: string) => {
+    const words = roomType.split(' ')
+    if (words.length <= 2) return words.join(' ').substring(0, 6).toUpperCase()
+    return words.map(word => word.charAt(0)).join('').substring(0, 6).toUpperCase()
+  }
+
   // Fetch parity data when dependencies change
   useEffect(() => {
     if (!selectedProperty?.sid || !startDate || !endDate) {
@@ -500,8 +660,8 @@ function ParityMonitoringContent() {
     console.log('🎯 Using fallback card data - API data not available')
     return [
       { 
-        channelName: "Booking.com", 
-        channelIcon: "B", 
+        channelName: "MakeMyTripBooking", 
+        channelIcon: "M", 
         parityScore: 35, 
         trend: 'down', 
         trendValue: 3.2,
@@ -681,7 +841,7 @@ function ParityMonitoringContent() {
 
       return (
         <div 
-          className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-3 min-w-[400px] max-w-[500px] z-[10001] relative"
+          className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-3 min-w-[500px] max-w-[700px] z-[10001] relative"
           style={tooltipStyle}
         >
           {/* Date Heading - Same format as OTA Rankings */}
@@ -694,13 +854,13 @@ function ParityMonitoringContent() {
 
           {/* Semantic Table Structure */}
           <div className="mt-4">
-            <table className="w-full text-xs">
+            <table className="text-xs" style={{ borderSpacing: '0 0', tableLayout: 'fixed', width: '530px' }}>
               <thead>
                 <tr className="text-gray-500 dark:text-slate-400 font-medium">
-                  <th className="text-left pb-2 pl-2" style={{ width: '80px' }}>Channel</th>
-                  <th className="text-left pb-2 pl-4" style={{ width: '64px' }}>Rate</th>
-                  <th className="text-left pb-2 pl-4" style={{ width: '128px', paddingRight: '16px' }}>Room</th>
-                  <th className="text-left pb-2 pl-4" style={{ width: '80px' }}>Inclusion</th>
+                  <th className="text-left pb-2 pl-2" style={{ width: '130px', paddingRight: '16px' }}>Channel</th>
+                  <th className="text-left pb-2" style={{ width: '100px', paddingRight: '16px' }}>Rate (Rp)</th>
+                  <th className="text-left pb-2" style={{ width: '150px', paddingRight: '10px' }}>Room</th>
+                  <th className="text-left pb-2" style={{ width: '150px' }}>Inclusion</th>
                 </tr>
               </thead>
               <tbody className="space-y-1">
@@ -712,70 +872,87 @@ function ParityMonitoringContent() {
                   
 
                   
-                  // Truncate channel name to 12 characters
-                  const truncatedChannelName = channelName.length > 12 ? `${channelName.substring(0, 9)}...` : channelName
                   
-                  // Format room type with abbreviation and truncation
-                  const roomType = data?.roomType || 'Deluxe Room'
-                  const inclusion = data?.inclusion || 'Breakfast'
+                  const formattedChannelName = formatChannelText(channelName)
+                  const rateString = `$${rate}`
+                  const formattedRate = formatRateText(rateString)
                   
-                  // Add abbreviations for room types
-                  const getRoomAbbreviation = (room: string) => {
-                    if (room.includes('Apartment')) return 'APT'
-                    if (room.includes('Bungalow')) return 'BNW'
-                    if (room.includes('Deluxe')) return 'DLX'
-                    if (room.includes('Standard')) return 'STD'
-                    if (room.includes('Studio')) return 'STU'
-                    if (room.includes('Suite')) return 'SUI'
-                    if (room.includes('Superior')) return 'SUP'
-                    return 'ROO'
-                  }
+                  // Format room type with abbreviation and 2-line truncation
+                  const roomType = data?.roomType || 'Deluxe Room Superior Executive Suite with Ocean View and Balcony'
+                  const inclusion = data?.inclusion || 'Free WiFi, Breakfast, Pool Access, Spa Services, Gym Access'
                   
                   const roomAbbr = getRoomAbbreviation(roomType)
                   const roomWithAbbr = `${roomAbbr} - ${roomType}`
                   
-                  // Apply character limits: Room 24 chars (including ...), Inclusion 12 chars (including ...)
-                  const truncatedRoom = roomWithAbbr.length > 24 ? `${roomWithAbbr.substring(0, 21)}...` : roomWithAbbr
-                  const truncatedInclusion = inclusion.length > 12 ? `${inclusion.substring(0, 9)}...` : inclusion
+                  const formattedRoom = formatRoomText(roomWithAbbr)
+                  const formattedInclusion = formatInclusionText(inclusion)
+                  
+                  // Fixed column widths
+                  const channelWidth = '130px'
+                  const rateWidth = '100px'
+                  const roomWidth = '150px'
+                  const inclusionWidth = '150px'
 
                   return (
                     <tr key={index} className={`${
                       isBrandCom ? 'bg-blue-50 dark:bg-blue-900/30' : ''
                     }`}>
-                      {/* Channel with color indicator */}
-                      <td className="py-1.5 pl-2 pr-2 rounded-l" style={{ width: '80px' }}>
-                        <div className="flex items-center gap-1">
-                          <div
-                            className="w-2 h-2 rounded-full shrink-0"
-                            style={{ backgroundColor: entry.color }}
-                          />
-                          <span className={`font-medium truncate ${
-                            isBrandCom ? 'text-blue-900 dark:text-blue-200' : 'text-gray-900 dark:text-slate-100'
-                          }`} title={channelName}>
-                            {truncatedChannelName}
-                          </span>
-                        </div>
+                      {/* Channel */}
+                      <td className="py-1.5 pl-2 rounded-l align-top" style={{ width: channelWidth, paddingRight: '16px' }}>
+                        <span className={`font-medium ${
+                          isBrandCom ? 'text-blue-900 dark:text-blue-200' : 'text-gray-900 dark:text-slate-100'
+                        }`} title={channelName}>
+                          {typeof formattedChannelName === 'string' ? (
+                            formattedChannelName
+                          ) : (
+                            <div>
+                              <div className="leading-tight">{formattedChannelName.firstLine}</div>
+                              <div className="leading-tight">{formattedChannelName.secondLine}</div>
+                            </div>
+                          )}
+                        </span>
                       </td>
                       
                       {/* Rate */}
-                      <td className={`py-1.5 pl-4 pr-2 text-left font-bold ${
+                      <td className={`py-1.5 text-left font-bold align-top ${
                         isBrandCom ? 'text-blue-900 dark:text-blue-200' : 'text-gray-900 dark:text-slate-100'
-                      }`} style={{ width: '64px' }}>
-                        ${rate}
+                      }`} style={{ width: rateWidth, paddingRight: '16px' }}>
+                        {typeof formattedRate === 'string' ? (
+                          formattedRate
+                        ) : (
+                          <div>
+                            <div className="leading-tight">{formattedRate.firstLine}</div>
+                            <div className="leading-tight">{formattedRate.secondLine}</div>
+                          </div>
+                        )}
                       </td>
                       
-                      {/* Room Type - Fixed width with 24 char limit */}
-                      <td className="py-1.5 pl-4 pr-2 text-gray-700 dark:text-slate-300" style={{ width: '128px', paddingRight: '16px' }}>
-                        <div className="truncate" title={roomWithAbbr}>
-                          {truncatedRoom}
-                        </div>
+                      {/* Room Type - 2-line format */}
+                      <td className="py-1.5 text-gray-700 dark:text-slate-300 align-top" style={{ width: roomWidth, paddingRight: '10px' }}>
+                        {typeof formattedRoom === 'string' ? (
+                          <div title={roomWithAbbr}>
+                            {formattedRoom}
+                          </div>
+                        ) : (
+                          <div title={roomWithAbbr}>
+                            <div className="leading-tight">{formattedRoom.firstLine}</div>
+                            <div className="leading-tight">{formattedRoom.secondLine}</div>
+                          </div>
+                        )}
                       </td>
                       
-                      {/* Inclusion - Fixed width with 12 char limit */}
-                      <td className="py-1.5 pl-4 pr-2 text-gray-700 dark:text-slate-300 rounded-r" style={{ width: '80px' }}>
-                        <div className="truncate" title={inclusion}>
-                          {truncatedInclusion}
-                        </div>
+                      {/* Inclusion - 2-line format */}
+                      <td className="py-1.5 text-gray-700 dark:text-slate-300 rounded-r align-top" style={{ width: inclusionWidth }}>
+                        {typeof formattedInclusion === 'string' ? (
+                          <div title={inclusion}>
+                            {formattedInclusion}
+                          </div>
+                        ) : (
+                          <div title={inclusion}>
+                            <div className="leading-tight">{formattedInclusion.firstLine}</div>
+                            <div className="leading-tight">{formattedInclusion.secondLine}</div>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )
@@ -998,7 +1175,19 @@ function ParityMonitoringContent() {
                             <div className={`w-7 h-7 rounded-md flex items-center justify-center text-white font-bold text-xs bg-${channel.color} shadow-sm`}>
                               {channel.channelIcon}
                   </div>
-                            <h3 className="text-base font-semibold text-gray-900">{channel.channelName}</h3>
+                            <div className="flex-1 flex items-center justify-between">
+                              <h3 className="text-base font-semibold text-gray-900">
+                                {index === 0 && channel.channelName.length > 14 
+                                  ? `${channel.channelName.substring(0, 14)}...`
+                                  : channel.channelName
+                                }
+                              </h3>
+                              {index === 0 && (
+                                <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-800 bg-blue-100 rounded-md">
+                                  Benchmark
+                                </span>
+                              )}
+                            </div>
                     </div>
 
                           {/* Main Parity Score with Vertical Win/Meet/Loss */}
@@ -1085,6 +1274,304 @@ function ParityMonitoringContent() {
           <Card className="shadow-lg relative overflow-hidden">
             {isLoadingData && <WidgetProgress />}
             <ParityCalendarView />
+          </Card>
+
+          {/* Permanent Tooltip Preview for Testing - 29 Jan */}
+          <Card className="shadow-lg mt-6 p-4">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+              Tooltip Preview - 29 Jan 2025 (MakeMyTrip vs TripAdvisor)
+            </h3>
+            <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                <strong>📝 Note:</strong> Any changes made to this permanent tooltip structure will be automatically applied to all other tooltips in the application:
+              </p>
+              <ul className="text-xs text-yellow-700 dark:text-yellow-300 mt-2 ml-4 space-y-1">
+                <li>• Main parity chart tooltip (hover on chart)</li>
+                <li>• Calendar view benchmark tooltips (MakeMyTrip row)</li>
+                <li>• Calendar view regular channel tooltips (all other channels)</li>
+                <li>• All interactive hover tooltips throughout the app</li>
+              </ul>
+            </div>
+            
+            <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-3 min-w-[500px] max-w-[700px] w-fit">
+              {/* Date Heading */}
+              <div className="mb-2">
+                <h3 className="text-gray-900 dark:text-white text-left">
+                  <span className="text-base font-bold">29 Jan 2025</span>
+                  <span className="text-sm font-normal">, Wed</span>
+                </h3>
+              </div>
+
+              {/* Semantic Table Structure */}
+              <div className="mt-4">
+                {(() => {
+                  // TripAdvisor sample data for 29 Jan
+                  const channelName = "TripAdvisor"
+                  const truncatedChannelName = channelName.length > 12 ? `${channelName.substring(0, 9)}...` : channelName
+                  const rateText = "13,648,873"
+                  const truncatedRate = rateText.length > 11 ? `${rateText.substring(0, 8)}...` : rateText
+                  const roomType = 'Deluxe Room Superior Executive Suite with Ocean View and Private Balcony Premium'
+                  const getRoomAbbreviation = (room: string) => {
+                    if (room.includes('Apartment')) return 'APT'
+                    if (room.includes('Bungalow')) return 'BNW'
+                    if (room.includes('Deluxe')) return 'DLX'
+                    if (room.includes('Standard')) return 'STD'
+                    if (room.includes('Studio')) return 'STU'
+                    if (room.includes('Suite')) return 'SUI'
+                    if (room.includes('Superior')) return 'SUP'
+                    return 'ROO'
+                  }
+                  const roomAbbr = getRoomAbbreviation(roomType)
+                  const roomWithAbbr = `${roomAbbr} - ${roomType}`
+                  
+                  // Room: 150px width - Break words with hyphen, use full width
+                  const formatRoomText = (text: string) => {
+                    if (text.length <= 20) return text // Single line for short text
+                    if (text.length <= 40) {
+                      // Break at character 20, add hyphen if breaking a word
+                      const firstLine = text.substring(0, 20)
+                      const secondLine = text.substring(20)
+                      
+                      // Check if we're breaking in the middle of a word
+                      if (text[19] !== ' ' && text[20] !== ' ' && text[20]) {
+                        return {
+                          firstLine: firstLine + '-',
+                          secondLine: secondLine
+                        }
+                      }
+                      return {
+                        firstLine: firstLine,
+                        secondLine: secondLine
+                      }
+                    }
+                    // Truncate after 40 chars with ellipsis
+                    const truncated = text.substring(0, 37) + '...'
+                    const firstLine = truncated.substring(0, 20)
+                    const secondLine = truncated.substring(20)
+                    
+                    // Check if we're breaking in the middle of a word
+                    if (truncated[19] !== ' ' && truncated[20] !== ' ' && truncated[20]) {
+                      return {
+                        firstLine: firstLine + '-',
+                        secondLine: secondLine
+                      }
+                    }
+                    return {
+                      firstLine: firstLine,
+                      secondLine: secondLine
+                    }
+                  }
+                  
+                  // Inclusion: 150px width - Break words with hyphen, use full width
+                  const formatInclusionText = (text: string) => {
+                    if (text.length <= 20) return text // Single line for short text
+                    if (text.length <= 40) {
+                      // Break at character 20, add hyphen if breaking a word
+                      const firstLine = text.substring(0, 20)
+                      const secondLine = text.substring(20)
+                      
+                      // Check if we're breaking in the middle of a word
+                      if (text[19] !== ' ' && text[20] !== ' ' && text[20]) {
+                        return {
+                          firstLine: firstLine + '-',
+                          secondLine: secondLine
+                        }
+                      }
+                      return {
+                        firstLine: firstLine,
+                        secondLine: secondLine
+                      }
+                    }
+                    // Truncate after 40 chars with ellipsis
+                    const truncated = text.substring(0, 37) + '...'
+                    const firstLine = truncated.substring(0, 20)
+                    const secondLine = truncated.substring(20)
+                    
+                    // Check if we're breaking in the middle of a word
+                    if (truncated[19] !== ' ' && truncated[20] !== ' ' && truncated[20]) {
+                      return {
+                        firstLine: firstLine + '-',
+                        secondLine: secondLine
+                      }
+                    }
+                    return {
+                      firstLine: firstLine,
+                      secondLine: secondLine
+                    }
+                  }
+                  
+                  const formattedRoom = formatRoomText(roomWithAbbr)
+                  const inclusion = 'Free WiFi, Breakfast, Pool Access, Spa Services, Gym Access, Concierge Service, Parking'
+                  const formattedInclusion = formatInclusionText(inclusion)
+                  
+                  // Fixed column widths
+                  const channelWidth = '130px'
+                  const rateWidth = '100px'
+                  const roomWidth = '150px'
+                  const inclusionWidth = '150px'
+                  
+                  return (
+                    <table className="text-xs" style={{ borderSpacing: '0 0', tableLayout: 'fixed', width: '530px' }}>
+                      <thead>
+                        <tr className="text-gray-500 dark:text-slate-400 font-medium">
+                          <th className="text-left pb-2 pl-2" style={{ width: channelWidth, paddingRight: '16px' }}>Channel</th>
+                          <th className="text-left pb-2" style={{ width: rateWidth, paddingRight: '16px' }}>Rate (Rp)</th>
+                          <th className="text-left pb-2" style={{ width: roomWidth, paddingRight: '10px' }}>Room</th>
+                          <th className="text-left pb-2" style={{ width: inclusionWidth }}>Inclusion</th>
+                        </tr>
+                      </thead>
+                                              <tbody className="space-y-1">
+                          {/* Benchmark Channel Row (MakeMyTrip) */}
+                          <tr className="bg-blue-50 dark:bg-blue-900/30">
+                            {/* Channel */}
+                            <td className="py-1.5 pl-2 rounded-l align-top" style={{ width: channelWidth, paddingRight: '16px' }}>
+                              <span className="font-medium text-blue-900 dark:text-blue-200" title="MakeMyTrip Benchmark">
+                                {(() => {
+                                  const benchmarkChannelName = "MakeMyTrip Benchmark"
+                                  const formattedBenchmarkChannel = formatChannelText(benchmarkChannelName)
+                                  
+                                  if (typeof formattedBenchmarkChannel === 'string') {
+                                    return formattedBenchmarkChannel
+                                  } else {
+                                    return (
+                                      <div>
+                                        <div className="leading-tight">{formattedBenchmarkChannel.firstLine}</div>
+                                        <div className="leading-tight">{formattedBenchmarkChannel.secondLine}</div>
+                                      </div>
+                                    )
+                                  }
+                                })()}
+                              </span>
+                            </td>
+                            
+                            {/* Rate */}
+                            <td className="py-1.5 text-left font-bold text-blue-900 dark:text-blue-200 align-top" style={{ width: rateWidth, paddingRight: '16px' }}>
+                              <div title="12,398,873">12,398,873</div>
+                            </td>
+                            
+                            {/* Room with abbreviation */}
+                            <td className="py-1.5 text-left text-blue-900 dark:text-blue-200 align-top" style={{ width: roomWidth, paddingRight: '10px' }}>
+                              {(() => {
+                                const benchmarkRoomType = 'Deluxe Room Superior Executive Suite with Ocean View and Private Balcony Premium'
+                                const benchmarkRoomAbbr = getRoomAbbreviation(benchmarkRoomType)
+                                const benchmarkRoomWithAbbr = `${benchmarkRoomAbbr} - ${benchmarkRoomType}`
+                                const benchmarkFormattedRoom = formatRoomText(benchmarkRoomWithAbbr)
+                                
+                                if (typeof benchmarkFormattedRoom === 'string') {
+                                  return <div title={benchmarkRoomWithAbbr}>{benchmarkFormattedRoom}</div>
+                                } else {
+                                  return (
+                                    <div title={benchmarkRoomWithAbbr}>
+                                      <div className="leading-tight">{benchmarkFormattedRoom.firstLine}</div>
+                                      <div className="leading-tight">{benchmarkFormattedRoom.secondLine}</div>
+                                    </div>
+                                  )
+                                }
+                              })()}
+                            </td>
+                            
+                            {/* Inclusion */}
+                            <td className="py-1.5 text-left text-blue-900 dark:text-blue-200 rounded-r align-top" style={{ width: inclusionWidth }}>
+                              {(() => {
+                                const benchmarkInclusion = 'Free WiFi, Breakfast, Pool Access, Spa Services, Gym Access, Concierge Service, Parking'
+                                const benchmarkFormattedInclusion = formatInclusionText(benchmarkInclusion)
+                                
+                                if (typeof benchmarkFormattedInclusion === 'string') {
+                                  return <div title={benchmarkInclusion}>{benchmarkFormattedInclusion}</div>
+                                } else {
+                                  return (
+                                    <div title={benchmarkInclusion}>
+                                      <div className="leading-tight">{benchmarkFormattedInclusion.firstLine}</div>
+                                      <div className="leading-tight">{benchmarkFormattedInclusion.secondLine}</div>
+                                    </div>
+                                  )
+                                }
+                              })()}
+                            </td>
+                          </tr>
+                          
+                          {/* Hovered Channel Row (TripAdvisor) */}
+                          <tr>
+                            {/* Channel */}
+                            <td className="py-1.5 pl-2 rounded-l align-top" style={{ width: channelWidth, paddingRight: '16px' }}>
+                              <span className="font-medium text-gray-900 dark:text-slate-100" title={channelName}>
+                                {(() => {
+                                  const formattedChannelName = formatChannelText(channelName)
+                                  
+                                  if (typeof formattedChannelName === 'string') {
+                                    return formattedChannelName
+                                  } else {
+                                    return (
+                                      <div>
+                                        <div className="leading-tight">{formattedChannelName.firstLine}</div>
+                                        <div className="leading-tight">{formattedChannelName.secondLine}</div>
+                                      </div>
+                                    )
+                                  }
+                                })()}
+                              </span>
+                            </td>
+                            
+                            {/* Rate */}
+                            <td className="py-1.5 text-left font-bold text-gray-900 dark:text-slate-100 align-top" style={{ width: rateWidth, paddingRight: '16px' }}>
+                              <div title={rateText}>{rateText}</div>
+                            </td>
+                            
+                            {/* Room Type - 2-line format */}
+                            <td className="py-1.5 text-gray-700 dark:text-slate-300 align-top" style={{ width: roomWidth, paddingRight: '10px' }}>
+                              {typeof formattedRoom === 'string' ? (
+                                <div title={roomWithAbbr}>
+                                  {formattedRoom}
+                                </div>
+                              ) : (
+                                <div title={roomWithAbbr}>
+                                  <div className="leading-tight">{formattedRoom.firstLine}</div>
+                                  <div className="leading-tight">{formattedRoom.secondLine}</div>
+                                </div>
+                              )}
+                            </td>
+                            
+                            {/* Inclusion - 2-line format */}
+                            <td className="py-1.5 text-gray-700 dark:text-slate-300 rounded-r align-top" style={{ width: inclusionWidth }}>
+                              {typeof formattedInclusion === 'string' ? (
+                                <div title={inclusion}>
+                                  {formattedInclusion}
+                                </div>
+                              ) : (
+                                <div title={inclusion}>
+                                  <div className="leading-tight">{formattedInclusion.firstLine}</div>
+                                  <div className="leading-tight">{formattedInclusion.secondLine}</div>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                          
+                          {/* Rate Difference Row */}
+                          <tr>
+                            {/* Difference label in Channel column */}
+                            <td className="py-1.5 pr-2 text-left font-normal" style={{ width: channelWidth, paddingRight: '16px', borderTop: '1px solid #e5e7eb' }}>
+                              <span className="text-xs text-gray-500 dark:text-slate-400" style={{ marginLeft: '8px' }}>Difference</span>
+                            </td>
+                            
+                            {/* Rate difference */}
+                            <td className="py-1.5 text-left font-bold text-green-600 dark:text-green-400" style={{ width: rateWidth, paddingRight: '16px', borderTop: '1px solid #e5e7eb' }}>
+                              <div className="truncate">-1,250,000</div>
+                            </td>
+                            
+                            {/* Empty Room column */}
+                            <td className="py-1.5" style={{ width: roomWidth, paddingRight: '10px', borderTop: '1px solid #e5e7eb' }}>
+                            </td>
+                            
+                            {/* Empty Inclusion column */}
+                            <td className="py-1.5 rounded-r" style={{ width: inclusionWidth, borderTop: '1px solid #e5e7eb' }}>
+                            </td>
+                          </tr>
+                        </tbody>
+                    </table>
+                  )
+                })()}
+              </div>
+            </div>
           </Card>
 
             </div>
