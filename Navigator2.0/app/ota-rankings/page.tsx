@@ -6,6 +6,7 @@ import { format } from "date-fns"
 import { toPng } from "html-to-image"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { getChannels } from "@/lib/channels"
+import { getOTAChannels, getOTARankOnAllChannel } from "@/lib/otarank"
 
 // Import the new components
 import { OTARankingsFilterBar } from "@/components/ota-rankings-filter-bar"
@@ -146,70 +147,76 @@ const CHECK_IN_RANGE_OPTIONS = [
 const COMPARE_OPTIONS = [
   { id: "last-1-week", label: "Last 1 Week" },
   { id: "last-2-weeks", label: "Last 2 Weeks" },
-  { id: "last-1-month", label: "Last 1 Month" },
-  { id: "last-3-months", label: "Last 3 Months" }
+  // { id: "last-1-month", label: "Last 1 Month" },
+  // { id: "last-3-months", label: "Last 3 Months" }
 ]
 
 const COMPSET_OPTIONS = [
   { id: "primary", label: "Primary Compset" },
   { id: "secondary", label: "Secondary Compset" },
-  { id: "tertiary", label: "Tertiary Compset" }
+  // { id: "tertiary", label: "Tertiary Compset" }
 ]
 
 export default function OTARankingsPage() {
   const [selectedProperty] = useSelectedProperty()
   const cardRef = useRef<HTMLDivElement>(null)
-  
+
   // Page loading state for full-page loading effect
   const [isPageLoading, setIsPageLoading] = useState(false)
-  
+
+  // API data state
+  const [otaChannels, setOtaChannels] = useState<any[]>([])
+  const [otaRankingData, setOtaRankingData] = useState<any[]>([])
+  const [isLoadingChannels, setIsLoadingChannels] = useState(false)
+  const [isLoadingRanking, setIsLoadingRanking] = useState(false)
+
   // Window width state for responsive text
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1920)
-  
+
   const [compareWith, setCompareWith] = useState("Last 1 Week")
   const [compSet, setCompSet] = useState("Primary Compset")
   const [viewMode, setViewMode] = useState("Rank")
   const [rankViewMode, setRankViewMode] = useState<"graph" | "table">("graph")
   const [competitorPage, setCompetitorPage] = useState(0)
-  
+
   // View mode state for Reviews tab (graph/table)
   const [reviewsViewMode, setReviewsViewMode] = useState<"graph" | "table">("graph")
-  
-  const [selectedChannel, setSelectedChannel] = useState("booking")
-  
+
+  const [selectedChannel, setSelectedChannel] = useState("")
+
   // Reviews-specific state
   const [checkInRange, setCheckInRange] = useState("Last 30 Days")
   const [previousCheckInRange, setPreviousCheckInRange] = useState("Last 30 Days")
-  
+
   // Overview-style channel dropdown state
   const [overviewChannelData, setOverviewChannelData] = useState<any>([])
   const [selectedOverviewChannels, setSelectedOverviewChannels] = useState<number[]>([])
   const didFetchChannels = useRef(false)
-  
+
   // Custom calendar state for Reviews
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>()
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>()
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date())
-  
+
   // Date picker state
   const [startDate, setStartDate] = useState<Date | null>(new Date())
   const [endDate, setEndDate] = useState<Date | null>(new Date(Date.now() + 6 * 24 * 60 * 60 * 1000)) // 7 days from now
-  
+
   // Filter dropdown states
   const [isCompareOpen, setIsCompareOpen] = useState(false)
   const [isCompsetOpen, setIsCompsetOpen] = useState(false)
   const [isDateRangeOpen, setIsDateRangeOpen] = useState(false)
-  
+
   // Channel pagination state
   const [currentChannelPage, setCurrentChannelPage] = useState(0)
   const channelsPerPage = 3
-  
+
   // Legend visibility state
   const [legendVisibility, setLegendVisibility] = useState<Record<string, boolean>>({})
-  
+
   // Error state
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  
+
   // Fetch channel data for Overview-style dropdown
   useEffect(() => {
     if (!selectedProperty?.sid || didFetchChannels.current) return;
@@ -284,7 +291,7 @@ export default function OTARankingsPage() {
           // Add this channel and remove "All Channels" if present
           const withoutAll = prev.filter(id => id !== -1)
           newSelection = [...withoutAll, channelCid]
-          
+
           // If all individual channels are now selected, add "All Channels"
           if (newSelection.length === channelData.length - 1) {
             newSelection = channelData.map((c: any) => c.cid)
@@ -355,34 +362,117 @@ export default function OTARankingsPage() {
   }
 
 
+  // Transform API data to channel format
+  const transformChannelsData = useCallback(() => {
+    if (!otaChannels.length || !otaRankingData.length) {
+      // Fallback to mock data if API data is not available
+      const compareText = getCompareText()
+      return MOCK_CHANNELS.map(channel => ({
+        ...channel,
+        compareText
+      }))
+    }
+
+    const compareText = getCompareText()
+    return otaChannels.map((channel, index) => {
+      // Find ranking data for this channel
+      debugger;
+      setSelectedChannel(otaChannels[0]?.name || "")
+      const channelRankingData = otaRankingData.find((rankingGroup: any) =>
+        rankingGroup.some((item: any) => item.otaId === channel.cid && item.propertyID === selectedProperty?.hmid)
+      )
+
+      // Get the first item from the ranking data for this channel
+      const rankingItem = channelRankingData?.[0]
+
+      // Calculate average rank and other metrics
+      const avgRank = rankingItem?.otaRank || 0
+      const totalRankings = 500
+      const rankingChange = rankingItem?.changeInRank ? parseInt(rankingItem.changeInRank) : 0
+      const reviewScore = rankingItem?.score ? parseFloat(rankingItem.score) : 0
+
+      return {
+        id: channel.cid.toString(),
+        name: channel.name,
+        icon: channel.name.charAt(0).toUpperCase(),
+        iconBg: `bg-${['blue', 'green', 'red', 'purple', 'orange', 'pink', 'indigo', 'teal'][index % 8]}-600`,
+        avgRank,
+        totalRankings,
+        rankingChange,
+        compareText,
+        reviewScore,
+        reviewText: "As on today",
+        url: channel.url,
+        isActive: channel.isActive
+      }
+    })
+  }, [otaChannels, otaRankingData, getCompareText])
+
   // Create channels with dynamic compare text
-  const compareText = getCompareText()
-  const mockChannels = useMemo(() => 
-    MOCK_CHANNELS.map(channel => ({
-      ...channel,
-      compareText
-    })), [compareText])
+  const channels = useMemo(() => transformChannelsData(), [transformChannelsData])
 
   // Available hotel lines for charts with dynamic property name
-  const availableHotelLines = useMemo(() => 
+  const availableHotelLines = useMemo(() =>
     AVAILABLE_HOTEL_LINES.map((hotel, index) => ({
       ...hotel,
       name: index === 0 ? (selectedProperty?.name || 'Alhambra Hotel') : hotel.name
     })), [selectedProperty?.name])
 
   // Computed values
-  const selectedChannelData = useMemo(() => 
-    mockChannels.find(channel => channel.id === selectedChannel), [mockChannels, selectedChannel])
-  
-  const currentChannels = useMemo(() => 
-    mockChannels.slice(currentChannelPage * channelsPerPage, (currentChannelPage + 1) * channelsPerPage), 
-    [mockChannels, currentChannelPage, channelsPerPage])
-  
-  const totalChannelPages = useMemo(() => 
-    Math.ceil(mockChannels.length / channelsPerPage), [mockChannels.length, channelsPerPage])
-  
+  const selectedChannelData = useMemo(() =>
+    channels.find(channel => channel.name.toLowerCase() === selectedChannel.toLowerCase()), [channels, selectedChannel])
+
+  const currentChannels = useMemo(() =>
+    channels.slice(currentChannelPage * channelsPerPage, (currentChannelPage + 1) * channelsPerPage),
+    [channels, currentChannelPage, channelsPerPage])
+
+  const totalChannelPages = useMemo(() =>
+    Math.ceil(channels.length / channelsPerPage), [channels.length, channelsPerPage])
+
   const rankingTrendsData = MOCK_RANKING_TRENDS_DATA
   const reviewsData = MOCK_REVIEWS_DATA
+
+  // Fetch OTA Channels data
+  useEffect(() => {
+    const fetchChannels = async () => {
+      if (!selectedProperty?.sid) return
+
+      setIsLoadingChannels(true)
+      try {
+        const response = await getOTAChannels({ SID: selectedProperty.sid })
+        if (response?.status && response?.body) {
+          setOtaChannels(response.body)
+        }
+      } catch (error) {
+        console.error('Error fetching OTA channels:', error)
+      } finally {
+        setIsLoadingChannels(false)
+      }
+    }
+
+    fetchChannels()
+  }, [selectedProperty?.sid])
+
+  // Fetch OTA Ranking data
+  useEffect(() => {
+    const fetchRankingData = async () => {
+      if (!selectedProperty?.sid || !startDate || !endDate) return
+
+      setIsLoadingRanking(true)
+      try {
+        const response = await getOTARankOnAllChannel({ SID: selectedProperty.sid, CheckInDateStart: format(startDate, 'yyyy-MM-dd'), CheckInEndDate: format(endDate, 'yyyy-MM-dd') })
+        if (response?.status && response?.body) {
+          setOtaRankingData(response.body)
+        }
+      } catch (error) {
+        console.error('Error fetching OTA ranking data:', error)
+      } finally {
+        setIsLoadingRanking(false)
+      }
+    }
+
+    fetchRankingData()
+  }, [selectedProperty?.sid, startDate, endDate])
 
   // Initialize legend visibility
   useEffect(() => {
@@ -450,19 +540,19 @@ export default function OTARankingsPage() {
         })
         return row
       })
-      
+
       const headers = Object.keys(csvData[0])
       const csvContent = [
         headers.join(','),
         ...csvData.map(row => headers.map(header => row[header as keyof typeof row]).join(','))
       ].join('\n')
-      
+
       const blob = new Blob([csvContent], { type: 'text/csv' })
       const url = window.URL.createObjectURL(blob)
-        const link = document.createElement('a')
+      const link = document.createElement('a')
       link.href = url
       link.download = 'ota-rankings.csv'
-        link.click()
+      link.click()
       window.URL.revokeObjectURL(url)
     }
   }, [rankViewMode, rankingTrendsData, availableHotelLines, legendVisibility])
@@ -537,9 +627,9 @@ export default function OTARankingsPage() {
 
       {/* Main Content */}
       <main className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
-            <div className="max-w-7xl xl:max-w-none mx-auto">
+        <div className="max-w-7xl xl:max-w-none mx-auto">
           <div className="py-6 space-y-6">
-            
+
             {/* Channel Widgets */}
             <OTAChannelCards
               viewMode={viewMode}
@@ -550,6 +640,7 @@ export default function OTARankingsPage() {
               totalChannelPages={totalChannelPages}
               handlePrevChannels={handlePrevChannels}
               handleNextChannels={handleNextChannels}
+              isLoading={isLoadingChannels || isLoadingRanking}
             />
 
             {/* Main Content Views */}
@@ -573,7 +664,7 @@ export default function OTARankingsPage() {
                 formatTableDate={formatTableDate}
               />
             ) : (
-                    viewMode === "Reviews" && (
+              viewMode === "Reviews" && (
                 <OTAReviewsView
                   cardRef={cardRef}
                   selectedChannelData={selectedChannelData}
@@ -583,13 +674,13 @@ export default function OTARankingsPage() {
                   setReviewsViewMode={setReviewsViewMode}
                   reviewsData={reviewsData}
                 />
-                    )
-                  )}
-            </div>
+              )
+            )}
+          </div>
 
-            {/* Footer spacing */}
-            <div className="h-8"></div>
-                    </div>
+          {/* Footer spacing */}
+          <div className="h-8"></div>
+        </div>
       </main>
     </div>
   )

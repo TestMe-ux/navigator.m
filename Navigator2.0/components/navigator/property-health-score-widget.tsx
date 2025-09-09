@@ -266,8 +266,8 @@ export function PropertyHealthScoreWidget(props: any) {
       // 2) get OTA rank on all channels
       const rankRes = await getOTARankOnAllChannel({
         SID: selectedProperty?.sid,
-        CheckInDateStart: startDate?.toUTCString(),
-        CheckInEndDate: endDate?.toUTCString(),
+        CheckInDateStart: conevrtDateforApi(startDate?.toString()),
+        CheckInEndDate: conevrtDateforApi(endDate?.toString()),
       });
 
       if (!rankRes?.status) {

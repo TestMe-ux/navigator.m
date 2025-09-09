@@ -83,11 +83,11 @@ function OTAChannelCards({
             <div key={channel.id} className="relative">
               <Card
                 className={`group relative overflow-hidden bg-gradient-to-br from-card to-card/80 backdrop-blur-sm border-2 transition-all duration-300 cursor-pointer hover:shadow-2xl hover:-translate-y-1 ${
-                  selectedChannel.toLowerCase() === channel.name.toLowerCase() 
+                  selectedChannel === channel.id 
                     ? "ring-2 ring-primary/70 shadow-xl border-primary/60 scale-105" 
                     : "border-border/50 hover:border-primary/20"
                 }`}
-                onClick={() => setSelectedChannel(channel.name)}
+                onClick={() => setSelectedChannel(channel.id)}
               >
                 <CardContent className="p-4">
                   {/* Channel Header */}
@@ -117,12 +117,12 @@ function OTAChannelCards({
                       )}
                       <div>
                         <h3 className="font-semibold text-foreground text-sm leading-tight">{channel.name}</h3>
-                        {/* {channel.isActive === false && (
+                        {channel.isActive === false && (
                           <span className="text-xs text-muted-foreground">Inactive</span>
-                        )} */}
+                        )}
                       </div>
                     </div>
-                    {selectedChannel.toLowerCase() === channel.name.toLowerCase() && (
+                    {selectedChannel === channel.id && (
                       <Badge className="bg-primary/15 text-primary text-xs border-primary/30 animate-pulse h-5">
                         Active
                       </Badge>
@@ -202,7 +202,7 @@ function OTAChannelCards({
                   </div>
 
                   {/* Selection Indicator */}
-                  {selectedChannel.toLowerCase() === channel.name.toLowerCase() && (
+                  {selectedChannel === channel.id && (
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none" />
                   )}
                 </CardContent>

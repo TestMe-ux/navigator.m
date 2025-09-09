@@ -21,4 +21,5 @@ export class Constants {
     public static readonly API_UpdateHolidayList = "Events/UpdateHolidayList"
     public static readonly API_GetMasterActiveReviews = "OTARank/GetMasterActiveReviews";
     public static readonly API_GET_GetCurrencySymbolDetails = "GeneralSettings/GetCurrencySymbolDetails";
+    public static readonly API_GET_OTARankTrends = "OTARank/GetOTARankTrends";
 }
