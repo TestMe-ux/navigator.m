@@ -241,7 +241,7 @@ export function Header() {
                       className="text-sm text-blue-100 hover:text-white hover:bg-white/10 max-w-[200px] sm:max-w-[280px] flex items-center text-left transition-all duration-200"
                     >
                       <div className="flex flex-col items-start max-w-full">
-                        <span className="truncate text-white font-medium">{truncateText(selectedHotel?.name || 'Select Hotel', 35)}</span>
+                        <span className="truncate text-white font-medium">{truncateText(selectedHotel?.name || 'Select Hotel', 32)}</span>
                         <span className="truncate text-xs text-blue-200">{selectedHotel?.city || 'City'}, {selectedHotel?.country || 'Country'}</span>
                       </div>
                       <ChevronDown className="ml-2 h-4 w-4 flex-shrink-0" />
@@ -265,6 +265,7 @@ export function Header() {
                         placeholder="Search hotels, locations..."
                         value={hotelSearch}
                         onChange={(e) => setHotelSearch(e.target.value)}
+                        onKeyDown={(e) => e.stopPropagation()}
                         className="pl-10 w-full text-sm bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 focus:ring-brand-500 focus:border-brand-500"
                       />
                     </div>

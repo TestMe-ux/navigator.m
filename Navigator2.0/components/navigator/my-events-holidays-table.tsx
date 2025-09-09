@@ -19,6 +19,7 @@ import {
   Globe
 } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { format, isValid, parse } from "date-fns"
 
 interface EventData {
   name: string
@@ -69,9 +70,9 @@ export function MyEventsHolidaysTable({ events, holidaysData }: MyEventsHolidays
       // Check if displayDate contains a date range (has " to " or " - ")
       const dateStr = row.displayDate.toString()
       
-      if (dateStr.includes(' to ') || dateStr.includes(' - ')) {
+      if (dateStr.includes(' to ')) {
         // It's a date range, parse both dates
-        const parts = dateStr.split(/ to | - /)
+        const parts = dateStr.split(/ to /)
         if (parts.length === 2) {
           const start = parseAndFormatDate(parts[0].trim())
           const end = parseAndFormatDate(parts[1].trim())
@@ -88,62 +89,25 @@ export function MyEventsHolidaysTable({ events, holidaysData }: MyEventsHolidays
   }
 
   // Helper function to parse and format a single date
-  const parseAndFormatDate = (dateStr: string): string => {
-    try {
-      // Create sample date for testing format (August 18, 2025)
-      if (!dateStr || dateStr === 'Invalid Date') {
-        // Return a sample formatted date for now
-        return 'Mon, 18 Aug \'25'
-      }
-
-      // Extract date components from common formats
-      let date: Date | null = null
-      
-      // Try parsing as Date object
-      date = new Date(dateStr)
-      
-      // Handle common year misinterpretation issues
-      
-      if (isNaN(date.getTime())) {
-        // If parsing failed, return sample format
-        return 'Mon, 18 Aug \'25'
-      }
-
-      // Format manually to ensure correct output
-      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-      
-      const dayName = days[date.getDay()]
-      const day = date.getDate().toString().padStart(2, '0')
-      const month = months[date.getMonth()]
-      
-      // Handle year formatting correctly with special logic for common misinterpretations
-      const fullYear = date.getFullYear()
-      let year: string
-      
-      // Handle year ranges appropriately  
-      if (fullYear === 2001 || fullYear === 2002 || fullYear === 2003 || fullYear === 2004 || fullYear === 2005) {
-        // Common JavaScript parsing errors - these are likely meant to be 2025, 2026, etc.
-        // Convert 2001 -> 2025, 2002 -> 2026, etc.
-        const correctedYear = 2025 + (fullYear - 2001)
-        year = correctedYear.toString().slice(-2)
-      } else if (fullYear < 1970 || fullYear > 2099) {
-        // Invalid year range, likely parsing error - default to current year logic
-        year = '25' // Default to 2025 format for events
-      } else if (fullYear >= 2000 && fullYear <= 2099) {
-        // For years 2000-2099, show last 2 digits (2025 -> '25)
-        year = fullYear.toString().slice(-2)
-      } else {
-        // For years 1970-1999, show last 2 digits 
-        year = fullYear.toString().slice(-2)
-      }
-      
-      return `${dayName}, ${day} ${month} '${year}`
-      
-    } catch (error) {
-      return 'Mon, 18 Aug \'25' // Sample format as fallback
+const parseAndFormatDate = (dateStr: string): string => {
+  try {
+    if (!dateStr || dateStr === 'Invalid Date') {
+      return 'Mon, 18 Aug \'25'
     }
+
+    // Parse the custom format like "Thu, 28 Aug - 2025"
+    const parsedDate = parse(dateStr, "EEE, dd LLL - yyyy", new Date())
+
+    if (!isValid(parsedDate)) {
+      return 'Mon, 18 Aug \'25'
+    }
+
+    // Format as "Thu, 28 Aug '25"
+    return format(parsedDate, "EEE, dd LLL ''yy")
+  } catch (error) {
+    return 'Mon, 18 Aug \'25'
   }
+}
 
  
   const mergedEventandHoliday = [

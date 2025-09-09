@@ -34,6 +34,7 @@ import { getRateTrends } from "@/lib/rate"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { useDateContext } from "@/components/date-context"
 import { conevrtDateforApi } from "@/lib/utils"
+import { GlobalProgressBar, LoadingSkeleton } from "@/components/loading-skeleton"
 
 /**
  * Modern Quick Actions Configuration
@@ -224,6 +225,9 @@ export default function Home() {
   const [csatClosed, setCSATClosed] = useState(false)
   const { startDate, endDate, setDateRange } = useDateContext()
   const [selectedProperty] = useSelectedProperty()
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [loadingCycle, setLoadingCycle] = useState(1)
   // Scroll detection for CSAT card
   const [parityData, setparityData] = useState(Object);
   const [parityDataComp, setParityDataComp] = useState(Object);
@@ -248,16 +252,52 @@ export default function Home() {
       }, 1500)
       return () => clearTimeout(timer)
     }
+  }, [hasTriggered, showCSATCard, csatClosed])
+  useEffect(() => {
+
     if (!startDate ||
       !endDate ||
       !selectedProperty?.sid) return;
+    setIsLoading(true);
+    setLoadingProgress(0);
+    // Progress interval
+    const progressInterval = setInterval(() => {
+      setLoadingProgress((prev) => {
+        const increment = Math.floor(Math.random() * 9) + 3; // 3-11% increment
+        const newProgress = prev + increment;
+
+        if (newProgress >= 100) {
+          setLoadingCycle(prevCycle => prevCycle + 1);
+          return 0;
+        }
+
+        return newProgress;
+      });
+    }, 80);
     Promise.all([
       GetParityDatas(),
       getRateDate(),
       getCompRateData(),
       GetParityDatas_Comp()
+    ]).finally(() => {
+      clearInterval(progressInterval);
+      setLoadingProgress(100); // finish instantly
+      setTimeout(() => {
+        setIsLoading(false);
+        setLoadingProgress(0); // reset for next load
+      }, 300); // brief delay so user sees 100%
+    });
+  }, [startDate, endDate, selectedProperty, compsetFilter, sideFilter])
+  useEffect(() => {
+    console.log("Channel filter changed:", parityData, channelFilter);
+    if (!startDate ||
+      !endDate ||
+      !selectedProperty?.sid) return;
+    Promise.all([
+      getRateDate(),
+      getCompRateData()
     ]);
-  }, [hasTriggered, showCSATCard, csatClosed, startDate, endDate, selectedProperty, compsetFilter, sideFilter, channelFilter?.channelId])
+  }, [channelFilter?.channelId])
 
   useEffect(() => {
     if (!startDate ||
@@ -270,7 +310,6 @@ export default function Home() {
   }, [selectedComparison])
 
   const getRateDate = () => {
-    debugger;
     setRateData({});
     const filtersValue = {
       "SID": selectedProperty?.sid,
@@ -278,8 +317,8 @@ export default function Home() {
       "channelsText": (channelFilter?.channelName?.length ?? 0) > 0 ? channelFilter.channelName : ["All Channel"],
       "checkInStartDate": conevrtDateforApi(startDate?.toString()),
       "checkInEndDate": conevrtDateforApi(endDate?.toString()),
-      "LOS": sideFilter?.lengthOfStay || null,
-      "guest": sideFilter?.guest || null,
+      "LOS": sideFilter?.lengthOfStay?.toString() || null,
+      "guest": sideFilter?.guest?.toString() || null,
       "productTypeID": sideFilter?.roomTypes || null,
       "productTypeIDText": sideFilter?.roomTypes || "All",
       "inclusionID": sideFilter?.inclusions || [],
@@ -302,13 +341,24 @@ export default function Home() {
     getRateTrends(filtersValue)
       .then((res) => {
         if (res.status) {
-          var CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
-            const allSubscriberRate = x.subscriberPropertyRate?.map((r: any) => parseInt(r.rate) > 0 ? parseInt(r.rate) : 0) || [];
-            const ty = allSubscriberRate.length
-              ? allSubscriberRate.reduce((sum: any, rate: any) => sum + rate, 0) / allSubscriberRate.length
-              : 0;
+          const CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
+            const rates = x.subscriberPropertyRate || [];
 
-            return { ...x, AvgData: ty };
+            const [avgRate, avgStatus] = (() => {
+              const valid = rates.filter((r: any) => parseInt(r.rate) > 0 && r.status === "O").map((r: any) => parseInt(r.rate));
+              if (valid.length) return [valid.reduce((a: any, b: any) => a + b, 0) / valid.length, "O"];
+
+              const statuses = new Set(rates.map((r: any) => r.status));
+              if (statuses.has("C")) return [0, "C"];
+              if (statuses.has("ND")) return [0, "ND"];
+              return [0, "ND"];
+            })();
+
+            return {
+              ...x,
+              AvgData: avgRate,
+              AvgStatus: avgStatus
+            };
           });
           res.body.pricePositioningEntites = CalulatedData;
           console.log('Rate trends data:', res.body);
@@ -333,8 +383,8 @@ export default function Home() {
       "channelsText": channelFilter.channelName,
       "checkInStartDate": conevrtDateforApi(startDateComp.toString()),
       "checkInEndDate": conevrtDateforApi(endDateComp.toString()),
-      "LOS": sideFilter?.lengthOfStay || null,
-      "guest": sideFilter?.guest || null,
+      "LOS": sideFilter?.lengthOfStay?.toString() || null,
+      "guest": sideFilter?.guest?.toString() || null,
       "productTypeID": sideFilter?.roomTypes || null,
       "productTypeIDText": sideFilter?.roomTypes || "All",
       "inclusionID": sideFilter?.inclusions || [],
@@ -357,14 +407,24 @@ export default function Home() {
     getRateTrends(filtersValue)
       .then((res) => {
         if (res.status) {
-          debugger
-          var CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
-            const allSubscriberRate = x.subscriberPropertyRate?.map((r: any) => parseInt(r.rate) > 0 ? parseInt(r.rate) : 0) || [];
-            const ty = allSubscriberRate.length
-              ? allSubscriberRate.reduce((sum: any, rate: any) => sum + rate, 0) / allSubscriberRate.length
-              : 0;
+          const CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
+            const rates = x.subscriberPropertyRate || [];
 
-            return { ...x, AvgData: ty };
+            const [avgRate, avgStatus] = (() => {
+              const valid = rates.filter((r: any) => parseInt(r.rate) > 0 && r.status === "O").map((r: any) => parseInt(r.rate));
+              if (valid.length) return [valid.reduce((a: any, b: any) => a + b, 0) / valid.length, "O"];
+
+              const statuses = new Set(rates.map((r: any) => r.status));
+              if (statuses.has("C")) return [0, "C"];
+              if (statuses.has("ND")) return [0, "ND"];
+              return [0, "ND"];
+            })();
+
+            return {
+              ...x,
+              AvgData: avgRate,
+              AvgStatus: avgStatus
+            };
           });
           res.body.pricePositioningEntites = CalulatedData;
           console.log('Rate trends data:', res.body);
@@ -380,7 +440,7 @@ export default function Home() {
       console.warn('Missing required parameters for parity data fetch');
       return;
     }
-    
+
     setparityData({});
     const filtersValue = {
       "sid": selectedProperty?.sid,
@@ -393,7 +453,7 @@ export default function Home() {
       "qualification": sideFilter?.rateViewBy?.QualificationText === "All" ? null : sideFilter?.rateViewBy?.QualificationText,
       "restriction": sideFilter?.rateViewBy?.RestrictionText === "All" ? null : sideFilter?.rateViewBy?.RestrictionText,
     }
-    
+
     return GetParityData(filtersValue)
       .then((res) => {
         if (res.status) {
@@ -508,7 +568,18 @@ export default function Home() {
     setCSATClosed(true)
     console.log('🎯 CSAT card closed by user')
   }
-
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
+        <GlobalProgressBar />
+        <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8 xl:py-10">
+          <div className="max-w-7xl xl:max-w-none mx-auto">
+            <LoadingSkeleton type="demand" showCycleCounter={true} />
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950" data-coach-mark="dashboard-overview">
       {/* Enhanced Filter Bar with Sticky Positioning */}
@@ -525,7 +596,7 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-minimal-md mb-8">
               <div className="space-y-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  Revenue Dashboard
+                  Overview
                 </h1>
                 <p className="text-sm text-muted-foreground">
                   Real-time insights for optimal pricing and revenue performance
@@ -546,7 +617,7 @@ export default function Home() {
 
               {/* Rate Trends Chart - Full width with enhanced styling */}
               <div className="animate-fade-in mb-12" data-coach-mark="rate-trends">
-                <RateTrendsChart rateData={rateData} />
+                <RateTrendsChart rateData={rateData} rateCompData={rateCompData} />
               </div>
 
               {/* Property Health Score and Market Demand Cards - Grouped with consistent spacing */}

@@ -25,7 +25,7 @@ interface CalendarEvent {
   date: Date
   title: string
   type: "conference" | "festival" | "exhibition" | "sports" | "cultural" | "business"
-  impact: "low" | "normal" | "elevated" | "high"
+  impact: "low" | "normal" | "high" | "veryhigh"
   location?: string
 }
 
@@ -41,7 +41,7 @@ interface CalendarDay {
   isCurrentMonth: boolean
   events: CalendarEvent[]
   hasEvents: boolean
-  demandLevel: 'low' | 'normal' | 'elevated' | 'high' | ''
+  demandLevel: 'low' | 'normal' | 'high' | 'veryhigh' | ''
   demedandIndex?: number
   hasEventIcon?: boolean
   eventName?: string
@@ -59,8 +59,8 @@ interface CalendarDay {
 const getDemandLevelFromIndex = (demandIndex: number): CalendarDay['demandLevel'] => {
   if (demandIndex < 25) return 'low'
   if (demandIndex < 50) return 'normal'
-  if (demandIndex < 75) return 'elevated'
-  return 'high'
+  if (demandIndex < 75) return 'high'
+  return 'veryhigh'
 }
 
 /**
@@ -87,7 +87,7 @@ const getDemandStyling = (demandLevel: CalendarDay['demandLevel'], isSelected = 
           day: 'bg-blue-500',
           indicator: 'bg-blue-500'
         }
-      case 'elevated':
+      case 'high':
         return {
           bg: 'bg-red-300/[76%]', // Light shade of High red
           border: 'border border-red-300',
@@ -95,7 +95,7 @@ const getDemandStyling = (demandLevel: CalendarDay['demandLevel'], isSelected = 
           day: 'bg-red-300',
           indicator: 'bg-red-300'
         }
-      case 'high':
+      case 'veryhigh':
         return {
           bg: 'bg-red-600/[76%]', // Original red - unchanged
           border: 'border border-red-600',
@@ -202,7 +202,7 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
         startDate: conevrtDateforApi(today.toString()),
         endDate: conevrtDateforApi(endDates.toString())
       }).then((response: any) => {
-        debugger;
+
         if (response.status && response.body?.optimaDemand) {
           setDemandData(response.body.optimaDemand)
           console.log('✅ Demand data fetched:', response.body.optimaDemand.length, 'days')
@@ -218,7 +218,7 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
 
   // Fetch demand data for 75 days - only once when component mounts or SID changes
   useEffect(() => {
-    debugger;
+
     const currentSID = selectedProperty?.sid
 
     // Only fetch if we have a SID and haven't fetched for this SID yet
@@ -263,9 +263,20 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
         {day.hasEventIcon && (
           <>
             <div className="border-t border-gray-600 my-1 pt-1">
-              <div className="font-semibold text-amber-400 flex items-center gap-1">
+              {/* <div className="font-semibold text-amber-400 flex items-center gap-1">
                 <Star className="w-3 h-3 fill-amber-400" />
                 {day.eventName}
+              </div> */}
+              <div className="font-semibold text-amber-400 flex items-start gap-1">
+                <Star className="w-3 h-3 fill-amber-400 shrink-0" />
+                <span
+                  className={`flex-1 ${(day.eventName?.length ?? 0) > 28
+                    ? "flex-1 whitespace-normal break-words max-w-[28ch]"
+                    : "flex-1 truncate"
+                    }`}
+                >
+                  {day.eventName}
+                </span>
               </div>
               {day.eventCategory && (
                 <div className="text-xs text-gray-300">{day.eventCategory}</div>
@@ -442,6 +453,7 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
     day ? { ...day, isDisabled: isDateDisabled(day.date) } : day
   ))
   const handleDownloadCSV = () => {
+
     console.log('📊 Downloading data as CSV...')
     // const eventsData = eventData?.eventDetails || []
     const mergedEventandHoliday = [
@@ -452,8 +464,25 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
     console.log('📊 Merged Events and Holidays:', mergedEventandHoliday)
     console.log('📊 Demand Data:', demandData)
     // Create CSV content from trend data
-    const headers = ['Date', 'Day', 'Demand Index Value', 'Demand Status', 'Event/Holiday Name', 'Event Duration', 'Event Count', 'Event Distance', 'Estimated Visitors']
+    const headers = ['Date', 'Day', 'Demand Index Value', 'Demand Status', 'Event/Holiday Name', 'Event Duration', 'Event Count']
+    //const headers = ['Date', 'Day', 'Demand Index Value', 'Demand Status', 'Event/Holiday Name', 'Event Duration', 'Event Count', 'Event Distance', 'Estimated Visitors']
 
+    const formatDate = (dateStr: string) => {
+      const d = new Date(dateStr);
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+
+    const capitalizeFirstLetter = (str: string) => {
+      if (!str) return '';
+      return str
+        .toLowerCase()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    };
     const csvContent = [
       headers.join(','),
       ...demandData.map((demand: any) => {
@@ -464,16 +493,20 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
 
           return dataDate >= fromDate && dataDate <= toDate
         })
+
+        const eventNames = matchingEvents.length > 0 ? matchingEvents.map((e: any) => e.eventName).join(', ') : '';
+        console.log("eventNames", eventNames);
         return [
-          new Date(demand.checkinDate).toLocaleDateString('en-US'),
+          formatDate(demand.checkinDate),
+          //new Date(demand.checkinDate).toLocaleDateString('en-US'),
           new Date(demand.checkinDate).toLocaleDateString('en-US', { weekday: 'short' }),
           demand.demandIndex,
-          getDemandLevelFromIndex(demand.demandIndex),
-          matchingEvents.length > 0 ? matchingEvents[0].eventName : '',
+          capitalizeFirstLetter(getDemandLevelFromIndex(demand.demandIndex).replace('veryhigh', 'Very High')),
+          escapeCSVValue(eventNames),
           matchingEvents.length > 0 ? escapeCSVValue(matchingEvents[0].displayDate) : '',
-          matchingEvents.length || 0,
-          '',
-          ''
+          matchingEvents.length || 0
+          // '',
+          // ''
         ]
       })
     ].join('\n')
@@ -605,16 +638,23 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
                         {!day.isDisabled && (
                           <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
                             <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                            <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
+                            <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('veryhigh', 'Very High')} demand</div>
                             <div className="border-t border-gray-600 my-1 pt-1">
-                              <div className="text-xs text-gray-300 capitalize">Demand Index {day.demedandIndex}</div>
+                              <div className="text-xs text-gray-300 capitalize">Demand Index : {day.demedandIndex}</div>
                             </div>
                             {day.hasEventIcon && (
                               <>
                                 <div className="border-t border-gray-600 my-1 pt-1">
-                                  <div className="font-semibold text-amber-400 flex items-center gap-1">
-                                    <Star className="w-3 h-3 fill-amber-400" />
-                                    {day.eventName}
+                                  <div className="font-semibold text-amber-400 flex items-start gap-1">
+                                    <Star className="w-3 h-3 fill-amber-400 shrink-0" />
+                                    <span
+                                      className={`flex-1 ${(day.eventName?.length ?? 0) > 28
+                                        ? "flex-1 whitespace-normal break-words max-w-[28ch]"
+                                        : "flex-1 truncate"
+                                        }`}
+                                    >
+                                      {day.eventName}
+                                    </span>
                                   </div>
                                   {day.eventDateRange && (
                                     <div className="text-xs text-gray-300 mb-1">{day.eventDateRange}</div>
@@ -701,16 +741,23 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
                         {!day.isDisabled && (
                           <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
                             <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                            <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
+                            <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('veryhigh', 'Very High')} demand</div>
                             <div className="border-t border-gray-600 my-1 pt-1">
-                              <div className="text-xs text-gray-300 capitalize">Demand Index {day.demedandIndex}</div>
+                              <div className="text-xs text-gray-300 capitalize">Demand Index : {day.demedandIndex}</div>
                             </div>
                             {day.hasEventIcon && (
                               <>
                                 <div className="border-t border-gray-600 my-1 pt-1">
-                                  <div className="font-semibold text-amber-400 flex items-center gap-1">
-                                    <Star className="w-3 h-3 fill-amber-400" />
-                                    {day.eventName}
+                                  <div className="font-semibold text-amber-400 flex items-start gap-1">
+                                    <Star className="w-3 h-3 fill-amber-400 shrink-0" />
+                                    <span
+                                      className={`flex-1 ${(day.eventName?.length ?? 0) > 28
+                                        ? "flex-1 whitespace-normal break-words max-w-[28ch]"
+                                        : "flex-1 truncate"
+                                        }`}
+                                    >
+                                      {day.eventName}
+                                    </span>
                                   </div>
                                   {day.eventDateRange && (
                                     <div className="text-xs text-gray-300 mb-1">{day.eventDateRange}</div>
@@ -814,16 +861,23 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
                         {!day.isDisabled && (
                           <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
                             <div className="font-semibold">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                            <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('-', ' ')} demand</div>
+                            <div className="text-xs text-gray-300 capitalize">{day.demandLevel.replace('veryhigh', 'Very High')} demand</div>
                             <div className="border-t border-gray-600 my-1 pt-1">
-                              <div className="text-xs text-gray-300 capitalize">Demand Index {day.demedandIndex}</div>
+                              <div className="text-xs text-gray-300 capitalize">Demand Index : {day.demedandIndex}</div>
                             </div>
                             {day.hasEventIcon && (
                               <>
                                 <div className="border-t border-gray-600 my-1 pt-1">
-                                  <div className="font-semibold text-amber-400 flex items-center gap-1">
-                                    <Star className="w-3 h-3 fill-amber-400" />
-                                    {day.eventName}
+                                  <div className="font-semibold text-amber-400 flex items-start gap-1">
+                                    <Star className="w-3 h-3 fill-amber-400 shrink-0" />
+                                    <span
+                                      className={`flex-1 ${(day.eventName?.length ?? 0) > 28
+                                        ? "flex-1 whitespace-normal break-words max-w-[28ch]"
+                                        : "flex-1 truncate"
+                                        }`}
+                                    >
+                                      {day.eventName}
+                                    </span>
                                   </div>
                                   {day.eventDateRange && (
                                     <div className="text-xs text-gray-300 mb-1">{day.eventDateRange}</div>
@@ -864,8 +918,8 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
                   const demandLevels = [
                     { key: 'low' as const, label: 'Low', color: 'bg-blue-300' }, // Light blue
                     { key: 'normal' as const, label: 'Normal', color: 'bg-blue-500' }, // Dark blue
-                    { key: 'elevated' as const, label: 'Elevated', color: 'bg-red-300' }, // Light red
-                    { key: 'high' as const, label: 'High', color: 'bg-red-600' } // Dark red
+                    { key: 'high' as const, label: 'High', color: 'bg-red-300' }, // Light red
+                    { key: 'veryhigh' as const, label: 'Very High', color: 'bg-red-600' } // Dark red
                   ]
 
                   return demandLevels.map(level => {

@@ -21,6 +21,7 @@ interface KPIMetric {
   previousValue: string | number
   change: number
   changeType: 'increase' | 'decrease' | 'neutral'
+  changeVisible: false | true
   icon: React.ElementType
   description: string
   format: 'currency' | 'percentage' | 'number' | 'decimal' | 'text'
@@ -39,7 +40,7 @@ interface KPIMetric {
  */
 function generateKPIData(startDate: Date | null, endDate: Date | null, parityData: any, rateData: any, rateCompData: any, parityDataComp: any, selectedProperty: any, selectedComparison: ComparisonOption): KPIMetric[] {
   // Return empty array if dates are null
-  debugger;
+
   if (!startDate || !endDate) return []
 
   const days = differenceInDays(endDate, startDate) + 1
@@ -47,14 +48,16 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
 
   //All Subscriber Rate and Market Positioning Data
   const avgAllSubscriberRate = rateData?.pricePositioningEntites?.find((x: any) => x.propertyType === 0)?.AvgData;
+  const avgAllSubscriberStatus = rateData?.pricePositioningEntites?.find((x: any) => x.propertyType === 0)?.AvgStatus;
   const allWithAvg = rateData?.pricePositioningEntites
-    ?.filter((x: any) => (typeof x.AvgData === "number") && (x.propertyType === 0 || x.propertyType === 1)) || [];
+    ?.filter((x: any) => (typeof x.AvgData === "number") && (x.propertyType === 0 || x.propertyType === 1) && (x.AvgStatus === "O" || x.AvgStatus === "C")) || [];
   const sortedByAvg = [...allWithAvg].sort((a, b) => a.AvgData - b.AvgData);
   const indexOfSubscriber = sortedByAvg.findIndex(x => x.propertyType === 0) + 1;
   //All Compset Subscriber Rate and Market Positioning Data
   const avgAllSubscriberRate_Comp = rateCompData?.pricePositioningEntites?.find((x: any) => x.propertyType === 0)?.AvgData;
+  const avgAllSubscribertatus_Comp = rateCompData?.pricePositioningEntites?.find((x: any) => x.propertyType === 0)?.AvgStatus;
   const allWithAvg_Comp = rateCompData?.pricePositioningEntites
-    ?.filter((x: any) => (typeof x.AvgData === "number") && (x.propertyType === 0 || x.propertyType === 1)) || [];
+    ?.filter((x: any) => (typeof x.AvgData === "number") && (x.propertyType === 0 || x.propertyType === 1) && (x.AvgStatus === "O" || x.AvgStatus === "C")) || [];
   const sortedByAvg_Comp = [...allWithAvg_Comp].sort((a, b) => a.AvgData - b.AvgData);
   const indexOfSubscriber_Comp = sortedByAvg_Comp.findIndex(x => x.propertyType === 0) + 1;
   const eventsData = rateData?.pricePositioningEntites
@@ -91,16 +94,17 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
 
   const parityBase_Comp = parityDataComp?.otaViolationChannelRate?.overallWinMeetLoss.parityScore
 
-
+  debugger;
   // Core revenue metrics
   const baseKPIs: KPIMetric[] = [
     {
       id: 'average-rate',
       title: 'Average Daily Rate',
-      value: !!avgAllSubscriberRate ? avgAllSubscriberRate : 0,
+      value: !!avgAllSubscriberRate && avgAllSubscriberStatus == "O" ? avgAllSubscriberRate : avgAllSubscriberStatus === "C" ? "Sold Out" : "--",
       previousValue: avgAllSubscriberRate_Comp,
       change: !!avgAllSubscriberRate_Comp ? ((avgAllSubscriberRate - avgAllSubscriberRate_Comp) / avgAllSubscriberRate_Comp) * 100 : 0,
-      changeType: avgAllSubscriberRate > avgAllSubscriberRate_Comp ? 'increase' : 'decrease',
+      changeType: avgAllSubscriberRate >= avgAllSubscriberRate_Comp ? 'increase' : 'decrease',
+      changeVisible: avgAllSubscriberStatus === "O" && avgAllSubscribertatus_Comp === "O" ? true : false,
       icon: DollarSign,
       description: `ADR performance`,
       format: 'currency',
@@ -109,7 +113,7 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
       gradient: 'from-blue-500 to-blue-600',
       urgency: Math.abs(((avgAllSubscriberRate - avgAllSubscriberRate_Comp) / avgAllSubscriberRate_Comp) * 100) > 5 ? 'high' : 'medium',
       currencyCode: selectedProperty?.currencySymbol || '$',
-      comparisonText: selectedComparison ? selectedComparison === 1 ? 'Yesterday' : selectedComparison === 7 ? 'Last 7 Days' : selectedComparison === 28 ? 'Last 28 Days' : 'Last Quarter' : 'N/A',
+      comparisonText: selectedComparison ? selectedComparison === 1 ? 'Yesterday' : selectedComparison === 7 ? 'Last 1 Week' : selectedComparison === 28 ? 'Last 4 Week' : 'Last Quarter' : 'N/A',
     },
     {
       id: 'parity-status',
@@ -117,7 +121,8 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
       value: !!parityBase ? parityBase : 0,
       previousValue: !!parityBase_Comp ? parityBase_Comp : 0,
       change: !!parityBase_Comp ? ((parityBase - parityBase_Comp) / parityBase_Comp) * 100 : 0,
-      changeType: parityBase > parityBase_Comp ? 'increase' : 'decrease',
+      changeType: parityBase >= parityBase_Comp ? 'increase' : 'decrease',
+      changeVisible: true,
       icon: Shield,
       description: `Channel rate consistency`,
       format: 'percentage',
@@ -125,15 +130,16 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
       isImportant: true,
       gradient: parityBase > 95 ? 'from-emerald-500 to-emerald-600' : parityBase > 85 ? 'from-amber-500 to-amber-600' : 'from-red-500 to-red-600',
       urgency: parityBase < 85 ? 'critical' : parityBase < 95 ? 'high' : 'low',
-      comparisonText: selectedComparison ? selectedComparison === 1 ? 'Yesterday' : selectedComparison === 7 ? 'Last 7 Days' : selectedComparison === 28 ? 'Last 28 Days' : 'Last Quarter' : 'N/A',
+      comparisonText: selectedComparison ? selectedComparison === 1 ? 'Yesterday' : selectedComparison === 7 ? 'Last 1 Week' : selectedComparison === 28 ? 'Last 4 Week' : 'Last Quarter' : 'N/A',
     },
     {
       id: 'market-position',
-      title: 'Market Ranking',
+      title: 'Price Positioning', // 'Market Ranking',
       value: indexOfSubscriber,
       previousValue: indexOfSubscriber_Comp,
       change: !!indexOfSubscriber_Comp ? ((indexOfSubscriber - indexOfSubscriber_Comp) / indexOfSubscriber_Comp) * 100 : 0, // Inverted for ranking
-      changeType: indexOfSubscriber > indexOfSubscriber_Comp ? 'increase' : 'decrease',
+      changeType: indexOfSubscriber >= indexOfSubscriber_Comp ? 'increase' : 'decrease',
+      changeVisible: (avgAllSubscriberStatus === "O" || avgAllSubscriberStatus === "C") && (avgAllSubscribertatus_Comp === "O" || avgAllSubscribertatus_Comp === "C") ? true : false,
       icon: Target,
       description: `Competitive positioning`,
       format: 'number',
@@ -142,7 +148,7 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
       gradient: 'from-purple-500 to-purple-600',
       urgency: indexOfSubscriber > 5 ? 'high' : 'medium',
       outOfIndex: rateData?.pricePositioningEntites?.length - 2 || 0,
-      comparisonText: selectedComparison ? selectedComparison === 1 ? 'Yesterday' : selectedComparison === 7 ? 'Last 7 Days' : selectedComparison === 28 ? 'Last 28 Days' : 'Last Quarter' : 'N/A',
+      comparisonText: selectedComparison ? selectedComparison === 1 ? 'Yesterday' : selectedComparison === 7 ? 'Last 1 Week' : selectedComparison === 28 ? 'Last 4 Week' : 'Last Quarter' : 'N/A',
     },
   ]
   // Include Events KPI only for current and future dates (revenue managers focus on actionable events)
@@ -184,6 +190,7 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
       value: latestEvent?.eventName,
       previousValue: 'No major events',
       change: latestEvent?.eventImpact,
+      changeVisible: true,
       changeType: 'increase',
       icon: Calendar,
       description: `${selectedEvent.category} event - ${eventStatus}`,
@@ -357,7 +364,7 @@ function KPICard({ metric }: { metric: KPIMetric }) {
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
-              <metric.icon className={`w-4 h-4 ${getIconColor()}`} />
+              {/* <metric.icon className={`w-4 h-4 ${getIconColor()}`} /> */}
               <h3 className="text-minimal-subtitle font-bold text-slate-900 dark:text-slate-100">
                 {metric.title}
               </h3>
@@ -389,25 +396,44 @@ function KPICard({ metric }: { metric: KPIMetric }) {
                   </TooltipContent>
                 </Tooltip>
               ) : (
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight" >
-                  {metric.id === 'market-position' ? `#${getDisplayValue()}` : String(getDisplayValue()).toLowerCase().replace('international', 'int.').replace(/\b\w/g, char => char.toUpperCase())}
+                <p className={`text-2xl font-bold tracking-tight ${String(getDisplayValue()).trim().toLowerCase() === 'sold out'
+                    ? 'text-emerald-600  dark:text-emerald-100'
+                    : 'text-slate-900  dark:text-slate-100'
+                  }`}>
+                  {metric.id === 'market-position'
+                    ? (() => {
+                      const v = getDisplayValue();
+                      const isZero =
+                        v === 0 || v === '0' || Number(v) === 0; // catches "0" and 0
+                      return isZero ? '--' : `#${v}`;
+                    })()
+                    : String(getDisplayValue())
+                      .toLowerCase()
+                      .replace('international', 'int.')
+                      .replace(/\b\w/g, (char) => char.toUpperCase())
+                  }
                 </p>
               )}
-              {metric.id === 'market-position' && (
+              {metric.id === 'market-position' && metric.outOfIndex !== 0 && metric.changeVisible && (
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  out of {metric.outOfIndex}
+                </span>
+              )}
+              {/* {metric.id === 'market-position' && (
                 <span className="text-sm text-slate-500 dark:text-slate-400">
                   out of {metric.outOfIndex || 0}
                 </span>
-              )}
+              )} */}
             </div>
-            {metric.format === 'text' && metric.change > 0 && (
+            {/* {metric.format === 'text' && metric.change > 0 && (
               <Badge className="badge-minimal bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 hover:bg-amber-200 hover:text-amber-900 dark:hover:bg-amber-800 dark:hover:text-amber-100 transition-colors inline-block pr-4 ml-auto font-bold">
                 +{metric.change}% impact
               </Badge>
-            )}
+            )} */}
           </div>
 
           {/* Change Indicator - Enhanced styling */}
-          {metric.format !== 'text' && (
+          {metric.format !== 'text' && metric.changeVisible && (
             <div className={`flex items-center gap-2 ${getTrendColor()}`}>
               {getTrendIcon()}
               <span className="text-sm font-bold">
