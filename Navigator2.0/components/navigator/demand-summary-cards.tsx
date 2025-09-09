@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { TrendingUp, TrendingDown, Users, BarChart3, DollarSign, Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import localStorageService from "@/lib/localstorage"
+import { useSelectedProperty } from "@/hooks/use-local-storage"
 
 
 interface SummaryCardProps {
@@ -133,6 +134,9 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
   }, [filter, avgDemand]);
 
 
+  // Safe currency symbol that prevents hydration mismatch
+  const currencySymbol = mounted ? (selectedProperty?.currencySymbol ?? '$') : '$';
+  
   const summaryData: SummaryCardProps[] = [
     {
       title: "Demand Index",

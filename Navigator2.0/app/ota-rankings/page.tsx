@@ -17,7 +17,7 @@ import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleto
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
 
-import { Calendar, ChevronDown, Eye, Users, ChevronLeft, ChevronRight, Download, Star, Info, BarChart3, Table } from "lucide-react"
+import { Calendar, ChevronDown, Eye, Users, ChevronLeft, ChevronRight, Download, Star, Info, BarChart3 } from "lucide-react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts"
 import { format, addDays, subDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, isWithinInterval, subMonths, isBefore, addMonths } from "date-fns"
 import { toPng } from "html-to-image"
@@ -46,11 +46,10 @@ export default function OTARankingsPage() {
   const [compareWith, setCompareWith] = useState("Last 1 Week")
   const [compSet, setCompSet] = useState("Primary Compset")
   const [viewMode, setViewMode] = useState("Rank")
-  const [rankViewMode, setRankViewMode] = useState<"graph" | "table">("graph")
-  const [competitorPage, setCompetitorPage] = useState(0)
   
-  // View mode state for Reviews tab (graph/table)
-  const [reviewsViewMode, setReviewsViewMode] = useState<"graph" | "table">("graph")
+
+  
+
   
   const [selectedChannel, setSelectedChannel] = useState("booking")
   
@@ -373,30 +372,10 @@ export default function OTARankingsPage() {
     [availableHotelLines, legendVisibility]
   )
 
-  // Pagination handlers for competitor table
-  const handlePrevCompetitors = useCallback(() => {
-    setCompetitorPage(prev => Math.max(0, prev - 1))
-  }, [])
-  
-  const handleNextCompetitors = useCallback(() => {
-    const totalCompetitors = availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey]).length
-    const maxPage = Math.ceil(totalCompetitors / 4) - 1
-    setCompetitorPage(prev => Math.min(maxPage, prev + 1))
-  }, [availableHotelLines, legendVisibility])
 
-  // Format date for table display
-  const formatTableDate = useCallback((dateString: string) => {
-    try {
-      const date = new Date(dateString)
-      const day = date.getDate()
-      const month = format(date, 'MMM')
-      const year = format(date, "''yy")
-      const dayName = format(date, 'EEE')
-      return { day, month, year, dayName, formatted: `${day} ${month} ${year}` }
-    } catch {
-      return { day: '', month: '', year: '', dayName: '', formatted: dateString }
-    }
-  }, [])
+
+
+
 
   // Separate height calculations for each tab
   const calculateRankChartHeight = () => {
@@ -1119,7 +1098,6 @@ export default function OTARankingsPage() {
             </div>
                               <div className="flex-1">
                   <CardTitle className="text-xl font-bold">Ranking Trends Analysis</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">Comprehensive ranking comparison across all channels with market insights</p>
           </div>
       </div>
 
@@ -1131,13 +1109,9 @@ export default function OTARankingsPage() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        variant={rankViewMode === "graph" ? "default" : "ghost"}
+                        variant="default"
                         size="sm"
-                        onClick={() => setRankViewMode("graph")}
-                        className={cn(
-                          "h-9 w-9 rounded-none border-r-0 border-b-0",
-                          rankViewMode === "graph" ? "border-r-0 border-b-0" : "border-r-0 border-b-0 hover:border-r-0 hover:border-b-0"
-                        )}
+                        className="h-9 w-9 rounded-lg"
                       >
                         <BarChart3 className="h-4 w-4" />
                       </Button>
@@ -1146,24 +1120,7 @@ export default function OTARankingsPage() {
                       <p className="text-xs font-normal">Graph View</p>
                     </TooltipContent>
                   </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={rankViewMode === "table" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setRankViewMode("table")}
-                        className={cn(
-                          "h-9 w-9 rounded-none border-l-0 border-t-0",
-                          rankViewMode === "table" ? "border-l-0 border-t-0" : "border-l-0 border-t-0 hover:border-l-0 hover:border-t-0"
-                        )}
-                      >
-                        <Table className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
-                      <p className="text-xs font-normal">Table View</p>
-                    </TooltipContent>
-                  </Tooltip>
+
                 </div>
               </TooltipProvider>
 
@@ -1201,8 +1158,7 @@ export default function OTARankingsPage() {
             </Alert>
           )}
           
-          {/* Ranking Content - Graph or Table */}
-          {rankViewMode === "graph" ? (
+          {/* Ranking Content - Graph View */}
             <div style={{ height: '470px' }} className="[&_.recharts-wrapper]:mt-3 [&_.recharts-legend-wrapper]:!bottom-[54px]">
             <ResponsiveContainer width="100%" height="100%">
                               <LineChart data={rankingTrendsData} margin={{ top: 20, right: 40, left: 30, bottom: 30 }}>
@@ -1337,193 +1293,9 @@ export default function OTARankingsPage() {
               </LineChart>
             </ResponsiveContainer>
             </div>
-          ) : (
-            // Table View with Reviews styling and sticky columns
-            <div style={{ height: '470px' }} className="mt-4 mb-5">
-              <div className="border border-border rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
-                  <div className="max-h-[462px] overflow-y-auto">
-                    <table className="w-full relative">
-                      {/* Sticky Header */}
-                      <thead className="bg-gray-50 sticky top-0 z-20">
-                        <tr className="border-b border-gray-200">
-                          {/* Sticky Check-in Date Column */}
-                          <th className="sticky left-0 z-30 bg-gray-50 text-left py-1.5 pl-2 pr-4 font-semibold text-xs text-muted-foreground border-r border-gray-200">
-                            Check-in Date
-                          </th>
-                          {/* Sticky My Hotel Column */}
-                                                     <th className="sticky left-24 z-30 bg-blue-50 text-right py-1.5 pl-2 pr-4 font-semibold text-xs text-muted-foreground border-r border-gray-200">
-                            {selectedProperty?.name || 'Alhambra Hotel'}
-                            <div className="text-xs text-muted-foreground font-normal mt-0.5">Rank</div>
-                          </th>
-                                                     {/* Competitor Columns */}
-                           {Array.from({ length: 4 }, (_, index) => {
-                             const competitorSlice = availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey]).slice(competitorPage * 4, (competitorPage + 1) * 4);
-                             const hotel = competitorSlice[index];
-                             
-                             if (hotel) {
-                               return (
-                                 <th key={hotel.dataKey} className="text-right py-1.5 px-0 font-semibold text-xs text-muted-foreground min-w-32" style={{marginLeft: '-20px'}}>
-                                   <TooltipProvider>
-                                     <Tooltip>
-                                       <TooltipTrigger asChild>
-                                         <div className="truncate cursor-pointer">{hotel.name.length > 15 ? `${hotel.name.substring(0, 15)}...` : hotel.name}</div>
-                                       </TooltipTrigger>
-                                       {hotel.name.length > 15 && (
-                                         <TooltipContent className="bg-black text-white border-black font-normal">
-                                           <p>{hotel.name}</p>
-                                         </TooltipContent>
-                                       )}
-                                     </Tooltip>
-                                   </TooltipProvider>
-                                   <div className="text-xs text-muted-foreground font-normal mt-0.5">Rank</div>
-                                 </th>
-                               );
-                             } else {
-                               return (
-                                 <th key={`empty-${index}`} className="text-right py-1.5 px-0 font-semibold text-xs text-muted-foreground min-w-32" style={{marginLeft: '-20px'}}>
-                                   <div className="text-xs text-muted-foreground font-normal mt-0.5 opacity-0">-</div>
-                                 </th>
-                               );
-                             }
-                           })}
-                                                     {/* Navigation Column */}
-                           {availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey]).length > 4 && (
-                             <th className="text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground w-20">
-                               <TooltipProvider>
-                                 <div className="flex items-center justify-center">
-                                   <div className="flex border border-input rounded-md">
-                                     <Tooltip>
-                                       <TooltipTrigger asChild>
-                                         <Button
-                                           variant="ghost"
-                                           size="sm"
-                                           className="h-6 w-6 p-0 rounded-none border-0"
-                                           onClick={handlePrevCompetitors}
-                                           disabled={competitorPage === 0}
-                                         >
-                                           <ChevronLeft className="h-3 w-3" />
-                                         </Button>
-                                       </TooltipTrigger>
-                                       <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
-                                         <p className="text-xs font-normal">Previous</p>
-                                       </TooltipContent>
-                                     </Tooltip>
-                                     <div className="w-px bg-border"></div>
-                                     <Tooltip>
-                                       <TooltipTrigger asChild>
-                                         <Button
-                                           variant="ghost"
-                                           size="sm"
-                                           className="h-6 w-6 p-0 rounded-none border-0"
-                                           onClick={handleNextCompetitors}
-                                           disabled={competitorPage >= Math.ceil(availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey]).length / 4) - 1}
-                                         >
-                                           <ChevronRight className="h-3 w-3" />
-                                         </Button>
-                                       </TooltipTrigger>
-                                       <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
-                                         <p className="text-xs font-normal">Next</p>
-                                       </TooltipContent>
-                                     </Tooltip>
-                                   </div>
-                                 </div>
-                               </TooltipProvider>
-                             </th>
-                           )}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rankingTrendsData.map((dataPoint, index) => {
-                          const myHotelData = availableHotelLines.find(hotel => hotel.dataKey === 'myHotel');
-                          const competitors = availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey]).slice(competitorPage * 4, (competitorPage + 1) * 4);
-                          
-                          return (
-                                                         <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 group">
-                              {/* Sticky Check-in Date */}
-                              <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 py-2 pl-2 pr-4 font-medium text-foreground text-sm border-r border-gray-200">
-                                {(() => {
-                                  const dateInfo = formatTableDate(dataPoint.fullDate || dataPoint.date)
-                                  return (
-                                    <div className="flex items-center">
-                                      <span>{dateInfo.formatted}, </span>
-                                      <span className="font-normal text-gray-600 ml-1" style={{fontSize: '12px'}}>{dateInfo.dayName}</span>
-                                    </div>
-                                  )
-                                })()}
-                              </td>
-                              {/* Sticky My Hotel Rank */}
-                                                             <td className="sticky left-24 z-10 bg-blue-50 group-hover:bg-blue-100 py-2 pl-2 pr-4 text-right border-r border-gray-200 border-b border-gray-200">
-                                <div className="flex items-center justify-end space-x-6">
-                                  <span className="font-semibold text-sm">{dataPoint[myHotelData?.dataKey || 'myHotel']}</span>
-                                  {(() => {
-                                    const variance = dataPoint[`${myHotelData?.dataKey || 'myHotel'}Variance`];
-                                    if (variance === 0 || variance === null || variance === undefined) {
-                                      return <span className="text-gray-500 text-xs px-1 py-0.5 rounded text-center" style={{width: '30px', display: 'inline-block'}}>NF</span>;
-                                    }
-                                    const isPositive = variance > 0;
-                                    return (
-                                      <span className={`text-xs font-medium px-1 py-0.5 rounded text-center ${
-                                        isPositive ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
-                                      }`} style={{width: '30px', display: 'inline-block'}}>
-                                        {isPositive ? '+' : ''}{variance}
-                                      </span>
-                                    );
-                                  })()}
-                                </div>
-                              </td>
-                              {/* Competitor Ranks */}
-                              {Array.from({ length: 4 }, (_, index) => {
-                                const hotel = competitors[index];
-                                
-                                if (hotel) {
-                                  return (
-                                    <td key={hotel.dataKey} className="py-2 px-0 text-right group-hover:bg-gray-50" style={{marginLeft: '-20px'}}>
-                                      <div className="flex items-center justify-end space-x-6">
-                                        <span className="font-semibold text-sm">{dataPoint[hotel.dataKey]}</span>
-                                        {(() => {
-                                          const variance = dataPoint[`${hotel.dataKey}Variance`];
-                                          if (variance === 0 || variance === null || variance === undefined) {
-                                            return <span className="text-gray-500 text-xs px-1 py-0.5 rounded text-center" style={{width: '30px', display: 'inline-block'}}>NF</span>;
-                                          }
-                                          const isPositive = variance > 0;
-                                          return (
-                                            <span className={`text-xs font-medium px-1 py-0.5 rounded text-center ${
-                                              isPositive ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
-                                            }`} style={{width: '30px', display: 'inline-block'}}>
-                                              {isPositive ? '+' : ''}{variance}
-                                            </span>
-                                          );
-                                        })()}
-                                      </div>
-                                    </td>
-                                  );
-                                } else {
-                                  return (
-                                    <td key={`empty-${index}`} className="py-2 px-0 text-right group-hover:bg-gray-50" style={{marginLeft: '-20px'}}>
-                                      <div className="flex items-center justify-end space-x-6">
-                                        <span className="font-semibold text-sm text-gray-300 opacity-0">-</span>
-                                        <span className="text-gray-300 text-xs px-1 py-0.5 rounded text-center opacity-0" style={{width: '30px', display: 'inline-block'}}>-</span>
-                                      </div>
-                                    </td>
-                                  );
-                                }
-                              })}
-                                                             {/* Navigation Column Cell */}
-                               {availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey]).length > 4 && (
-                                 <td className="py-2 px-2 text-center group-hover:bg-gray-50">
-                                 </td>
-                               )}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+
+
+
         </CardContent>
       </Card>
     </>
@@ -1988,13 +1760,9 @@ export default function OTARankingsPage() {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <Button
-                                        variant={reviewsViewMode === "graph" ? "default" : "ghost"}
+                                        variant="default"
                                         size="sm"
-                                        onClick={() => setReviewsViewMode("graph")}
-                                        className={cn(
-                                          "h-[42px] w-[42px] p-0 rounded-none border-0",
-                                          reviewsViewMode === "graph" ? "bg-primary text-primary-foreground" : ""
-                                        )}
+                                        className="h-[42px] w-[42px] p-0 rounded-lg"
                                       >
                                         <BarChart3 className="h-4 w-4" />
                                       </Button>
@@ -2003,24 +1771,7 @@ export default function OTARankingsPage() {
                                       <p className="text-xs font-normal">Graph View</p>
                                     </TooltipContent>
                                   </Tooltip>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant={reviewsViewMode === "table" ? "default" : "ghost"}
-                                        size="sm"
-                                        onClick={() => setReviewsViewMode("table")}
-                                        className={cn(
-                                          "h-[42px] w-[42px] p-0 rounded-none border-0",
-                                          reviewsViewMode === "table" ? "bg-primary text-primary-foreground" : ""
-                                        )}
-                                      >
-                                        <Table className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
-                                      <p className="text-xs font-normal">Table View</p>
-                                    </TooltipContent>
-                                  </Tooltip>
+
                                 </div>
                               </TooltipProvider>
 
@@ -2042,12 +1793,12 @@ export default function OTARankingsPage() {
                                 </TooltipProvider>
                                       <DropdownMenuContent align="end">
                                   <DropdownMenuItem onClick={() => {
-                                    const element = reviewsViewMode === "graph" ? document.getElementById('reviews-chart') : cardRef.current
+                                    const element = document.getElementById('reviews-chart')
                                     if (element) {
                                       toPng(element)
                                         .then((dataUrl) => {
                                           const link = document.createElement('a')
-                                          link.download = `reviews-${reviewsViewMode}.png`
+                                          link.download = `reviews-graph.png`
                                           link.href = dataUrl
                                           link.click()
                                         })
@@ -2057,7 +1808,6 @@ export default function OTARankingsPage() {
                                     }
                                   }}>Export as Image</DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => {
-                                    if (reviewsViewMode === "graph") {
                                       const csvData = reviewsData.map(item => ({
                                         Week: item.week,
                                         'Review Score': item.reviewScore,
@@ -2077,10 +1827,6 @@ export default function OTARankingsPage() {
                                       link.download = 'reviews-trends.csv'
                                       link.click()
                                       window.URL.revokeObjectURL(url)
-                                    } else {
-                                      // Handle table CSV export here if needed
-                                      console.log('Table CSV export')
-                                    }
                                   }}>Export as CSV</DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
@@ -2088,113 +1834,8 @@ export default function OTARankingsPage() {
                             </div>
                           </CardHeader>
                           <CardContent className="px-6 pt-1 pb-0">
-                            {reviewsViewMode === "table" ? (
-                            <div style={{ height: '400px' }} className="mt-3 mb-6">
-                              <div className="border border-border rounded-lg overflow-hidden">
-                            <div className="overflow-x-auto">
-                                  <div className="max-h-80 overflow-y-auto">
-                                <table className="w-full">
-                                <thead className="bg-gray-50">
-                                  <tr className="border-b border-gray-200">
-                                    <th className="text-left py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200">Hotel</th>
-                                    <th className="text-right py-1.5 px-2 pr-16 font-semibold text-xs text-muted-foreground">
-                                      Review Score
-                                      <div className="text-xs text-muted-foreground font-normal mt-0.5">Out of 10</div>
-                                    </th>
-                                    <th className="text-right py-1.5 px-2 pr-8 font-semibold text-xs text-muted-foreground">
-                                      Number of<br/>Reviews
-                                    </th>
-                                    <th className="text-right py-1.5 px-2 pr-28 font-semibold text-xs text-muted-foreground">
-                                      Rank
-                                      <div className="text-xs text-muted-foreground font-normal mt-0.5">As on today</div>
-                                    </th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {/* My Hotel - First Row */}
-                                  <tr className="border-b border-gray-100 hover:bg-gray-50">
-                                    <td className="py-2 px-2 font-medium text-foreground text-sm border-r border-gray-200">{selectedProperty?.name || 'Alhambra Hotel'}</td>
-                                    <td className="py-2 px-2 pr-16 text-right">
-                                      <div className="flex items-center justify-end space-x-1">
-                                        <span className="bg-red-100 text-red-800 px-1 py-0.5 rounded text-xs font-medium" style={{fontSize: '10px'}}>WORST</span>
-                                        <span className="font-semibold text-sm">6.2</span>
-                                      </div>
-                                    </td>
-                                    <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">626</td>
-                                    <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">#7</td>
-                                  </tr>
-                                  {/* Competitor Hotels */}
-                                  <tr className="border-b border-gray-100 hover:bg-gray-50">
-                                    <td className="py-2 px-2 text-sm border-r border-gray-200">Hotel Alexander Plaza</td>
-                                    <td className="py-2 px-2 pr-16 text-right font-semibold text-sm">8.7</td>
-                                    <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">3855</td>
-                                    <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">#1</td>
-                                  </tr>
-                                  <tr className="border-b border-gray-100 hover:bg-gray-50">
-                                    <td className="py-2 px-2 text-sm border-r border-gray-200">Comfort Hotel Auberge</td>
-                                    <td className="py-2 px-2 pr-16 text-right font-semibold text-sm">7.5</td>
-                                    <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">2515</td>
-                                    <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">
-                                      <div className="flex items-center justify-end space-x-1">
-                                        <TooltipProvider>
-                                          <Tooltip>
-                                            <TooltipTrigger asChild>
-                                              <span className="text-red-600 dark:text-red-400 font-normal cursor-help">#500+</span>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
-                                              <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
-                                            </TooltipContent>
-                                          </Tooltip>
-                                        </TooltipProvider>
-                                        <TooltipProvider>
-                                          <Tooltip>
-                                            <TooltipTrigger asChild>
-                                              <Info className="w-3 h-3 text-red-600 dark:text-red-400 cursor-help transition-colors" />
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
-                                              <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
-                                            </TooltipContent>
-                                          </Tooltip>
-                                        </TooltipProvider>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                  <tr className="border-b border-gray-100 hover:bg-gray-50">
-                                    <td className="py-2 px-2 text-sm border-r border-gray-200">acom Hotel Berlin City Süd</td>
-                                    <td className="py-2 px-2 pr-16 text-right font-semibold text-sm">8.1</td>
-                                    <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">810</td>
-                                    <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">#2</td>
-                                  </tr>
-                                  <tr className="border-b border-gray-100 hover:bg-gray-50">
-                                    <td className="py-2 px-2 text-sm border-r border-gray-200">InterCityHotel Berlin Ostbahnhof</td>
-                                    <td className="py-2 px-2 pr-16 text-right font-semibold text-sm">7.9</td>
-                                    <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">3670</td>
-                                    <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">#3</td>
-                                  </tr>
-                                  <tr className="border-b border-gray-100 hover:bg-gray-50">
-                                    <td className="py-2 px-2 text-sm border-r border-gray-200">Mercure Hotel Berlin City West</td>
-                                    <td className="py-2 px-2 pr-16 text-right font-semibold text-sm">7.0</td>
-                                    <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">2096</td>
-                                    <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">#6</td>
-                                  </tr>
-                                  <tr className="hover:bg-gray-50">
-                                    <td className="py-2 px-2 text-sm border-r border-gray-200">Hotel Brandies an der Messe</td>
-                                    <td className="py-2 px-2 pr-16 text-right">
-                                      <div className="flex items-center justify-end space-x-1">
-                                        <span className="bg-green-100 text-green-800 px-1 py-0.5 rounded text-xs font-medium" style={{fontSize: '10px'}}>BEST</span>
-                                        <span className="font-semibold text-sm">8.8</span>
-                                      </div>
-                                    </td>
-                                    <td className="py-2 px-2 pr-8 text-right font-semibold text-sm">1485</td>
-                                    <td className="py-2 px-2 pr-28 text-right font-semibold text-sm">#5</td>
-                                  </tr>
-                                </tbody>
-                                </table>
-                              </div>
-                            </div>
-                              </div>
-                              </div>
-                            ) : (
+
+
                             <div id="reviews-chart" className="mt-1" style={{ height: '440px' }}>
                               <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={reviewsData} margin={{ top: 15, right: 40, left: 30, bottom: 5 }}>
@@ -2287,7 +1928,6 @@ export default function OTARankingsPage() {
                                 </LineChart>
                               </ResponsiveContainer>
                             </div>
-                          )}
                         </CardContent>
                       </Card>
                     )
