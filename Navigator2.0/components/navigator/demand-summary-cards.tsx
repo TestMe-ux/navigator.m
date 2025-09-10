@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { TrendingUp, TrendingDown, Users, BarChart3, DollarSign, Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import localStorageService from "@/lib/localstorage"
+import { useSelectedProperty } from "@/hooks/use-local-storage"
 
 
 interface SummaryCardProps {
@@ -108,8 +109,15 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
   const selectedProperty: any = localStorageService.get('SelectedProperty')
   const [trendValue, setTrendValue] = useState(0);
   const [demandTrendValue, setDemandTrendValue] = useState(0);
+  const [mounted, setMounted] = useState(false);
   const ischatgptData = demandData?.ischatgptData ?? false;
   console.log("Filter sumarry card", filter)
+  
+  // Ensure component is mounted to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+  
   useEffect(() => {
     if (!avgDemand) return;
     let newTrend;
@@ -133,6 +141,9 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
   }, [filter, avgDemand]);
 
 
+  // Safe currency symbol that prevents hydration mismatch
+  const currencySymbol = mounted ? (selectedProperty?.currencySymbol ?? '$') : '$';
+  
   const summaryData: SummaryCardProps[] = [
     {
       title: "Demand Index",

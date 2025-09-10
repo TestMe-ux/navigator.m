@@ -266,8 +266,8 @@ export function PropertyHealthScoreWidget(props: any) {
       // 2) get OTA rank on all channels
       const rankRes = await getOTARankOnAllChannel({
         SID: selectedProperty?.sid,
-        CheckInDateStart: startDate?.toUTCString(),
-        CheckInEndDate: endDate?.toUTCString(),
+        CheckInDateStart: conevrtDateforApi(startDate?.toString()),
+        CheckInEndDate: conevrtDateforApi(endDate?.toString()),
       });
 
       if (!rankRes?.status) {
@@ -424,7 +424,7 @@ export function PropertyHealthScoreWidget(props: any) {
             );
 
             const outOfScores = matchedReviews.map((r: any) => r.outOfScore);
-            console.log("Matched Reviews:", matchedReviews,);
+
             return (
               <Card key={channel.name} className="hover:shadow-xl hover:scale-[1.01] transition-all duration-300 transform-gpu cursor-default">
                 <CardHeader className="pb-2">
@@ -441,11 +441,11 @@ export function PropertyHealthScoreWidget(props: any) {
                     {/* Ranking Metric - Optimized */}
                     <div className="text-center space-y-2">
                       <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Ranking</div>
-                      {subsOtaranData.length > 0 && subsOtaranData[0]?.otaRank <=500 ? (
+                      {subsOtaranData.length > 0 && subsOtaranData[0]?.otaRank <= 500 ? (
                         <div className="space-y-1">
                           <div className="flex items-center justify-center gap-1">
                             <span className="text-lg font-semibold text-foreground">{subsOtaranData[0]?.otaRank}</span>
-                           
+
                             {/* {subsOtaranData[0]?.changeInRank !== undefined && subsOtaranData[0]?.changeInRank !== 0 && (
                               <span className={`text-xs font-medium flex items-center ${subsOtaranData[0]?.changeInRank > 0
                                 ? "text-emerald-600 dark:text-emerald-400"
@@ -490,7 +490,7 @@ export function PropertyHealthScoreWidget(props: any) {
                             {channel?.channelWisewinMeetLoss?.parityScore}%
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {channel?.channelWisewinMeetLoss?.violationCount ?? 0} issues
+                            {channel.isBrand ? props?.parityData?.totalviolationCount ?? 0 : channel?.channelWisewinMeetLoss?.violationCount ?? 0} issues
                           </div>
                         </div>
                       ) : (

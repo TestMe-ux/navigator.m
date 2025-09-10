@@ -234,6 +234,7 @@ export default function Home() {
   const [rateData, setRateData] = useState(Object);
   const [rateCompData, setRateCompData] = useState(Object);
   const [losGuest, setLosGuest] = useState({ "Los": [], "Guest": [] });
+  const [selectedChannel, setSelectedChannel] = useState([])
   const { hasTriggered, resetTrigger } = useScrollDetection({
     threshold: 0.9, // Show when 90% scrolled (very close to bottom)
     minScrollDistance: 1200, // After scrolling at least 1200px
@@ -255,49 +256,68 @@ export default function Home() {
   }, [hasTriggered, showCSATCard, csatClosed])
   useEffect(() => {
 
-    if (!startDate ||
+    debugger
+    const channelIds = channelFilter?.channelId ?? [];
+    if (
+      !startDate ||
       !endDate ||
-      !selectedProperty?.sid) return;
+      !selectedProperty?.sid ||
+      !(channelIds.length > 0)
+    ) return;
+
     setIsLoading(true);
     setLoadingProgress(0);
-    // Progress interval
+
     const progressInterval = setInterval(() => {
       setLoadingProgress((prev) => {
-        const increment = Math.floor(Math.random() * 9) + 3; // 3-11% increment
+        const increment = Math.floor(Math.random() * 9) + 3;
         const newProgress = prev + increment;
-
         if (newProgress >= 100) {
           setLoadingCycle(prevCycle => prevCycle + 1);
           return 0;
         }
-
         return newProgress;
       });
     }, 80);
-    Promise.all([
-      GetParityDatas(),
-      getRateDate(),
-      getCompRateData(),
-      GetParityDatas_Comp()
-    ]).finally(() => {
-      clearInterval(progressInterval);
-      setLoadingProgress(100); // finish instantly
-      setTimeout(() => {
-        setIsLoading(false);
-        setLoadingProgress(0); // reset for next load
-      }, 300); // brief delay so user sees 100%
-    });
-  }, [startDate, endDate, selectedProperty, compsetFilter, sideFilter])
-  useEffect(() => {
-    console.log("Channel filter changed:", parityData, channelFilter);
-    if (!startDate ||
-      !endDate ||
-      !selectedProperty?.sid) return;
+
     Promise.all([
       getRateDate(),
       getCompRateData()
+    ]).finally(() => {
+      clearInterval(progressInterval);
+      setLoadingProgress(100);
+      setTimeout(() => {
+        setIsLoading(false);
+        setLoadingProgress(0);
+      }, 300);
+    });
+
+  }, [
+    startDate,
+    endDate,
+    selectedProperty?.sid,
+    channelFilter?.channelId?.join(','),
+    sideFilter,
+    compsetFilter
+  ]);
+
+  useEffect(() => {
+    if (!startDate ||
+      !endDate ||
+      !selectedProperty?.sid ||
+      selectedChannel.length === 0) return;
+
+    Promise.all([
+      GetParityDatas(),
+      GetParityDatas_Comp()
     ]);
-  }, [channelFilter?.channelId])
+  }, [
+    startDate,
+    endDate,
+    selectedProperty?.sid,
+    sideFilter,
+    selectedChannel.join(',') // ✅ fixes re-render from array identity change
+  ]);
 
   useEffect(() => {
     if (!startDate ||
@@ -310,9 +330,7 @@ export default function Home() {
   }, [selectedComparison])
 
   const getRateDate = () => {
-    debugger;
     setRateData({});
-    debugger;
     const filtersValue = {
       "SID": selectedProperty?.sid,
       "channels": (channelFilter?.channelId?.length ?? 0) > 0 ? channelFilter.channelId : [-1],
@@ -373,7 +391,6 @@ export default function Home() {
   }
   const getCompRateData = () => {
     setRateCompData({});
-    debugger;
     const startDateComp = startDate
       ? new Date(startDate.getTime() + (-selectedComparison * 24 * 60 * 60 * 1000))
       : new Date();
@@ -438,8 +455,9 @@ export default function Home() {
       })
       .catch((err) => console.error(err));
   }
-  const GetParityDatas = useCallback(() => {
-    if (!selectedProperty?.sid || !startDate || !endDate) {
+  const GetParityDatas = () => {
+    const channelIds = channelFilter?.channelId ?? [];
+    if (!selectedProperty?.sid || !startDate || !endDate || channelIds.length === 0) {
       console.warn('Missing required parameters for parity data fetch');
       return;
     }
@@ -449,7 +467,7 @@ export default function Home() {
       "sid": selectedProperty?.sid,
       "checkInStartDate": conevrtDateforApi(startDate?.toString()),
       "checkInEndDate": conevrtDateforApi(endDate?.toString()),
-      "channelName": (channelFilter?.channelId?.length ?? 0) > 0 ? channelFilter.channelId : [-1],
+      "channelName": selectedChannel.map((x: any) => x.cid),
       "guest": sideFilter?.guest || null,
       "los": sideFilter?.lengthOfStay || null,
       "promotion": sideFilter?.rateViewBy?.PromotionText === "All" ? null : sideFilter?.rateViewBy?.PromotionText,
@@ -482,6 +500,9 @@ export default function Home() {
                   element.channelWisewinMeetLoss.parityScore = Math.round(((element.channelWisewinMeetLoss.winCount + element.channelWisewinMeetLoss.meetCount) * 100) / totalWinMeetLossCount);
                 }
               }
+              else {
+                element.channelWisewinMeetLoss = parityDatas;
+              }
               const violationCount = element?.checkInDateWiseRates.filter((x: any) => (x.rateViolation || x.availViolation)).length;
               if (element.channelWisewinMeetLoss) {
                 element.channelWisewinMeetLoss.violationCount = violationCount;
@@ -499,7 +520,7 @@ export default function Home() {
         console.error('Parity data fetch failed:', err);
         setparityData({});
       });
-  }, [selectedProperty?.sid, startDate, endDate, channelFilter, sideFilter]);
+  }
   const GetParityDatas_Comp = () => {
     setParityDataComp({});
     const startDateComp = startDate
@@ -512,7 +533,7 @@ export default function Home() {
       "sid": selectedProperty?.sid,
       "checkInStartDate": conevrtDateforApi(startDateComp.toString()),
       "checkInEndDate": conevrtDateforApi(endDateComp.toString()),
-      "channelName": (channelFilter?.channelId?.length ?? 0) > 0 ? channelFilter.channelId : [-1],
+      "channelName": selectedChannel.map((x: any) => x.cid),
       "guest": sideFilter?.guest || null,
       "los": sideFilter?.lengthOfStay || null,
       "promotion": sideFilter?.rateViewBy?.Promotion || null,
@@ -571,96 +592,109 @@ export default function Home() {
     setCSATClosed(true)
     console.log('🎯 CSAT card closed by user')
   }
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
-        <GlobalProgressBar />
-        <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8 xl:py-10">
-          <div className="max-w-7xl xl:max-w-none mx-auto">
-            <LoadingSkeleton type="demand" showCycleCounter={true} />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // if (isLoading) {
+  //   return (
+  //     <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
+  //       <GlobalProgressBar />
+  //       <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8 xl:py-10">
+  //         <div className="max-w-7xl xl:max-w-none mx-auto">
+  //           <LoadingSkeleton type="demand" showCycleCounter={true} />
+  //         </div>
+  //       </div>
+  //     </div>
+  //   );
+  // }
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950" data-coach-mark="dashboard-overview">
       {/* Enhanced Filter Bar with Sticky Positioning */}
       <div className="sticky top-0 z-40 filter-bar-minimal bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
-        <FilterBar onMoreFiltersClick={handleMoreFiltersClick} />
+        <FilterBar onMoreFiltersClick={handleMoreFiltersClick} setSelectedChannel={setSelectedChannel} />
       </div>
-
-      {/* Main Dashboard Content */}
-      <main className="relative">
-        <div className="px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8 space-y-4">
-          <div className="max-w-none mx-auto space-y-4">
-
-            {/* Dashboard Header with Enhanced Typography */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-minimal-md mb-8">
-              <div className="space-y-1">
-                <h1 className="text-2xl font-bold text-foreground">
-                  Overview
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  Real-time insights for optimal pricing and revenue performance
-                </p>
-              </div>
-              <div className="flex items-center gap-6">
-                <CoachMarkTrigger />
-              </div>
-            </div>
-
-            {/* KPI Cards - Enhanced with proper spacing */}
-            <div className="w-full animate-slide-up" data-coach-mark="kpi-cards">
-              <OverviewKpiCards parityData={parityData} rateData={rateData} rateCompData={rateCompData} parityDataComp={parityDataComp} />
-            </div>
-
-            {/* Main Content Grid - Enhanced with consistent spacing */}
-            <div className="space-minimal-xl mt-8">
-
-              {/* Rate Trends Chart - Full width with enhanced styling */}
-              <div className="animate-fade-in mb-12" data-coach-mark="rate-trends">
-                <RateTrendsChart rateData={rateData} rateCompData={rateCompData} />
-              </div>
-
-              {/* Property Health Score and Market Demand Cards - Grouped with consistent spacing */}
-              <div className="space-minimal-xl">
-                {/* Property Health Score - Enhanced card */}
-                <div className="animate-slide-up" data-coach-mark="property-health" style={{ animationDelay: '0.1s' }}>
-                  <PropertyHealthScoreWidget parityData={parityData} />
-                </div>
-
-                {/* Market Demand Widget - Enhanced card */}
-                <div className="animate-slide-up mt-8" data-coach-mark="market-demand" style={{ animationDelay: '0.2s' }}>
-                  <MarketDemandWidget />
-                </div>
+      <FilterSidebar
+        losGuest={losGuest}
+        isOpen={isFilterSidebarOpen}
+        onClose={() => setIsFilterSidebarOpen(false)}
+        onApply={(filters) => {
+          // Handle filter apply logic here
+          setSideFilter(filters);
+          console.log('Applied filters:', filters)
+          setIsFilterSidebarOpen(false)
+        }}
+      />
+      {isLoading &&
+        (
+          <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
+            <GlobalProgressBar />
+            <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8 xl:py-10">
+              <div className="max-w-7xl xl:max-w-none mx-auto">
+                <LoadingSkeleton type="demand" showCycleCounter={true} />
               </div>
             </div>
-
-            {/* Footer spacing */}
-            <div className="h-8"></div>
           </div>
-        </div>
+        )
+      }
+      {!isLoading &&
+        (
+          <main className="relative">
+            <div className="px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8 space-y-4">
+              <div className="max-w-none mx-auto space-y-4">
 
-        {/* Enhanced Filter Sidebar */}
-        <FilterSidebar
-          losGuest={losGuest}
-          isOpen={isFilterSidebarOpen}
-          onClose={() => setIsFilterSidebarOpen(false)}
-          onApply={(filters) => {
-            // Handle filter apply logic here
-            setSideFilter(filters);
-            console.log('Applied filters:', filters)
-            setIsFilterSidebarOpen(false)
-          }}
-        />
+                {/* Dashboard Header with Enhanced Typography */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-minimal-md mb-8">
+                  <div className="space-y-1">
+                    <h1 className="text-2xl font-bold text-foreground">
+                      Overview
+                    </h1>
+                    <p className="text-sm text-muted-foreground">
+                      Real-time insights for optimal pricing and revenue performance
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <CoachMarkTrigger />
+                  </div>
+                </div>
 
-        {/* CSAT Rating Card - appears when user scrolls near bottom */}
-        {showCSATCard && (
-          <CSATRatingCard onClose={handleCSATClose} />
+                {/* KPI Cards - Enhanced with proper spacing */}
+                <div className="w-full animate-slide-up" data-coach-mark="kpi-cards">
+                  <OverviewKpiCards parityData={parityData} rateData={rateData} rateCompData={rateCompData} parityDataComp={parityDataComp} />
+                </div>
+
+                {/* Main Content Grid - Enhanced with consistent spacing */}
+                <div className="space-minimal-xl mt-8">
+
+                  {/* Rate Trends Chart - Full width with enhanced styling */}
+                  <div className="animate-fade-in mb-12" data-coach-mark="rate-trends">
+                    <RateTrendsChart rateData={rateData} rateCompData={rateCompData} />
+                  </div>
+
+                  {/* Property Health Score and Market Demand Cards - Grouped with consistent spacing */}
+                  <div className="space-minimal-xl">
+                    {/* Property Health Score - Enhanced card */}
+                    <div className="animate-slide-up" data-coach-mark="property-health" style={{ animationDelay: '0.1s' }}>
+                      <PropertyHealthScoreWidget parityData={parityData} />
+                    </div>
+
+                    {/* Market Demand Widget - Enhanced card */}
+                    <div className="animate-slide-up mt-8" data-coach-mark="market-demand" style={{ animationDelay: '0.2s' }}>
+                      <MarketDemandWidget />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer spacing */}
+                <div className="h-8"></div>
+              </div>
+            </div>
+
+            {/* Enhanced Filter Sidebar */}
+
+
+            {/* CSAT Rating Card - appears when user scrolls near bottom */}
+            {showCSATCard && (
+              <CSATRatingCard onClose={handleCSATClose} />
+            )}
+          </main>
         )}
-      </main>
-
       {/* Coach Mark Trigger - Help Icon */}
       <Suspense fallback={null}>
         <CoachMarkTrigger />

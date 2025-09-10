@@ -42,7 +42,6 @@ const suffixMap: Record<string, string> = {
 const getValue = (obj: any, key: string) => obj?.[key] ?? 0;
 // Generate trend data based on date range
 function generateTrendData(startDate: Date, endDate: Date, demandData: any, rateData: any, filter: any, rateCompData: any) {
-  debugger;
   const days = eachDayOfInterval({ start: startDate, end: endDate })
   const lowestDemandIndex = Math.max(...demandData?.optimaDemand.map((d: any) => d.demandIndex));
   const myRateDatas = rateData?.pricePositioningEntites
@@ -113,7 +112,6 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
 
 // Generate events for chart dates (similar to calendar logic)
 function generateChartEvents(trendData: any[], events: any, holidaysData: any) {
-  debugger
   const eventsData = [
     ...(Array.isArray(events) ? events : []),
     ...(Array.isArray(holidaysData) ? holidaysData : [])
@@ -199,7 +197,6 @@ function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
       );
     });
     if (weekData.length === 0) return null
-    debugger;
     // Calculate averages for the week
     const hotelADRStatus = weekData.find(item => item.hotelADRStatus === "O") ? "O" : weekData.find(item => item.hotelADRStatus === "C") ? "C" : "-";
     const avgMyPrice = Math.round(weekData.reduce((sum, item) => sum + item.hotelADR, 0) / weekData.length)
@@ -238,7 +235,6 @@ function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
 
 // Aggregate daily data into months
 function aggregateDataByMonth(dailyData: any[], startDate: Date, endDate: Date) {
-  debugger;
   const months = eachMonthOfInterval({ start: startDate, end: endDate })
 
   return months.map((monthStart, monthIndex) => {
@@ -1178,7 +1174,7 @@ export function EnhancedDemandTrendsChart({ filter, events, holidaysData, demand
                               <div className="space-y-1">
                                 <div className="flex items-center gap-1">
                                   <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                                  <span className="font-semibold text-sm text-white">{dataPoint.eventData.title} {dataPoint.eventCount > 1 ? "+" + dataPoint.eventCount + " more" : ""}</span>
+                                  <span className="font-semibold text-sm text-white">{dataPoint.eventData.title} {dataPoint.eventCount > 1 ? "+" + (dataPoint.eventCount-1) + " more" : ""}</span>
                                   {dataPoint.eventData.flag && (
                                     <span className="text-sm">{dataPoint.eventData.flag}</span>
                                   )}

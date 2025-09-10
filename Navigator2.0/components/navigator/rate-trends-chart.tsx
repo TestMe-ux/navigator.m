@@ -95,8 +95,6 @@ const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataRes
   const dateMap = new Map<string, any>()
 
   entities.forEach((entity, entityIndex) => {
-
-    debugger;
     entity.subscriberPropertyRate.forEach((rateEntry, rateIndex) => {
       const checkInDate = rateEntry.checkInDateTime.split('T')[0] // Extract date part
       const compData = compEntities
@@ -114,7 +112,6 @@ const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataRes
           timestamp: new Date(checkInDate).getTime(),
           direct: 0,
           avgCompset: 0,
-          compareRate: compData?.rate ? parseFloat(compData.rate) : 0,
           events: rateEntry.event?.eventDetails?.length > 0 ? rateEntry.event.eventDetails : undefined
         })
       }
@@ -126,20 +123,25 @@ const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataRes
         // Direct/Subscriber property
         dateData.directStatus = rateEntry.status === null ? rateEntry.rate : rateEntry.status;
         dateData.direct = rate
+        dateData.compareRate = compData?.rate ? parseFloat(compData.rate) : 0;
+        dateData.compareStatus = compData?.status === null ? compData.rate : compData?.status;
       } else if (entity.propertyType === 2) {
         // Avg Compset
         dateData.avgCompsetStatus = rateEntry.status === null ? rateEntry.rate : rateEntry.status;
         dateData.avgCompset = rate
+        dateData.compareavgCompset = compData?.rate ? parseFloat(compData.rate) : 0;
+        dateData.compareavgCompsetStatus = compData?.status === null ? compData.rate : compData?.status;
       } else if (entity.propertyType === 1) {
         // Competitor property - create dynamic property key
         const competitorKey = `competitor_${entity.propertyID}`
         dateData[`${competitorKey}_Status`] = rateEntry.status === null ? rateEntry.rate : rateEntry.status;
         dateData[competitorKey] = rate
         dateData[`${competitorKey}_name`] = entity.propertName
+        dateData[`compare${competitorKey}`] = compData?.rate ? parseFloat(compData.rate) : 0;
+        dateData[`compare${competitorKey}_Status`] = compData?.status === null ? compData.rate : compData?.status;
       }
     })
   })
-  debugger
   // Convert map to array and sort by date
   transformedData.push(...Array.from(dateMap.values()))
   transformedData.sort((a, b) => a.timestamp - b.timestamp)
@@ -330,7 +332,7 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
 
   if (active && payload && payload.length) {
     const data = payload[0]?.payload
-
+    debugger;
     // Find Avg. Compset rate for variance calculations
     const avgCompsetEntry = payload.find(entry => entry.name === 'Avg. Compset')
     const avgCompsetRate = avgCompsetEntry?.value || 0
@@ -359,7 +361,6 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
     // Find the actual Avg Compset rate from the payload
     const actualAvgCompsetEntry = payload.find(entry => entry.name.includes('Compset') || entry.dataKey === 'avgCompset')
     const actualAvgCompsetRate = actualAvgCompsetEntry?.value || 0
-    debugger;
     const competitorRatesForRanking = (() => {
       const cloneallRates = [...allRates];
       const idx = cloneallRates.findIndex(r => r === actualAvgCompsetRate);
@@ -462,16 +463,13 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
               return aValue - bValue
             })
 
-            debugger;
             return sortedPayload.map((entry, index) => {
+              debugger;
               // Check if this is the direct property (propertyType=0) or Avg Compset (propertyType=2)
-              const isDirectProperty = entry.dataKey === 'direct' || entry.name.includes('Hotel') && !entry.name.includes('Compset')
+              const isDirectProperty = entry.dataKey === 'direct' && !entry.name.includes('Compset')
               const isAvgCompset = entry.name.includes('Compset') || entry.dataKey === 'avgCompset'
               const isCheapest = index === 0
-              debugger;
               // Calculate variance against Avg. Compset for all entries except Avg. Compset itself
-              const priceDiff = !isAvgCompset && entry.payload.compareRate > 0 ?
-                ((entry.value - entry.payload.compareRate) / entry.payload.compareRate * 100) : 0
 
               const isCompetitiveThreat = !isDirectProperty && !isAvgCompset && entry.value < myHotelRate
               // Exclude Avg Compset from ranking - only show position for competitors
@@ -480,8 +478,22 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
               const competitorKey = entry.dataKey;
               const statusKey = `${competitorKey}_Status`;
               const statusData = entry.payload[statusKey];
+              const comparestatusData = entry.payload[`compare${statusKey}`];
               const directStatus = isDirectProperty ? entry.payload.directStatus : "";
+              const compareStatus = isDirectProperty ? entry.payload.compareStatus : "";
               const avgCompStatus = isAvgCompset ? entry.payload.avgCompsetStatus : "";
+              const compareavgCompsetStatus = isAvgCompset ? entry.payload.compareavgCompsetStatus : "";
+              const compareRate = isDirectProperty ? entry.payload.compareRate : entry.payload[`compare${competitorKey}`];
+              var priceDiff = 0;
+              if (isDirectProperty && compareRate > 0) {
+                priceDiff = ((entry.value - compareRate) / compareRate * 100)
+              }
+              else if (isAvgCompset && entry.payload.compareavgCompset > 0) {
+                priceDiff = ((entry.value - entry.payload.compareavgCompset) / entry.payload.compareavgCompset * 100);
+              }
+              else if (!isDirectProperty && !isAvgCompset && compareRate > 0) {
+                priceDiff = ((entry.value - compareRate) / compareRate * 100);
+              }
               // const normalizedStatus =
               //   (statusData ? String(statusData) : directStatus).toUpperCase();
               const normalizedStatus = (statusData || directStatus || avgCompStatus || "").toString().toUpperCase();
@@ -551,7 +563,7 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
                     </div>
                     {/* Variance column - empty for Avg. Compset to maintain alignment */}
                     <div className="text-xs font-medium min-w-[40px]">
-                      {!isAvgCompset && (
+                      {(
                         <span
                           className={`${priceDiff > 0
                             ? 'text-red-600 dark:text-red-400 font-bold'
@@ -562,17 +574,15 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
                             ? (() => {
                               const normalized = normalizedStatus.toUpperCase();
 
-                              if ((normalized === "O" && entry.value > 0) || avgCompStatus > 0) {
-                                return priceDiff === 0
-                                  ? ""
-                                  : `${priceDiff > 0 ? "+" : ""}${Math.round(priceDiff)}%`;
+                              if ((normalized === "O" && entry.value > 0 && (comparestatusData === "O" || compareavgCompsetStatus === "O" || compareStatus === "O")) || avgCompStatus > 0) {
+                                return `${priceDiff > 0 ? "+" : ""}${Math.round(priceDiff)}%`;
                               }
 
-                              if (normalized === "C") {
+                              if (normalized === "C" || comparestatusData === "C" || compareavgCompsetStatus === "C" || compareStatus === "C") {
                                 return " ";
                               }
 
-                              if (["NP", "ND", "RF", "TNA"].includes(normalized)) {
+                              if (["NP", "ND", "RF", "TNA"].includes(normalized) || ["NP", "ND", "RF", "TNA"].includes(comparestatusData) || ["NP", "ND", "RF", "TNA"].includes(compareavgCompsetStatus) || ["NP", "ND", "RF", "TNA"].includes(compareStatus)) {
                                 return "-";
                               }
 
@@ -824,7 +834,7 @@ export function RateTrendsChart({ rateData, rateCompData }: any) {
     setChannelVisibility(newVisibility)
     setLegendVisibility(newLegendVisibility)
     if (competitorChannels.length > 10) {
-      setErrorMessage('Maximum 10 channels can be displayed on the graph. Please hide a channel first to show a new one.')
+      setErrorMessage('Maximum 10 properties can be displayed on the graph. Please hide a property first to show a new one.')
       setTimeout(() => setErrorMessage(''), 5000)
     }
 
@@ -834,7 +844,6 @@ export function RateTrendsChart({ rateData, rateCompData }: any) {
   const toggleLegendVisibility = useCallback((dataKey: string) => {
     // Use functional state update to avoid stale closure issues
     setLegendVisibility(prev => {
-      debugger;
       // Calculate current state using fresh state from setter
       const isCurrentlyVisible = prev[dataKey]
 
@@ -848,7 +857,7 @@ export function RateTrendsChart({ rateData, rateCompData }: any) {
 
         // Block if already at 10 visible legends
         if (currentVisibleCount >= 10) {
-          setErrorMessage('Maximum 10 channels can be displayed on the graph. Please hide a channel first to show a new one.')
+          setErrorMessage('Maximum 10 properties can be displayed on the graph. Please hide a property first to show a new one.')
           setTimeout(() => setErrorMessage(''), 5000)
           return prev // Return unchanged state
         }

@@ -49,25 +49,28 @@ interface FilterSidebarProps {
 }
 
 export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, losGuest }: FilterSidebarProps) {
-  const [selectedProperty, setSelectedProperty] = React.useState<any>(null)
-  
-  // Safely get selectedProperty on client side only
-  React.useEffect(() => {
+  const [selectedProperty, setSelectedProperty] = React.useState<any>(() => {
     if (typeof window !== 'undefined') {
-      const property = localStorageService.get('SelectedProperty')
-      setSelectedProperty(property)
+      return localStorageService.get('SelectedProperty');
     }
-  }, [])
+    return null;
+  });
+  const selectedSid = selectedProperty?.sid;
+
+  const hasFetched = React.useRef(false);
   const [filters, setFilters] = React.useState<FilterValue>({
     ...defaultFilters,
     ...initialFilters,
   })
   const [inclusionValues, setinclusionValues] = React.useState<any>([])
   const [roomTypeOptions, setroomTypeOptions] = React.useState<any>([])
+
   useEffect(() => {
-    getInclusion();
-    getTagProduct();
-  }, [selectedProperty?.sid]);
+    if (!selectedSid || hasFetched.current) return;
+
+    hasFetched.current = true;
+    Promise.all([getInclusion(), getTagProduct()]);
+  }, [selectedSid]);
   const getInclusion = () => {
     GetTagInclusions({ SID: selectedProperty?.sid })
       .then((res) => {
@@ -107,7 +110,6 @@ export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, l
     })
   }
   const handleInclusionCheckboxChange = (category: keyof FilterValue, value: string) => {
-    debugger;
     var allOptions: string[] = inclusionValues.map((option: any) => option.id);
     setFilters((prev) => {
       const currentValues = prev[category] as string[];
@@ -152,7 +154,6 @@ export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, l
   }
 
   const handleApply = () => {
-    debugger;
     let filtersValue = { ...filters }
     filtersValue.guest = filtersValue.guest === "All" ? null : filtersValue.guest;
     filtersValue.lengthOfStay = filtersValue.lengthOfStay === "All" ? null : filtersValue.lengthOfStay;

@@ -68,7 +68,6 @@ export function MarketDemandWidget() {
   };
   const { avgDICompare, avgADRCompare, compareText } = compMap[selectedComparison as ComparisonOption] || { avgDICompare: "AverageWow", avgADRCompare: "AvrageHotelADRWow", compareText: 'Last 1 Week' };
   useEffect(() => {
-    debugger;
     if (!startDate || !endDate || !selectedProperty?.sid) return;
     console.log("selectedComparison", startDate, endDate);
     Promise.all([
@@ -158,7 +157,6 @@ export function MarketDemandWidget() {
     }
     getAllSubscribeEvents(payload)
       .then((res) => {
-        debugger
         if (res.status && res.body && res.body.eventDetails) {
           //res.body.eventDetails.sort((a: any, b: any) => a.rowNum - b.rowNum).fillter((x: any) => x.isSubscribed === true);
           const filteredEvents = res.body.eventDetails
@@ -212,7 +210,7 @@ export function MarketDemandWidget() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="space-y-2">
-              <CardTitle className="text-minimal-title text-foreground">Market Demand</CardTitle>
+              <CardTitle className="text-minimal-title text-foreground">Market Demand - {selectedProperty?.demandCity}</CardTitle>
               <p className="text-minimal-body text-muted-foreground">Current market performance indicators</p>
             </div>
           </div>
