@@ -109,8 +109,15 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
   const selectedProperty: any = localStorageService.get('SelectedProperty')
   const [trendValue, setTrendValue] = useState(0);
   const [demandTrendValue, setDemandTrendValue] = useState(0);
+  const [mounted, setMounted] = useState(false);
   const ischatgptData = demandData?.ischatgptData ?? false;
   console.log("Filter sumarry card", filter)
+  
+  // Ensure component is mounted to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+  
   useEffect(() => {
     if (!avgDemand) return;
     let newTrend;
