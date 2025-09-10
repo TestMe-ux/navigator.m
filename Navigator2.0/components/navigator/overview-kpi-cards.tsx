@@ -247,11 +247,7 @@ function useAnimatedCounter(targetValue: number, duration: number = 2000): numbe
 /**
  * Enhanced value formatting with better typography
  */
-function formatValue(value: number, format: KPIMetric['format']): string {
-  const selectedProperty: any = localStorageService.get('SelectedProperty') || {
-    currencySymbol: '$'
-  };
-
+function formatValue(value: number, format: KPIMetric['format'], selectedProperty?: any): string {
   const currencySymbol = selectedProperty?.currencySymbol || '$';
   switch (format) {
     case 'currency':
@@ -330,7 +326,7 @@ function KPICard({ metric }: { metric: KPIMetric }) {
   const getDisplayValue = () => {
     if (metric.format === 'text') return metric.value
     if (typeof metric.value === 'number') {
-      return formatValue(animatedValue, metric.format)
+      return formatValue(animatedValue, metric.format, undefined)
     }
     return metric.value
   }
