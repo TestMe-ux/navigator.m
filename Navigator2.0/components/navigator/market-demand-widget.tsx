@@ -210,7 +210,7 @@ export function MarketDemandWidget() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="space-y-2">
-              <CardTitle className="text-minimal-title text-foreground">Market Demand</CardTitle>
+              <CardTitle className="text-minimal-title text-foreground">Market Demand - {selectedProperty?.demandCity}</CardTitle>
               <p className="text-minimal-body text-muted-foreground">Current market performance indicators</p>
             </div>
           </div>

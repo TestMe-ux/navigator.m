@@ -66,7 +66,8 @@ const moreFiltersList = [
 const allFiltersList = [...visibleFiltersList, ...moreFiltersList]
 
 interface FilterBarProps {
-  onMoreFiltersClick?: () => void
+  onMoreFiltersClick?: () => void,
+  setSelectedChannel?: any
 }
 
 /**
@@ -84,7 +85,7 @@ interface FilterBarProps {
  * @component
  * @version 3.0.0
  */
-export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
+export function FilterBar({ onMoreFiltersClick,setSelectedChannel }: FilterBarProps) {
   const [selectedProperty] = useSelectedProperty()
 
 
@@ -143,6 +144,7 @@ export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
         // Set data
         setChannelData(channelList);
 
+        setSelectedChannel(channelList);
         // Set selected channels as array of cids
         setSelectedChannels(channelList.map(c => c.cid));
         setChannelFilter({ channelId: channelList.map(c => c.cid), channelName: channelList.map(c => c.name) })
@@ -242,7 +244,7 @@ export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
     if (!open) {
       // Reset channel filter when dropdown closes
       setChannelFilter({ channelId: selectedChannels, channelName: [] })
-      console.log(`🔄 Channel filter reset to: ${selectedChannels.join(", ")}`)
+      // console.log(`🔄 Channel filter reset to: ${selectedChannels.join(", ")}`)
     }
   }
   /**
