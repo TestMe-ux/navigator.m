@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts"
-import { BarChart3, Table, Download, ChevronLeft, ChevronRight } from "lucide-react"
+import { BarChart3, Table, Download, ChevronLeft, ChevronRight, Info } from "lucide-react"
 import { toPng } from "html-to-image"
 import { cn } from "@/lib/utils"
 import { OTARankingTooltip } from "./ota-ranking-tooltip"
@@ -35,6 +35,7 @@ interface OTARankViewProps {
   handleDownloadImage: () => void
   handleDownloadCSV: () => void
   formatTableDate: (date: string | Date) => { formatted: string; dayName: string }
+  isLoading?: boolean
 }
 
 function OTARankView({
@@ -53,8 +54,36 @@ function OTARankView({
   handleNextCompetitors,
   handleDownloadImage,
   handleDownloadCSV,
-  formatTableDate
+  formatTableDate,
+  isLoading = false
 }: OTARankViewProps) {
+  if (isLoading) {
+    return (
+      <Card className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 mb-6">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gray-200 rounded-lg animate-pulse"></div>
+              <div>
+                <div className="h-4 bg-gray-200 rounded w-32 mb-2 animate-pulse"></div>
+                <div className="h-3 bg-gray-200 rounded w-24 animate-pulse"></div>
+              </div>
+            </div>
+            <div className="flex space-x-2">
+              <div className="h-8 bg-gray-200 rounded w-20 animate-pulse"></div>
+              <div className="h-8 bg-gray-200 rounded w-20 animate-pulse"></div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="h-64 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
+            <span className="text-gray-500">Loading ranking trends...</span>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card ref={cardRef} className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 mb-6">
       <CardHeader className="pb-2">
@@ -146,14 +175,14 @@ function OTARankView({
             </AlertDescription>
           </Alert>
         )}
-        
+
         {/* Ranking Content - Graph or Table */}
         {rankViewMode === "graph" ? (
           <div style={{ height: '470px' }} className="[&_.recharts-wrapper]:mt-3 [&_.recharts-legend-wrapper]:!bottom-[54px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={rankingTrendsData} margin={{ top: 20, right: 40, left: 30, bottom: 30 }}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-15 dark:opacity-10" stroke="#e5e7eb" />
-                <XAxis 
+                <XAxis
                   dataKey="date"
                   className="text-xs"
                   interval="preserveStartEnd"
@@ -169,34 +198,34 @@ function OTARankView({
                   tickLine={false}
                   domain={[1, 'dataMax']}
                   reversed={true}
-                  label={{ 
-                    value: 'Ranking Position', 
-                    angle: -90, 
-                    position: 'insideLeft', 
-                    style: { textAnchor: 'middle' } 
+                  label={{
+                    value: 'Ranking Position',
+                    angle: -90,
+                    position: 'insideLeft',
+                    style: { textAnchor: 'middle' }
                   }}
                   tickFormatter={(value: number) => {
                     // Calculate the maximum rank from the current data
                     if (rankingTrendsData.length === 0) return value.toString()
-                    
+
                     // Get all rank values from visible hotel lines
                     const visibleHotels = availableHotelLines.filter(hotel => legendVisibility[hotel.dataKey])
-                    const allRankValues = rankingTrendsData.flatMap(d => 
+                    const allRankValues = rankingTrendsData.flatMap(d =>
                       visibleHotels
                         .map(hotel => d[hotel.dataKey])
                         .filter(rank => rank != null && typeof rank === 'number' && rank > 0)
                     )
-                    
+
                     if (allRankValues.length === 0) return value.toString()
-                    
+
                     const maxRank = Math.max(...allRankValues)
-                    
+
                     // Hide the highest rank value (worst ranking) from Y-axis
                     // Show rank 1 (best) and intermediate values, but hide the worst rank
                     if (value >= maxRank && value > 1) {
                       return ''
                     }
-                    
+
                     return value.toString()
                   }}
                   width={50}
@@ -223,7 +252,7 @@ function OTARankView({
                 {/* Hotel Lines - Dynamic rendering using Overview page pattern */}
                 {availableHotelLines.map((hotel) => {
                   const isVisible = legendVisibility[hotel.dataKey]
-                  
+
                   return (
                     <Line
                       key={hotel.dataKey}
@@ -232,16 +261,16 @@ function OTARankView({
                       stroke={isVisible ? hotel.color : 'transparent'}
                       strokeWidth={isVisible ? (hotel.dataKey === 'myHotel' ? 3 : 2) : 0}
                       name={hotel.name}
-                      dot={isVisible ? { 
-                        fill: "white", 
+                      dot={isVisible ? {
+                        fill: "white",
                         stroke: hotel.color,
-                        strokeWidth: 2, 
-                        r: hotel.dataKey === 'myHotel' ? 4 : 3 
+                        strokeWidth: 2,
+                        r: hotel.dataKey === 'myHotel' ? 4 : 3
                       } : false}
-                      activeDot={isVisible ? { 
-                        r: hotel.dataKey === 'myHotel' ? 6 : 5, 
+                      activeDot={isVisible ? {
+                        r: hotel.dataKey === 'myHotel' ? 6 : 5,
                         fill: hotel.color,
-                        stroke: hotel.color, 
+                        stroke: hotel.color,
                         strokeWidth: 2
                       } : false}
                       hide={!isVisible}
@@ -250,7 +279,7 @@ function OTARankView({
                     />
                   )
                 })}
-                
+
                 {/* Recharts Legend with Overview page pattern */}
                 <Legend
                   verticalAlign="bottom"
@@ -314,10 +343,10 @@ function OTARankView({
                         {Array.from({ length: 4 }, (_, index) => {
                           const competitorSlice = availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey]).slice(competitorPage * 4, (competitorPage + 1) * 4);
                           const hotel = competitorSlice[index];
-                          
+
                           if (hotel) {
                             return (
-                              <th key={hotel.dataKey} className="text-right py-1.5 px-0 font-semibold text-xs text-muted-foreground min-w-32" style={{marginLeft: '-20px'}}>
+                              <th key={hotel.dataKey} className="text-right py-1.5 px-0 font-semibold text-xs text-muted-foreground min-w-32" style={{ marginLeft: '-20px' }}>
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
@@ -335,7 +364,7 @@ function OTARankView({
                             );
                           } else {
                             return (
-                              <th key={`empty-${index}`} className="text-right py-1.5 px-0 font-semibold text-xs text-muted-foreground min-w-32" style={{marginLeft: '-20px'}}>
+                              <th key={`empty-${index}`} className="text-right py-1.5 px-0 font-semibold text-xs text-muted-foreground min-w-32" style={{ marginLeft: '-20px' }}>
                                 <div className="text-xs text-muted-foreground font-normal mt-0.5 opacity-0">-</div>
                               </th>
                             );
@@ -389,9 +418,11 @@ function OTARankView({
                     </thead>
                     <tbody>
                       {rankingTrendsData.map((dataPoint, index) => {
+                        debugger;
+                        // Find the selected property (myHotel) or use the first available property
                         const myHotelData = availableHotelLines.find(hotel => hotel.dataKey === 'myHotel');
                         const competitors = availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey]).slice(competitorPage * 4, (competitorPage + 1) * 4);
-                        
+
                         return (
                           <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 group">
                             {/* Sticky Check-in Date */}
@@ -401,7 +432,7 @@ function OTARankView({
                                 return (
                                   <div className="flex items-center">
                                     <span>{dateInfo.formatted}, </span>
-                                    <span className="font-normal text-gray-600 ml-1" style={{fontSize: '12px'}}>{dateInfo.dayName}</span>
+                                    <span className="font-normal text-gray-600 ml-1" style={{ fontSize: '12px' }}>{dateInfo.dayName}</span>
                                   </div>
                                 )
                               })()}
@@ -409,17 +440,45 @@ function OTARankView({
                             {/* Sticky My Hotel Rank */}
                             <td className="sticky left-24 z-10 bg-blue-50 group-hover:bg-blue-100 py-2 pl-2 pr-4 text-right border-r border-gray-200 border-b border-gray-200">
                               <div className="flex items-center justify-end space-x-6">
-                                <span className="font-semibold text-sm">{dataPoint[myHotelData?.dataKey || 'myHotel']}</span>
+                                {/* <span className="font-semibold text-sm">{dataPoint[myHotelData?.dataKey || 'myHotel'] ?? '500+'}</span> */}
+                                {
+                                  dataPoint[myHotelData?.dataKey || 'myHotel'] === null || dataPoint[myHotelData?.dataKey || 'myHotel'] === undefined ?
+                                    (<div className="flex items-center justify-end space-x-1">
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <span className="text-red-600 dark:text-red-400 font-semibold text-sm cursor-help">#500+</span>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                            <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Info className="w-3 h-3 text-red-600 dark:text-red-400 cursor-help transition-colors" />
+                                          </TooltipTrigger>
+                                          <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                            <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    </div>) :
+                                    (<span className="font-semibold text-sm">{dataPoint[myHotelData?.dataKey || 'myHotel']}</span>)
+                                }
+
                                 {(() => {
-                                  const variance = dataPoint[`${myHotelData?.dataKey || 'myHotel'}Variance`];
-                                  if (variance === 0 || variance === null || variance === undefined) {
-                                    return <span className="text-gray-500 text-xs px-1 py-0.5 rounded text-center" style={{width: '30px', display: 'inline-block'}}>NF</span>;
+                                  const variance = dataPoint[`${myHotelData?.dataKey || 'myHotel'}ChangeInRank`];
+                                  if ((variance === 0 || variance === null || variance === undefined)) {
+                                    return <span className="text-gray-500 text-xs px-1 py-0.5 rounded text-center" style={{ width: '30px', display: 'inline-block' }}>
+                                      NF
+                                    </span>;
                                   }
                                   const isPositive = variance > 0;
                                   return (
-                                    <span className={`text-xs font-medium px-1 py-0.5 rounded text-center ${
-                                      isPositive ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
-                                    }`} style={{width: '30px', display: 'inline-block'}}>
+                                    <span className={`text-xs font-medium px-1 py-0.5 rounded text-center ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                                      }`} style={{ width: '30px', display: 'inline-block' }}>
                                       {isPositive ? '+' : ''}{variance}
                                     </span>
                                   );
@@ -429,22 +488,48 @@ function OTARankView({
                             {/* Competitor Ranks */}
                             {Array.from({ length: 4 }, (_, index) => {
                               const hotel = competitors[index];
-                              
+
                               if (hotel) {
                                 return (
-                                  <td key={hotel.dataKey} className="py-2 px-0 text-right group-hover:bg-gray-50" style={{marginLeft: '-20px'}}>
+                                  <td key={hotel.dataKey} className="py-2 px-0 text-right group-hover:bg-gray-50" style={{ marginLeft: '-20px' }}>
                                     <div className="flex items-center justify-end space-x-6">
-                                      <span className="font-semibold text-sm">{dataPoint[hotel.dataKey]}</span>
+
+                                      {
+                                        dataPoint[hotel.dataKey] === null || dataPoint[hotel.dataKey] === undefined ?
+                                          (<div className="flex items-center justify-end space-x-1">
+                                            <TooltipProvider>
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <span className="text-red-600 dark:text-red-400 font-semibold text-sm cursor-help" >#500+</span>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                                  <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
+                                                </TooltipContent>
+                                              </Tooltip>
+                                            </TooltipProvider>
+                                            <TooltipProvider>
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <Info className="w-3 h-3 text-red-600 dark:text-red-400 cursor-help transition-colors" />
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                                  <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
+                                                </TooltipContent>
+                                              </Tooltip>
+                                            </TooltipProvider>
+                                          </div>) :
+                                          (<span className="font-semibold text-sm">{dataPoint[hotel.dataKey]}</span>)
+                                      }
+
                                       {(() => {
-                                        const variance = dataPoint[`${hotel.dataKey}Variance`];
+                                        const variance = dataPoint[`${hotel.dataKey}ChangeInRank`];
                                         if (variance === 0 || variance === null || variance === undefined) {
-                                          return <span className="text-gray-500 text-xs px-1 py-0.5 rounded text-center" style={{width: '30px', display: 'inline-block'}}>NF</span>;
+                                          return <span className="text-gray-500 text-xs px-1 py-0.5 rounded text-center" style={{ width: '30px', display: 'inline-block' }}>NF</span>;
                                         }
                                         const isPositive = variance > 0;
                                         return (
-                                          <span className={`text-xs font-medium px-1 py-0.5 rounded text-center ${
-                                            isPositive ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
-                                          }`} style={{width: '30px', display: 'inline-block'}}>
+                                          <span className={`text-xs font-medium px-1 py-0.5 rounded text-center ${isPositive ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+                                            }`} style={{ width: '30px', display: 'inline-block' }}>
                                             {isPositive ? '+' : ''}{variance}
                                           </span>
                                         );
@@ -454,10 +539,10 @@ function OTARankView({
                                 );
                               } else {
                                 return (
-                                  <td key={`empty-${index}`} className="py-2 px-0 text-right group-hover:bg-gray-50" style={{marginLeft: '-20px'}}>
+                                  <td key={`empty-${index}`} className="py-2 px-0 text-right group-hover:bg-gray-50" style={{ marginLeft: '-20px' }}>
                                     <div className="flex items-center justify-end space-x-6">
                                       <span className="font-semibold text-sm text-gray-300 opacity-0">-</span>
-                                      <span className="text-gray-300 text-xs px-1 py-0.5 rounded text-center opacity-0" style={{width: '30px', display: 'inline-block'}}>-</span>
+                                      <span className="text-gray-300 text-xs px-1 py-0.5 rounded text-center opacity-0" style={{ width: '30px', display: 'inline-block' }}>-</span>
                                     </div>
                                   </td>
                                 );

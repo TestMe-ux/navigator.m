@@ -94,7 +94,6 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
 
   const parityBase_Comp = parityDataComp?.otaViolationChannelRate?.overallWinMeetLoss.parityScore
 
-  debugger;
   // Core revenue metrics
   const baseKPIs: KPIMetric[] = [
     {

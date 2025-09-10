@@ -6,7 +6,7 @@ import { format } from "date-fns"
 import { toPng } from "html-to-image"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { getChannels } from "@/lib/channels"
-import { getOTAChannels, getOTARankOnAllChannel } from "@/lib/otarank"
+import { getOTAChannels, getOTARankOnAllChannel, getOTARankTrends } from "@/lib/otarank"
 
 // Import the new components
 import { OTARankingsFilterBar } from "@/components/ota-rankings-filter-bar"
@@ -16,6 +16,7 @@ import OTARankView from "@/components/ota-rank-view"
 import OTAReviewsView from "@/components/ota-reviews-view"
 
 // Static data - moved outside component to prevent recreation
+// Removed static data - using API data instead
 const MOCK_CHANNELS = [
   {
     id: "booking",
@@ -167,8 +168,11 @@ export default function OTARankingsPage() {
   // API data state
   const [otaChannels, setOtaChannels] = useState<any[]>([])
   const [otaRankingData, setOtaRankingData] = useState<any[]>([])
+  const [otaRankTrendsData, setOtaRankTrendsData] = useState<any[]>([])
+  const [otaRankGraphData, setOtaRankGraphData] = useState<any[]>([])
   const [isLoadingChannels, setIsLoadingChannels] = useState(false)
   const [isLoadingRanking, setIsLoadingRanking] = useState(false)
+  const [isLoadingRankTrends, setIsLoadingRankTrends] = useState(false)
 
   // Window width state for responsive text
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1920)
@@ -362,22 +366,105 @@ export default function OTARankingsPage() {
   }
 
 
+  // Transform ranking trends data from API
+  const transformRankTrendsData = useCallback((trendDataPerCheckin: any[]) => {
+    const otaRankTrendData: any[] = []
+    const otaRankGraphData: any[] = []
+
+    trendDataPerCheckin.forEach((trendDataPerCheckin) => {
+      const otaRankDataForTrendData: any[] = []
+      let flag = false
+
+      trendDataPerCheckin.otaRankEntityCollection.forEach((data: any) => {
+        // Check if this property is the selected property or include all properties for comparison
+        flag = selectedProperty?.hmid === data.propertyID || true // Include all properties for now
+
+        if (flag) {
+          data.checkInDate = new Date(data.checkInDate)
+          otaRankDataForTrendData.push(data)
+
+          let index = otaRankGraphData.findIndex((value) => value.checkInDate === data.checkInDate.getTime())
+          if (index === -1) {
+            otaRankGraphData.push({ checkInDate: data.checkInDate.getTime() })
+          }
+        }
+      })
+
+      if (flag && otaRankDataForTrendData.length > 0) {
+        otaRankTrendData.push({
+          channel: trendDataPerCheckin.channel,
+          otaId: trendDataPerCheckin.otaId || selectedChannel,
+          hotelName: otaRankDataForTrendData[0].hotelName,
+          propertyId: otaRankDataForTrendData[0].propertyID,
+          otaRankData: otaRankDataForTrendData
+        })
+      }
+    })
+
+    // Sort properties to put selected property first (myHotel)
+    const sortedRankTrendData = [...otaRankTrendData].sort((a, b) => {
+      if (a.propertyId === selectedProperty?.hmid) return -1
+      if (b.propertyId === selectedProperty?.hmid) return 1
+      return 0
+    })
+    debugger;
+    // Populate graph data with ranking information
+    sortedRankTrendData.forEach((rankTrendData, i) => {
+      const dataKey = rankTrendData?.propertyId === selectedProperty?.hmid ? 'myHotel' : `property${rankTrendData?.propertyId}`
+
+      rankTrendData.otaRankData.forEach((element: any) => {
+        let dataIndex = otaRankGraphData.findIndex((value) => element.checkInDate.getTime() === value.checkInDate)
+        if (dataIndex !== -1) {
+          otaRankGraphData[dataIndex][dataKey] = element.otaRank
+          // Store changeInRank for variance calculation
+          otaRankGraphData[dataIndex][`${dataKey}ChangeInRank`] = element.changeInRateDays > 0 ? element.changeInRank : null
+        }
+      })
+    })
+
+    // // Calculate variance data for each property
+    // sortedRankTrendData.forEach((rankTrendData, i) => {
+    //   debugger;
+    //   const dataKey = i === 0 ? 'myHotel' : `property${i}`
+    //   const varianceKey = `${dataKey}ChangeInRank`
+
+    //   // Calculate variance for each data point
+    //   otaRankGraphData.forEach((dataPoint, index) => {
+    //     if (index > 0) {
+    //       const currentRank = dataPoint[dataKey]
+    //       const previousRank = otaRankGraphData[index - 1][dataKey]
+
+    //       if (previousRank) {
+    //         // Calculate the change in rank (negative means improvement, positive means decline)
+    //         const variance = previousRank
+    //         dataPoint[varianceKey] = variance
+    //       } else {
+    //         dataPoint[varianceKey] = 0
+    //       }
+    //     } else {
+    //       // First data point has no variance
+    //       dataPoint[varianceKey] = 0
+    //     }
+    //   })
+    // })
+
+    // Sort by date
+    otaRankGraphData.sort((a, b) => (a.checkInDate - b.checkInDate))
+
+    setOtaRankTrendsData(otaRankTrendData)
+    setOtaRankGraphData(otaRankGraphData)
+  }, [selectedProperty?.sid, selectedChannel])
+
   // Transform API data to channel format
   const transformChannelsData = useCallback(() => {
     if (!otaChannels.length || !otaRankingData.length) {
-      // Fallback to mock data if API data is not available
-      const compareText = getCompareText()
-      return MOCK_CHANNELS.map(channel => ({
-        ...channel,
-        compareText
-      }))
+      // Return empty array if API data is not available
+      return []
     }
 
     const compareText = getCompareText()
     return otaChannels.map((channel, index) => {
       // Find ranking data for this channel
-      debugger;
-      setSelectedChannel(otaChannels[0]?.name || "")
       const channelRankingData = otaRankingData.find((rankingGroup: any) =>
         rankingGroup.some((item: any) => item.otaId === channel.cid && item.propertyID === selectedProperty?.hmid)
       )
@@ -412,11 +499,25 @@ export default function OTARankingsPage() {
   const channels = useMemo(() => transformChannelsData(), [transformChannelsData])
 
   // Available hotel lines for charts with dynamic property name
-  const availableHotelLines = useMemo(() =>
-    AVAILABLE_HOTEL_LINES.map((hotel, index) => ({
-      ...hotel,
-      name: index === 0 ? (selectedProperty?.name || 'Alhambra Hotel') : hotel.name
-    })), [selectedProperty?.name])
+  const availableHotelLines = useMemo(() => {
+    if (otaRankTrendsData.length > 0) {
+      // Sort properties to put selected property first (myHotel)
+      const sortedTrendData = [...otaRankTrendsData].sort((a, b) => {
+        if (a.propertyId === selectedProperty?.hmid) return -1
+        if (b.propertyId === selectedProperty?.hmid) return 1
+        return 0
+      })
+
+      // Create hotel lines from API data
+      return sortedTrendData.map((trendData, index) => ({
+        dataKey: trendData.propertyId === selectedProperty?.hmid ? 'myHotel' : `property${trendData.propertyId}`,
+        name: trendData.hotelName,
+        color: trendData.propertyId === selectedProperty?.hmid ? '#2563eb' : `#${Math.floor(Math.random() * 16777215).toString(16)}`
+      }))
+    }
+    // Fallback to empty array if no data
+    return []
+  }, [otaRankTrendsData, selectedProperty?.hmid, selectedProperty?.name])
 
   // Computed values
   const selectedChannelData = useMemo(() =>
@@ -429,8 +530,38 @@ export default function OTARankingsPage() {
   const totalChannelPages = useMemo(() =>
     Math.ceil(channels.length / channelsPerPage), [channels.length, channelsPerPage])
 
-  const rankingTrendsData = MOCK_RANKING_TRENDS_DATA
-  const reviewsData = MOCK_REVIEWS_DATA
+  // Use real API data or fallback to mock data
+  const rankingTrendsData = useMemo(() => {
+    if (otaRankGraphData.length > 0) {
+      // Transform API data to match the expected format for charts
+      return otaRankGraphData.map((item, index) => {
+        const date = new Date(item.checkInDate)
+        const formattedDate = format(date, 'MMM d')
+        const fullDate = format(date, 'yyyy-MM-dd')
+
+        // Create the data object with dynamic property keys
+        const dataObject: any = {
+          date: formattedDate,
+          fullDate: fullDate
+        }
+
+        // Add property rankings and variances dynamically
+        Object.keys(item).forEach(key => {
+          if ((key.startsWith('property') || key === 'myHotel') && key !== 'checkInDate') {
+            dataObject[key] = item[key]
+          }
+          if (key.endsWith('ChangeInRank')) {
+            dataObject[key] = item[key]
+          }
+        })
+
+        return dataObject
+      })
+    }
+    return []
+  }, [otaRankGraphData])
+
+  const reviewsData: any[] = [] // Will be populated from API when available
 
   // Fetch OTA Channels data
   useEffect(() => {
@@ -442,6 +573,7 @@ export default function OTARankingsPage() {
         const response = await getOTAChannels({ SID: selectedProperty.sid })
         if (response?.status && response?.body) {
           setOtaChannels(response.body)
+          setSelectedChannel(response.body[0]?.name || "");
         }
       } catch (error) {
         console.error('Error fetching OTA channels:', error)
@@ -473,6 +605,36 @@ export default function OTARankingsPage() {
 
     fetchRankingData()
   }, [selectedProperty?.sid, startDate, endDate])
+
+  // Fetch OTA Ranking Trends data
+  useEffect(() => {
+    const fetchRankTrendsData = async () => {
+      if (!selectedProperty?.sid || !otaChannels || !startDate || !endDate) return
+
+      setIsLoadingRankTrends(true)
+      try {
+        const selectedChannelData = otaChannels.find(channel => channel.name.toLowerCase() === selectedChannel.toLowerCase())?.cid;
+        if (!selectedChannelData) return
+
+        const response = await getOTARankTrends({
+          SID: selectedProperty.sid,
+          OTAId: selectedChannelData,
+          CheckInDateStart: format(startDate, 'yyyy-MM-dd'),
+          CheckInEndDate: format(endDate, 'yyyy-MM-dd')
+        })
+
+        if (response?.status && response?.body?.trendDataPerCheckin) {
+          transformRankTrendsData(response.body.trendDataPerCheckin)
+        }
+      } catch (error) {
+        console.error('Error fetching OTA ranking trends data:', error)
+      } finally {
+        setIsLoadingRankTrends(false)
+      }
+    }
+
+    fetchRankTrendsData()
+  }, [selectedProperty?.sid, startDate, endDate, selectedChannel])
 
   // Initialize legend visibility
   useEffect(() => {
@@ -662,6 +824,7 @@ export default function OTARankingsPage() {
                 handleDownloadImage={handleDownloadImage}
                 handleDownloadCSV={handleDownloadCSV}
                 formatTableDate={formatTableDate}
+                isLoading={isLoadingRankTrends}
               />
             ) : (
               viewMode === "Reviews" && (

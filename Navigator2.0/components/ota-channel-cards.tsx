@@ -82,11 +82,10 @@ function OTAChannelCards({
           {currentChannels.map((channel, index) => (
             <div key={channel.id} className="relative">
               <Card
-                className={`group relative overflow-hidden bg-gradient-to-br from-card to-card/80 backdrop-blur-sm border-2 transition-all duration-300 cursor-pointer hover:shadow-2xl hover:-translate-y-1 ${
-                  selectedChannel.toLowerCase() === channel.name.toLowerCase() 
-                    ? "ring-2 ring-primary/70 shadow-xl border-primary/60 scale-105" 
-                    : "border-border/50 hover:border-primary/20"
-                }`}
+                className={`group relative overflow-hidden bg-gradient-to-br from-card to-card/80 backdrop-blur-sm border-2 transition-all duration-300 cursor-pointer hover:shadow-2xl hover:-translate-y-1 ${selectedChannel.toLowerCase() === channel.name.toLowerCase()
+                  ? "ring-2 ring-primary/70 shadow-xl border-primary/60 scale-105"
+                  : "border-border/50 hover:border-primary/20"
+                  }`}
                 onClick={() => setSelectedChannel(channel.name)}
               >
                 <CardContent className="p-4">
@@ -95,8 +94,8 @@ function OTAChannelCards({
                     <div className="flex items-center space-x-2">
                       {channel.url ? (
                         <div className="w-7 h-7 rounded-md overflow-hidden shadow-sm">
-                          <img 
-                            src={channel.url} 
+                          <img
+                            src={channel.url}
                             alt={channel.name}
                             className="w-full h-full object-cover"
                             onError={(e) => {
@@ -141,11 +140,13 @@ function OTAChannelCards({
                       <div className="flex flex-col h-full">
                         <div className="flex items-baseline space-x-1">
                           <span className="text-lg font-bold text-foreground leading-none">
-                            {viewMode === "Reviews" ? channel.reviewScore : channel.avgRank}
+                            {viewMode === "Reviews" ? channel.reviewScore > 0 ? channel.reviewScore : '-' : channel.avgRank > 0 ? channel.avgRank : '-'}
                           </span>
                           {viewMode === "Reviews" ? (
+                            channel.reviewScore > 0 &&
                             <span className="text-xs text-muted-foreground">/ 10</span>
                           ) : (
+                            channel.avgRank > 0 &&
                             <span className="text-xs text-muted-foreground">/ {channel.totalRankings}</span>
                           )}
                         </div>
@@ -155,11 +156,10 @@ function OTAChannelCards({
                           ) : (
                             <>
                               {channel.rankingChange !== 0 ? (
-                                <span className={`text-xs font-bold ${
-                                  channel.rankingChange < 0 
-                                    ? "text-green-600 dark:text-green-400" 
-                                    : "text-red-600 dark:text-red-400"
-                                }`}>
+                                <span className={`text-xs font-bold ${channel.rankingChange < 0
+                                  ? "text-green-600 dark:text-green-400"
+                                  : "text-red-600 dark:text-red-400"
+                                  }`}>
                                   {channel.rankingChange > 0 ? `+${channel.rankingChange}` : channel.rankingChange}%
                                 </span>
                               ) : (
@@ -182,11 +182,13 @@ function OTAChannelCards({
                       <div className="flex flex-col h-full">
                         <div className="flex items-baseline space-x-1">
                           <span className="text-lg font-bold text-foreground leading-none">
-                            {viewMode === "Reviews" ? channel.avgRank : channel.reviewScore}
+                            {viewMode === "Reviews" ? channel.reviewScore > 0 ? channel.reviewScore : '-' : channel.avgRank > 0 ? channel.avgRank : '-'}
                           </span>
                           {viewMode === "Reviews" ? (
+                            channel.avgRank > 0 &&
                             <span className="text-xs text-muted-foreground">/ {channel.totalRankings}</span>
                           ) : (
+                            channel.reviewScore > 0 &&
                             <span className="text-xs text-muted-foreground">/ 10</span>
                           )}
                         </div>
