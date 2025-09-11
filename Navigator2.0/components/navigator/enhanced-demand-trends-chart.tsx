@@ -66,6 +66,7 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
     const hotelADRStatus = myRateData?.status;
     const airTravellers = demandI?.oagCapacity ? demandI.oagCapacity : 0
     const compRate = Math.max(Number(myCompRateData?.rate) || 0, 0);
+    const compRateStaus = myCompRateData?.status;
     const myPriceVariance =
       !isNaN(compRate) && compRate > 0
         ? Math.round(Number((((hotelADR - compRate) / compRate) * 100)))
@@ -101,6 +102,7 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
       demandVariance,
       inboundAirline,
       hotelADRStatus,
+      compRateStaus,
       // Keep original keys for backward compatibility
       "Demand level": demandLevel,
       "My ADR": hotelADR,
@@ -166,6 +168,7 @@ function generateChartEvents(trendData: any[], events: any, holidaysData: any) {
 }
 
 function countryAvgMap(data: any[][]) {
+  debugger;
   const totals = new Map<string, { sum: number; count: number }>();
 
   data.forEach(day =>
@@ -177,10 +180,29 @@ function countryAvgMap(data: any[][]) {
     })
   );
 
-  return Array.from(totals.entries()).map(([srcCountryName, { sum, count }]) => ({
+  const averages = Array.from(totals.entries()).map(([srcCountryName, { sum, count }]) => ({
     srcCountryName,
     totalflights: +(sum / count).toFixed(0),
   }));
+  const top4 = averages; //.slice(0, 4);
+  // const others = averages.slice(4);
+
+  // if (others.length > 0) {
+  //   const othersTotal = others.reduce(
+  //     (acc, curr) => {
+  //       acc.sum += curr.totalflights;
+  //       acc.count += 1;
+  //       return acc;
+  //     },
+  //     { sum: 0, count: 0 }
+  //   );
+
+  //   top4.push({
+  //     srcCountryName: "Others",
+  //     totalflights: +(othersTotal.sum / othersTotal.count).toFixed(0),
+  //   });
+  // }
+  return top4;
 }
 // Aggregate daily data into weeks
 function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
@@ -198,7 +220,8 @@ function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
     });
     if (weekData.length === 0) return null
     // Calculate averages for the week
-    const hotelADRStatus = weekData.find(item => item.hotelADRStatus === "O") ? "O" : weekData.find(item => item.hotelADRStatus === "C") ? "C" : "-";
+    const hotelADRStatus = weekData.find(item => item.hotelADRStatus === "O") ? "O" : weekData.find(item => item.hotelADRStatus === "C") ? "C" : "--";
+    const compRateStaus = weekData.find(item => item.compRateStaus === "O") ? "O" : weekData.find(item => item.compRateStaus === "C") ? "C" : "--";
     const avgMyPrice = Math.round(weekData.reduce((sum, item) => sum + item.hotelADR, 0) / weekData.length)
     const avgMarketADR = Math.round(weekData.reduce((sum, item) => sum + item.marketADR, 0) / weekData.length)
     const avgDemandLevel = Math.round(weekData.reduce((sum, item) => sum + item.demandLevel, 0) / weekData.length)
@@ -224,6 +247,7 @@ function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
       airTravellersVariance: avgAirTravellersVariance,
       demandVariance: avgDemandVariance,
       hotelADRStatus,
+      compRateStaus,
       inboundAirline: avgInboundAirlineData,
       "Demand level": avgDemandLevel,
       "My ADR": avgMyPrice,
@@ -252,7 +276,8 @@ function aggregateDataByMonth(dailyData: any[], startDate: Date, endDate: Date) 
     if (monthData.length === 0) return null
 
     // Calculate averages for the month
-    const hotelADRStatus = monthData.find(item => item.hotelADRStatus === "O") ? "O" : monthData.find(item => item.hotelADRStatus === "C") ? "C" : "-";
+    const hotelADRStatus = monthData.find(item => item.hotelADRStatus === "O") ? "O" : monthData.find(item => item.hotelADRStatus === "C") ? "C" : "--";
+    const compRateStaus = monthData.find(item => item.compRateStaus === "O") ? "O" : monthData.find(item => item.compRateStaus === "C") ? "C" : "--";
     const avgMyPrice = Math.round(monthData.reduce((sum, item) => sum + item.hotelADR, 0) / monthData.length)
     const avgMarketADR = Math.round(monthData.reduce((sum, item) => sum + item.marketADR, 0) / monthData.length)
     const avgDemandLevel = Math.round(monthData.reduce((sum, item) => sum + item.demandLevel, 0) / monthData.length)
@@ -264,7 +289,7 @@ function aggregateDataByMonth(dailyData: any[], startDate: Date, endDate: Date) 
     const avgMarketADRVariance = Math.round(monthData.reduce((sum, item) => sum + item.marketADRVariance, 0) / monthData.length)
     const avgAirTravellersVariance = Math.round(monthData.reduce((sum, item) => sum + item.airTravellersVariance, 0) / monthData.length)
     const avgDemandVariance = Math.round(monthData.reduce((sum, item) => sum + item.demandVariance, 0) / monthData.length)
-
+    const avgInboundAirlineData = countryAvgMap(monthData.map(item => item.inboundAirline || []));
     return {
       date: format(monthStart, "MMM yyyy"),
       dateFormatted: format(monthStart, "MMM yyyy"),
@@ -278,6 +303,8 @@ function aggregateDataByMonth(dailyData: any[], startDate: Date, endDate: Date) 
       airTravellersVariance: avgAirTravellersVariance,
       demandVariance: avgDemandVariance,
       hotelADRStatus: hotelADRStatus,
+      compRateStaus: compRateStaus,
+      inboundAirline: avgInboundAirlineData,
       "Demand level": avgDemandLevel,
       "My ADR": avgMyPrice,
       "Market ADR": avgMarketADR,
@@ -302,6 +329,7 @@ function getDemandLevelKey(demandIndex: number): number {
 const CustomTooltip = ({ active, payload, label, datasetType, demandCurrencySymbolState }: any & { datasetType: DatasetType }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload
+    debugger
     const demandColorClass =
       data["Demand level"] === 1 || data["Demand level"] === 2
         ? "text-blue-600 dark:text-blue-400" // Blue for Low and Normal
@@ -355,20 +383,20 @@ const CustomTooltip = ({ active, payload, label, datasetType, demandCurrencySymb
                   <span className="font-bold text-blue-600 dark:text-blue-400">
                     {
                       data.hotelADRStatus === "C" ? "Sold Out" : data.hotelADRStatus === "O" ?
-                        `\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E ${data["My ADR"]}` : "-"
+                        `\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E ${data["My ADR"]}` : "--"
                     }
                   </span>
                 </div>
                 <span className={`font-bold ${getVarianceColor(data.myPriceVariance)} whitespace-nowrap flex-shrink-0`}>
                   {
-                    data.hotelADRStatus === "O" ? formatVariance(data.myPriceVariance) : ""
+                    data.hotelADRStatus === "O" && data.compRateStaus === "O" ? formatVariance(data.myPriceVariance) : (data.compRateStaus !== "O" && data.compRateStaus !== "C") ? "--" : ""
                   }
                 </span>
               </div>
               <div className="flex items-center justify-between gap-6 min-w-fit">
                 <div className="whitespace-nowrap">
                   <span className="font-semibold text-muted-foreground">Market ADR:</span>{" "}
-                  <span className="font-bold text-red-600 dark:text-red-400">{demandCurrencySymbolState?.currencySymbol}{demandCurrencySymbolState?.ischatgptData ? data["Market ADR"] * (demandCurrencySymbolState?.conversionRate ?? 1) : data["Market ADR"]}</span>
+                  <span className="font-bold text-red-600 dark:text-red-400">{demandCurrencySymbolState?.currencySymbol}{demandCurrencySymbolState?.ischatgptData ? (data["Market ADR"] * (demandCurrencySymbolState?.conversionRate ?? 1)).toFixed(0) : data["Market ADR"]}</span>
                 </div>
                 <span className={`font-bold ${getVarianceColor(data.marketADRVariance)} whitespace-nowrap flex-shrink-0`}>
                   {formatVariance(data.marketADRVariance)}
@@ -607,13 +635,14 @@ export function EnhancedDemandTrendsChart({ filter, events, holidaysData, demand
       headers.join(','),
       ...trendData.map(row => {
         if (datasetType === 'pricing') {
+          debugger;
           return [
             row.dateFormatted,
             demandLevelMap[row.demandLevel],
             row.demandIndex,
             row.demandVariance,
-            row.hotelADR,
-            row.myPriceVariance,
+            row.hotelADRStatus === "O" ? row.hotelADR : row.hotelADRStatus === "C" ? "Sold Out" : "--",
+            row.compRateStaus === "O" ? row.myPriceVariance : row.compRateStaus === "C" ? "" : "--",
             row.marketADR,
             row.marketADRVariance
           ].join(',')
@@ -704,16 +733,6 @@ export function EnhancedDemandTrendsChart({ filter, events, holidaysData, demand
   const priceDomain = [Math.max(0, minPrice - padding), maxPrice + padding];
   // const priceDomain = [Math.max(0, minPrice - 10), maxPrice + 10]
 
-  // Debug logging for price domain calculation
-  console.log('🔍 PRICE DOMAIN DEBUG:', {
-    priceValuesCount: priceValues.length,
-    samplePriceValues: priceValues.slice(0, 5),
-    minPrice,
-    maxPrice,
-    calculatedDomain: priceDomain,
-    firstDataPoint: trendData[0],
-    datasetType
-  })
 
   // Calculate travellers domain with actual numeric values
   const travellersValues = trendData.map(d => d.airTravellers).filter(v => v != null && v > 0)
@@ -725,29 +744,6 @@ export function EnhancedDemandTrendsChart({ filter, events, holidaysData, demand
   const myPriceColor = "#0066ff" // bright blue
   const marketAdrColor = "#ff0000" // bright red  
   const travellersColor = "#7c3aed" // purple-600
-
-  console.log('🔍 Rendering chart with dataset:', datasetType)
-  console.log('📅 Date range:', {
-    startDate: startDate?.toLocaleDateString(),
-    endDate: endDate?.toLocaleDateString(),
-    isLoading
-  })
-  console.log('📊 Generated data points:', trendData.length)
-  console.log('📈 Sample data point:', trendData[0])
-  console.log('💰 Price domain calculated:', priceDomain, 'from values:', { minPrice, maxPrice })
-  console.log('📊 Price domain:', priceDomain)
-  console.log('🎨 Colors:', { myPriceColor, marketAdrColor, travellersColor })
-  console.log('🔧 Data keys check:', {
-    hotelADR: trendData[0]?.hotelADR,
-    marketADR: trendData[0]?.marketADR,
-    demandLevel: trendData[0]?.demandLevel
-  })
-  console.log('📊 PRICING CHART DEBUG - Will render lines?', datasetType === 'pricing')
-  console.log('📊 PRICING CHART DEBUG - Sample price values:', trendData.slice(0, 3).map(d => ({ hotelADR: d.hotelADR, marketADR: d.marketADR })))
-  console.log('🔥 FORCE REFRESH - Chart should reload with new domain and visible lines')
-  console.log('📊 AGGREGATION DEBUG - Period:', aggregationPeriod, 'Data points:', trendData.length)
-  console.log('📊 AGGREGATION DEBUG - Date range details:', dateRangeDetails)
-  console.log('📏 BAR SIZE DEBUG - Days:', dateRangeDetails.daysDifference, 'Bar size:', barSize)
 
   // Reset aggregation to 'day' if current selection is not available for the date range
   if (aggregationPeriod === 'week' && !dateRangeDetails.canShowWeek) {
@@ -1174,7 +1170,7 @@ export function EnhancedDemandTrendsChart({ filter, events, holidaysData, demand
                               <div className="space-y-1">
                                 <div className="flex items-center gap-1">
                                   <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                                  <span className="font-semibold text-sm text-white">{dataPoint.eventData.title} {dataPoint.eventCount > 1 ? "+" + (dataPoint.eventCount-1) + " more" : ""}</span>
+                                  <span className="font-semibold text-sm text-white">{dataPoint.eventData.title} {dataPoint.eventCount > 1 ? "+" + (dataPoint.eventCount - 1) + " more" : ""}</span>
                                   {dataPoint.eventData.flag && (
                                     <span className="text-sm">{dataPoint.eventData.flag}</span>
                                   )}

@@ -17,124 +17,124 @@ import OTAReviewsView from "@/components/ota-reviews-view"
 
 // Static data - moved outside component to prevent recreation
 // Removed static data - using API data instead
-const MOCK_CHANNELS = [
-  {
-    id: "booking",
-    name: "Booking.com",
-    icon: "B",
-    iconBg: "bg-blue-600",
-    avgRank: 3.2,
-    totalRankings: 15,
-    rankingChange: -12,
-    reviewScore: 8.5,
-    reviewText: "As on today"
-  },
-  {
-    id: "expedia",
-    name: "Expedia",
-    icon: "E",
-    iconBg: "bg-green-600",
-    avgRank: 4.1,
-    totalRankings: 12,
-    rankingChange: 5,
-    reviewScore: 7.8,
-    reviewText: "As on today"
-  },
-  {
-    id: "agoda",
-    name: "Agoda",
-    icon: "A",
-    iconBg: "bg-red-600",
-    avgRank: 2.8,
-    totalRankings: 18,
-    rankingChange: -8,
-    reviewScore: 9.1,
-    reviewText: "As on today"
-  },
-  {
-    id: "hotels",
-    name: "Hotels.com",
-    icon: "H",
-    iconBg: "bg-purple-600",
-    avgRank: 5.2,
-    totalRankings: 10,
-    rankingChange: 15,
-    reviewScore: 7.2,
-    reviewText: "As on today"
-  },
-  {
-    id: "tripadvisor",
-    name: "TripAdvisor",
-    icon: "T",
-    iconBg: "bg-orange-600",
-    avgRank: 3.9,
-    totalRankings: 14,
-    rankingChange: -3,
-    reviewScore: 8.3,
-    reviewText: "As on today"
-  },
-  {
-    id: "airbnb",
-    name: "Airbnb",
-    icon: "A",
-    iconBg: "bg-pink-600",
-    avgRank: 6.1,
-    totalRankings: 8,
-    rankingChange: 22,
-    reviewScore: 6.9,
-    reviewText: "As on today"
-  },
-  {
-    id: "hoteltonight",
-    name: "HotelTonight",
-    icon: "H",
-    iconBg: "bg-indigo-600",
-    avgRank: 4.5,
-    totalRankings: 11,
-    rankingChange: -5,
-    reviewScore: 7.4,
-    reviewText: "As on today"
-  },
-  {
-    id: "kayak",
-    name: "Kayak",
-    icon: "K",
-    iconBg: "bg-teal-600",
-    avgRank: 3.7,
-    totalRankings: 13,
-    rankingChange: 8,
-    reviewScore: 8.1,
-    reviewText: "As on today"
-  }
-]
+// const MOCK_CHANNELS = [
+//   {
+//     id: "booking",
+//     name: "Booking.com",
+//     icon: "B",
+//     iconBg: "bg-blue-600",
+//     avgRank: 3.2,
+//     totalRankings: 15,
+//     rankingChange: -12,
+//     reviewScore: 8.5,
+//     reviewText: "As on today"
+//   },
+//   {
+//     id: "expedia",
+//     name: "Expedia",
+//     icon: "E",
+//     iconBg: "bg-green-600",
+//     avgRank: 4.1,
+//     totalRankings: 12,
+//     rankingChange: 5,
+//     reviewScore: 7.8,
+//     reviewText: "As on today"
+//   },
+//   {
+//     id: "agoda",
+//     name: "Agoda",
+//     icon: "A",
+//     iconBg: "bg-red-600",
+//     avgRank: 2.8,
+//     totalRankings: 18,
+//     rankingChange: -8,
+//     reviewScore: 9.1,
+//     reviewText: "As on today"
+//   },
+//   {
+//     id: "hotels",
+//     name: "Hotels.com",
+//     icon: "H",
+//     iconBg: "bg-purple-600",
+//     avgRank: 5.2,
+//     totalRankings: 10,
+//     rankingChange: 15,
+//     reviewScore: 7.2,
+//     reviewText: "As on today"
+//   },
+//   {
+//     id: "tripadvisor",
+//     name: "TripAdvisor",
+//     icon: "T",
+//     iconBg: "bg-orange-600",
+//     avgRank: 3.9,
+//     totalRankings: 14,
+//     rankingChange: -3,
+//     reviewScore: 8.3,
+//     reviewText: "As on today"
+//   },
+//   {
+//     id: "airbnb",
+//     name: "Airbnb",
+//     icon: "A",
+//     iconBg: "bg-pink-600",
+//     avgRank: 6.1,
+//     totalRankings: 8,
+//     rankingChange: 22,
+//     reviewScore: 6.9,
+//     reviewText: "As on today"
+//   },
+//   {
+//     id: "hoteltonight",
+//     name: "HotelTonight",
+//     icon: "H",
+//     iconBg: "bg-indigo-600",
+//     avgRank: 4.5,
+//     totalRankings: 11,
+//     rankingChange: -5,
+//     reviewScore: 7.4,
+//     reviewText: "As on today"
+//   },
+//   {
+//     id: "kayak",
+//     name: "Kayak",
+//     icon: "K",
+//     iconBg: "bg-teal-600",
+//     avgRank: 3.7,
+//     totalRankings: 13,
+//     rankingChange: 8,
+//     reviewScore: 8.1,
+//     reviewText: "As on today"
+//   }
+// ]
 
-const MOCK_RANKING_TRENDS_DATA = [
-  { date: "Jan 1", fullDate: "2025-01-01", myHotel: 3, hotel1: 2, hotel2: 4, hotel3: 1, hotel4: 5, hotel5: 6, hotel6: 7, hotel7: 8, hotel8: 9, myHotelVariance: -1, hotel1Variance: 0, hotel2Variance: 1, hotel3Variance: -1, hotel4Variance: 2, hotel5Variance: 1, hotel6Variance: 0, hotel7Variance: -1, hotel8Variance: 2 },
-  { date: "Jan 2", fullDate: "2025-01-02", myHotel: 2, hotel1: 3, hotel2: 3, hotel3: 2, hotel4: 4, hotel5: 5, hotel6: 6, hotel7: 7, hotel8: 8, myHotelVariance: -1, hotel1Variance: 1, hotel2Variance: -1, hotel3Variance: 1, hotel4Variance: -1, hotel5Variance: -1, hotel6Variance: 0, hotel7Variance: 0, hotel8Variance: 0 },
-  { date: "Jan 3", fullDate: "2025-01-03", myHotel: 4, hotel1: 1, hotel2: 2, hotel3: 3, hotel4: 5, hotel5: 4, hotel6: 5, hotel7: 6, hotel8: 7, myHotelVariance: 2, hotel1Variance: -2, hotel2Variance: -1, hotel3Variance: 1, hotel4Variance: 0, hotel5Variance: -1, hotel6Variance: -1, hotel7Variance: -1, hotel8Variance: -1 },
-  { date: "Jan 4", fullDate: "2025-01-04", myHotel: 3, hotel1: 2, hotel2: 4, hotel3: 1, hotel4: 6, hotel5: 3, hotel6: 4, hotel7: 5, hotel8: 6, myHotelVariance: -1, hotel1Variance: 1, hotel2Variance: 2, hotel3Variance: -2, hotel4Variance: 1, hotel5Variance: -1, hotel6Variance: -1, hotel7Variance: -1, hotel8Variance: -1 },
-  { date: "Jan 5", fullDate: "2025-01-05", myHotel: 2, hotel1: 4, hotel2: 3, hotel3: 2, hotel4: 5, hotel5: 2, hotel6: 3, hotel7: 4, hotel8: 5, myHotelVariance: -1, hotel1Variance: 2, hotel2Variance: -1, hotel3Variance: 1, hotel4Variance: -1, hotel5Variance: -1, hotel6Variance: -1, hotel7Variance: -1, hotel8Variance: -1 }
-]
+// const MOCK_RANKING_TRENDS_DATA = [
+//   { date: "Jan 1", fullDate: "2025-01-01", myHotel: 3, hotel1: 2, hotel2: 4, hotel3: 1, hotel4: 5, hotel5: 6, hotel6: 7, hotel7: 8, hotel8: 9, myHotelVariance: -1, hotel1Variance: 0, hotel2Variance: 1, hotel3Variance: -1, hotel4Variance: 2, hotel5Variance: 1, hotel6Variance: 0, hotel7Variance: -1, hotel8Variance: 2 },
+//   { date: "Jan 2", fullDate: "2025-01-02", myHotel: 2, hotel1: 3, hotel2: 3, hotel3: 2, hotel4: 4, hotel5: 5, hotel6: 6, hotel7: 7, hotel8: 8, myHotelVariance: -1, hotel1Variance: 1, hotel2Variance: -1, hotel3Variance: 1, hotel4Variance: -1, hotel5Variance: -1, hotel6Variance: 0, hotel7Variance: 0, hotel8Variance: 0 },
+//   { date: "Jan 3", fullDate: "2025-01-03", myHotel: 4, hotel1: 1, hotel2: 2, hotel3: 3, hotel4: 5, hotel5: 4, hotel6: 5, hotel7: 6, hotel8: 7, myHotelVariance: 2, hotel1Variance: -2, hotel2Variance: -1, hotel3Variance: 1, hotel4Variance: 0, hotel5Variance: -1, hotel6Variance: -1, hotel7Variance: -1, hotel8Variance: -1 },
+//   { date: "Jan 4", fullDate: "2025-01-04", myHotel: 3, hotel1: 2, hotel2: 4, hotel3: 1, hotel4: 6, hotel5: 3, hotel6: 4, hotel7: 5, hotel8: 6, myHotelVariance: -1, hotel1Variance: 1, hotel2Variance: 2, hotel3Variance: -2, hotel4Variance: 1, hotel5Variance: -1, hotel6Variance: -1, hotel7Variance: -1, hotel8Variance: -1 },
+//   { date: "Jan 5", fullDate: "2025-01-05", myHotel: 2, hotel1: 4, hotel2: 3, hotel3: 2, hotel4: 5, hotel5: 2, hotel6: 3, hotel7: 4, hotel8: 5, myHotelVariance: -1, hotel1Variance: 2, hotel2Variance: -1, hotel3Variance: 1, hotel4Variance: -1, hotel5Variance: -1, hotel6Variance: -1, hotel7Variance: -1, hotel8Variance: -1 }
+// ]
 
-const MOCK_REVIEWS_DATA = [
-  { week: "Week 1", reviewScore: 8.2, numberOfReviews: 45 },
-  { week: "Week 2", reviewScore: 8.5, numberOfReviews: 52 },
-  { week: "Week 3", reviewScore: 8.1, numberOfReviews: 38 },
-  { week: "Week 4", reviewScore: 8.7, numberOfReviews: 61 },
-  { week: "Week 5", reviewScore: 8.3, numberOfReviews: 47 }
-]
+// const MOCK_REVIEWS_DATA = [
+//   { week: "Week 1", reviewScore: 8.2, numberOfReviews: 45 },
+//   { week: "Week 2", reviewScore: 8.5, numberOfReviews: 52 },
+//   { week: "Week 3", reviewScore: 8.1, numberOfReviews: 38 },
+//   { week: "Week 4", reviewScore: 8.7, numberOfReviews: 61 },
+//   { week: "Week 5", reviewScore: 8.3, numberOfReviews: 47 }
+// ]
 
-const AVAILABLE_HOTEL_LINES = [
-  { dataKey: 'myHotel', name: 'Alhambra Hotel', color: '#2563eb' },
-  { dataKey: 'hotel1', name: 'Hotel Alexander Plaza', color: '#dc2626' },
-  { dataKey: 'hotel2', name: 'Comfort Hotel Auberge', color: '#16a34a' },
-  { dataKey: 'hotel3', name: 'acom Hotel Berlin City Süd', color: '#ca8a04' },
-  { dataKey: 'hotel4', name: 'InterCityHotel Berlin Ostbahnhof', color: '#9333ea' },
-  { dataKey: 'hotel5', name: 'Mercure Hotel Berlin City West', color: '#7c3aed' },
-  { dataKey: 'hotel6', name: 'Hotel Brandies an der Messe', color: '#059669' },
-  { dataKey: 'hotel7', name: 'Hotel Adlon Kempinski', color: '#dc2626' },
-  { dataKey: 'hotel8', name: 'The Ritz-Carlton Berlin', color: '#1f2937' }
-]
+// const AVAILABLE_HOTEL_LINES = [
+//   { dataKey: 'myHotel', name: 'Alhambra Hotel', color: '#2563eb' },
+//   { dataKey: 'hotel1', name: 'Hotel Alexander Plaza', color: '#dc2626' },
+//   { dataKey: 'hotel2', name: 'Comfort Hotel Auberge', color: '#16a34a' },
+//   { dataKey: 'hotel3', name: 'acom Hotel Berlin City Süd', color: '#ca8a04' },
+//   { dataKey: 'hotel4', name: 'InterCityHotel Berlin Ostbahnhof', color: '#9333ea' },
+//   { dataKey: 'hotel5', name: 'Mercure Hotel Berlin City West', color: '#7c3aed' },
+//   { dataKey: 'hotel6', name: 'Hotel Brandies an der Messe', color: '#059669' },
+//   { dataKey: 'hotel7', name: 'Hotel Adlon Kempinski', color: '#dc2626' },
+//   { dataKey: 'hotel8', name: 'The Ritz-Carlton Berlin', color: '#1f2937' }
+// ]
 
 const CHECK_IN_RANGE_OPTIONS = [
   { id: "last-30-days", label: "Last 30 Days", dateRange: "25 Dec 2024 - 24 Jan 2025" },

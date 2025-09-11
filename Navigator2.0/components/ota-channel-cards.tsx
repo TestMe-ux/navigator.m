@@ -140,7 +140,7 @@ function OTAChannelCards({
                       <div className="flex flex-col h-full">
                         <div className="flex items-baseline space-x-1">
                           <span className="text-lg font-bold text-foreground leading-none">
-                            {viewMode === "Reviews" ? channel.reviewScore > 0 ? channel.reviewScore : '-' : channel.avgRank > 0 ? channel.avgRank : '-'}
+                            {viewMode === "Reviews" ? channel.reviewScore > 0 ? channel.reviewScore : '--' : channel.avgRank > 0 ? channel.avgRank : '--'}
                           </span>
                           {viewMode === "Reviews" ? (
                             channel.reviewScore > 0 &&
@@ -152,20 +152,21 @@ function OTAChannelCards({
                         </div>
                         <div className="flex items-center space-x-1 mt-auto pt-1">
                           {viewMode === "Reviews" ? (
+                            channel.reviewScore > 0 &&
                             <span className="text-xs text-muted-foreground leading-none">As on today</span>
                           ) : (
                             <>
-                              {channel.rankingChange !== 0 ? (
-                                <span className={`text-xs font-bold ${channel.rankingChange < 0
-                                  ? "text-green-600 dark:text-green-400"
-                                  : "text-red-600 dark:text-red-400"
-                                  }`}>
-                                  {channel.rankingChange > 0 ? `+${channel.rankingChange}` : channel.rankingChange}%
-                                </span>
-                              ) : (
-                                <span className="text-xs font-bold text-muted-foreground">NF</span>
+                              {channel.rankingChange !== 0 && (
+                                <>
+                                  <span className={`text-xs font-bold ${channel.rankingChange < 0
+                                    ? "text-green-600 dark:text-green-400"
+                                    : "text-red-600 dark:text-red-400"
+                                    }`}>
+                                    {channel.rankingChange > 0 ? `+${channel.rankingChange}` : channel.rankingChange}%
+                                  </span>
+                                  <span className="text-xs text-muted-foreground leading-none">{channel.compareText}</span>
+                                </>
                               )}
-                              <span className="text-xs text-muted-foreground leading-none">{channel.compareText}</span>
                             </>
                           )}
                         </div>
@@ -182,7 +183,7 @@ function OTAChannelCards({
                       <div className="flex flex-col h-full">
                         <div className="flex items-baseline space-x-1">
                           <span className="text-lg font-bold text-foreground leading-none">
-                            {viewMode === "Reviews" ? channel.reviewScore > 0 ? channel.reviewScore : '-' : channel.avgRank > 0 ? channel.avgRank : '-'}
+                            {viewMode === "Reviews" ? channel.reviewScore > 0 ? channel.reviewScore : '--' : channel.avgRank > 0 ? channel.avgRank : '--'}
                           </span>
                           {viewMode === "Reviews" ? (
                             channel.avgRank > 0 &&
@@ -194,8 +195,10 @@ function OTAChannelCards({
                         </div>
                         <div className="flex items-center space-x-1 mt-auto pt-1">
                           {viewMode === "Reviews" ? (
+                            channel.reviewScore > 0 &&
                             <span className="text-xs text-muted-foreground leading-none">As on today</span>
                           ) : (
+                            channel.reviewScore > 0 &&
                             <span className="text-xs text-muted-foreground leading-none">{channel.reviewText}</span>
                           )}
                         </div>
