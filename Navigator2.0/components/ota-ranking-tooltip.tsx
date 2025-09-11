@@ -109,10 +109,10 @@ export function OTARankingTooltip({
                     #{rank}
                   </div>
                   <div className={`text-xs font-medium w-6 text-right ${variance === 'NF' ? 'text-gray-500' :
-                      variance.toString().startsWith('+') ?
-                        'text-green-600 dark:text-green-400 font-bold' : 'text-red-600 dark:text-red-400 font-bold'
+                    variance.toString().startsWith('+') ?
+                      'text-green-600 dark:text-green-400 font-bold' : 'text-red-600 dark:text-red-400 font-bold'
                     }`}>
-                    {variance}
+                    {variance === 'NF' ? "" : variance}
                   </div>
                 </div>
               </div>

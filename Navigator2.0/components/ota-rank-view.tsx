@@ -471,9 +471,7 @@ function OTARankView({
                                 {(() => {
                                   const variance = dataPoint[`${myHotelData?.dataKey || 'myHotel'}ChangeInRank`];
                                   if ((variance === 0 || variance === null || variance === undefined)) {
-                                    return (dataPoint[myHotelData?.dataKey || 'myHotel'] !== null && dataPoint[myHotelData?.dataKey || 'myHotel'] !== undefined) && <span className="text-gray-500 text-xs px-1 py-0.5 rounded text-center" style={{ width: '30px', display: 'inline-block' }}>
-                                      --
-                                    </span>;
+                                    return <span className="text-gray-500 text-xs px-1 py-0.5 rounded text-center" style={{ width: '30px', display: 'inline-block' }}></span>;
                                   }
                                   const isPositive = variance > 0;
                                   return (
@@ -524,7 +522,7 @@ function OTARankView({
                                       {(() => {
                                         const variance = dataPoint[`${hotel.dataKey}ChangeInRank`];
                                         if (variance === 0 || variance === null || variance === undefined) {
-                                          return (dataPoint[hotel.dataKey] !== null && dataPoint[hotel.dataKey] !== undefined) && <span className="text-gray-500 text-xs px-1 py-0.5 rounded text-center" style={{ width: '30px', display: 'inline-block' }}>--</span>;
+                                          return <span className="text-gray-500 text-xs px-1 py-0.5 rounded text-center" style={{ width: '30px', display: 'inline-block' }}></span>;
                                         }
                                         const isPositive = variance > 0;
                                         return (

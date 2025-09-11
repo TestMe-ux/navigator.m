@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Info } from "lucide-react"
 
 interface Channel {
   id: string
@@ -140,7 +140,29 @@ function OTAChannelCards({
                       <div className="flex flex-col h-full">
                         <div className="flex items-baseline space-x-1">
                           <span className="text-lg font-bold text-foreground leading-none">
-                            {viewMode === "Reviews" ? channel.reviewScore > 0 ? channel.reviewScore : '--' : channel.avgRank > 0 ? channel.avgRank : '--'}
+                            {viewMode === "Reviews" ? channel.reviewScore > 0 ? channel.reviewScore : '--' : channel.avgRank > 0 ? channel.avgRank : (
+                              <div className="flex items-center justify-end space-x-1">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="text-red-600 dark:text-red-400 font-semibold text-lg cursor-help">#500+</span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                      <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Info className="w-3 h-3 text-red-600 dark:text-red-400 cursor-help transition-colors" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                      <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>)}
                           </span>
                           {viewMode === "Reviews" ? (
                             channel.reviewScore > 0 &&
@@ -183,7 +205,29 @@ function OTAChannelCards({
                       <div className="flex flex-col h-full">
                         <div className="flex items-baseline space-x-1">
                           <span className="text-lg font-bold text-foreground leading-none">
-                            {viewMode === "Reviews" ? channel.reviewScore > 0 ? channel.reviewScore : '--' : channel.avgRank > 0 ? channel.avgRank : '--'}
+                            {viewMode === "Reviews" ? channel.avgRank > 0 ? channel.avgRank : (
+                              <div className="flex items-center justify-end space-x-1">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="text-red-600 dark:text-red-400 font-semibold text-lg cursor-help">#500+</span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                      <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Info className="w-3 h-3 text-red-600 dark:text-red-400 cursor-help transition-colors" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                      <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>) : channel.reviewScore > 0 ? channel.reviewScore : '--'}
                           </span>
                           {viewMode === "Reviews" ? (
                             channel.avgRank > 0 &&
@@ -196,7 +240,21 @@ function OTAChannelCards({
                         <div className="flex items-center space-x-1 mt-auto pt-1">
                           {viewMode === "Reviews" ? (
                             channel.reviewScore > 0 &&
-                            <span className="text-xs text-muted-foreground leading-none">As on today</span>
+                            (
+                              <>
+                                {channel.rankingChange !== 0 && (
+                                  <>
+                                    <span className={`text-xs font-bold ${channel.rankingChange < 0
+                                      ? "text-green-600 dark:text-green-400"
+                                      : "text-red-600 dark:text-red-400"
+                                      }`}>
+                                      {channel.rankingChange > 0 ? `+${channel.rankingChange}` : channel.rankingChange}%
+                                    </span>
+                                    <span className="text-xs text-muted-foreground leading-none">{channel.compareText}</span>
+                                  </>
+                                )}
+                              </>
+                            )
                           ) : (
                             channel.reviewScore > 0 &&
                             <span className="text-xs text-muted-foreground leading-none">{channel.reviewText}</span>
