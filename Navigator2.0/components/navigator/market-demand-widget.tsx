@@ -151,7 +151,7 @@ export function MarketDemandWidget() {
       "City": [selectedProperty?.city ?? ''],
       "SID": selectedProperty?.sid,
       "PageNumber": 1,
-      "PageCount": 500,
+      "PageCount": 10,
       "StartDate": conevrtDateforApi(startDate?.toString()),
       "EndDate": conevrtDateforApi(endDate?.toString())
     }
