@@ -229,25 +229,28 @@ export function MarketDemandWidget() {
             </div>
             <div className="space-y-1">
               <div className="text-xl font-bold text-foreground">{avgDemand?.AverageDI}</div>
-              <div className="flex items-center gap-1">
-                <span className={`flex gap-1 text-sm font-medium px-1.5 py-0.5 rounded
+              {!demandData?.ischatgptData && (
+                <div className="flex items-center gap-1">
+                  <span className={`flex gap-1 text-sm font-medium px-1.5 py-0.5 rounded
                   ${avgDemand?.[avgDICompare] > 0 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' :
-                    'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 '}`}>
-                  {avgDemand?.[avgDICompare] > 0 ? (
-                    <>
-                      <TrendingUp className="w-4 h-4" />
-                      {avgDemand?.[avgDICompare]}%
-                    </>
-                  ) : (
-                    <>
-                      <TrendingDown className="w-4 h-4" />
-                      {-1 * avgDemand?.[avgDICompare]}%
-                    </>
-                  )}
+                      'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 '}`}>
+                    {avgDemand?.[avgDICompare] > 0 ? (
+                      <>
+                        <TrendingUp className="w-4 h-4" />
+                        {avgDemand?.[avgDICompare]}%
+                      </>
+                    ) : (
+                      <>
+                        <TrendingDown className="w-4 h-4" />
+                        {-1 * avgDemand?.[avgDICompare]}%
+                      </>
+                    )}
 
-                </span>
-                <span className="text-sm text-muted-foreground">vs. {compareText}</span>
-              </div>
+                  </span>
+                  <span className="text-sm text-muted-foreground">vs. {compareText}</span>
+                </div>
+              )}
+
             </div>
           </div>
 
@@ -259,7 +262,7 @@ export function MarketDemandWidget() {
             </div>
             <div className="space-y-1">
               <div className="text-xl font-bold text-foreground">{`\u200E${demandCurrencySymbol?.currencySymbol ?? '$'}\u200E ${demandData?.ischatgptData ? (avgDemand?.AvrageHotelADR * (demandCurrencySymbol?.conversionRate ?? 1)).toFixed(2) : avgDemand?.AvrageHotelADR}`} </div>
-              <div className="flex items-center gap-1">
+              {!demandData?.ischatgptData && (<div className="flex items-center gap-1">
                 <span className={`flex gap-1 text-sm font-medium px-1.5 py-0.5 rounded
                   ${avgDemand?.[avgADRCompare] > 0 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' :
                     'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 '}`}>
@@ -277,7 +280,7 @@ export function MarketDemandWidget() {
 
                 </span>
                 <span className="text-sm text-muted-foreground">vs. {compareText}</span>
-              </div>
+              </div>)}
             </div>
           </div>
 
