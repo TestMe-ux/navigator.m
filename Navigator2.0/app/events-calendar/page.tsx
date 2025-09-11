@@ -835,7 +835,7 @@ export default function EventsCalendarPage() {
 
   // Get display text for city button
   const getCityDisplayText = useCallback(() => {
-
+    if (selectedProperty == undefined) return
     if (selectedCities.length === 0) {
       return selectedProperty?.city ?? "All Cities"
     } else if (selectedCities.includes("All")) {
