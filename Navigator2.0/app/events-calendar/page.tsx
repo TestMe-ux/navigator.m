@@ -980,8 +980,9 @@ export default function EventsCalendarPage() {
 
   // Toggle bookmark status  
   const toggleBookmark = useCallback((eventId: string) => {
+    
     setEvents(prevEvents => {
-      let updatedEvent: Event | null = null;
+      let updatedEvent: Event | any = null;
 
       const newEvents = prevEvents.map(ev => {
         if (String(ev.eventId) === String(eventId)) {
@@ -998,14 +999,25 @@ export default function EventsCalendarPage() {
       if (updatedEvent) {
         setFilteredEvents(prevFiltered =>
           prevFiltered.map(fe => (fe.eventId === eventId ? updatedEvent! : fe))
+            .filter(fe => fe.status !== "available")
         );
 
         // Update selectedEvent if popup is open
         setSelectedEvent(prev => (prev?.eventId === eventId ? updatedEvent! : prev));
-
         // Call API only once per toggle
+
         callApiToUpdateEvent(updatedEvent);
+        if (
+          updatedEvent.status === "available" && // it was removed from bookmarks
+          eventId === updatedEvent.eventId
+        ) {
+          setSelectedEvent(null);       // Deselect event
+          setIsDayViewOpen(false);      // Close modal
+        }
+        setIsSaveEvent(true);
+        setTimeout(() => setLoadingProgress(0), 100);
       }
+
 
       return newEvents;
     });
@@ -1031,8 +1043,7 @@ export default function EventsCalendarPage() {
             setEvents(prev => prev.map(ev => ev.eventId === getevents.eventId ? response.body.eventId : ev));
             setFilteredEvents(prev => prev.map(ev => ev.eventId === getevents.eventId ? response.body.eventId : ev));
             setSelectedEvent(prev => prev?.eventId === getevents.eventId ? response.body.eventId : prev);
-            setIsSaveEvent(true);
-            // setTimeout(() => setLoadingProgress(0), 100);
+
           } else {
             console.warn("API failed, UI not updated");
           }
@@ -1052,9 +1063,6 @@ export default function EventsCalendarPage() {
           const resSubsUnsubsHoliday = await setSubsUnSubsHolidayEvent(filtersValue)
           const result = resSubsUnsubsHoliday
           if (result.status) {
-
-            setIsSaveEvent(true);
-            setTimeout(() => setLoadingProgress(0), 100);
             setMessage("Non Custom Event Subscribe Successfully");
           } else {
             setMessage("Non Custom Event Not Subscribe Or Failed :" + (result.message || ""));
@@ -1098,8 +1106,6 @@ export default function EventsCalendarPage() {
               prev.map(ev => (ev.eventId === serverId ? { ...ev, eventId: serverId } : ev))
             );
 
-            setIsSaveEvent(true);
-            setTimeout(() => setLoadingProgress(0), 100);
           } else {
             setMessage("Failed to add event: " + (res?.message || ""));
           }
@@ -1117,9 +1123,7 @@ export default function EventsCalendarPage() {
           const response = await setSubscribeUnsubscribeEvent(filtersValues);
           if (response?.status) {
             //  Update UI only after success
-            setIsSaveEvent(true);
-            setTimeout(() => setLoadingProgress(0), 100);
-
+            setMessage("Custom Event Subscribe Unsubscribe Successfully");
           } else {
             console.warn("API failed, UI not updated");
           }
@@ -3729,7 +3733,7 @@ export default function EventsCalendarPage() {
                   {/* Events List */}
                   <ScrollArea className="flex-1 pr-2">
                     <div className="space-y-2 py-2">
-                      {Object.entries(groupedBookmarkEvents).length === 0 ? (
+                      {getFilteredBookmarkEvents.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-[20rem] text-center">
                           <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
                             <CalendarIcon className="h-8 w-8 text-gray-400 dark:text-gray-500" />
@@ -3742,100 +3746,93 @@ export default function EventsCalendarPage() {
                           </p>
                         </div>
                       ) : (
-                        Object.entries(groupedBookmarkEvents).map(([date, eventsForDate]) => (
-                          <div key={date} className="space-y-2">
-                            {/* Optional: show date header */}
-                            <h4 className="text-sm font-semibold">{date}</h4>
-
-                            {eventsForDate.map((event, index) => (
-                              <div
-                                key={`${event.eventId}_${index}`}
-                                className={cn(
-                                  "flex items-center justify-between p-3 border rounded-lg",
-                                  (event.status === "bookmarked" || event.status === "suggested") &&
-                                  "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800"
-                                )}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div>
-                                    <div className="flex items-start gap-2">
-                                      {(() => {
-                                        const eventCategory = getCategoryData(event);
-                                        if (eventCategory && eventCategory.id !== "all") {
-                                          const IconComponent = eventCategory.icon;
-                                          return <IconComponent className={`h-3 w-3 ${eventCategory.color}`} />;
-                                        }
-                                        return null;
-                                      })()}
-                                      <div className="flex-1">
-                                        <h3 className="text-sm font-medium leading-snug">{event.name}</h3>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                                      <span>
-                                        {event.startDate === event.endDate
-                                          ? formatSingleDate(event.startDate)
-                                          : formatDateRange(event.startDate, event.endDate)}
-                                      </span>
-                                    </div>
+                        getFilteredBookmarkEvents.map((event, index) => (
+                          <div
+                            key={`${event.eventId + "_" + index}`}
+                            className={cn(
+                              "flex items-center justify-between p-3 border rounded-lg",
+                              (event.status === "bookmarked" || event.status === "suggested") && "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800"
+                            )}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div>
+                                <div className="flex items-start gap-2">
+                                  {(() => {
+                                    const eventCategory = getCategoryData(event)
+                                    if (eventCategory && eventCategory.id !== "all") {
+                                      const IconComponent = eventCategory.icon
+                                      return <IconComponent className={`h-3 w-3 ${eventCategory.color}`} />
+                                    }
+                                    return null
+                                  })()}
+                                  <div className="flex-1">
+                                    <h3 className="text-sm font-medium leading-snug">{event.name}</h3>
                                   </div>
                                 </div>
-
-                                <div className="flex items-center gap-2">
-                                  {/* Edit and Delete buttons for custom events */}
-                                  {event.isCustom && (
-                                    <div className="flex items-center gap-1">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          handleEditEvent(event);
-                                          setIsBookmarkModalOpen(false);
-                                        }}
-                                        className="h-7 w-7 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
-                                        title="Edit Event"
-                                      >
-                                        <Edit className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => showDeleteConfirmation(event.eventId)}
-                                        className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
-                                        title="Delete Event"
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  )}
-
-                                  {/* Bookmark button */}
-                                  <Button
-                                    variant={event.status === "bookmarked" || event.status === "suggested" ? "default" : "outline"}
-                                    size="sm"
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      toggleBookmark(event.eventId);
-                                    }}
-                                    className={cn(
-                                      "px-3 gap-2 text-xs",
-                                      event.status === "bookmarked" || event.status === "suggested"
-                                        ? "bg-green-600 hover:bg-green-700 text-white"
-                                        : "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
-                                    )}
-                                  >
-                                    <BookmarkIcon
-                                      className={cn("h-3 w-3", (event.status === "bookmarked" || event.status === "suggested") && "fill-current")}
-                                    />
-                                    {event.status === "bookmarked" || event.status === "suggested" ? "Bookmarked" : "Bookmark"}
-                                  </Button>
+                                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                  <span>
+                                    {event.startDate === event.endDate
+                                      ? formatSingleDate(event.startDate)
+                                      : formatDateRange(event.startDate, event.endDate)
+                                    }
+                                  </span>
                                 </div>
                               </div>
-                            ))}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {/* Removed all badges from bookmark popup */}
+
+                              {/* Edit and Delete buttons for custom events */}
+                              {event.isCustom && (
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      handleEditEvent(event)
+                                      setIsBookmarkModalOpen(false)
+                                    }}
+                                    className="h-7 w-7 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
+                                    title="Edit Event"
+                                  >
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => showDeleteConfirmation(event.eventId)}
+                                    className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                                    title="Delete Event"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )}
+
+                              <Button
+                                variant={event.status === "bookmarked" || event.status === "suggested" ? "default" : "outline"}
+                                size="sm"
+                                onMouseDown={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  toggleBookmark(event.eventId)
+                                }}
+                                className={cn(
+                                  "px-3 gap-2 text-xs",
+                                  event.status === "bookmarked" || event.status === "suggested"
+                                    ? "bg-green-600 hover:bg-green-700 text-white"
+                                    : "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
+                                )}
+                              >
+                                <BookmarkIcon
+                                  className={cn("h-3 w-3", (event.status === "bookmarked" || event.status === "suggested") && "fill-current")}
+                                />
+                                {event.status === "bookmarked" || event.status === "suggested" ? "Bookmarked" : "Bookmark"}
+                              </Button>
+                            </div>
                           </div>
-                        )
-                        ))}
+                        ))
+                      )}
                     </div>
                   </ScrollArea>
 
