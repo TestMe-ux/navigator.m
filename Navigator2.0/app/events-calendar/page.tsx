@@ -26,6 +26,7 @@ import {
   Coffee,
   Globe,
   Presentation,
+  Store,
   Building,
   GraduationCap,
   PartyPopper,
@@ -57,6 +58,7 @@ import { getAllEvents, saveEvents, deleteEvents, getEventCitiesCountryList, getA
 import { useDateContext } from "@/components/date-context"
 import { addDays, endOfMonth, format, getDaysInMonth, isValid, startOfMonth } from "date-fns"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
+
 
 // Helper functions for consistent date formatting
 const formatSingleDate = (dateString: string | Date) => {
@@ -760,7 +762,7 @@ export default function EventsCalendarPage() {
     option.label.toLowerCase().includes(citySearchQuery.toLowerCase())
   ) || []
 
-  // Handle country selection
+  // Handle country selection  
   const handleCountrySelect = useCallback((country: string) => {
     setSelectedCountry(country)
     setIsCountryOpen(false)
@@ -831,21 +833,27 @@ export default function EventsCalendarPage() {
   useEffect(() => {
     setNewEventCountry(selectedProperty?.country || ""); // Default country
     setNewEventCity(selectedProperty?.city || "");       // Default city
+    if (selectedProperty?.city) {
+      setSelectedCountry(`${selectedProperty?.country}`);
+      setSelectedCities([selectedProperty.city]);
+    }
   }, [selectedProperty]);
+
 
   // Get display text for city button
   const getCityDisplayText = useCallback(() => {
-    if (selectedProperty == undefined) return
     if (selectedCities.length === 0) {
-      return selectedProperty?.city ?? "All Cities"
+      return "All Cities"
     } else if (selectedCities.includes("All")) {
-      return selectedProperty?.city ?? "All Cities"
+      return "All Cities"
     } else if (selectedCities.length === 1) {
       return selectedCities[0]
     } else {
       return `${selectedCities.length} Cities`
     }
   }, [selectedCities])
+
+
 
   // Get country flag for selected country
   const getCountryFlag = useCallback(() => {
@@ -912,6 +920,44 @@ export default function EventsCalendarPage() {
   }, [categoryData])
 
   // Helper function to get category data for events
+
+
+  // const getCategoryData = useCallback(
+  //   (event: Event) => {
+  //     const normalize = (s?: string) => (s ?? "").toLowerCase().trim();
+  //     // Suggested events → always Social
+  //     if (event.status === "suggested") {
+  //       return categoryData.find(cat => cat.id === "social");
+  //     }
+
+  //     // Holidays
+  //     if (event.type === "holiday") {
+  //       return categoryData.find(cat => cat.id === "holidays");
+  //     }
+
+  //     const eventCategory = normalize(event.category);
+  //     const eventType = normalize(event.type);
+
+  //     // Try match by id or name (case-insensitive)
+  //     return categoryData.find(cat => {
+  //       console.log(
+  //         "Event:", event.name,
+  //         "| Category:", event.category,
+  //         "| Type:", event.type,
+  //         "| Mapped Category:", cat?.name,
+  //         "| Icon:", cat?.icon?.name
+  //       );
+  //       const id = normalize(cat.id);
+  //       const name = normalize(cat.name);
+  //       return id === eventCategory || name === eventCategory || id === eventType || name === eventType;
+  //     });
+
+
+  //   },
+  //   [categoryData]
+  // );
+
+
   const getCategoryData = useCallback((event: Event) => {
     // For suggested events, use Social icon
     if (event.status === "suggested") {
@@ -967,7 +1013,7 @@ export default function EventsCalendarPage() {
 
   const callApiToUpdateEvent = async (getevents: Event) => {
     try {
-      debugger
+
       if (!getevents) return;
       console.log("call Api To UpdateEvent rows:", getevents);
 
@@ -1438,29 +1484,30 @@ export default function EventsCalendarPage() {
   const handleDeleteEvent = async (eventId: any) => {
 
     try {
-
       const response = await deleteEvents(Number(eventId));
+
       if (response.status) {
-        //delete  state with new event  setEvents        
-        //setApiSubscribeEventList
-        setEvents((prev) => {
-          const updatedEvents = prev.filter((event) => event.eventId !== eventId)
-          const customEvents = updatedEvents.filter(e => e.isCustom)
-          saveCustomEventsToStorage(customEvents)
-          return updatedEvents
-        })
-        //setSelectedEvent(null)
+
+
+        setEvents(prev => prev.filter(event => event.eventId !== eventId));
+
+        setApiEvents(prev => prev.filter(ev => ev.eventId !== eventId));
+        setApiHolidays(prev => prev.filter(ev => ev.eventId !== eventId));
+        setApiSubscribeEvents(prev => prev.filter(ev => ev.eventId !== eventId));
+
+        setFilteredEvents(prev =>
+          prev ? prev.filter(ev => ev.eventId !== eventId) : []
+        );
+
+        setSelectedEvent(prev => (prev?.eventId === eventId ? null : prev));
 
         setMessage("Event deleted successfully!");
-        setIsDeleteDialogOpen(false)
-        setEventToDelete(null)
-        setSelectedEvent((prev) => (prev?.eventId === eventId ? null : prev));
+        setIsDeleteDialogOpen(false);
+        setEventToDelete(null);
         setIsSaveEvent(true);
-
       } else {
-        setMessage("Failed to delete  event: " + (response.message || ""));
+        setMessage("Failed to delete event: " + (response.message || ""));
       }
-
     } catch (error) {
       console.error("Error delete  event:", error);
       setMessage("Something went wrong while delete  event!");
@@ -1533,172 +1580,207 @@ export default function EventsCalendarPage() {
   useEffect(() => {
     if (isSaveEvent) {
       // load events from API
-      fetchAllSubscribeEvents();
+      fetchAllData();
+      //fetchAllSubscribeEvents()
+
       // reset so it can trigger next time too
       setIsSaveEvent(false);
     }
   }, [isSaveEvent]);
 
+  // useEffect(() => {
+  //   setMonthPickerYear(currentDate.getFullYear())
+
+  //   if (!!currentDate && selectedProperty?.sid) {
+  //     setIsLoading(true);
+  //     setLoadingProgress(0);
+
+  //     let progressInterval: NodeJS.Timeout;
+
+  //     const startProgress = () => {
+  //       progressInterval = setInterval(() => {
+  //         setLoadingProgress((prev) => {
+  //           const increment = Math.floor(Math.random() * 9) + 3; // 3–11%
+  //           const next = prev + increment;
+
+  //           // Loop back or cap it just below 100 (e.g., 97%)
+  //           return next >= 97 ? 97 : next;
+  //         });
+  //       }, 80);
+  //     };
+
+  //     startProgress();
+  //     // Fetch all APIs
+  //     Promise.all([
+  //       fetchEventsData(),
+  //       fetchEventCitiesCountryList(),
+  //       fetchHolidayData(),
+  //       fetchAllSubscribeEvents()
+  //     ]).then(() => {
+  //       // APIs done — show 100% progress and hide loader after brief delay
+  //       clearInterval(progressInterval);
+  //       setLoadingProgress(100);
+
+  //       setTimeout(() => {
+  //         setIsLoading(false);
+  //         setLoadingProgress(0); // reset for next load cycle
+  //       }, 100); // Delay gives smooth transition
+  //     });
+  //   }
+  // }, [currentDate, selectedProperty?.sid, selectedCountry])
   useEffect(() => {
-    setMonthPickerYear(currentDate.getFullYear())
-    const fetchEventsData = async () => {
-      const startDate = startOfMonth(currentDate)
-      const endDate = endOfMonth(currentDate);
+    fetchAllData();
+  }, [currentDate, selectedProperty?.sid, selectedCountry]);
 
-      try {
-        setIsLoading(true)
-        const filtersValue = {
-          "Country": [selectedCountry == "" ? selectedProperty?.country : selectedCountry],
-          "City": selectedCities.includes("All") ? [] : selectedCities,
-          "SID": selectedProperty?.sid,
-          "PageNumber": 1,
-          "PageCount": 500,
-          "StartDate": startDate,
-          "EndDate": endDate
-        }
+  const fetchAllData = useCallback(async () => {
+    if (!currentDate || !selectedProperty?.sid) return;
 
-        const response = await getAllEvents(filtersValue)
-        if (response?.status && response?.body?.eventDetails) {
-          setApiEvents(response.body.eventDetails)
-          const countryListResponse = response.body.country || [];
-          const countryList = countryListResponse.map((country: any) => ({
-            label: country,
-            id: country,
-            flag: "https://optima.rategain.com/optima/Content/images/flag/" + country + ".jpg"
-          }))
-          setCountryList(countryList);
-          setHotelLatitude(response.body.hotelLatitude)
-          setHotelLongitude(response.body.hotelLongitude)
-          if (selectedCountry === "" || selectedCountry === undefined) {
-            setSelectedCountry(selectedProperty?.country || countryList[0]?.label || "")
-          }
+    setIsLoading(true);
+    setLoadingProgress(0);
 
-        }
-      } catch (error) {
-        console.error('Failed to fetch events:', error)
-        // Fallback to sample data if API fails
-        setApiEvents([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    const fetchEventCitiesCountryList = async () => {
-      try {
-        let getCountryValue = selectedCountry == "" ? selectedProperty?.country : selectedCountry
-        const response = await getEventCitiesCountryList({ CountryName: getCountryValue || "" })
-        if (response?.status && response?.body?.cities) {
-          const cities = response.body.cities.map((city: any) => ({
-            label: city,
-            id: city
-          }))
-          setCityOptions(cities);
-          // setSelectedCities([["All"], ...(response.body?.cities ?? [])])
-        }
-      } catch (error) {
-        console.error('Failed to fetch country list:', error)
-      }
-    }
-    const fetchHolidayData = async () => {
-      const startDate = startOfMonth(currentDate)
-      const endDate = endOfMonth(currentDate);
-      try {
-        setIsLoading(true)
-        const filtersValue = {
-          "Country": [selectedCountry == "" ? selectedProperty?.country : selectedCountry],
-          "City": selectedCities.includes("All") ? [] : selectedCities,
-          "SID": selectedProperty?.sid,
-          "FromDate": conevrtDateforApi(startDate?.toString()),
-          "ToDate": conevrtDateforApi(endDate?.toString()),
-          "Type": selectedCategories.includes("All") ? [] : selectedCategories,
-          "Impact": [],
-          "SearchType": ""
-        }
-        const response = await getAllHoliday(filtersValue)
-        if (response?.status && response?.body) {
-          var holidays = [...response.body[0].holidayDetail];
-          const combinedEvents = [] as Event[]
-          holidays.map((x, index) => {
-            const convertedEvent: Event = {
-              id: `apiHoliday_${index}`,
-              eventId: x.eventHolidayID,
-              name: x.holidayName || '',
-              startDate: x.holidayDispalyDate || new Date().toISOString().split('T')[0],
-              endDate: x.holidayDispalyDate || new Date().toISOString().split('T')[0],
-              category: 'holidays',
-              location: x.holidayCountry || '',
-              description: '',
-              status: x.isSubscribe == true ? "bookmarked" : "holidays" as const,
-              country: x.holidayCountry || '',
-              flag: '🇦🇪',
-              type: 'holiday',
-              priority: 'high',
-              eventCity: "",
-              charge: "",
-              masterEventId: "",
-              EventProfileId: "",
-              imageUrl: "",
-              isRepeat: false,
-              repeats: "",
-              repeatsBy: "",
-              repeatEvery: null
-            }
-            combinedEvents.push(convertedEvent)
-          }
-          )
-          setApiHolidays(combinedEvents);
-        }
-      } catch (error) {
-        console.error('Failed to fetch events:', error)
-        // Fallback to sample data if API fails
-        setApiHolidays([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
+    let progressInterval: NodeJS.Timeout;
+    progressInterval = setInterval(() => {
+      setLoadingProgress(prev => Math.min(prev + Math.floor(Math.random() * 9 + 3), 97));
+    }, 80);
 
-
-
-    if (!!currentDate && selectedProperty?.sid) {
-      setIsLoading(true);
-      setLoadingProgress(0);
-
-      let progressInterval: NodeJS.Timeout;
-
-      const startProgress = () => {
-        progressInterval = setInterval(() => {
-          setLoadingProgress((prev) => {
-            const increment = Math.floor(Math.random() * 9) + 3; // 3–11%
-            const next = prev + increment;
-
-            // Loop back or cap it just below 100 (e.g., 97%)
-            return next >= 97 ? 97 : next;
-          });
-        }, 80);
-      };
-
-      startProgress();
-
-      // Fetch all APIs
-      Promise.all([
+    try {
+      await Promise.all([
         fetchEventsData(),
         fetchEventCitiesCountryList(),
         fetchHolidayData(),
         fetchAllSubscribeEvents()
-      ]).then(() => {
-        // APIs done — show 100% progress and hide loader after brief delay
-        clearInterval(progressInterval);
-        setLoadingProgress(100);
+      ]);
+    } catch (err) {
+      console.error("Failed to fetch data:", err);
+    } finally {
+      clearInterval(progressInterval);
+      setLoadingProgress(100);
+      setTimeout(() => {
+        setIsLoading(false);
+        setLoadingProgress(0);
+      }, 100);
+    }
+  }, [currentDate, selectedProperty?.sid, selectedCountry]);
 
-        setTimeout(() => {
-          setIsLoading(false);
-          setLoadingProgress(0); // reset for next load cycle
-        }, 500); // Delay gives smooth transition
-      });
+
+  const fetchEventsData = useCallback(async () => {
+    const startDate = startOfMonth(currentDate)
+    const endDate = endOfMonth(currentDate);
+
+    try {
+      setIsLoading(true)
+      const filtersValue = {
+        "Country": [selectedCountry == "" ? selectedProperty?.country : selectedCountry],
+        "City": selectedCities.includes("All") ? [] : selectedCities,
+        "SID": selectedProperty?.sid,
+        "PageNumber": 1,
+        "PageCount": 500,
+        "StartDate": startDate,
+        "EndDate": endDate
+      }
+
+      const response = await getAllEvents(filtersValue)
+      if (response?.status && response?.body?.eventDetails) {
+        setApiEvents(response.body.eventDetails)
+        const countryListResponse = response.body.country || [];
+        const countryList = countryListResponse.map((country: any) => ({
+          label: country,
+          id: country,
+          flag: "https://optima.rategain.com/optima/Content/images/flag/" + country + ".jpg"
+        }))
+        setCountryList(countryList);
+        setHotelLatitude(response.body.hotelLatitude)
+        setHotelLongitude(response.body.hotelLongitude)
+        if (selectedCountry === "" || selectedCountry === undefined) {
+          setSelectedCountry(selectedProperty?.country || countryList[0]?.label || "")
+        }
+
+      }
+    } catch (error) {
+      console.error('Failed to fetch events:', error)
+      // Fallback to sample data if API fails
+      setApiEvents([])
+    } finally {
+      setIsLoading(false)
+    }
+  }, [currentDate, selectedProperty?.sid, selectedCountry])
+  const fetchEventCitiesCountryList = async () => {
+    try {
+      let getCountryValue = selectedCountry == "" ? selectedProperty?.country : selectedCountry
+      const response = await getEventCitiesCountryList({ CountryName: getCountryValue || "" })
+      if (response?.status && response?.body?.cities) {
+        const cities = response.body.cities.map((city: any) => ({
+          label: city,
+          id: city
+        }))
+        setCityOptions(cities);
+        // setSelectedCities([["All"], ...(response.body?.cities ?? [])])
+      }
+    } catch (error) {
+      console.error('Failed to fetch country list:', error)
+    }
+  }
+  const fetchHolidayData = useCallback(async () => {
+    const startDate = startOfMonth(currentDate)
+    const endDate = endOfMonth(currentDate);
+    try {
+      setIsLoading(true)
+      const filtersValue = {
+        "Country": [selectedCountry == "" ? selectedProperty?.country : selectedCountry],
+        "City": selectedCities.includes("All") ? [] : selectedCities,
+        "SID": selectedProperty?.sid,
+        "FromDate": conevrtDateforApi(startDate?.toString()),
+        "ToDate": conevrtDateforApi(endDate?.toString()),
+        "Type": selectedCategories.includes("All") ? [] : selectedCategories,
+        "Impact": [],
+        "SearchType": ""
+      }
+      const response = await getAllHoliday(filtersValue)
+      if (response?.status && response?.body) {
+        var holidays = [...response.body[0].holidayDetail];
+        const combinedEvents = [] as Event[]
+        holidays.map((x, index) => {
+          const convertedEvent: Event = {
+            id: `apiHoliday_${index}`,
+            eventId: x.eventHolidayID,
+            name: x.holidayName || '',
+            startDate: x.holidayDispalyDate || new Date().toISOString().split('T')[0],
+            endDate: x.holidayDispalyDate || new Date().toISOString().split('T')[0],
+            category: 'holidays',
+            location: x.holidayCountry || '',
+            description: '',
+            status: x.isSubscribe == true ? "bookmarked" : "holidays" as const,
+            country: x.holidayCountry || '',
+            flag: '🇦🇪',
+            type: 'holiday',
+            priority: 'high',
+            eventCity: "",
+            charge: "",
+            masterEventId: "",
+            EventProfileId: "",
+            imageUrl: "",
+            isRepeat: false,
+            repeats: "",
+            repeatsBy: "",
+            repeatEvery: null
+          }
+          combinedEvents.push(convertedEvent)
+        }
+        )
+        setApiHolidays(combinedEvents);
+      }
+    } catch (error) {
+      console.error('Failed to fetch events:', error)
+      // Fallback to sample data if API fails
+      setApiHolidays([])
+    } finally {
+      setIsLoading(false)
     }
   }, [currentDate, selectedProperty?.sid, selectedCountry])
 
+
   // useEffect(() => {
-  //   debugger
+
   //   let filtered = apiSubscribeEventList.filter(x => x.status === "bookmarked" || x.type === "holiday");
 
   //   //  // --- Country filtering ---
@@ -1732,22 +1814,22 @@ export default function EventsCalendarPage() {
   //   setFilteredEvents(filtered);
   // }, [apiSubscribeEventList, selectedCategories, selectedCities, selectedCountry]);
 
-  const normalizeCategory = (cat?: string) => {
-    if (!cat) return "";
-    const map: Record<string, string> = {
-      "conference": "conferences",
-      "conferences": "conferences",
-      "tradeshow": "tradeshow",
-      "trade show": "tradeshow",
-      "trade shows": "tradeshow",
-      "workshop": "workshop",
-      "social": "social",
-      "holiday": "holidays",
-      "holidays": "holidays",
-      "business": "business"
-    };
-    return map[cat.toLowerCase()] || cat.toLowerCase();
-  };
+  // const normalizeCategory = (cat?: string) => {
+  //   if (!cat) return "";
+  //   const map: Record<string, string> = {
+  //     "conference": "conferences",
+  //     "conferences": "conferences",
+  //     "tradeshow": "tradeshow",
+  //     "trade show": "tradeshow",
+  //     "trade shows": "tradeshow",
+  //     "workshop": "workshop",
+  //     "social": "social",
+  //     "holiday": "holidays",
+  //     "holidays": "holidays",
+  //     "business": "business"
+  //   };
+  //   return map[cat.toLowerCase()] || cat.toLowerCase();
+  // };
 
   // Combine API events with sample events
   useEffect(() => {
@@ -1810,33 +1892,52 @@ export default function EventsCalendarPage() {
   //   setFilteredEvents(filtered)
   // }, [apiSubscribeEventList, enabledEventTypes])
 
+
   useEffect(() => {
-    let filtered = apiSubscribeEventList.filter((event) => {
-      //  Status/type filter
+    let filtered = [...apiSubscribeEventList];
+
+    // Status/type filter
+    filtered = filtered.filter(event => {
       if (event.status === "bookmarked" && enabledEventTypes.bookmarked) return true;
       if (event.type === "holiday" && enabledEventTypes.holidays) return true;
       if (event.status !== "bookmarked" && event.type !== "holiday") return true; // default show others
       return false;
     });
 
-    //  Country filter
+    // Country filter
     if (selectedCountry !== selectedProperty?.country && selectedCountry !== "All") {
       const normalizedSelected = selectedCountry.trim().toLowerCase();
       filtered = filtered.filter(ev => (ev.country ?? "").trim().toLowerCase() === normalizedSelected);
     }
 
-    //  City filter
-    if (selectedCities.length > 0 && !selectedCities.includes("All")) {
+    // City filter
+    if (!selectedCities.includes(`${selectedProperty?.city}`) && !selectedCities.includes("All")) {
       filtered = filtered.filter(x =>
         selectedCities.some(city => (x.eventCity ?? "").trim().toLowerCase() === city.trim().toLowerCase())
       );
     }
 
-    //  Category filter
-    if (selectedCategories.length > 0 && !selectedCategories.includes("All")) {
-      filtered = filtered.filter(x =>
-        selectedCategories.some(c => normalizeCategory(c) === normalizeCategory(x.category))
-      );
+    // Category filter
+    if (selectedCategories.includes("All")) {
+      // Show all events, do nothing
+    } else if (selectedCategories.length > 0) {
+      // Show only matching categories
+      filtered = filtered.filter(event => {
+        const eventCategory = (event.category ?? event.type ?? "").toLowerCase().trim();
+        return selectedCategories.some(selected => {
+          const selectedCat = selected.toLowerCase().trim();
+          const matchedCategory = categoryData.find(
+            cat => cat.id.toLowerCase() === selectedCat || cat.name.toLowerCase() === selectedCat
+          );
+          if (!matchedCategory) return false;
+          const catId = matchedCategory.id.toLowerCase().trim();
+          const catName = matchedCategory.name.toLowerCase().trim();
+          return eventCategory === catId || eventCategory === catName;
+        });
+      });
+    } else {
+      // No category selected → show nothing
+      filtered = [];
     }
 
     setFilteredEvents(filtered);
@@ -1847,6 +1948,71 @@ export default function EventsCalendarPage() {
     selectedCities,
     selectedCategories
   ]);
+
+  // useEffect(() => {
+  //   debugger
+  //   let filtered = apiSubscribeEventList.filter((event) => {
+  //     //  Status/type filter
+  //     if (event.status === "bookmarked" && enabledEventTypes.bookmarked) return true;
+  //     if (event.type === "holiday" && enabledEventTypes.holidays) return true;
+  //     if (event.status !== "bookmarked" && event.type !== "holiday") return true; // default show others
+  //     return false;
+  //   });
+
+  //   //  Country filter
+  //   if (selectedCountry !== selectedProperty?.country && selectedCountry !== "All") {
+  //     const normalizedSelected = selectedCountry.trim().toLowerCase();
+  //     filtered = filtered.filter(ev => (ev.country ?? "").trim().toLowerCase() === normalizedSelected);
+  //   }
+
+  //   //  City filter
+  //   if (!selectedCities.includes(`${selectedProperty?.city}`) && !selectedCities.includes("All")) {
+  //     filtered = filtered.filter(x =>
+  //       selectedCities.some(city => (x.eventCity ?? "").trim().toLowerCase() === city.trim().toLowerCase())
+  //     );
+  //   }
+
+  //   //  Category filter
+  //   // if (selectedCategories.length > 0 && !selectedCategories.includes("All")) {
+  //   //   filtered = filtered.filter(x =>
+  //   //     selectedCategories.some(c => categoryData(c) === categoryData(x.category))
+  //   //   );
+  //   // }
+
+
+  //   if (selectedCategories.length > 0 && !selectedCategories.includes("All")) {
+  //     filtered = filtered.filter(x => {
+  //       const eventCategory = (x.category ?? x.type ?? "").toLowerCase().trim();
+
+  //       return selectedCategories.some(selected => {
+  //         const selectedCat = selected.toLowerCase().trim();
+
+  //         // match with categoryData by id or name
+  //         const matchedCategory = categoryData.find(cat =>
+  //           cat.id.toLowerCase() === selectedCat || cat.name.toLowerCase() === selectedCat
+  //         );
+
+  //         if (!matchedCategory) return false;
+
+  //         // normalize categoryData id and name
+  //         const catId = matchedCategory.id.toLowerCase().trim();
+  //         const catName = matchedCategory.name.toLowerCase().trim();
+
+  //         return eventCategory === catId || eventCategory === catName;
+  //       });
+  //     });
+  //   }
+
+
+
+  //   setFilteredEvents(filtered);
+  // }, [
+  //   apiSubscribeEventList,
+  //   enabledEventTypes,
+  //   selectedCountry,
+  //   selectedCities,
+  //   selectedCategories
+  // ]);
 
 
   useEffect(() => {
@@ -1949,6 +2115,7 @@ export default function EventsCalendarPage() {
     setCurrentDate(new Date(year, month, 1))
     setMonthPickerYear(year)
     setIsMonthPickerOpen(false)
+    setYearJumpDirection(null)
   }
 
   const fetchAllSubscribeEvents = async () => {
@@ -2042,35 +2209,72 @@ export default function EventsCalendarPage() {
 
 
   // Check if a month is selectable
-  const isMonthSelectable = (month: number, year: number) => {
+  // Direction can be "prevYear" | "nextYear" or null
+  const isMonthSelectable = (
+    month: number,
+    year: number,
+    referenceDate: Date = currentDate,
+    direction: "prevYear" | "nextYear" | null = null
+  ) => {
     const restrictions = getDateRestrictions()
-    //const currentYear = new Date().getFullYear()
+    const currentMonth = referenceDate.getMonth()
+    const currentYear = referenceDate.getFullYear()
 
-    if (year < restrictions.minYear || year > restrictions.maxYear) {
+    // Year out of allowed range
+    if (year < restrictions.minYear || year > restrictions.maxYear) return false
+
+    if (year === currentYear) {
+      // In the current year, all months are selectable
+      return true
+    }
+
+    // Year jump logic
+    if (direction === "prevYear") {
+      if (month < currentMonth) return false // Only months AFTER current month selectable
+    } else if (direction === "nextYear") {
+      if (month > currentMonth) return false // Only months BEFORE current month selectable
+    }
+
+    // Boundary check for min/max year
+    if ((year === restrictions.minYear && month < restrictions.minMonth) ||
+      (year === restrictions.maxYear && month > restrictions.maxMonth)) {
       return false
     }
 
     return true
-
-    // if (year < restrictions.minYear || year > restrictions.maxYear) {
-    //   return false
-    // }
-
-    // // For current year, can select from January onwards
-    // if (year === currentYear) {
-    //   return month >= 0 // January onwards
-    // }
-
-    // // For next year, can select all months
-    // if (year === currentYear + 1) {
-    //   return true
-    // }
-
-    // return false
   }
 
+  // const isMonthSelectable = (month: number, year: number) => {
+  //   const restrictions = getDateRestrictions()
+  //   //const currentYear = new Date().getFullYear()
+
+  //   if (year < restrictions.minYear || year > restrictions.maxYear) {
+  //     return false
+  //   }
+
+  //   return true
+
+  //   // if (year < restrictions.minYear || year > restrictions.maxYear) {
+  //   //   return false
+  //   // }
+
+  //   // // For current year, can select from January onwards
+  //   // if (year === currentYear) {
+  //   //   return month >= 0 // January onwards
+  //   // }
+
+  //   // // For next year, can select all months
+  //   // if (year === currentYear + 1) {
+  //   //   return true
+  //   // }
+
+  //   // return false
+  // }
+
+  const [yearJumpDirection, setYearJumpDirection] = useState<"prevYear" | "nextYear" | null>(null)
   // Month picker year navigation
   const navigateMonthPickerYear = (direction: "prev" | "next") => {
+    setYearJumpDirection(direction === "prev" ? "prevYear" : "nextYear")
     const restrictions = getDateRestrictions()
     setMonthPickerYear(prev => {
       if (direction === "prev" && prev > restrictions.minYear) {
@@ -2086,7 +2290,7 @@ export default function EventsCalendarPage() {
   const [message, setMessage] = useState<string>("");
 
   const handleAddEvent = async () => {
-    // 1️⃣ Validate required fields
+    // Validate required fields
     if (!newEvent.name || !newEvent.startDate || !newEvent.endDate) {
       setDescriptionError("Please fill all required fields");
       return;
@@ -2120,7 +2324,7 @@ export default function EventsCalendarPage() {
       repeatEvery: null,
     };
 
-    // 2️⃣ Optimistically add to UI immediately
+    // Optimistically add to UI immediately
     setEvents(prev => [tempEvent, ...prev]);
 
     const addEventObj = {
@@ -2140,7 +2344,7 @@ export default function EventsCalendarPage() {
       Longitude: selectHotelLongitude || 0,
     };
 
-    // 3️⃣ Call API in background
+    // 3 Call API in background
     try {
       const res: any = await saveEvents(addEventObj);
 
@@ -3055,6 +3259,30 @@ export default function EventsCalendarPage() {
                         {/* Month Grid */}
                         <div className="grid grid-cols-3 gap-1.5 p-3">
                           {monthNames.map((month, index) => {
+                            const isSelectable = isMonthSelectable(index, monthPickerYear, currentDate, yearJumpDirection)
+                            const isCurrentMonth = index === currentDate.getMonth() && monthPickerYear === currentDate.getFullYear()
+                            const isToday = index === new Date().getMonth() && monthPickerYear === new Date().getFullYear()
+
+                            return (
+                              <Button
+                                key={month}
+                                variant={isCurrentMonth ? "default" : "ghost"}
+                                size="sm"
+                                onClick={() => isSelectable && navigateToMonth(index, monthPickerYear)}
+                                disabled={!isSelectable}
+                                className={cn(
+                                  "h-9 text-xs font-medium transition-all",
+                                  isCurrentMonth && "bg-primary text-primary-foreground",
+                                  isToday && !isCurrentMonth && "ring-1 ring-primary ring-opacity-50",
+                                  !isSelectable && "opacity-40 cursor-not-allowed",
+                                  isSelectable && !isCurrentMonth && "hover:bg-primary/10"
+                                )}
+                              >
+                                {month}
+                              </Button>
+                            )
+                          })}
+                          {/* {monthNames.map((month, index) => {
                             const isSelectable = isMonthSelectable(index, monthPickerYear)
                             const isCurrentMonth = index === currentDate.getMonth() && monthPickerYear === currentDate.getFullYear()
                             const isToday = index === new Date().getMonth() && monthPickerYear === new Date().getFullYear()
@@ -3077,13 +3305,11 @@ export default function EventsCalendarPage() {
                                 {month}
                               </Button>
                             )
-                          })}
+                          })} */}
                         </div>
                       </div>
                     </PopoverContent>
                   </Popover>
-
-
 
                   <TooltipProvider>
                     <Tooltip>
