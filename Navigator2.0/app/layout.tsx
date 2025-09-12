@@ -1,9 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import "./globals.css"
-import { Header } from "@/components/navigator/header"
-import { FilterSidebar } from "@/components/filter-sidebar"
-import { LayoutContent } from "@/components/layout-content"
+import { ConditionalLayout } from "@/components/conditional-layout"
 import { ThemeProvider } from "@/components/theme-provider"
 import { DateProvider } from "@/components/date-context"
 import { ErrorBoundary } from "@/components/error-boundary"
@@ -75,9 +73,8 @@ export default function RootLayout({
 
             <ComparisonProvider>
               <DateProvider>
-                {/* Fixed Header - Appears on all pages */}
-                <Header />
-                <LayoutContent>{children}</LayoutContent>
+                {/* Conditional Layout - Header only appears on non-auth pages */}
+                <ConditionalLayout>{children}</ConditionalLayout>
                 {/* Toast notifications */}
                 <Toaster />
               </DateProvider>

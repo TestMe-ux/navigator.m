@@ -154,14 +154,14 @@ export function Header() {
       <div className="flex h-16 items-center justify-between px-1 sm:px-2 lg:px-3">
 
         {/* Left Side - Application Branding */}
-        <div className="flex-shrink-0 flex items-center gap-3 justify-center pl-1">
+        <Link href="/login" className="flex-shrink-0 flex items-center gap-3 justify-center pl-1 hover:opacity-80 transition-opacity">
           <div className="p-2 rounded-lg bg-white/10 backdrop-blur-sm">
             <Activity className="w-5 h-5 text-white" />
           </div>
           <div className="hidden sm:block">
             <h1 className="text-lg font-bold text-white">Navigator</h1>
           </div>
-        </div>
+        </Link>
 
         {/* Desktop Navigation Menu */}
         <nav className="hidden md:flex items-center space-x-1 flex-grow justify-center">
