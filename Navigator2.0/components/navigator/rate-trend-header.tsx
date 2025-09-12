@@ -40,7 +40,7 @@ export function RateTrendHeader({ currentView, onViewChange }: RateTrendHeaderPr
 
 
   return (
-    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 py-4">
+    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 py-4 mb-6">
       
       {/* Left Section - Title & Navigation */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">

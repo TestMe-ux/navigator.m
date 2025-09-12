@@ -1,0 +1,903 @@
+"use client"
+
+import { useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Download, RefreshCw, ChevronDown, ChevronUp, ArrowUpDown, FileSpreadsheet, ArrowUp, ArrowDown, CheckCircle, Loader2, CalendarIcon, X, ChevronLeft, ChevronRight } from "lucide-react"
+import { ReportsFilterBar } from "@/components/reports-filter-bar"
+import { ReportsHeader } from "@/components/navigator/reports-header"
+
+// Mock data for reports
+const reportsData = [
+  {
+    id: "18665450",
+    rrds: 350,
+    shopDate: "15 Aug'25",
+    checkInDates: "15 Aug - 19 Aug'25",
+    reportType: "Scheduled",
+    reportDays: 5,
+    los: 1,
+    guests: 1,
+    status: "Generated",
+  },
+  {
+    id: "18662070",
+    rrds: 350,
+    shopDate: "14 Aug'25",
+    checkInDates: "14 Aug - 18 Aug'25",
+    reportType: "Scheduled",
+    reportDays: 5,
+    los: 1,
+    guests: 1,
+    status: "In Progress",
+  },
+  {
+    id: "18658782",
+    rrds: 350,
+    shopDate: "13 Aug'25",
+    checkInDates: "13 Aug - 17 Aug'25",
+    reportType: "Scheduled",
+    reportDays: 5,
+    los: 1,
+    guests: 1,
+    status: "Generated",
+  },
+  {
+    id: "18655240",
+    rrds: 40,
+    shopDate: "12 Aug'25",
+    checkInDates: "12 Aug - 31 Aug'25",
+    reportType: "OnDemand",
+    reportDays: 20,
+    los: 1,
+    guests: 1,
+    status: "Generated",
+  },
+]
+
+export default function ReportsPage() {
+  const [reportType, setReportType] = useState("All")
+  const [dateRange, setDateRange] = useState<{ start: Date | undefined; end: Date | undefined }>({ start: undefined, end: undefined })
+  
+  // Sorting state
+  const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' | null }>({ key: null, direction: null })
+  
+  // Expanded row state (only one row can be expanded at a time)
+  const [expandedRow, setExpandedRow] = useState<string | null>(null)
+  
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  
+  // Form data state
+  const [formData, setFormData] = useState({
+    channels: '',
+    compSet: 'primary',
+    guests: '',
+    los: '',
+    startDate: '',
+    endDate: '',
+    recipients: ['rahul.kumar@rategain.com'],
+    newRecipient: ''
+  })
+
+  // Calendar and dropdown states
+  const [startDateOpen, setStartDateOpen] = useState(false)
+  const [endDateOpen, setEndDateOpen] = useState(false)
+  const [primaryDropdownOpen, setPrimaryDropdownOpen] = useState(false)
+  const [secondaryDropdownOpen, setSecondaryDropdownOpen] = useState(false)
+  const [selectedStartDate, setSelectedStartDate] = useState<Date | undefined>(undefined)
+  const [selectedEndDate, setSelectedEndDate] = useState<Date | undefined>(undefined)
+  const [selectedPrimaryOptions, setSelectedPrimaryOptions] = useState<string[]>([])
+  const [selectedSecondaryOptions, setSelectedSecondaryOptions] = useState<string[]>([])
+
+  // Mock data for dropdowns
+  const primaryOptions = ['Option 1', 'Option 2', 'Option 3', 'Option 4', 'Option 5']
+  const secondaryOptions = ['Secondary 1', 'Secondary 2', 'Secondary 3', 'Secondary 4']
+  
+
+  // Handle filter changes
+  const handleDateRangeChange = (startDate: Date | undefined, endDate: Date | undefined) => {
+    setDateRange({ start: startDate, end: endDate })
+    // Apply filtering logic here
+    console.log('Date range changed:', { startDate, endDate })
+  }
+
+  const handleReportTypeChange = (newReportType: string) => {
+    setReportType(newReportType)
+    // Apply filtering logic here
+    console.log('Report type changed:', newReportType)
+  }
+
+  const handleRefresh = () => {
+    // Implement refresh logic
+    console.log('Refreshing reports...')
+    // You can add actual refresh logic here
+  }
+
+  const handleCreateOnDemand = () => {
+    setIsModalOpen(true)
+  }
+
+  const handleScheduleSettings = () => {
+    // Implement schedule settings logic
+    console.log('Opening schedule settings...')
+    // You can add actual schedule settings logic here
+  }
+
+  // Form handling functions
+  const handleFormChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleAddRecipient = () => {
+    if (formData.newRecipient && !formData.recipients.includes(formData.newRecipient)) {
+      setFormData(prev => ({
+        ...prev,
+        recipients: [...prev.recipients, prev.newRecipient],
+        newRecipient: ''
+      }))
+    }
+  }
+
+  const handleRemoveRecipient = (email: string) => {
+    setFormData(prev => ({
+      ...prev,
+      recipients: prev.recipients.filter(recipient => recipient !== email)
+    }))
+  }
+
+  const handleGenerate = () => {
+    console.log('Generating report with data:', formData)
+    setIsModalOpen(false)
+    // Reset form
+    setFormData({
+      channels: '',
+      compSet: 'primary',
+      guests: '',
+      los: '',
+      startDate: '',
+      endDate: '',
+      recipients: ['rahul.kumar@rategain.com'],
+      newRecipient: ''
+    })
+  }
+
+  const handleCancel = () => {
+    setIsModalOpen(false)
+    // Reset form
+    setFormData({
+      channels: '',
+      compSet: 'primary',
+      guests: '',
+      los: '',
+      startDate: '',
+      endDate: '',
+      recipients: ['rahul.kumar@rategain.com'],
+      newRecipient: ''
+    })
+  }
+
+  // Date handling functions
+  const handleStartDateSelect = (date: Date | undefined) => {
+    setSelectedStartDate(date)
+    setFormData(prev => ({ ...prev, startDate: date ? date.toLocaleDateString() : '' }))
+    setStartDateOpen(false)
+  }
+
+  const handleEndDateSelect = (date: Date | undefined) => {
+    setSelectedEndDate(date)
+    setFormData(prev => ({ ...prev, endDate: date ? date.toLocaleDateString() : '' }))
+    setEndDateOpen(false)
+  }
+
+  // Dropdown handling functions
+  const handlePrimaryOptionToggle = (option: string) => {
+    setSelectedPrimaryOptions(prev => 
+      prev.includes(option) 
+        ? prev.filter(item => item !== option)
+        : [...prev, option]
+    )
+  }
+
+  const handleSecondaryOptionToggle = (option: string) => {
+    setSelectedSecondaryOptions(prev => 
+      prev.includes(option) 
+        ? prev.filter(item => item !== option)
+        : [...prev, option]
+    )
+  }
+
+  // Toggle row expansion (only one row can be expanded at a time)
+  const toggleRowExpansion = (reportId: string) => {
+    setExpandedRow(prev => {
+      // If clicking the same row, collapse it
+      if (prev === reportId) {
+        return null
+      }
+      // Otherwise, expand the new row (this automatically collapses the previous one)
+      return reportId
+    })
+  }
+
+
+  // Sorting logic
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' | null = 'asc'
+    
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc'
+    } else if (sortConfig.key === key && sortConfig.direction === 'desc') {
+      direction = null
+    }
+    
+    setSortConfig({ key: direction ? key : null, direction })
+  }
+
+  const getSortIcon = (key: string) => {
+    if (sortConfig.key !== key) {
+      return null // Don't show icon for unsorted columns
+    }
+    
+    if (sortConfig.direction === 'asc') {
+      return <ArrowUp className="w-3 h-3 font-bold text-blue-600" strokeWidth={2.5} />
+    } else if (sortConfig.direction === 'desc') {
+      return <ArrowDown className="w-3 h-3 font-bold text-blue-600" strokeWidth={2.5} />
+    }
+    
+    return <ArrowUpDown className="w-3 h-3 font-bold text-blue-600" strokeWidth={2.5} />
+  }
+
+  const getHoverIcon = (key: string) => {
+    if (sortConfig.key === key) {
+      return null // Don't show hover icon for currently sorted column
+    }
+    return <ArrowUpDown className="w-3 h-3 font-bold text-gray-500 dark:text-gray-400" strokeWidth={2.5} />
+  }
+
+  // Sort the data based on current sort configuration
+  const sortedReportsData = [...reportsData].sort((a, b) => {
+    if (!sortConfig.key || !sortConfig.direction) return 0
+
+    const aValue = a[sortConfig.key as keyof typeof a]
+    const bValue = b[sortConfig.key as keyof typeof b]
+
+    if (aValue < bValue) {
+      return sortConfig.direction === 'asc' ? -1 : 1
+    }
+    if (aValue > bValue) {
+      return sortConfig.direction === 'asc' ? 1 : -1
+    }
+    return 0
+  })
+
+  return (
+    <TooltipProvider>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      {/* Enhanced Filter Bar with Sticky Positioning */}
+      <div className="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200 relative overflow-hidden">
+        <ReportsFilterBar 
+          onDateRangeChange={handleDateRangeChange}
+          onReportTypeChange={handleReportTypeChange}
+        />
+      </div>
+
+      {/* Professional Header Section */}
+      <section className="w-full mt-4">
+        <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16">
+          <div className="max-w-7xl xl:max-w-none mx-auto">
+            <ReportsHeader 
+              handleRefresh={handleRefresh} 
+              handleCreateOnDemand={handleCreateOnDemand}
+              handleScheduleSettings={handleScheduleSettings}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Main Content Area */}
+      <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 pt-0 md:pt-0 lg:pt-0 xl:pt-2 pb-4 md:pb-6 lg:pb-8 xl:pb-10">
+        <div className="max-w-7xl xl:max-w-none mx-auto space-y-4 md:space-y-6 lg:space-y-8">
+
+          {/* Reports Table - Compact Design */}
+          <Card className="shadow-lg relative overflow-hidden mb-6" style={{ marginBottom: '24px' }}>
+          <CardHeader className="pb-2">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <CardTitle className="text-lg font-semibold">Reports: {sortedReportsData.length} Listed</CardTitle>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="px-6 pt-1 pb-6">
+            <div className="overflow-x-auto">
+              <div className="min-w-full">
+                {/* Table Header */}
+                 <div className="border border-gray-200 dark:border-gray-700 rounded-t-lg" style={{ backgroundColor: 'rgb(243 244 246/var(--tw-bg-opacity,1))' }}>
+                  <div className="grid grid-cols-12 gap-3 px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    <div className="col-span-2 capitalize flex items-start">Report Id</div>
+                    <div 
+                      className="col-span-1 flex items-start gap-1 capitalize cursor-pointer group -ml-2"
+                      onClick={() => handleSort('rrds')}
+                    >
+                      RRDs
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                        {getHoverIcon('rrds')}
+                      </span>
+                      <span className="opacity-100 mt-0.5">
+                        {getSortIcon('rrds')}
+                      </span>
+                      </div>
+                    <div 
+                      className="col-span-1 flex items-start gap-1 capitalize cursor-pointer group"
+                      onClick={() => handleSort('shopDate')}
+                    >
+                        Shop Date
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                        {getHoverIcon('shopDate')}
+                      </span>
+                      <span className="opacity-100 mt-0.5">
+                        {getSortIcon('shopDate')}
+                      </span>
+                    </div>
+                    <div 
+                      className="col-span-2 flex items-start gap-1 capitalize cursor-pointer group ml-4"
+                      onClick={() => handleSort('checkInDates')}
+                    >
+                      Check-In<br />Dates
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                        {getHoverIcon('checkInDates')}
+                      </span>
+                      <span className="opacity-100 mt-0.5">
+                        {getSortIcon('checkInDates')}
+                      </span>
+                    </div>
+                    <div 
+                      className="col-span-1 flex items-start gap-1 capitalize cursor-pointer group"
+                      onClick={() => handleSort('reportType')}
+                    >
+                      Report<br />Type
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                        {getHoverIcon('reportType')}
+                      </span>
+                      <span className="opacity-100 mt-0.5">
+                        {getSortIcon('reportType')}
+                      </span>
+                    </div>
+                    <div 
+                      className="col-span-1 flex items-start gap-1 capitalize cursor-pointer group -ml-2"
+                      onClick={() => handleSort('reportDays')}
+                    >
+                      Report<br />Days
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                        {getHoverIcon('reportDays')}
+                      </span>
+                      <span className="opacity-100 mt-0.5">
+                        {getSortIcon('reportDays')}
+                      </span>
+                    </div>
+                    <div className="col-span-1 capitalize flex items-start -ml-2 mr-4">LOS</div>
+                    <div className="col-span-1 capitalize flex items-start -ml-4">Guests</div>
+                    <div className="col-span-1 capitalize flex items-start -ml-4">Status</div>
+                    <div className="col-span-1 capitalize flex items-start -ml-4">Action</div>
+                  </div>
+                </div>
+                
+                {/* Table Body */}
+                <div className="bg-white dark:bg-gray-900 border-l border-r border-b border-gray-200 dark:border-gray-700 rounded-b-lg">
+                  {sortedReportsData.map((report, index) => {
+                    const isExpanded = expandedRow === report.id
+                    const isNextRowExpanded = index < sortedReportsData.length - 1 && expandedRow === sortedReportsData[index + 1].id
+                    
+                    return (
+                    <>
+                    <div 
+                      key={report.id} 
+                      className={`grid grid-cols-12 gap-3 px-4 py-2 text-sm ${
+                        isNextRowExpanded
+                          ? 'border-b border-blue-200 dark:border-blue-500'
+                          : isExpanded && index === reportsData.length - 1
+                          ? 'border-b-0'
+                          : 'border-b border-gray-100 dark:border-gray-800'
+                      } ${
+                        isExpanded
+                          ? 'bg-blue-100 dark:bg-blue-800/30'
+                          : index % 2 === 0 
+                          ? 'bg-white dark:bg-gray-900' 
+                          : 'bg-gray-50 dark:bg-gray-800/50'
+                      } ${
+                        isExpanded && index === reportsData.length - 1
+                          ? 'rounded-b-none'
+                          : index === reportsData.length - 1 ? 'rounded-b-lg' : ''
+                      }`}
+                    >
+                      <div className="col-span-2 flex items-center gap-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div 
+                              className="flex items-center gap-2 cursor-pointer group"
+                              onClick={() => toggleRowExpansion(report.id)}
+                            >
+                              <span className="text-blue-600 group-hover:text-blue-800 font-medium">
+                                {report.id}
+                              </span>
+                              <div className="w-4 h-4 border border-blue-600 dark:border-blue-600 rounded-full flex items-center justify-center group-hover:border-blue-700 transition-colors">
+                                {isExpanded ? (
+                                  <ChevronUp className="w-2.5 h-2.5 text-blue-600 group-hover:text-blue-700" strokeWidth="2.5" />
+                                ) : (
+                                  <ChevronDown className="w-2.5 h-2.5 text-blue-600 group-hover:text-blue-700" strokeWidth="2.5" />
+                                )}
+                              </div>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-black text-white border-black text-xs px-2 py-1">
+                            <p>{isExpanded ? "Hide Report Details" : "Show Report Details"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <div className="col-span-1 font-medium flex items-center -ml-2">{report.rrds}</div>
+                      <div className="col-span-1 flex items-center">{report.shopDate}</div>
+                      <div className="col-span-2 flex items-center ml-4">{report.checkInDates}</div>
+                      <div className="col-span-1 flex items-center">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge
+                              variant={report.reportType === "Scheduled" ? "secondary" : "outline"}
+                              className={report.reportType === "OnDemand" ? "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400 hover:bg-orange-100 hover:text-orange-800 dark:hover:bg-orange-900/20 dark:hover:text-orange-400" : ""}
+                            >
+                              {report.reportType === "Scheduled" ? "Sch." : "OD"}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-black text-white border-black text-xs px-2 py-1">
+                            <p>{report.reportType === "Scheduled" ? "Scheduled Report" : "On Demand Report"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <div className="col-span-1 flex items-center -ml-2">{report.reportDays}</div>
+                      <div className="col-span-1 flex items-center -ml-2 mr-4">{report.los}</div>
+                      <div className="col-span-1 flex items-center -ml-4">{report.guests}</div>
+                      <div className="col-span-1 flex items-center -ml-4">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center justify-center">
+                              {report.status === "Generated" ? (
+                                <div className="relative">
+                                  <div className="w-4 h-4 border border-green-600 rounded-full"></div>
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="w-3 h-3 text-green-600">
+                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M20 6L9 17l-5-5"/>
+                                      </svg>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <Loader2 className="w-4 h-4 text-orange-500 animate-spin" />
+                              )}
+                      </div>
+                          </TooltipTrigger>
+                          <TooltipContent className={`text-white text-xs px-2 py-1 ${
+                            report.status === "Generated" 
+                              ? "bg-green-600 border-green-600" 
+                              : "bg-orange-500 border-orange-500"
+                          }`}>
+                            <p>{report.status === "Generated" ? "Report Generated" : "Report In Progress"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <div className="col-span-1 flex items-center -ml-4">
+                        <div className="flex items-center gap-2">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className={`h-8 w-8 ${report.status !== "Generated" ? "opacity-50 cursor-not-allowed" : ""}`}
+                                disabled={report.status !== "Generated"}
+                              >
+                            <Download className="w-4 h-4" />
+                          </Button>
+                            </TooltipTrigger>
+                            <TooltipContent className="bg-black text-white border-black text-xs px-2 py-1">
+                              <p>Download Detailed View (Macros)</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className={`h-8 w-8 ${report.status !== "Generated" ? "opacity-50 cursor-not-allowed" : ""}`}
+                                disabled={report.status !== "Generated"}
+                              >
+                                <FileSpreadsheet className="w-4 h-4" />
+                          </Button>
+                            </TooltipTrigger>
+                            <TooltipContent className="bg-black text-white border-black text-xs px-2 py-1">
+                              <p>Download Raw Data</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Expanded Content Row */}
+                    {isExpanded && (
+                      <div className={`grid grid-cols-12 gap-3 px-4 py-4 text-sm border-t border-blue-200 dark:border-blue-500 ${
+                        index === reportsData.length - 1
+                          ? 'rounded-b-lg'
+                          : 'border-b border-blue-200 dark:border-blue-500'
+                      } ${
+                        index % 2 === 0
+                          ? 'bg-blue-50 dark:bg-blue-900/20'
+                          : 'bg-blue-50 dark:bg-blue-900/20'
+                      }`}>
+                        <div className="col-span-12">
+                          <div className="grid grid-cols-12 gap-8">
+                            {/* Schedule Name */}
+                            <div className="col-span-3" style={{ marginLeft: '60px' }}>
+                              <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Schedule name</h4>
+                              <p className="text-black dark:text-black font-semibold">Sample Schedule Name</p>
+                            </div>
+                            
+                            {/* Channels */}
+                            <div className="col-span-2">
+                              <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Channels (25)</h4>
+                              <div className="text-black dark:text-black">
+                                <div className="max-h-40 overflow-y-auto space-y-1">
+                                  <ul className="space-y-1">
+                                    {[
+                                      "Agoda", "Booking.com", "Expedia", "Hotels.com", "TripAdvisor",
+                                      "Priceline", "Orbitz", "Travelocity", "Kayak", "Trivago",
+                                      "Hotwire", "Lastminute.com", "Amoma", "HotelsCombined", "RoomGuru",
+                                      "HotelTonight", "Airbnb", "VRBO", "HomeAway", "BookingBuddy",
+                                      "CheapTickets", "Travelocity", "Priceline Express", "Hotwire Express", "Lastminute"
+                                    ].map((channel, idx) => (
+                                      <li key={idx} className="flex items-start">
+                                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full mr-2 mt-1.5 flex-shrink-0"></span>
+                                        <span className="text-sm leading-tight">{channel}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Properties */}
+                            <div className="col-span-3">
+                              <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Property (30)</h4>
+                              <div className="text-black dark:text-black">
+                                <div className="max-h-40 overflow-y-auto space-y-1">
+                                  <ul className="space-y-1">
+                                    {[
+                                      "Marriott Executive Apartments Mayfair", "Chaidee Mansion", "Sukhumvit 12 Bangkok Hotel",
+                                      "Holiday Inn Bangkok Silom", "Marriott Executive Apartments Sukhumvit Park", "Grand Palace Hotel",
+                                      "Bangkok Marriott Hotel Sukhumvit", "The Peninsula Bangkok", "Mandarin Oriental Bangkok",
+                                      "Shangri-La Hotel Bangkok", "Anantara Siam Bangkok Hotel", "The St. Regis Bangkok",
+                                      "Four Seasons Hotel Bangkok", "InterContinental Bangkok", "Hilton Bangkok",
+                                      "Hyatt Regency Bangkok", "Novotel Bangkok Sukhumvit", "Pullman Bangkok King Power",
+                                      "Centara Grand at CentralWorld", "Amari Watergate Bangkok", "Royal Orchid Sheraton",
+                                      "Millennium Hilton Bangkok", "Sofitel Bangkok Sukhumvit", "JW Marriott Bangkok",
+                                      "The Westin Grande Sukhumvit", "Le Meridien Bangkok", "Renaissance Bangkok Ratchaprasong",
+                                      "Courtyard by Marriott Bangkok", "Holiday Inn Express Bangkok Sathorn", "Ibis Bangkok Sathorn"
+                                    ].map((property, idx) => (
+                                      <li key={idx} className="flex items-start">
+                                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full mr-2 mt-1.5 flex-shrink-0"></span>
+                                        <span className="text-sm leading-tight">{property}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Currency */}
+                            <div className="col-span-1">
+                              <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Currency</h4>
+                              <p className="text-black dark:text-black">USD</p>
+                            </div>
+                            
+                            {/* Data Sufficiency */}
+                            <div className="col-span-1">
+                              <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Data Sufficiency</h4>
+                              <p className="text-black dark:text-black">100%</p>
+                            </div>
+                            
+                            {/* Generated By */}
+                            <div className="col-span-1">
+                              <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Generated by</h4>
+                              <p className="text-black dark:text-black">Batch</p>
+                            </div>
+                            
+                            {/* Additional Space */}
+                            <div className="col-span-1"></div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    </>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+          </Card>
+
+        </div>
+      </div>
+    </div>
+
+    {/* On-Demand Report Modal */}
+    <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold text-black">On-Demand Report</DialogTitle>
+        </DialogHeader>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
+          {/* Configure Section */}
+          <div className="space-y-4">
+              {/* Channels */}
+              <div className="space-y-2">
+                <Label htmlFor="channels" className="text-sm font-medium text-gray-700">
+                  Channels<span className="text-red-500 ml-1">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="channels"
+                    placeholder="Select channels"
+                    value={formData.channels}
+                    onChange={(e) => handleFormChange('channels', e.target.value)}
+                    className="pr-10"
+                  />
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                </div>
+              </div>
+
+              {/* CompSet */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-gray-700">CompSet</Label>
+                <RadioGroup
+                  value={formData.compSet}
+                  onValueChange={(value) => handleFormChange('compSet', value)}
+                  className="space-y-3"
+                >
+                  <div className="flex items-center space-x-3">
+                    <RadioGroupItem value="primary" id="primary" />
+                    <div className="flex items-center space-x-2">
+                      <Label htmlFor="primary" className="text-sm text-gray-700 cursor-pointer">
+                        Primary ({selectedPrimaryOptions.length || 10})
+                      </Label>
+                      <Popover open={primaryDropdownOpen} onOpenChange={setPrimaryDropdownOpen}>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="p-1 hover:bg-gray-100 rounded"
+                            onClick={() => setPrimaryDropdownOpen(!primaryDropdownOpen)}
+                          >
+                            <ChevronDown className="w-4 h-4 text-gray-400" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-2" align="start">
+                          <div className="space-y-2">
+                            {primaryOptions.map((option) => (
+                              <div key={option} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`primary-${option}`}
+                                  checked={selectedPrimaryOptions.includes(option)}
+                                  onCheckedChange={() => handlePrimaryOptionToggle(option)}
+                                />
+                                <Label htmlFor={`primary-${option}`} className="text-sm cursor-pointer">
+                                  {option}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <RadioGroupItem value="secondary" id="secondary" />
+                    <div className="flex items-center space-x-2">
+                      <Label htmlFor="secondary" className="text-sm text-gray-700 cursor-pointer">
+                        Secondary ({selectedSecondaryOptions.length})
+                      </Label>
+                      <Popover open={secondaryDropdownOpen} onOpenChange={setSecondaryDropdownOpen}>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="p-1 hover:bg-gray-100 rounded"
+                            onClick={() => setSecondaryDropdownOpen(!secondaryDropdownOpen)}
+                          >
+                            <ChevronDown className="w-4 h-4 text-gray-400" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-2" align="start">
+                          <div className="space-y-2">
+                            {secondaryOptions.map((option) => (
+                              <div key={option} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`secondary-${option}`}
+                                  checked={selectedSecondaryOptions.includes(option)}
+                                  onCheckedChange={() => handleSecondaryOptionToggle(option)}
+                                />
+                                <Label htmlFor={`secondary-${option}`} className="text-sm cursor-pointer">
+                                  {option}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Guests */}
+              <div className="space-y-2">
+                <Label htmlFor="guests" className="text-sm font-medium text-gray-700">
+                  Guests<span className="text-red-500 ml-1">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="guests"
+                    placeholder="Enter number of guests"
+                    value={formData.guests}
+                    onChange={(e) => handleFormChange('guests', e.target.value)}
+                    className="pr-10"
+                  />
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                </div>
+              </div>
+
+              {/* LOS */}
+              <div className="space-y-2">
+                <Label htmlFor="los" className="text-sm font-medium text-gray-700">
+                  LOS<span className="text-red-500 ml-1">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="los"
+                    placeholder="Enter length of stay"
+                    value={formData.los}
+                    onChange={(e) => handleFormChange('los', e.target.value)}
+                    className="pr-10"
+                  />
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Check-In Dates Section */}
+          <div className="space-y-4">
+              {/* Date Fields Row */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Start Date */}
+                <div className="space-y-2">
+                  <Label htmlFor="startDate" className="text-sm font-medium text-gray-700">
+                    Start Date<span className="text-red-500 ml-1">*</span>
+                  </Label>
+                  <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
+                    <PopoverTrigger asChild>
+                      <div className="relative">
+                        <Input
+                          id="startDate"
+                          placeholder="Select start date"
+                          value={formData.startDate}
+                          readOnly
+                          className="pr-10 cursor-pointer"
+                        />
+                        <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={selectedStartDate}
+                        onSelect={handleStartDateSelect}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* End Date */}
+                <div className="space-y-2">
+                  <Label htmlFor="endDate" className="text-sm font-medium text-gray-700">
+                    End Date<span className="text-red-500 ml-1">*</span>
+                  </Label>
+                  <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
+                    <PopoverTrigger asChild>
+                      <div className="relative">
+                        <Input
+                          id="endDate"
+                          placeholder="Select end date"
+                          value={formData.endDate}
+                          readOnly
+                          className="pr-10 cursor-pointer"
+                        />
+                        <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={selectedEndDate}
+                        onSelect={handleEndDateSelect}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              {/* Recipient */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-gray-700">Recipient</Label>
+                <div className="space-y-3">
+                  {/* Existing Recipients */}
+                  {formData.recipients.map((email, index) => (
+                    <div key={index} className="flex items-center justify-between bg-gray-50 rounded-md px-3 py-2 border border-gray-200">
+                      <span className="text-sm text-gray-900 truncate">{email}</span>
+                      <button
+                        onClick={() => handleRemoveRecipient(email)}
+                        className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
+                      >
+                        <X className="w-3 h-3 text-gray-500" />
+                      </button>
+                    </div>
+                  ))}
+                  
+                  {/* Add New Recipient */}
+                  <div className="space-y-2">
+                    <Label htmlFor="newRecipient" className="text-sm font-medium text-gray-700">
+                      Add Recipient
+                    </Label>
+                    <Input
+                      id="newRecipient"
+                      placeholder="Enter email address"
+                      value={formData.newRecipient}
+                      onChange={(e) => handleFormChange('newRecipient', e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddRecipient()}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+          <Button
+            variant="outline"
+            onClick={handleCancel}
+            className="h-9 px-4 text-sm font-medium text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleGenerate}
+            className="h-9 px-4 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+          >
+            Generate
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </TooltipProvider>
+  )
+}
