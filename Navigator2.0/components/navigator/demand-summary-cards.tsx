@@ -110,7 +110,12 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
   const [trendValue, setTrendValue] = useState(0);
   const [demandTrendValue, setDemandTrendValue] = useState(0);
   const ischatgptData = demandData?.ischatgptData ?? false;
+    const [mounted, setMounted] = useState(false);
   console.log("Filter sumarry card", filter)
+    useEffect(() => {
+    setMounted(true)
+  }, [])
+  
   useEffect(() => {
     if (!avgDemand) return;
     let newTrend;
