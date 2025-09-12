@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom Recharts Legend Spacing */
+.recharts-default-legend .recharts-legend-item {
+  margin-right: 24px !important;
+}
+
 /* Coach Mark Highlighting */
 .coach-mark-highlight {
   position: relative;
