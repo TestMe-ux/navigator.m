@@ -103,6 +103,7 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
       inboundAirline,
       hotelADRStatus,
       compRateStaus,
+      compRate,
       // Keep original keys for backward compatibility
       "Demand level": demandLevel,
       "My ADR": hotelADR,
@@ -220,16 +221,18 @@ function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
     });
     if (weekData.length === 0) return null
     // Calculate averages for the week
+    debugger
     const hotelADRStatus = weekData.find(item => item.hotelADRStatus === "O") ? "O" : weekData.find(item => item.hotelADRStatus === "C") ? "C" : "--";
     const compRateStaus = weekData.find(item => item.compRateStaus === "O") ? "O" : weekData.find(item => item.compRateStaus === "C") ? "C" : "--";
-    const avgMyPrice = Math.round(weekData.reduce((sum, item) => sum + item.hotelADR, 0) / weekData.length)
+    const avgMyPrice = Math.round(weekData.reduce((sum, item) => sum + item.hotelADR, 0) / weekData.filter(x => x.hotelADR !== 0).length)
     const avgMarketADR = Math.round(weekData.reduce((sum, item) => sum + item.marketADR, 0) / weekData.length)
     const avgDemandLevel = Math.round(weekData.reduce((sum, item) => sum + item.demandLevel, 0) / weekData.length)
     const avgAirTravellers = Math.round(weekData.reduce((sum, item) => sum + item.airTravellers, 0) / weekData.length)
     const avgDemandIndex = Math.round(weekData.reduce((sum, item) => sum + item.demandIndex, 0) / weekData.length)
 
     // Calculate average variances
-    const avgMyPriceVariance = Math.round(weekData.reduce((sum, item) => sum + item.myPriceVariance, 0) / weekData.length)
+    const avgMycompRate = Math.round(weekData.reduce((sum, item) => sum + item.compRate, 0) / weekData.filter(x => x.compRate !== 0).length)
+    const avgMyPriceVariance = ((avgMyPrice - avgMycompRate) * 100 / avgMycompRate).toFixed(2)
     const avgMarketADRVariance = Math.round(weekData.reduce((sum, item) => sum + item.marketADRVariance, 0) / weekData.length)
     const avgAirTravellersVariance = Math.round(weekData.reduce((sum, item) => sum + item.airTravellersVariance, 0) / weekData.length)
     const avgDemandVariance = Math.round(weekData.reduce((sum, item) => sum + item.demandVariance, 0) / weekData.length)
@@ -278,14 +281,15 @@ function aggregateDataByMonth(dailyData: any[], startDate: Date, endDate: Date) 
     // Calculate averages for the month
     const hotelADRStatus = monthData.find(item => item.hotelADRStatus === "O") ? "O" : monthData.find(item => item.hotelADRStatus === "C") ? "C" : "--";
     const compRateStaus = monthData.find(item => item.compRateStaus === "O") ? "O" : monthData.find(item => item.compRateStaus === "C") ? "C" : "--";
-    const avgMyPrice = Math.round(monthData.reduce((sum, item) => sum + item.hotelADR, 0) / monthData.length)
+    const avgMyPrice = Math.round(monthData.reduce((sum, item) => sum + item.hotelADR, 0) / monthData.filter(x => x.hotelADR !== 0).length)
     const avgMarketADR = Math.round(monthData.reduce((sum, item) => sum + item.marketADR, 0) / monthData.length)
     const avgDemandLevel = Math.round(monthData.reduce((sum, item) => sum + item.demandLevel, 0) / monthData.length)
     const avgAirTravellers = Math.round(monthData.reduce((sum, item) => sum + item.airTravellers, 0) / monthData.length)
     const avgDemandIndex = Math.round(monthData.reduce((sum, item) => sum + item.demandIndex, 0) / monthData.length)
 
     // Calculate average variances
-    const avgMyPriceVariance = Math.round(monthData.reduce((sum, item) => sum + item.myPriceVariance, 0) / monthData.length)
+    const avgMycompRate = Math.round(monthData.reduce((sum, item) => sum + item.compRate, 0) / monthData.filter(x => x.hotelADR !== 0).length)
+    const avgMyPriceVariance = ((avgMyPrice - avgMycompRate) * 100 / avgMycompRate).toFixed(2)
     const avgMarketADRVariance = Math.round(monthData.reduce((sum, item) => sum + item.marketADRVariance, 0) / monthData.length)
     const avgAirTravellersVariance = Math.round(monthData.reduce((sum, item) => sum + item.airTravellersVariance, 0) / monthData.length)
     const avgDemandVariance = Math.round(monthData.reduce((sum, item) => sum + item.demandVariance, 0) / monthData.length)

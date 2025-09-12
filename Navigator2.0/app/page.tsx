@@ -361,6 +361,7 @@ export default function Home() {
     getRateTrends(filtersValue)
       .then((res) => {
         if (res.status) {
+          debugger
           const CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
             const rates = x.subscriberPropertyRate || [];
 
@@ -427,6 +428,7 @@ export default function Home() {
     getRateTrends(filtersValue)
       .then((res) => {
         if (res.status) {
+          debugger
           const CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
             const rates = x.subscriberPropertyRate || [];
 

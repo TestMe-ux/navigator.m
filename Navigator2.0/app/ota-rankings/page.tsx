@@ -11,139 +11,8 @@ import { getOTAChannels, getOTARankOnAllChannel, getOTARankTrends } from "@/lib/
 // Import the new components
 import { OTARankingsFilterBar } from "@/components/ota-rankings-filter-bar"
 import OTAChannelCards from "@/components/ota-channel-cards"
-import { OTACustomCalendar } from "@/components/ota-custom-calendar"
 import OTARankView from "@/components/ota-rank-view"
 import OTAReviewsView from "@/components/ota-reviews-view"
-
-// Static data - moved outside component to prevent recreation
-// Removed static data - using API data instead
-// const MOCK_CHANNELS = [
-//   {
-//     id: "booking",
-//     name: "Booking.com",
-//     icon: "B",
-//     iconBg: "bg-blue-600",
-//     avgRank: 3.2,
-//     totalRankings: 15,
-//     rankingChange: -12,
-//     reviewScore: 8.5,
-//     reviewText: "As on today"
-//   },
-//   {
-//     id: "expedia",
-//     name: "Expedia",
-//     icon: "E",
-//     iconBg: "bg-green-600",
-//     avgRank: 4.1,
-//     totalRankings: 12,
-//     rankingChange: 5,
-//     reviewScore: 7.8,
-//     reviewText: "As on today"
-//   },
-//   {
-//     id: "agoda",
-//     name: "Agoda",
-//     icon: "A",
-//     iconBg: "bg-red-600",
-//     avgRank: 2.8,
-//     totalRankings: 18,
-//     rankingChange: -8,
-//     reviewScore: 9.1,
-//     reviewText: "As on today"
-//   },
-//   {
-//     id: "hotels",
-//     name: "Hotels.com",
-//     icon: "H",
-//     iconBg: "bg-purple-600",
-//     avgRank: 5.2,
-//     totalRankings: 10,
-//     rankingChange: 15,
-//     reviewScore: 7.2,
-//     reviewText: "As on today"
-//   },
-//   {
-//     id: "tripadvisor",
-//     name: "TripAdvisor",
-//     icon: "T",
-//     iconBg: "bg-orange-600",
-//     avgRank: 3.9,
-//     totalRankings: 14,
-//     rankingChange: -3,
-//     reviewScore: 8.3,
-//     reviewText: "As on today"
-//   },
-//   {
-//     id: "airbnb",
-//     name: "Airbnb",
-//     icon: "A",
-//     iconBg: "bg-pink-600",
-//     avgRank: 6.1,
-//     totalRankings: 8,
-//     rankingChange: 22,
-//     reviewScore: 6.9,
-//     reviewText: "As on today"
-//   },
-//   {
-//     id: "hoteltonight",
-//     name: "HotelTonight",
-//     icon: "H",
-//     iconBg: "bg-indigo-600",
-//     avgRank: 4.5,
-//     totalRankings: 11,
-//     rankingChange: -5,
-//     reviewScore: 7.4,
-//     reviewText: "As on today"
-//   },
-//   {
-//     id: "kayak",
-//     name: "Kayak",
-//     icon: "K",
-//     iconBg: "bg-teal-600",
-//     avgRank: 3.7,
-//     totalRankings: 13,
-//     rankingChange: 8,
-//     reviewScore: 8.1,
-//     reviewText: "As on today"
-//   }
-// ]
-
-// const MOCK_RANKING_TRENDS_DATA = [
-//   { date: "Jan 1", fullDate: "2025-01-01", myHotel: 3, hotel1: 2, hotel2: 4, hotel3: 1, hotel4: 5, hotel5: 6, hotel6: 7, hotel7: 8, hotel8: 9, myHotelVariance: -1, hotel1Variance: 0, hotel2Variance: 1, hotel3Variance: -1, hotel4Variance: 2, hotel5Variance: 1, hotel6Variance: 0, hotel7Variance: -1, hotel8Variance: 2 },
-//   { date: "Jan 2", fullDate: "2025-01-02", myHotel: 2, hotel1: 3, hotel2: 3, hotel3: 2, hotel4: 4, hotel5: 5, hotel6: 6, hotel7: 7, hotel8: 8, myHotelVariance: -1, hotel1Variance: 1, hotel2Variance: -1, hotel3Variance: 1, hotel4Variance: -1, hotel5Variance: -1, hotel6Variance: 0, hotel7Variance: 0, hotel8Variance: 0 },
-//   { date: "Jan 3", fullDate: "2025-01-03", myHotel: 4, hotel1: 1, hotel2: 2, hotel3: 3, hotel4: 5, hotel5: 4, hotel6: 5, hotel7: 6, hotel8: 7, myHotelVariance: 2, hotel1Variance: -2, hotel2Variance: -1, hotel3Variance: 1, hotel4Variance: 0, hotel5Variance: -1, hotel6Variance: -1, hotel7Variance: -1, hotel8Variance: -1 },
-//   { date: "Jan 4", fullDate: "2025-01-04", myHotel: 3, hotel1: 2, hotel2: 4, hotel3: 1, hotel4: 6, hotel5: 3, hotel6: 4, hotel7: 5, hotel8: 6, myHotelVariance: -1, hotel1Variance: 1, hotel2Variance: 2, hotel3Variance: -2, hotel4Variance: 1, hotel5Variance: -1, hotel6Variance: -1, hotel7Variance: -1, hotel8Variance: -1 },
-//   { date: "Jan 5", fullDate: "2025-01-05", myHotel: 2, hotel1: 4, hotel2: 3, hotel3: 2, hotel4: 5, hotel5: 2, hotel6: 3, hotel7: 4, hotel8: 5, myHotelVariance: -1, hotel1Variance: 2, hotel2Variance: -1, hotel3Variance: 1, hotel4Variance: -1, hotel5Variance: -1, hotel6Variance: -1, hotel7Variance: -1, hotel8Variance: -1 }
-// ]
-
-// const MOCK_REVIEWS_DATA = [
-//   { week: "Week 1", reviewScore: 8.2, numberOfReviews: 45 },
-//   { week: "Week 2", reviewScore: 8.5, numberOfReviews: 52 },
-//   { week: "Week 3", reviewScore: 8.1, numberOfReviews: 38 },
-//   { week: "Week 4", reviewScore: 8.7, numberOfReviews: 61 },
-//   { week: "Week 5", reviewScore: 8.3, numberOfReviews: 47 }
-// ]
-
-// const AVAILABLE_HOTEL_LINES = [
-//   { dataKey: 'myHotel', name: 'Alhambra Hotel', color: '#2563eb' },
-//   { dataKey: 'hotel1', name: 'Hotel Alexander Plaza', color: '#dc2626' },
-//   { dataKey: 'hotel2', name: 'Comfort Hotel Auberge', color: '#16a34a' },
-//   { dataKey: 'hotel3', name: 'acom Hotel Berlin City Süd', color: '#ca8a04' },
-//   { dataKey: 'hotel4', name: 'InterCityHotel Berlin Ostbahnhof', color: '#9333ea' },
-//   { dataKey: 'hotel5', name: 'Mercure Hotel Berlin City West', color: '#7c3aed' },
-//   { dataKey: 'hotel6', name: 'Hotel Brandies an der Messe', color: '#059669' },
-//   { dataKey: 'hotel7', name: 'Hotel Adlon Kempinski', color: '#dc2626' },
-//   { dataKey: 'hotel8', name: 'The Ritz-Carlton Berlin', color: '#1f2937' }
-// ]
-
-const CHECK_IN_RANGE_OPTIONS = [
-  { id: "last-30-days", label: "Last 30 Days", dateRange: "25 Dec 2024 - 24 Jan 2025" },
-  { id: "last-7-days", label: "Last 7 Days", dateRange: "18 Jan 2025 - 24 Jan 2025" },
-  { id: "last-3-months", label: "Last 3 Months", dateRange: "25 Oct 2024 - 24 Jan 2025" },
-  { id: "last-6-months", label: "Last 6 Months", dateRange: "25 Jul 2024 - 24 Jan 2025" },
-  { id: "last-year", label: "Last Year", dateRange: "25 Jan 2024 - 24 Jan 2025" },
-  { id: "custom", label: "Custom Date Range" }
-]
 
 const COMPARE_OPTIONS = [
   { id: "last-1-week", label: "Last 1 Week" },
@@ -170,9 +39,11 @@ export default function OTARankingsPage() {
   const [otaRankingData, setOtaRankingData] = useState<any[]>([])
   const [otaRankTrendsData, setOtaRankTrendsData] = useState<any[]>([])
   const [otaRankGraphData, setOtaRankGraphData] = useState<any[]>([])
+  const [otaReviewsData, setOtaReviewsData] = useState<any[]>([])
   const [isLoadingChannels, setIsLoadingChannels] = useState(false)
   const [isLoadingRanking, setIsLoadingRanking] = useState(false)
   const [isLoadingRankTrends, setIsLoadingRankTrends] = useState(false)
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false)
 
   // Window width state for responsive text
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1920)
@@ -188,28 +59,24 @@ export default function OTARankingsPage() {
 
   const [selectedChannel, setSelectedChannel] = useState("")
 
-  // Reviews-specific state
-  const [checkInRange, setCheckInRange] = useState("Last 30 Days")
-  const [previousCheckInRange, setPreviousCheckInRange] = useState("Last 30 Days")
-
   // Overview-style channel dropdown state
-  const [overviewChannelData, setOverviewChannelData] = useState<any>([])
-  const [selectedOverviewChannels, setSelectedOverviewChannels] = useState<number[]>([])
+  // const [overviewChannelData, setOverviewChannelData] = useState<any>([])
+  // const [selectedOverviewChannels, setSelectedOverviewChannels] = useState<number[]>([])
   const didFetchChannels = useRef(false)
 
-  // Custom calendar state for Reviews
-  const [customStartDate, setCustomStartDate] = useState<Date | undefined>()
-  const [customEndDate, setCustomEndDate] = useState<Date | undefined>()
-  const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date())
-
-  // Date picker state
+  // Date picker state - Initialize with future dates for Rank mode
   const [startDate, setStartDate] = useState<Date | null>(new Date())
-  const [endDate, setEndDate] = useState<Date | null>(new Date(Date.now() + 6 * 24 * 60 * 60 * 1000)) // 7 days from now
+  const [endDate, setEndDate] = useState<Date | null>(new Date(Date.now() + 29 * 24 * 60 * 60 * 1000)) // 30 days from now
 
   // Filter dropdown states
   const [isCompareOpen, setIsCompareOpen] = useState(false)
   const [isCompsetOpen, setIsCompsetOpen] = useState(false)
-  const [isDateRangeOpen, setIsDateRangeOpen] = useState(false)
+  
+  // Tab switching loading state
+  const [isTabSwitching, setIsTabSwitching] = useState(false)
+  
+  // Ref to track current tab to prevent cross-tab API calls
+  const currentTabRef = useRef<string | null>(null)
 
   // Channel pagination state
   const [currentChannelPage, setCurrentChannelPage] = useState(0)
@@ -222,26 +89,26 @@ export default function OTARankingsPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // Fetch channel data for Overview-style dropdown
-  useEffect(() => {
-    if (!selectedProperty?.sid || didFetchChannels.current) return;
+  // useEffect(() => {
+  //   if (!selectedProperty?.sid || didFetchChannels.current) return;
 
-    didFetchChannels.current = true;
-    getChannels({ SID: selectedProperty?.sid })
-      .then((res) => {
-        if (res?.status && res?.body) {
-          // Add "All Channels" option
-          const allChannel = { cid: -1, name: "All Channels" };
-          const channelList = [allChannel, ...res.body];
+  //   didFetchChannels.current = true;
+  //   getChannels({ SID: selectedProperty?.sid })
+  //     .then((res) => {
+  //       if (res?.status && res?.body) {
+  //         // Add "All Channels" option
+  //         const allChannel = { cid: -1, name: "All Channels" };
+  //         const channelList = [allChannel, ...res.body];
 
-          // Set data
-          setOverviewChannelData(channelList);
+  //         // Set data
+  //         setOverviewChannelData(channelList);
 
-          // Set selected channels as array of cids (default to all)
-          setSelectedOverviewChannels(channelList.map(c => c.cid));
-        }
-      })
-      .catch((err) => console.error(err));
-  }, [selectedProperty?.sid]);
+  //         // Set selected channels as array of cids (default to all)
+  //         setSelectedOverviewChannels(channelList.map(c => c.cid));
+  //       }
+  //     })
+  //     .catch((err) => console.error(err));
+  // }, [selectedProperty?.sid]);
 
   // Reset channel fetch when property changes
   useEffect(() => {
@@ -261,51 +128,51 @@ export default function OTARankingsPage() {
   }, [])
 
   // Get display text for overview channel dropdown
-  const getOverviewChannelDisplayText = useCallback(() => {
-    if (selectedOverviewChannels.length === 0) {
-      return "All Channels"
-    } else if (selectedOverviewChannels.includes(-1)) {
-      return "All Channels"
-    } else if (selectedOverviewChannels.length === 1) {
-      const channel = overviewChannelData.find((c: any) => c.cid === selectedOverviewChannels[0]);
-      if (channel) {
-        return channel.name
-      }
-      return "Select Channels"
-    } else {
-      return `${selectedOverviewChannels.length} Channels`
-    }
-  }, [selectedOverviewChannels, overviewChannelData])
+  // const getOverviewChannelDisplayText = useCallback(() => {
+  //   if (selectedOverviewChannels.length === 0) {
+  //     return "All Channels"
+  //   } else if (selectedOverviewChannels.includes(-1)) {
+  //     return "All Channels"
+  //   } else if (selectedOverviewChannels.length === 1) {
+  //     const channel = overviewChannelData.find((c: any) => c.cid === selectedOverviewChannels[0]);
+  //     if (channel) {
+  //       return channel.name
+  //     }
+  //     return "Select Channels"
+  //   } else {
+  //     return `${selectedOverviewChannels.length} Channels`
+  //   }
+  // }, [selectedOverviewChannels, overviewChannelData])
 
-  // Handle overview channel selection
-  const handleOverviewChannelSelect = useCallback((channelCid: any, channelData: any) => {
-    setSelectedOverviewChannels(prev => {
-      const isSelected = prev.includes(channelCid)
-      let newSelection: number[]
+  // // Handle overview channel selection
+  // const handleOverviewChannelSelect = useCallback((channelCid: any, channelData: any) => {
+  //   setSelectedOverviewChannels(prev => {
+  //     const isSelected = prev.includes(channelCid)
+  //     let newSelection: number[]
 
-      if (channelCid === -1) {
-        // If selecting "All Channels", clear all others
-        newSelection = isSelected ? [] : channelData.map((c: any) => c.cid)
-      } else {
-        // If selecting a specific channel
-        if (isSelected) {
-          // Remove this channel and "All Channels" if present
-          newSelection = prev.filter(id => id !== channelCid && id !== -1)
-        } else {
-          // Add this channel and remove "All Channels" if present
-          const withoutAll = prev.filter(id => id !== -1)
-          newSelection = [...withoutAll, channelCid]
+  //     if (channelCid === -1) {
+  //       // If selecting "All Channels", clear all others
+  //       newSelection = isSelected ? [] : channelData.map((c: any) => c.cid)
+  //     } else {
+  //       // If selecting a specific channel
+  //       if (isSelected) {
+  //         // Remove this channel and "All Channels" if present
+  //         newSelection = prev.filter(id => id !== channelCid && id !== -1)
+  //       } else {
+  //         // Add this channel and remove "All Channels" if present
+  //         const withoutAll = prev.filter(id => id !== -1)
+  //         newSelection = [...withoutAll, channelCid]
 
-          // If all individual channels are now selected, add "All Channels"
-          if (newSelection.length === channelData.length - 1) {
-            newSelection = channelData.map((c: any) => c.cid)
-          }
-        }
-      }
+  //         // If all individual channels are now selected, add "All Channels"
+  //         if (newSelection.length === channelData.length - 1) {
+  //           newSelection = channelData.map((c: any) => c.cid)
+  //         }
+  //       }
+  //     }
 
-      return newSelection
-    })
-  }, [])
+  //     return newSelection
+  //   })
+  // }, [])
 
 
   // Get responsive compare text for channel widgets
@@ -316,54 +183,65 @@ export default function OTARankingsPage() {
     return "vs. Last 1 week" // Full version for larger screens
   }, [windowWidth])
 
-  // Get display text for check-in range
-  const getCheckInDisplayText = () => {
-    const selectedOption = CHECK_IN_RANGE_OPTIONS.find((opt: any) => opt.label === checkInRange)
-    if (selectedOption?.dateRange) {
-      return `${selectedOption.label} • ${selectedOption.dateRange}`
-    }
-    if (checkInRange === "Custom Date Range") {
-      if (customStartDate && customEndDate) {
-        // Show custom selected range
-        const formatDate = (date: Date) => {
-          const formatted = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).replace(',', '')
-          return `${formatted} '25`
-        }
-        return `Custom Date Range • ${formatDate(customEndDate)} - ${formatDate(customStartDate)}`
-      } else {
-        // Show previous selection when no custom dates are selected
-        const previousOption = CHECK_IN_RANGE_OPTIONS.find((opt: any) => opt.label === previousCheckInRange)
-        if (previousOption?.dateRange) {
-          return `${previousOption.label} • ${previousOption.dateRange}`
-        }
-        return previousCheckInRange
-      }
-    }
-    return checkInRange
-  }
-
-  // Calendar helper functions for Reviews
-  const handleCustomDateSelect = (date: Date) => {
-    if (!customStartDate || customEndDate) {
-      // First selection or reset selection
-      setCustomStartDate(date)
-      setCustomEndDate(undefined)
-    } else if (customStartDate && !customEndDate) {
-      // Second selection
-      if (date >= customStartDate) {
-        setCustomEndDate(date)
-      } else {
-        setCustomStartDate(date)
-        setCustomEndDate(customStartDate)
-      }
-    }
-  }
 
   // Date range change handler
   const handleDateRangeChange = (start: Date | null, end: Date | null) => {
     setStartDate(start)
     setEndDate(end)
   }
+
+  // Handle date range initialization when switching tabs
+  useEffect(() => {
+    // Set loading state when switching tabs
+    setIsTabSwitching(true)
+    
+    // Update the current tab ref
+    currentTabRef.current = viewMode
+    
+    // Clear data immediately when switching tabs
+    if (viewMode === "Reviews") {
+      // Clear rank data aggressively
+      setOtaRankTrendsData([])
+      setOtaRankGraphData([])
+      // Force a re-render by setting a temporary empty state
+      setTimeout(() => {
+        setOtaRankTrendsData([])
+        setOtaRankGraphData([])
+      }, 0)
+      
+      // Set to past dates for Reviews mode (Last 30 Days)
+      const today = new Date()
+      const thirtyDaysAgo = new Date(today.getTime() - 29 * 24 * 60 * 60 * 1000)
+      console.log('Switching to Reviews mode - setting date range:', {
+        startDate: format(thirtyDaysAgo, 'yyyy-MM-dd'),
+        endDate: format(today, 'yyyy-MM-dd')
+      })
+      setStartDate(thirtyDaysAgo)
+      setEndDate(today)
+    } else if (viewMode === "Rank") {
+      // Clear reviews data aggressively
+      setOtaReviewsData([])
+      // Force a re-render by setting a temporary empty state
+      setTimeout(() => {
+        setOtaReviewsData([])
+      }, 0)
+      
+      // Set to future dates for Rank mode (Next 30 Days)
+      const today = new Date()
+      const thirtyDaysFromNow = new Date(today.getTime() + 29 * 24 * 60 * 60 * 1000)
+      console.log('Switching to Rank mode - setting date range:', {
+        startDate: format(today, 'yyyy-MM-dd'),
+        endDate: format(thirtyDaysFromNow, 'yyyy-MM-dd')
+      })
+      setStartDate(today)
+      setEndDate(thirtyDaysFromNow)
+    }
+    
+    // Clear loading state after a short delay to allow data to clear
+    setTimeout(() => {
+      setIsTabSwitching(false)
+    }, 100)
+  }, [viewMode])
 
 
   // Transform ranking trends data from API
@@ -455,6 +333,35 @@ export default function OTARankingsPage() {
     setOtaRankGraphData(otaRankGraphData)
   }, [selectedProperty?.sid, selectedChannel])
 
+  // Transform reviews trends data from API
+  const transformReviewsTrendsData = useCallback((trendDataPerCheckin: any[]) => {
+    const reviewsGraphData: any[] = []
+
+    trendDataPerCheckin.forEach((trendDataPerCheckin) => {
+      // Process all data points for the selected property
+      trendDataPerCheckin.otaRankEntityCollection?.forEach((data: any) => {
+        if (data.propertyID === selectedProperty?.hmid) {
+          data.checkInDate = new Date(data.checkInDate)
+          
+          // Create a new data point for each date
+          reviewsGraphData.push({ 
+            checkInDate: data.checkInDate.getTime(),
+            date: format(data.checkInDate, 'MMM d'),
+            fullDate: format(data.checkInDate, 'yyyy-MM-dd'),
+            reviewScore: data.score ? parseFloat(data.score) : 0,
+            reviewCount: data.reviewCount || 0,
+            numberOfReviews: data.reviewCount || 0 // For chart compatibility
+          })
+        }
+      })
+    })
+
+    // Sort by date
+    reviewsGraphData.sort((a, b) => (a.checkInDate - b.checkInDate))
+    
+    setOtaReviewsData(reviewsGraphData)
+  }, [selectedProperty?.hmid])
+
   // Transform API data to channel format
   const transformChannelsData = useCallback(() => {
     if (!otaChannels.length || !otaRankingData.length) {
@@ -532,36 +439,80 @@ export default function OTARankingsPage() {
 
   // Use real API data or fallback to mock data
   const rankingTrendsData = useMemo(() => {
-    if (otaRankGraphData.length > 0) {
-      // Transform API data to match the expected format for charts
-      return otaRankGraphData.map((item, index) => {
-        const date = new Date(item.checkInDate)
-        const formattedDate = format(date, 'MMM d')
-        const fullDate = format(date, 'yyyy-MM-dd')
-
-        // Create the data object with dynamic property keys
-        const dataObject: any = {
-          date: formattedDate,
-          fullDate: fullDate
-        }
-
-        // Add property rankings and variances dynamically
-        Object.keys(item).forEach(key => {
-          if ((key.startsWith('property') || key === 'myHotel') && key !== 'checkInDate') {
-            dataObject[key] = item[key]
-          }
-          if (key.endsWith('ChangeInRank')) {
-            dataObject[key] = item[key]
-          }
-        })
-
-        return dataObject
-      })
+    console.log('Ranking trends data useMemo triggered:', {
+      viewMode,
+      otaRankGraphDataLength: otaRankGraphData.length,
+      otaRankGraphData: otaRankGraphData
+    })
+    
+    // Only return data if we're in Rank mode and have data
+    if (viewMode !== "Rank" || otaRankGraphData.length === 0) {
+      console.log('Returning empty array for ranking trends data')
+      return []
     }
-    return []
-  }, [otaRankGraphData])
+    
+    // Transform API data to match the expected format for charts
+    const transformedData = otaRankGraphData.map((item, index) => {
+      const date = new Date(item.checkInDate)
+      const formattedDate = format(date, 'MMM d')
+      const fullDate = format(date, 'yyyy-MM-dd')
 
-  const reviewsData: any[] = [] // Will be populated from API when available
+      // Create the data object with dynamic property keys
+      const dataObject: any = {
+        date: formattedDate,
+        fullDate: fullDate
+      }
+
+      // Add property rankings and variances dynamically
+      Object.keys(item).forEach(key => {
+        if ((key.startsWith('property') || key === 'myHotel') && key !== 'checkInDate') {
+          dataObject[key] = item[key]
+        }
+        if (key.endsWith('ChangeInRank')) {
+          dataObject[key] = item[key]
+        }
+      })
+
+      return dataObject
+    })
+    
+    console.log('Transformed ranking trends data:', transformedData)
+    return transformedData
+  }, [otaRankGraphData, viewMode])
+
+  // Use real API data for reviews
+  const reviewsData = useMemo(() => {
+    console.log('Reviews data useMemo triggered:', {
+      viewMode,
+      otaReviewsDataLength: otaReviewsData.length,
+      otaReviewsData: otaReviewsData
+    })
+    
+    // Only return data if we're in Reviews mode and have data
+    if (viewMode !== "Reviews" || otaReviewsData.length === 0) {
+      console.log('Returning empty array for reviews data')
+      return []
+    }
+    
+    // Transform API data to match the expected format for charts
+    const transformedData = otaReviewsData.map((item) => ({
+      week: item.date, // Use date as week label
+      reviewScore: item.reviewScore,
+      numberOfReviews: item.numberOfReviews
+    }))
+    
+    console.log('Transformed reviews data:', transformedData)
+    return transformedData
+  }, [otaReviewsData, viewMode])
+
+  // Debug OTA Ranking Data
+  console.log('Current OTA Ranking Data State:', {
+    otaRankingDataLength: otaRankingData?.length || 0,
+    otaRankingData: otaRankingData,
+    viewMode,
+    startDate: startDate ? format(startDate, 'yyyy-MM-dd') : null,
+    endDate: endDate ? format(endDate, 'yyyy-MM-dd') : null
+  })
 
   // Fetch OTA Channels data
   useEffect(() => {
@@ -590,10 +541,19 @@ export default function OTARankingsPage() {
     const fetchRankingData = async () => {
       if (!selectedProperty?.sid || !startDate || !endDate) return
 
+      console.log('Fetching OTA Ranking data for Reviews table:', {
+        selectedProperty: selectedProperty?.sid,
+        startDate: format(startDate, 'yyyy-MM-dd'),
+        endDate: format(endDate, 'yyyy-MM-dd'),
+        viewMode
+      })
+
       setIsLoadingRanking(true)
       try {
         const response = await getOTARankOnAllChannel({ SID: selectedProperty.sid, CheckInDateStart: format(startDate, 'yyyy-MM-dd'), CheckInEndDate: format(endDate, 'yyyy-MM-dd') })
+        console.log('OTA Ranking API Response:', response)
         if (response?.status && response?.body) {
+          console.log('Setting OTA Ranking data:', response.body)
           setOtaRankingData(response.body)
         }
       } catch (error) {
@@ -606,15 +566,27 @@ export default function OTARankingsPage() {
     fetchRankingData()
   }, [selectedProperty?.sid, startDate, endDate])
 
-  // Fetch OTA Ranking Trends data
+  // Fetch OTA Ranking Trends data (only when in Rank mode)
   useEffect(() => {
     const fetchRankTrendsData = async () => {
-      if (!selectedProperty?.sid || !otaChannels || !startDate || !endDate) return
+      // Only fetch if we're in Rank mode and not switching tabs
+      if (!selectedProperty?.sid || !otaChannels || !startDate || !endDate || viewMode !== "Rank" || isTabSwitching || currentTabRef.current !== "Rank") {
+        return
+      }
+
+      // Add a small delay to ensure date range has been properly set
+      await new Promise(resolve => setTimeout(resolve, 50))
 
       setIsLoadingRankTrends(true)
       try {
         const selectedChannelData = otaChannels.find(channel => channel.name.toLowerCase() === selectedChannel.toLowerCase())?.cid;
         if (!selectedChannelData) return
+
+        console.log('Fetching Rank data with date range:', {
+          startDate: format(startDate, 'yyyy-MM-dd'),
+          endDate: format(endDate, 'yyyy-MM-dd'),
+          viewMode
+        })
 
         const response = await getOTARankTrends({
           SID: selectedProperty.sid,
@@ -633,8 +605,60 @@ export default function OTARankingsPage() {
       }
     }
 
-    fetchRankTrendsData()
-  }, [selectedProperty?.sid, startDate, endDate, selectedChannel])
+    // Add a small delay to prevent rapid API calls during tab switching
+    const timeoutId = setTimeout(() => {
+      fetchRankTrendsData()
+    }, 150)
+
+    return () => clearTimeout(timeoutId)
+  }, [selectedProperty?.sid, startDate, endDate, selectedChannel, viewMode, transformRankTrendsData, isTabSwitching])
+
+  // Fetch OTA Reviews data (only when in Reviews mode)
+  useEffect(() => {
+    const fetchReviewsData = async () => {
+      // Only fetch if we're in Reviews mode and not switching tabs
+      if (!selectedProperty?.sid || !otaChannels || !startDate || !endDate || viewMode !== "Reviews" || isTabSwitching || currentTabRef.current !== "Reviews") {
+        return
+      }
+
+      // Add a small delay to ensure date range has been properly set
+      await new Promise(resolve => setTimeout(resolve, 50))
+
+      setIsLoadingReviews(true)
+      try {
+        const selectedChannelData = otaChannels.find(channel => channel.name.toLowerCase() === selectedChannel.toLowerCase())?.cid;
+        if (!selectedChannelData) return
+
+        console.log('Fetching Reviews data with date range:', {
+          startDate: format(startDate, 'yyyy-MM-dd'),
+          endDate: format(endDate, 'yyyy-MM-dd'),
+          viewMode
+        })
+
+        const response = await getOTARankTrends({
+          SID: selectedProperty.sid,
+          OTAId: selectedChannelData,
+          CheckInDateStart: format(startDate, 'yyyy-MM-dd'),
+          CheckInEndDate: format(endDate, 'yyyy-MM-dd')
+        })
+
+        if (response?.status && response?.body?.trendDataPerCheckin) {
+          transformReviewsTrendsData(response.body.trendDataPerCheckin)
+        }
+      } catch (error) {
+        console.error('Error fetching OTA reviews data:', error)
+      } finally {
+        setIsLoadingReviews(false)
+      }
+    }
+
+    // Add a small delay to prevent rapid API calls during tab switching
+    const timeoutId = setTimeout(() => {
+      fetchReviewsData()
+    }, 150)
+
+    return () => clearTimeout(timeoutId)
+  }, [selectedProperty?.sid, startDate, endDate, selectedChannel, viewMode, transformReviewsTrendsData, isTabSwitching])
 
   // Initialize legend visibility
   useEffect(() => {
@@ -728,18 +752,6 @@ export default function OTARankingsPage() {
     }
   }, [])
 
-  // Custom calendar render function
-  const renderCustomCalendar = () => (
-    <OTACustomCalendar
-      currentCalendarMonth={currentCalendarMonth}
-      setCurrentCalendarMonth={setCurrentCalendarMonth}
-      customStartDate={customStartDate}
-      setCustomStartDate={setCustomStartDate}
-      customEndDate={customEndDate}
-      setCustomEndDate={setCustomEndDate}
-      handleCustomDateSelect={handleCustomDateSelect}
-    />
-  )
 
   // Loading state
   if (isPageLoading) {
@@ -764,25 +776,10 @@ export default function OTARankingsPage() {
         setCompareWith={setCompareWith}
         compSet={compSet}
         setCompSet={setCompSet}
-        checkInRange={checkInRange}
-        setCheckInRange={setCheckInRange}
-        previousCheckInRange={previousCheckInRange}
-        setPreviousCheckInRange={setPreviousCheckInRange}
-        customStartDate={customStartDate}
-        setCustomStartDate={setCustomStartDate}
-        customEndDate={customEndDate}
-        setCustomEndDate={setCustomEndDate}
-        currentCalendarMonth={currentCalendarMonth}
-        setCurrentCalendarMonth={setCurrentCalendarMonth}
-        isDateRangeOpen={isDateRangeOpen}
-        setIsDateRangeOpen={setIsDateRangeOpen}
         isCompareOpen={isCompareOpen}
         setIsCompareOpen={setIsCompareOpen}
         isCompsetOpen={isCompsetOpen}
         setIsCompsetOpen={setIsCompsetOpen}
-        getCheckInDisplayText={getCheckInDisplayText}
-        renderCustomCalendar={renderCustomCalendar}
-        checkInRangeOptions={CHECK_IN_RANGE_OPTIONS}
         compareOptions={COMPARE_OPTIONS}
         compsetOptions={COMPSET_OPTIONS}
       />
@@ -808,6 +805,7 @@ export default function OTARankingsPage() {
             {/* Main Content Views */}
             {viewMode === "Rank" ? (
               <OTARankView
+                key={`rank-${viewMode}-${startDate?.getTime()}-${endDate?.getTime()}`}
                 cardRef={cardRef}
                 selectedChannelData={selectedChannelData}
                 selectedProperty={selectedProperty}
@@ -824,19 +822,29 @@ export default function OTARankingsPage() {
                 handleDownloadImage={handleDownloadImage}
                 handleDownloadCSV={handleDownloadCSV}
                 formatTableDate={formatTableDate}
-                isLoading={isLoadingRankTrends}
+                isLoading={isLoadingRankTrends || isTabSwitching}
               />
             ) : (
               viewMode === "Reviews" && (
-                <OTAReviewsView
-                  cardRef={cardRef}
-                  selectedChannelData={selectedChannelData}
-                  selectedChannel={selectedChannel}
-                  selectedProperty={selectedProperty}
-                  reviewsViewMode={reviewsViewMode}
-                  setReviewsViewMode={setReviewsViewMode}
-                  reviewsData={reviewsData}
-                />
+                <>
+                  {console.log('Passing data to OTAReviewsView:', {
+                    otaRankingDataLength: otaRankingData?.length || 0,
+                    otaRankingData: otaRankingData,
+                    selectedProperty: selectedProperty?.hmid
+                  })}
+                  <OTAReviewsView
+                    key={`reviews-${viewMode}-${startDate?.getTime()}-${endDate?.getTime()}`}
+                    cardRef={cardRef}
+                    selectedChannelData={selectedChannelData}
+                    selectedChannel={selectedChannel}
+                    selectedProperty={selectedProperty}
+                    reviewsViewMode={reviewsViewMode}
+                    setReviewsViewMode={setReviewsViewMode}
+                    reviewsData={reviewsData}
+                    otaRankingData={otaRankingData}
+                    isLoading={isLoadingReviews || isTabSwitching}
+                  />
+                </>
               )
             )}
           </div>

@@ -57,6 +57,12 @@ function OTARankView({
   formatTableDate,
   isLoading = false
 }: OTARankViewProps) {
+  console.log('OTARankView rendered with data:', {
+    rankingTrendsDataLength: rankingTrendsData?.length || 0,
+    rankingTrendsData: rankingTrendsData,
+    isLoading
+  })
+  
   if (isLoading) {
     return (
       <Card className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 mb-6">
@@ -179,8 +185,9 @@ function OTARankView({
         {/* Ranking Content - Graph or Table */}
         {rankViewMode === "graph" ? (
           <div style={{ height: '470px' }} className="[&_.recharts-wrapper]:mt-3 [&_.recharts-legend-wrapper]:!bottom-[54px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={rankingTrendsData} margin={{ top: 20, right: 40, left: 30, bottom: 30 }}>
+            {rankingTrendsData && rankingTrendsData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={rankingTrendsData} margin={{ top: 20, right: 40, left: 30, bottom: 30 }}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-15 dark:opacity-10" stroke="#e5e7eb" />
                 <XAxis
                   dataKey="date"
@@ -318,7 +325,14 @@ function OTARankView({
                   }}
                 />
               </LineChart>
-            </ResponsiveContainer>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">No ranking data available for the selected date range.</p>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           // Table View with Reviews styling and sticky columns
