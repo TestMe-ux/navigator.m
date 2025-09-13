@@ -224,14 +224,14 @@ function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
     debugger
     const hotelADRStatus = weekData.find(item => item.hotelADRStatus === "O") ? "O" : weekData.find(item => item.hotelADRStatus === "C") ? "C" : "--";
     const compRateStaus = weekData.find(item => item.compRateStaus === "O") ? "O" : weekData.find(item => item.compRateStaus === "C") ? "C" : "--";
-    const avgMyPrice = Math.round(weekData.reduce((sum, item) => sum + item.hotelADR, 0) / weekData.filter(x => x.hotelADR !== 0).length)
+    const avgMyPrice = weekData.reduce((sum, item) => sum + item.hotelADR, 0) / weekData.filter(x => x.hotelADR !== 0).length
     const avgMarketADR = Math.round(weekData.reduce((sum, item) => sum + item.marketADR, 0) / weekData.length)
     const avgDemandLevel = Math.round(weekData.reduce((sum, item) => sum + item.demandLevel, 0) / weekData.length)
     const avgAirTravellers = Math.round(weekData.reduce((sum, item) => sum + item.airTravellers, 0) / weekData.length)
     const avgDemandIndex = Math.round(weekData.reduce((sum, item) => sum + item.demandIndex, 0) / weekData.length)
 
     // Calculate average variances
-    const avgMycompRate = Math.round(weekData.reduce((sum, item) => sum + item.compRate, 0) / weekData.filter(x => x.compRate !== 0).length)
+    const avgMycompRate = weekData.reduce((sum, item) => sum + item.compRate, 0) / weekData.filter(x => x.compRate !== 0).length
     const avgMyPriceVariance = ((avgMyPrice - avgMycompRate) * 100 / avgMycompRate).toFixed(2)
     const avgMarketADRVariance = Math.round(weekData.reduce((sum, item) => sum + item.marketADRVariance, 0) / weekData.length)
     const avgAirTravellersVariance = Math.round(weekData.reduce((sum, item) => sum + item.airTravellersVariance, 0) / weekData.length)
@@ -242,7 +242,7 @@ function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
       dateFormatted: `Week of ${format(weekStart, "MMM d")}`,
       demandLevel: avgDemandLevel,
       demandIndex: avgDemandIndex,
-      hotelADR: avgMyPrice,
+      hotelADR:Math.round(avgMyPrice),
       marketADR: avgMarketADR,
       airTravellers: avgAirTravellers,
       myPriceVariance: avgMyPriceVariance,
@@ -253,7 +253,7 @@ function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
       compRateStaus,
       inboundAirline: avgInboundAirlineData,
       "Demand level": avgDemandLevel,
-      "My ADR": avgMyPrice,
+      "My ADR": Math.round(avgMyPrice),
       "Market ADR": avgMarketADR,
       "Air Travellers": avgAirTravellers,
     }
@@ -281,14 +281,14 @@ function aggregateDataByMonth(dailyData: any[], startDate: Date, endDate: Date) 
     // Calculate averages for the month
     const hotelADRStatus = monthData.find(item => item.hotelADRStatus === "O") ? "O" : monthData.find(item => item.hotelADRStatus === "C") ? "C" : "--";
     const compRateStaus = monthData.find(item => item.compRateStaus === "O") ? "O" : monthData.find(item => item.compRateStaus === "C") ? "C" : "--";
-    const avgMyPrice = Math.round(monthData.reduce((sum, item) => sum + item.hotelADR, 0) / monthData.filter(x => x.hotelADR !== 0).length)
+    const avgMyPrice = monthData.reduce((sum, item) => sum + item.hotelADR, 0) / monthData.filter(x => x.hotelADR !== 0).length
     const avgMarketADR = Math.round(monthData.reduce((sum, item) => sum + item.marketADR, 0) / monthData.length)
     const avgDemandLevel = Math.round(monthData.reduce((sum, item) => sum + item.demandLevel, 0) / monthData.length)
     const avgAirTravellers = Math.round(monthData.reduce((sum, item) => sum + item.airTravellers, 0) / monthData.length)
     const avgDemandIndex = Math.round(monthData.reduce((sum, item) => sum + item.demandIndex, 0) / monthData.length)
 
     // Calculate average variances
-    const avgMycompRate = Math.round(monthData.reduce((sum, item) => sum + item.compRate, 0) / monthData.filter(x => x.hotelADR !== 0).length)
+    const avgMycompRate = monthData.reduce((sum, item) => sum + item.compRate, 0) / monthData.filter(x => x.compRate !== 0).length
     const avgMyPriceVariance = ((avgMyPrice - avgMycompRate) * 100 / avgMycompRate).toFixed(2)
     const avgMarketADRVariance = Math.round(monthData.reduce((sum, item) => sum + item.marketADRVariance, 0) / monthData.length)
     const avgAirTravellersVariance = Math.round(monthData.reduce((sum, item) => sum + item.airTravellersVariance, 0) / monthData.length)
@@ -299,7 +299,7 @@ function aggregateDataByMonth(dailyData: any[], startDate: Date, endDate: Date) 
       dateFormatted: format(monthStart, "MMM yyyy"),
       demandLevel: avgDemandLevel,
       demandIndex: avgDemandIndex,
-      hotelADR: avgMyPrice,
+      hotelADR: Math.round(avgMyPrice),
       marketADR: avgMarketADR,
       airTravellers: avgAirTravellers,
       myPriceVariance: avgMyPriceVariance,
@@ -310,7 +310,7 @@ function aggregateDataByMonth(dailyData: any[], startDate: Date, endDate: Date) 
       compRateStaus: compRateStaus,
       inboundAirline: avgInboundAirlineData,
       "Demand level": avgDemandLevel,
-      "My ADR": avgMyPrice,
+      "My ADR": Math.round(avgMyPrice),
       "Market ADR": avgMarketADR,
       "Air Travellers": avgAirTravellers,
     }
