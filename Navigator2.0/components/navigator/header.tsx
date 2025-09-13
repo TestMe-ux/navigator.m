@@ -154,14 +154,14 @@ export function Header() {
       <div className="flex h-16 items-center justify-between px-1 sm:px-2 lg:px-3">
 
         {/* Left Side - Application Branding */}
-        <div className="flex-shrink-0 flex items-center gap-3 justify-center pl-1">
+        <Link href="/login" className="flex-shrink-0 flex items-center gap-3 justify-center pl-1 hover:opacity-80 transition-opacity">
           <div className="p-2 rounded-lg bg-white/10 backdrop-blur-sm">
             <Activity className="w-5 h-5 text-white" />
           </div>
           <div className="hidden sm:block">
             <h1 className="text-lg font-bold text-white">Navigator</h1>
           </div>
-        </div>
+        </Link>
 
         {/* Desktop Navigation Menu */}
         <nav className="hidden md:flex items-center space-x-1 flex-grow justify-center">
@@ -330,14 +330,47 @@ export function Header() {
 
 
           {/* User Profile */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-blue-100 hover:text-white hover:bg-white/10 transition-all duration-200"
-          >
-            <UserCircle className="h-5 w-5" />
-            <span className="sr-only">User Profile</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-blue-100 hover:text-white hover:bg-white/10 transition-all duration-200"
+              >
+                <UserCircle className="h-5 w-5" />
+                <span className="sr-only">User Profile</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 shadow-brand-lg min-w-[200px]"
+              align="end"
+            >
+              <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 mb-1">
+                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Namrata Jain</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">namrata.jain@rategain.com</p>
+              </div>
+              <DropdownMenuItem asChild>
+                <Link
+                  href="/my-account"
+                  className="block px-4 py-3 text-sm text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white dark:hover:bg-white transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <UserCircle className="h-4 w-4 transition-colors" />
+                    My Account
+                  </div>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-white dark:hover:bg-white cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  Logout
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Mobile Menu Toggle */}
           <div className="md:hidden">

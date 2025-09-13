@@ -83,6 +83,13 @@ const mainNavigationItems: NavigationItem[] = [
 // Support and configuration items - Bottom section
 const supportNavigationItems: NavigationItem[] = [
   {
+    id: "reports",
+    title: "Reports",
+    href: "/reports",
+    icon: FileText,
+    description: "View and manage reports"
+  },
+  {
     id: "settings",
     title: "Settings",
     href: "/settings",
