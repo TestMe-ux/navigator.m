@@ -7,10 +7,10 @@ import { toPng } from "html-to-image"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { getOTAChannels, getOTARankOnAllChannel, getOTARankTrends } from "@/lib/otarank"
 // Import the new components
-import { OTARankingsFilterBar } from "@/components/ota-rankings-filter-bar"
-import OTAChannelCards from "@/components/ota-channel-cards"
-import OTARankView from "@/components/ota-rank-view"
-import OTAReviewsView from "@/components/ota-reviews-view"
+import { OTARankingsFilterBar } from "@/components/ota/ota-rankings-filter-bar"
+import OTAChannelCards from "@/components/ota/ota-channel-cards"
+import OTARankView from "@/components/ota/ota-rank-view"
+import OTAReviewsView from "@/components/ota/ota-reviews-view"
 import { getActiveCompset } from "@/lib/compset"
 
 const COMPARE_OPTIONS = [
