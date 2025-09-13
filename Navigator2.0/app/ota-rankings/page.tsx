@@ -60,6 +60,7 @@ export default function OTARankingsPage() {
 
   // Overview-style channel dropdown state
   const [compsetData, setCompsetData] = useState<any>([])
+  const [filteredCompsetData, setFilteredCompsetData] = useState<any>([])
   // const [selectedOverviewChannels, setSelectedOverviewChannels] = useState<number[]>([])
   const didFetchChannels = useRef(false)
 
@@ -111,6 +112,36 @@ export default function OTARankingsPage() {
   useEffect(() => {
     didFetchChannels.current = false;
   }, [selectedProperty?.sid]);
+
+  // Filter compset data based on selected compset type
+  useEffect(() => {
+    if (!compsetData.length) {
+      setFilteredCompsetData([]);
+      return;
+    }
+
+    const isPrimary = compSet === "Primary Compset";
+    const filtered = compsetData.filter((property: any) =>
+      isPrimary ? !property.isSecondary : property.isSecondary
+    );
+
+    console.log('Filtering compset data:', {
+      compSet,
+      isPrimary,
+      totalProperties: compsetData.length,
+      filteredProperties: filtered.length,
+      filteredData: filtered
+    });
+
+    setFilteredCompsetData(filtered);
+
+    // Log the property names for better debugging
+    console.log('Filtered property names:', filtered.map((p: any) => ({
+      name: p.name,
+      propertyID: p.propertyID,
+      isSecondary: p.isSecondary
+    })));
+  }, [compsetData, compSet]);
 
   // Handle window resize for responsive text
   useEffect(() => {
@@ -246,13 +277,21 @@ export default function OTARankingsPage() {
     const otaRankTrendData: any[] = []
     const otaRankGraphData: any[] = []
 
+    // Get property IDs from filtered compset data
+    const allowedPropertyIds = filteredCompsetData.map((property: any) => property.propertyID);
+    console.log('Allowed property IDs for ranking data:', allowedPropertyIds);
+
     trendDataPerCheckin.forEach((trendDataPerCheckin) => {
       const otaRankDataForTrendData: any[] = []
       let flag = false
 
       trendDataPerCheckin.otaRankEntityCollection.forEach((data: any) => {
-        // Check if this property is the selected property or include all properties for comparison
-        flag = selectedProperty?.hmid === data.propertyID || true // Include all properties for now
+        // Check if this property is in the filtered compset data
+        const isPropertyAllowed = allowedPropertyIds.includes(data.propertyID);
+        const isSelectedProperty = selectedProperty?.hmid === data.propertyID;
+
+        // Include selected property and properties from filtered compset
+        flag = isSelectedProperty || isPropertyAllowed;
 
         if (flag) {
           data.checkInDate = new Date(data.checkInDate)
@@ -282,7 +321,12 @@ export default function OTARankingsPage() {
       if (b.propertyId === selectedProperty?.hmid) return 1
       return 0
     })
-    debugger;
+
+    console.log('Final ranking trend data properties:', sortedRankTrendData.map(rt => ({
+      hotelName: rt.hotelName,
+      propertyId: rt.propertyId,
+      channel: rt.channel
+    })));
     // Populate graph data with ranking information
     sortedRankTrendData.forEach((rankTrendData, i) => {
       const dataKey = rankTrendData?.propertyId === selectedProperty?.hmid ? 'myHotel' : `property${rankTrendData?.propertyId}`
@@ -328,15 +372,16 @@ export default function OTARankingsPage() {
 
     setOtaRankTrendsData(otaRankTrendData)
     setOtaRankGraphData(otaRankGraphData)
-  }, [selectedProperty?.sid, selectedChannel])
+  }, [selectedProperty?.sid, selectedChannel, filteredCompsetData])
 
   // Transform reviews trends data from API
   const transformReviewsTrendsData = useCallback((trendDataPerCheckin: any[]) => {
     const reviewsGraphData: any[] = []
 
     trendDataPerCheckin.forEach((trendDataPerCheckin) => {
-      // Process all data points for the selected property
+      // Process only data points for the selected property (my hotel)
       trendDataPerCheckin.otaRankEntityCollection?.forEach((data: any) => {
+        // Only include the selected property (my hotel) for reviews
         if (data.propertyID === selectedProperty?.hmid) {
           data.checkInDate = new Date(data.checkInDate)
 
@@ -347,7 +392,9 @@ export default function OTARankingsPage() {
             fullDate: format(data.checkInDate, 'yyyy-MM-dd'),
             reviewScore: data.score ? parseFloat(data.score) : 0,
             reviewCount: data.reviewCount || 0,
-            numberOfReviews: data.reviewCount || 0 // For chart compatibility
+            numberOfReviews: data.reviewCount || 0, // For chart compatibility
+            propertyId: data.propertyID,
+            hotelName: data.hotelName
           })
         }
       })
@@ -355,6 +402,12 @@ export default function OTARankingsPage() {
 
     // Sort by date
     reviewsGraphData.sort((a, b) => (a.checkInDate - b.checkInDate))
+
+    console.log('Reviews data (My Hotel only):', reviewsGraphData.map(rd => ({
+      hotelName: rd.hotelName,
+      propertyId: rd.propertyId,
+      reviewScore: rd.reviewScore
+    })));
 
     setOtaReviewsData(reviewsGraphData)
   }, [selectedProperty?.hmid])
@@ -397,7 +450,7 @@ export default function OTARankingsPage() {
         isActive: channel.isActive
       }
     })
-  }, [otaChannels, otaRankingData, getCompareText])
+  }, [otaChannels, otaRankingData, getCompareText, selectedProperty?.hmid])
 
   // Create channels with dynamic compare text
   const channels = useMemo(() => transformChannelsData(), [transformChannelsData])
@@ -702,7 +755,7 @@ export default function OTARankingsPage() {
       toPng(cardRef.current)
         .then((dataUrl) => {
           const link = document.createElement('a')
-          link.download = `ota-rankings-${rankViewMode}.png`
+          link.download = `OTA_Ranking_${selectedProperty?.name}_${format(new Date(), 'yyyyMMddHHmmss')}.png`
           link.href = dataUrl
           link.click()
         })
@@ -715,7 +768,7 @@ export default function OTARankingsPage() {
   const handleDownloadCSV = useCallback(() => {
     debugger;
     const csvData = rankingTrendsData.map(item => {
-      const row: any = { Date: item.date }
+      const row: any = { Date: item.date, Channel: selectedChannelData?.name || selectedChannel }
       availableHotelLines.forEach(hotel => {
         if (legendVisibility[hotel.dataKey]) {
           row[hotel.name] = (item as any)[hotel.dataKey]

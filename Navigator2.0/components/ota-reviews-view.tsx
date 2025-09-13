@@ -9,6 +9,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tool
 import { BarChart3, Table, Download, Info, X } from "lucide-react"
 import { toPng } from "html-to-image"
 import { cn } from "@/lib/utils"
+import { format } from "date-fns"
 
 interface OTAReviewsViewProps {
   cardRef: React.RefObject<HTMLDivElement>
@@ -70,7 +71,12 @@ function OTAReviewsView({
     )
   }
   // Use fallback data if no real data is available
-  const displayData = otaRankingData && otaRankingData.length > 0 ? otaRankingData.flat().filter(x => x.otaId.toString() === selectedChannelData.id) : []
+  const displayData = otaRankingData && otaRankingData.length > 0 ? otaRankingData.flat().filter(x => x.otaId.toString() === selectedChannelData.id).toSorted((a, b) => {
+    if (a.intermediateProperty === "Sub" && b.intermediateProperty !== "Sub") return -1;
+    if (a.intermediateProperty !== "Sub" && b.intermediateProperty === "Sub") return 1;
+    // fallback sort (you can replace this with another field if needed)
+    return b.intermediateProperty - a.intermediateProperty;
+  }) : []
   return (
     <Card className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 mb-6">
       <CardHeader className="p-6 pb-2">
@@ -152,12 +158,12 @@ function OTAReviewsView({
               </TooltipProvider>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => {
-                  const element = reviewsViewMode === "graph" ? document.getElementById('reviews-chart') : cardRef.current
+                  const element = reviewsViewMode === "graph" ? document.getElementById('reviews-chart') : document.getElementById('reviews-table')
                   if (element) {
                     toPng(element)
                       .then((dataUrl) => {
                         const link = document.createElement('a')
-                        link.download = `reviews-${reviewsViewMode}.png`
+                        link.download = `reviews-trends_${selectedProperty?.name}_${format(new Date(), 'yyyyMMddHHmmss')}.png`
                         link.href = dataUrl
                         link.click()
                       })
@@ -168,6 +174,7 @@ function OTAReviewsView({
                 }}>Export as Image</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => {
                   if (reviewsViewMode === "graph") {
+                    // Export graph data (reviews trends over time)
                     const csvData = reviewsData.map(item => ({
                       Week: item.week,
                       'Review Score': item.reviewScore,
@@ -177,19 +184,55 @@ function OTAReviewsView({
                     const headers = Object.keys(csvData[0])
                     const csvContent = [
                       headers.join(','),
-                      ...csvData.map(row => headers.map(header => row[header as keyof typeof row]).join(','))
+                      ...csvData.map(row => headers.map(header => `"${row[header as keyof typeof row]}"`).join(','))
                     ].join('\n')
 
                     const blob = new Blob([csvContent], { type: 'text/csv' })
                     const url = window.URL.createObjectURL(blob)
                     const link = document.createElement('a')
                     link.href = url
-                    link.download = 'reviews-trends.csv'
+                    link.download = `reviews-trends_${selectedProperty?.name}_${format(new Date(), 'yyyyMMddHHmmss')}.csv`
                     link.click()
                     window.URL.revokeObjectURL(url)
                   } else {
-                    // Handle table CSV export here if needed
-                    console.log('Table CSV export')
+                    // Export table data (hotel rankings)
+                    const csvData = displayData.map((hotel, index) => {
+                      const isMyHotel = hotel.propertyID === selectedProperty?.hmid
+                      const maxScore = Math.max(...displayData.map(h => parseFloat(h.score) || 0))
+                      const minScore = Math.min(...displayData.map(h => parseFloat(h.score) || 0))
+                      const isBest = parseFloat(hotel.score) === maxScore
+                      const isWorst = parseFloat(hotel.score) === minScore
+                      
+                      return {
+                        'Hotel Name': hotel.hotelName,
+                        'Review Score': hotel.score,
+                        'Number of Reviews': hotel.reviewCount?.toLocaleString() || 'N/A',
+                        'Rank': hotel.otaRank > 500 ? '500+' : `${hotel.otaRank}`,
+                        // 'Is My Hotel': isMyHotel ? 'Yes' : 'No',
+                        'Performance': isBest ? 'Best' : isWorst ? 'Worst' : '',
+                        'Channel': selectedChannelData?.name || selectedChannel,
+                        // 'Property ID': hotel.propertyID,
+                        // 'OTA ID': hotel.otaId
+                      }
+                    })
+
+                    if (csvData.length > 0) {
+                      const headers = Object.keys(csvData[0])
+                      const csvContent = [
+                        headers.join(','),
+                        ...csvData.map(row => headers.map(header => `"${row[header as keyof typeof row]}"`).join(','))
+                      ].join('\n')
+
+                      const blob = new Blob([csvContent], { type: 'text/csv' })
+                      const url = window.URL.createObjectURL(blob)
+                      const link = document.createElement('a')
+                      link.href = url
+                      link.download = `hotel-rankings_${selectedChannelData?.name || selectedChannel}_${selectedProperty?.name}_${format(new Date(), 'yyyyMMddHHmmss')}.csv`
+                      link.click()
+                      window.URL.revokeObjectURL(url)
+                    } else {
+                      console.log('No data available for CSV export')
+                    }
                   }
                 }}>Export as CSV</DropdownMenuItem>
               </DropdownMenuContent>
@@ -199,7 +242,7 @@ function OTAReviewsView({
       </CardHeader>
       <CardContent className="px-6 pt-1 pb-0">
         {reviewsViewMode === "table" ? (
-          <div style={{ height: '400px' }} className="mt-3 mb-6">
+          <div style={{ height: '400px',backgroundColor:"white" }} className="mt-3 mb-6" id="reviews-table" >
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
@@ -306,7 +349,7 @@ function OTAReviewsView({
             )}
           </div>
         ) : (
-          <div id="reviews-chart" className="mt-1" style={{ height: '440px' }}>
+          <div id="reviews-chart" className="mt-1" style={{ height: '440px', backgroundColor: 'white' }}>
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">

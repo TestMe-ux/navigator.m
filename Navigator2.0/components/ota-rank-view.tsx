@@ -350,7 +350,7 @@ function OTARankView({
                         </th>
                         {/* Sticky My Hotel Column */}
                         <th className="sticky left-24 z-30 bg-blue-50 text-right py-1.5 pl-2 pr-4 font-semibold text-xs text-muted-foreground border-r border-gray-200">
-                          {selectedProperty?.name || 'Alhambra Hotel'}
+                          {selectedProperty?.name}
                           <div className="text-xs text-muted-foreground font-normal mt-0.5">Rank</div>
                         </th>
                         {/* Competitor Columns */}
