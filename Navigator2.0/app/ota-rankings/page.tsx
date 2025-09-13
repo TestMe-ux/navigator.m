@@ -5,14 +5,13 @@ import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleto
 import { format } from "date-fns"
 import { toPng } from "html-to-image"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
-import { getChannels } from "@/lib/channels"
 import { getOTAChannels, getOTARankOnAllChannel, getOTARankTrends } from "@/lib/otarank"
-
 // Import the new components
 import { OTARankingsFilterBar } from "@/components/ota-rankings-filter-bar"
 import OTAChannelCards from "@/components/ota-channel-cards"
 import OTARankView from "@/components/ota-rank-view"
 import OTAReviewsView from "@/components/ota-reviews-view"
+import { getActiveCompset } from "@/lib/compset"
 
 const COMPARE_OPTIONS = [
   { id: "last-1-week", label: "Last 1 Week" },
@@ -60,7 +59,7 @@ export default function OTARankingsPage() {
   const [selectedChannel, setSelectedChannel] = useState("")
 
   // Overview-style channel dropdown state
-  // const [overviewChannelData, setOverviewChannelData] = useState<any>([])
+  const [compsetData, setCompsetData] = useState<any>([])
   // const [selectedOverviewChannels, setSelectedOverviewChannels] = useState<number[]>([])
   const didFetchChannels = useRef(false)
 
@@ -71,10 +70,10 @@ export default function OTARankingsPage() {
   // Filter dropdown states
   const [isCompareOpen, setIsCompareOpen] = useState(false)
   const [isCompsetOpen, setIsCompsetOpen] = useState(false)
-  
+
   // Tab switching loading state
   const [isTabSwitching, setIsTabSwitching] = useState(false)
-  
+
   // Ref to track current tab to prevent cross-tab API calls
   const currentTabRef = useRef<string | null>(null)
 
@@ -89,26 +88,24 @@ export default function OTARankingsPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // Fetch channel data for Overview-style dropdown
-  // useEffect(() => {
-  //   if (!selectedProperty?.sid || didFetchChannels.current) return;
+  useEffect(() => {
+    if (!selectedProperty?.sid || didFetchChannels.current) return;
 
-  //   didFetchChannels.current = true;
-  //   getChannels({ SID: selectedProperty?.sid })
-  //     .then((res) => {
-  //       if (res?.status && res?.body) {
-  //         // Add "All Channels" option
-  //         const allChannel = { cid: -1, name: "All Channels" };
-  //         const channelList = [allChannel, ...res.body];
+    didFetchChannels.current = true;
+    getActiveCompset({ SID: selectedProperty?.sid })
+      .then((res) => {
+        if (res?.status && res?.body) {
+          console.log(res);
+          setCompsetData(res.body);
+          // Set data
+          // setOverviewChannelData(channelList);
 
-  //         // Set data
-  //         setOverviewChannelData(channelList);
-
-  //         // Set selected channels as array of cids (default to all)
-  //         setSelectedOverviewChannels(channelList.map(c => c.cid));
-  //       }
-  //     })
-  //     .catch((err) => console.error(err));
-  // }, [selectedProperty?.sid]);
+          // Set selected channels as array of cids (default to all)
+          // setSelectedOverviewChannels(channelList.map(c => c.cid));
+        }
+      })
+      .catch((err) => console.error(err));
+  }, [selectedProperty?.sid]);
 
   // Reset channel fetch when property changes
   useEffect(() => {
@@ -194,10 +191,10 @@ export default function OTARankingsPage() {
   useEffect(() => {
     // Set loading state when switching tabs
     setIsTabSwitching(true)
-    
+
     // Update the current tab ref
     currentTabRef.current = viewMode
-    
+
     // Clear data immediately when switching tabs
     if (viewMode === "Reviews") {
       // Clear rank data aggressively
@@ -208,7 +205,7 @@ export default function OTARankingsPage() {
         setOtaRankTrendsData([])
         setOtaRankGraphData([])
       }, 0)
-      
+
       // Set to past dates for Reviews mode (Last 30 Days)
       const today = new Date()
       const thirtyDaysAgo = new Date(today.getTime() - 29 * 24 * 60 * 60 * 1000)
@@ -225,7 +222,7 @@ export default function OTARankingsPage() {
       setTimeout(() => {
         setOtaReviewsData([])
       }, 0)
-      
+
       // Set to future dates for Rank mode (Next 30 Days)
       const today = new Date()
       const thirtyDaysFromNow = new Date(today.getTime() + 29 * 24 * 60 * 60 * 1000)
@@ -236,7 +233,7 @@ export default function OTARankingsPage() {
       setStartDate(today)
       setEndDate(thirtyDaysFromNow)
     }
-    
+
     // Clear loading state after a short delay to allow data to clear
     setTimeout(() => {
       setIsTabSwitching(false)
@@ -342,9 +339,9 @@ export default function OTARankingsPage() {
       trendDataPerCheckin.otaRankEntityCollection?.forEach((data: any) => {
         if (data.propertyID === selectedProperty?.hmid) {
           data.checkInDate = new Date(data.checkInDate)
-          
+
           // Create a new data point for each date
-          reviewsGraphData.push({ 
+          reviewsGraphData.push({
             checkInDate: data.checkInDate.getTime(),
             date: format(data.checkInDate, 'MMM d'),
             fullDate: format(data.checkInDate, 'yyyy-MM-dd'),
@@ -358,7 +355,7 @@ export default function OTARankingsPage() {
 
     // Sort by date
     reviewsGraphData.sort((a, b) => (a.checkInDate - b.checkInDate))
-    
+
     setOtaReviewsData(reviewsGraphData)
   }, [selectedProperty?.hmid])
 
@@ -444,13 +441,13 @@ export default function OTARankingsPage() {
       otaRankGraphDataLength: otaRankGraphData.length,
       otaRankGraphData: otaRankGraphData
     })
-    
+
     // Only return data if we're in Rank mode and have data
     if (viewMode !== "Rank" || otaRankGraphData.length === 0) {
       console.log('Returning empty array for ranking trends data')
       return []
     }
-    
+
     // Transform API data to match the expected format for charts
     const transformedData = otaRankGraphData.map((item, index) => {
       const date = new Date(item.checkInDate)
@@ -475,7 +472,7 @@ export default function OTARankingsPage() {
 
       return dataObject
     })
-    
+
     console.log('Transformed ranking trends data:', transformedData)
     return transformedData
   }, [otaRankGraphData, viewMode])
@@ -487,20 +484,20 @@ export default function OTARankingsPage() {
       otaReviewsDataLength: otaReviewsData.length,
       otaReviewsData: otaReviewsData
     })
-    
+
     // Only return data if we're in Reviews mode and have data
     if (viewMode !== "Reviews" || otaReviewsData.length === 0) {
       console.log('Returning empty array for reviews data')
       return []
     }
-    
+
     // Transform API data to match the expected format for charts
     const transformedData = otaReviewsData.map((item) => ({
       week: item.date, // Use date as week label
       reviewScore: item.reviewScore,
       numberOfReviews: item.numberOfReviews
     }))
-    
+
     console.log('Transformed reviews data:', transformedData)
     return transformedData
   }, [otaReviewsData, viewMode])
@@ -716,31 +713,31 @@ export default function OTARankingsPage() {
   }, [rankViewMode])
 
   const handleDownloadCSV = useCallback(() => {
-    if (rankViewMode === "graph") {
-      const csvData = rankingTrendsData.map(item => {
-        const row: any = { Date: item.date }
-        availableHotelLines.forEach(hotel => {
-          if (legendVisibility[hotel.dataKey]) {
-            row[hotel.name] = (item as any)[hotel.dataKey]
-          }
-        })
-        return row
+    debugger;
+    const csvData = rankingTrendsData.map(item => {
+      const row: any = { Date: item.date }
+      availableHotelLines.forEach(hotel => {
+        if (legendVisibility[hotel.dataKey]) {
+          row[hotel.name] = (item as any)[hotel.dataKey]
+        }
       })
+      return row
+    })
 
-      const headers = Object.keys(csvData[0])
-      const csvContent = [
-        headers.join(','),
-        ...csvData.map(row => headers.map(header => row[header as keyof typeof row]).join(','))
-      ].join('\n')
+    const headers = Object.keys(csvData[0])
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => headers.map(header => row[header as keyof typeof row]).join(','))
+    ].join('\n')
 
-      const blob = new Blob([csvContent], { type: 'text/csv' })
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = 'ota-rankings.csv'
-      link.click()
-      window.URL.revokeObjectURL(url)
-    }
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `OTA_Ranking_${selectedProperty?.name}_${format(new Date(), 'yyyyMMddHHmmss')}.csv`
+    link.click()
+    window.URL.revokeObjectURL(url)
+
   }, [rankViewMode, rankingTrendsData, availableHotelLines, legendVisibility])
 
   // Format table date helper

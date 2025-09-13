@@ -86,6 +86,7 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
   }, []) // Empty dependency - runs only once on mount
 
   const handleDateSelect = (date: Date) => {
+    debugger
     if (!selectedStartDate || selectedEndDate) {
       setSelectedStartDate(date)
       setSelectedEndDate(undefined)
@@ -314,7 +315,7 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
       const daysDiff = Math.round((selectedEndDate.getTime() - selectedStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
 
       // Check if it matches common patterns
-      if (isSameDay(selectedStartDate, today)) {
+      if (isSameDay(selectedStartDate, today) && mode !== "customRange") {
         if (daysDiff === 7) return `Next 7 Days • ${dateRangeText}`
         if (daysDiff === 14) return `Next 14 Days • ${dateRangeText}`
         if (daysDiff === 30) return `Next 30 Days • ${dateRangeText}`
