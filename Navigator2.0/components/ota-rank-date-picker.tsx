@@ -25,19 +25,19 @@ import localStorageService from "@/lib/localstorage"
 
 type DateMode = "next7days" | "next14days" | "next30days" | "customRange"
 
-interface EnhancedDatePickerProps {
+interface OtaRankDatePickerProps {
   startDate?: Date
   endDate?: Date
-  onChange?: (startDate: Date | undefined, endDate: Date | undefined) => void
+  onChange?: (startDate: Date | null, endDate: Date | null) => void
   className?: string
 }
 
-export function EnhancedDatePicker({ startDate, endDate, onChange, className }: EnhancedDatePickerProps) {
-  // Initialize with Next 7 Days by default
+export function OtaRankDatePicker({ startDate, endDate, onChange, className }: OtaRankDatePickerProps) {
+  // Initialize with Next 30 Days by default
   const getDefaultDates = () => {
     const today = new Date()
-    const sevenDaysFromNow = addDays(today, 6)
-    return { start: today, end: sevenDaysFromNow }
+    const thirtyDaysFromNow = addDays(today, 29)
+    return { start: today, end: thirtyDaysFromNow }
   }
 
   const defaultDates = getDefaultDates()
@@ -48,26 +48,25 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
     endDate || defaultDates.end
   )
   const [currentMonth, setCurrentMonth] = React.useState<Date>(selectedStartDate || new Date())
-  const [mode, setMode] = React.useState<DateMode>("next7days")
-  const [previousMode, setPreviousMode] = React.useState<DateMode>("next7days")
+  const [mode, setMode] = React.useState<DateMode>("next30days")
+  const [previousMode, setPreviousMode] = React.useState<DateMode>("next30days")
   const [isOpen, setIsOpen] = React.useState(false)
 
   // Initialize with next 7 days if no dates provided
   React.useEffect(() => {
-    debugger;
     if (!startDate && !endDate) {
       // Ensure Next 7 Days is selected and applied by default
       const today = new Date()
-      const sevenDaysFromNow = addDays(today, 6)
+      const sevenDaysFromNow = addDays(today, 29)
       setSelectedStartDate(today)
       setSelectedEndDate(sevenDaysFromNow)
-      setMode("next7days") // Explicitly set mode to next7days
-      localStorageService.set("preferredDateMode", "next7days")
+      setMode("next30days") // Explicitly set mode to next7days
+      localStorageService.set("otaRankPreferredDateMode", "next30days")
       setCurrentMonth(today)
       // Auto-apply the default selection
       onChange?.(today, sevenDaysFromNow)
     } else {
-      setMode(localStorageService.get("preferredDateMode") || "next7days")
+      setMode(localStorageService.get("otaRankPreferredDateMode") || "next30days")
       setSelectedStartDate(startDate)
       setSelectedEndDate(endDate)
       if (startDate) {
@@ -80,13 +79,12 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
   React.useEffect(() => {
     if (!startDate && !endDate) {
       const today = new Date()
-      const sevenDaysFromNow = addDays(today, 6)
+      const sevenDaysFromNow = addDays(today, 29)
       onChange?.(today, sevenDaysFromNow)
     }
   }, []) // Empty dependency - runs only once on mount
 
   const handleDateSelect = (date: Date) => {
-    debugger
     if (!selectedStartDate || selectedEndDate) {
       setSelectedStartDate(date)
       setSelectedEndDate(undefined)
@@ -105,7 +103,7 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
     }
 
     setMode(newMode)
-    localStorageService.set("preferredDateMode", newMode)
+    localStorageService.set("otaRankPreferredDateMode", newMode)
     const today = new Date()
     let newStartDate: Date | undefined
     let newEndDate: Date | undefined
@@ -143,7 +141,7 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
   }
 
   const handleApply = () => {
-    onChange?.(selectedStartDate, selectedEndDate)
+    onChange?.(selectedStartDate || null, selectedEndDate || null)
     setIsOpen(false)
   }
 
@@ -192,10 +190,6 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
   ]
   const minDate = new Date();
   const maxDate = addYears(new Date(), 1);
-
-  // Navigation checks
-  // const canGoPrevMonth = () => ;
-  // const canGoNextMonth = () => !;
 
   const renderCalendarMonth = (monthDate: Date) => {
     const monthStart = startOfMonth(monthDate)
@@ -266,7 +260,6 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
               isWithinInterval(day, { start: selectedStartDate, end: selectedEndDate })
             const isToday = isSameDay(day, new Date())
 
-
             let rangeMin = minDate;
             let rangeMax = maxDate;
             if (selectedStartDate) {
@@ -293,7 +286,6 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
                   (isSelected || isInRange) && "hover:bg-blue-700 hover:text-white",
                 )}
                 onClick={() => handleDateSelect(day)}
-                // disabled={!isCurrentMonth && mode === "customRange"}
                 disabled={isDisabled}
               >
                 {format(day, "d")}
@@ -315,7 +307,7 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
       const daysDiff = Math.round((selectedEndDate.getTime() - selectedStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
 
       // Check if it matches common patterns
-      if (isSameDay(selectedStartDate, today) && mode !== "customRange") {
+      if (isSameDay(selectedStartDate, today)) {
         if (daysDiff === 7) return `Next 7 Days • ${dateRangeText}`
         if (daysDiff === 14) return `Next 14 Days • ${dateRangeText}`
         if (daysDiff === 30) return `Next 30 Days • ${dateRangeText}`

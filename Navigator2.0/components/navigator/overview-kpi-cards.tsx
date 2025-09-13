@@ -93,8 +93,6 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
   const parityBase = parityData?.otaViolationChannelRate?.overallWinMeetLoss.parityScore
 
   const parityBase_Comp = parityDataComp?.otaViolationChannelRate?.overallWinMeetLoss.parityScore
-
-  debugger;
   // Core revenue metrics
   const baseKPIs: KPIMetric[] = [
     {
@@ -138,7 +136,7 @@ function generateKPIData(startDate: Date | null, endDate: Date | null, parityDat
       value: indexOfSubscriber,
       previousValue: indexOfSubscriber_Comp,
       change: !!indexOfSubscriber_Comp ? ((indexOfSubscriber - indexOfSubscriber_Comp) / indexOfSubscriber_Comp) * 100 : 0, // Inverted for ranking
-      changeType: indexOfSubscriber >= indexOfSubscriber_Comp ? 'increase' : 'decrease',
+      changeType: indexOfSubscriber_Comp >= indexOfSubscriber ? 'increase' : 'decrease',
       changeVisible: (avgAllSubscriberStatus === "O" || avgAllSubscriberStatus === "C") && (avgAllSubscribertatus_Comp === "O" || avgAllSubscribertatus_Comp === "C") ? true : false,
       icon: Target,
       description: `Competitive positioning`,
