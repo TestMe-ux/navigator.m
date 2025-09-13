@@ -9,6 +9,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Eye, EyeOff, Activity, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { InputWithTooltip, ValidationHelpers } from "@/components/auth/field-tooltip"
+import { LocalStorageService } from "@/lib/localstorage"
+import { GetSIDListforUser } from "@/lib/login"
 
 /**
  * Login Form Component
@@ -32,6 +34,8 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [stayLoggedIn, setStayLoggedIn] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedHotel, setSelectedHotel] = useState<any>(null)
+  const [hotelOptions, setHotelOptions] = useState<any>([])
   const [errors, setErrors] = useState({
     email: "",
     password: "",
@@ -157,9 +161,9 @@ export function LoginForm() {
       password: ValidationHelpers.password(password),
       general: ""
     }
-    
+
     setErrors(newErrors)
-    
+
     // Return true if no errors
     return !newErrors.email && !newErrors.password
   }
@@ -170,32 +174,50 @@ export function LoginForm() {
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Validate all fields
     if (!validateForm()) {
       return
     }
 
     setIsLoading(true)
-    
+
     try {
-      // Simulate API call - fast response
-      await new Promise(resolve => setTimeout(resolve, 300))
-      
-      console.log('Login attempt:', {
-        email,
-        stayLoggedIn,
-        timestamp: new Date().toISOString()
-      })
-      
-      // In real implementation, redirect to dashboard on success
-      window.location.href = '/'
-      
+      // Import login functions dynamically to avoid SSR issues
+      const { Login, handleSuccessfulLogin, handleLoginError } = await import('@/lib/login')
+
+      // Prepare login data
+      const loginData = {
+        username: email,
+        password: password,
+        checkedStayLoggedIn: stayLoggedIn
+      }
+
+
+      // Make API call with encrypted password
+      const response = await Login(loginData)
+
+      // Handle successful login
+      const loginSuccess = handleSuccessfulLogin(response, stayLoggedIn)
+
+      if (loginSuccess) {
+        // Redirect to dashboard on success
+        window.location.href = '/'
+      } else {
+        setErrors(prev => ({
+          ...prev,
+          general: "Login failed. Please check your credentials and try again."
+        }))
+      }
+
     } catch (error) {
       console.error('Login error:', error)
-      setErrors(prev => ({ 
-        ...prev, 
-        general: "Login failed. Please try again." 
+      // Import handleLoginError function
+      const { handleLoginError } = await import('@/lib/login')
+      const errorMessage = handleLoginError(error)
+      setErrors(prev => ({
+        ...prev,
+        general: errorMessage
       }))
     } finally {
       setIsLoading(false)
@@ -208,7 +230,32 @@ export function LoginForm() {
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword)
   }
+  const getSIDListforUser = () => {
+    debugger;
+    const userdetail = LocalStorageService.getUserDetails();
+    GetSIDListforUser({ UserID: userdetail?.userId })
+      .then((res) => {
+        if (res.status) {
+          debugger
+          LocalStorageService.setItem('Properties', res.body);
 
+          // Find Alhambra Hotel in the properties list, fallback to first property if not found
+          const alhambraHotel = res.body.find((property: any) =>
+            property.name && property.name.toLowerCase().includes('alhambra')
+          );
+          const defaultProperty = res.body[0];
+
+          LocalStorageService.setItem('SelectedProperty', defaultProperty);
+          setSelectedHotel(defaultProperty);
+          setHotelOptions(res.body);
+          window.location.href = '/'
+          // setotachannel(res.body);
+          // getOTARankOnAllChannels(res.body);
+          // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
+        }
+      })
+      .catch((err) => console.error(err));
+  }
   return (
     <div className="w-full space-y-6">
       {/* Login Form Card */}
@@ -246,10 +293,9 @@ export function LoginForm() {
                     setEmail(e.target.value)
                     clearFieldError("email") // Clear error when user starts typing
                   }}
-                  className={`h-12 px-4 text-base bg-transparent focus:bg-transparent hover:bg-transparent active:bg-transparent border border-white/30 focus:border-white/60 focus:outline-none rounded-lg transition-all placeholder:font-normal placeholder:text-gray-300 text-white font-semibold hover:border-white/40 ${
-                    errors.email ? "border-red-400/70 focus:border-red-400" : ""
-                  }`}
-                  style={{ 
+                  className={`h-12 px-4 text-base bg-transparent focus:bg-transparent hover:bg-transparent active:bg-transparent border border-white/30 focus:border-white/60 focus:outline-none rounded-lg transition-all placeholder:font-normal placeholder:text-gray-300 text-white font-semibold hover:border-white/40 ${errors.email ? "border-red-400/70 focus:border-red-400" : ""
+                    }`}
+                  style={{
                     backgroundColor: 'transparent',
                     WebkitBoxShadow: 'inset 0 0 0 1000px transparent',
                     MozBoxShadow: 'inset 0 0 0 1000px transparent',
@@ -282,10 +328,9 @@ export function LoginForm() {
                       setPassword(e.target.value)
                       clearFieldError("password") // Clear error when user starts typing
                     }}
-                    className={`h-12 px-4 pr-12 text-base bg-transparent focus:bg-transparent hover:bg-transparent active:bg-transparent border border-white/30 focus:border-white/60 focus:outline-none rounded-lg transition-all placeholder:font-normal placeholder:text-gray-300 text-white font-semibold hover:border-white/40 ${
-                      errors.password ? "border-red-400/70 focus:border-red-400" : ""
-                    }`}
-                    style={{ 
+                    className={`h-12 px-4 pr-12 text-base bg-transparent focus:bg-transparent hover:bg-transparent active:bg-transparent border border-white/30 focus:border-white/60 focus:outline-none rounded-lg transition-all placeholder:font-normal placeholder:text-gray-300 text-white font-semibold hover:border-white/40 ${errors.password ? "border-red-400/70 focus:border-red-400" : ""
+                      }`}
+                    style={{
                       backgroundColor: 'transparent',
                       WebkitBoxShadow: 'inset 0 0 0 1000px transparent',
                       MozBoxShadow: 'inset 0 0 0 1000px transparent',

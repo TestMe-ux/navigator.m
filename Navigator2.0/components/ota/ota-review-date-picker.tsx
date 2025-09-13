@@ -22,7 +22,7 @@ import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import localStorageService from "@/lib/localstorage"
+import {LocalStorageService} from "@/lib/localstorage"
 
 type DateMode = "last15days" | "last30days" | "customRange"
 
@@ -62,12 +62,12 @@ export function OtaReviewDatePicker({ startDate, endDate, onChange, className }:
       setSelectedStartDate(thirtyDaysAgo)
       setSelectedEndDate(today)
       setMode("last30days") // Explicitly set mode to last30days
-      localStorageService.set("otaReviewPreferredDateMode", "last30days")
+      LocalStorageService.setItem("otaReviewPreferredDateMode", "last30days")
       setCurrentMonth(thirtyDaysAgo)
       // Auto-apply the default selection
       onChange?.(thirtyDaysAgo, today)
     } else {
-      setMode(localStorageService.get("otaReviewPreferredDateMode") || "last30days")
+      setMode(LocalStorageService.getItem("otaReviewPreferredDateMode") || "last30days")
       setSelectedStartDate(startDate)
       setSelectedEndDate(endDate)
       if (startDate) {
@@ -104,7 +104,7 @@ export function OtaReviewDatePicker({ startDate, endDate, onChange, className }:
     }
 
     setMode(newMode)
-    localStorageService.set("otaReviewPreferredDateMode", newMode)
+    LocalStorageService.setItem("otaReviewPreferredDateMode", newMode)
     const today = new Date()
     let newStartDate: Date | undefined
     let newEndDate: Date | undefined

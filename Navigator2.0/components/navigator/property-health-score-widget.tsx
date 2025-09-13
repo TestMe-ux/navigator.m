@@ -6,7 +6,7 @@ import { ArrowDown, ArrowUp, AlertCircle, TrendingUp, DollarSign, Bed, Plane, Ma
 import { useCallback, useEffect, useRef, useState } from "react"
 import { getOTAChannels, getOTARankOnAllChannel, GetMasterActiveReviews } from "@/lib/otarank"
 import { useDateContext } from "../date-context"
-import localStorageService from "@/lib/localstorage"
+import {LocalStorageService} from "@/lib/localstorage"
 import { conevrtDateforApi } from "@/lib/utils"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 
@@ -204,7 +204,7 @@ const generateRevenueManagerInsights = (channels: ChannelData[]) => {
 }
 
 export function PropertyHealthScoreWidget(props: any) {
-  const selectedProperty: any = localStorageService.get('SelectedProperty')
+  const selectedProperty: any = LocalStorageService.getItem('SelectedProperty')
   const pendingFetchRef = useRef(false);
   const lastDatesRef = useRef<{ start: string | null; end: string | null }>({ start: null, end: null });
   const isFetchingRef = useRef(false); // avoid overlapping requests

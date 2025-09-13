@@ -10,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ChevronDown, UserCircle, Search, Bell, Menu, X, Activity } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { GetSIDListforUser } from "@/lib/login"
-import localStorageService from "@/lib/localstorage"
+import { LocalStorageService } from "@/lib/localstorage"
 
 /**
  * Navigation Configuration
@@ -49,37 +49,16 @@ export function Header() {
     if (didFetch.current || typeof window === 'undefined') return;
 
     didFetch.current = true;
-    const selectedProperty = localStorageService.get('SelectedProperty');
-    const properties = localStorageService.get('Properties');
+    const selectedProperty = LocalStorageService.getItem('SelectedProperty');
+    const properties = LocalStorageService.getItem('Properties');
     if (selectedProperty) {
       setSelectedHotel(selectedProperty);
       setHotelOptions(properties)
       return
     }
-    getSIDListforUser();
+
   }, [])
-  const getSIDListforUser = () => {
-    GetSIDListforUser({ UserID: 46248 })
-      .then((res) => {
-        if (res.status) {
-          localStorageService.set('Properties', res.body);
 
-          // Find Alhambra Hotel in the properties list, fallback to first property if not found
-          const alhambraHotel = res.body.find((property: any) =>
-            property.name && property.name.toLowerCase().includes('alhambra')
-          );
-          const defaultProperty =  res.body[0];
-
-          localStorageService.set('SelectedProperty', defaultProperty);
-          setSelectedHotel(defaultProperty);
-          setHotelOptions(res.body)
-          // setotachannel(res.body);
-          // getOTARankOnAllChannels(res.body);
-          // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
-        }
-      })
-      .catch((err) => console.error(err));
-  }
   /**
    * Determine active navigation tab based on current route
    * @returns {string} Active tab name
@@ -114,7 +93,7 @@ export function Header() {
   const handleHotelSelect = useCallback((hotel: any) => {
     try {
       setSelectedHotel(hotel);
-      localStorageService.set('SelectedProperty', hotel);
+      LocalStorageService.setItem('SelectedProperty', hotel);
       setHotelSearch("");
       console.log(`🏨 Hotel selected: ${hotel.name} (ID: ${hotel?.hmid})`);
 
@@ -362,7 +341,7 @@ export function Header() {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-white dark:hover:bg-white cursor-pointer">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2" onClick={() => { LocalStorageService.clear(); window.location.href = '/login' }}>
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                   </svg>

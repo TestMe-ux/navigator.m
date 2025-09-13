@@ -21,7 +21,7 @@ import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import localStorageService from "@/lib/localstorage"
+import {LocalStorageService} from "@/lib/localstorage"
 
 type DateMode = "next7days" | "next14days" | "next30days" | "customRange"
 
@@ -61,12 +61,12 @@ export function OtaRankDatePicker({ startDate, endDate, onChange, className }: O
       setSelectedStartDate(today)
       setSelectedEndDate(sevenDaysFromNow)
       setMode("next30days") // Explicitly set mode to next7days
-      localStorageService.set("otaRankPreferredDateMode", "next30days")
+      LocalStorageService.setItem("otaRankPreferredDateMode", "next30days")
       setCurrentMonth(today)
       // Auto-apply the default selection
       onChange?.(today, sevenDaysFromNow)
     } else {
-      setMode(localStorageService.get("otaRankPreferredDateMode") || "next30days")
+      setMode(LocalStorageService.getItem("otaRankPreferredDateMode") || "next30days")
       setSelectedStartDate(startDate)
       setSelectedEndDate(endDate)
       if (startDate) {
@@ -103,7 +103,7 @@ export function OtaRankDatePicker({ startDate, endDate, onChange, className }: O
     }
 
     setMode(newMode)
-    localStorageService.set("otaRankPreferredDateMode", newMode)
+    LocalStorageService.setItem("otaRankPreferredDateMode", newMode)
     const today = new Date()
     let newStartDate: Date | undefined
     let newEndDate: Date | undefined
