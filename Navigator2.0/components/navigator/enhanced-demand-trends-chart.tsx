@@ -242,7 +242,7 @@ function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
       dateFormatted: `Week of ${format(weekStart, "MMM d")}`,
       demandLevel: avgDemandLevel,
       demandIndex: avgDemandIndex,
-      hotelADR:Math.round(avgMyPrice),
+      hotelADR: Math.round(avgMyPrice),
       marketADR: avgMarketADR,
       airTravellers: avgAirTravellers,
       myPriceVariance: avgMyPriceVariance,
@@ -646,7 +646,7 @@ export function EnhancedDemandTrendsChart({ filter, events, holidaysData, demand
             row.demandIndex,
             row.demandVariance,
             row.hotelADRStatus === "O" ? row.hotelADR : row.hotelADRStatus === "C" ? "Sold Out" : "--",
-            row.compRateStaus === "O" ? row.myPriceVariance : row.compRateStaus === "C" ? "" : "--",
+            row.compRateStaus === "O" && row.hotelADRStatus === "O" ? row.myPriceVariance : (row.compRateStaus === "C" || row.hotelADRStatus === "C") ? "" : "--",
             row.marketADR,
             row.marketADRVariance
           ].join(',')

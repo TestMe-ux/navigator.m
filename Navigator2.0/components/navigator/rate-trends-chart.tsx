@@ -1186,8 +1186,6 @@ export function RateTrendsChart({ rateData, rateCompData }: any) {
 
           {/* Chart Container */}
           <div className="h-[384px] w-full">
-
-
             {!hasData ? (
               <div className="h-full bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse flex items-center justify-center">
                 <div className="text-center">
@@ -1237,20 +1235,27 @@ export function RateTrendsChart({ rateData, rateCompData }: any) {
                       pointerEvents: 'none'
                     }}
                   />
+
                   <Legend
                     verticalAlign="bottom"
-                    height={35}
                     iconType="line"
                     wrapperStyle={{
-                      paddingTop: "5px",
-                      marginBottom: "-10px",
-                      fontSize: "12px",
-                      cursor: "pointer",
-                      lineHeight: "1.6",
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: "18px",
-                      justifyContent: "center"
+                      ...(channelConfigs.length > 15
+                        ? {
+                          maxHeight: '80px',
+                          overflowY: 'auto',
+                          overflowX: 'hidden'
+                        }
+                        : { height: 35 }),
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      lineHeight: '1.6',
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '18px',
+                      justifyContent: 'center',
+                      paddingTop: '5px',
+                      marginBottom: '-10px'
                     }}
                     onClick={(event: any) => {
                       if (event.dataKey && typeof event.dataKey === 'string') {
