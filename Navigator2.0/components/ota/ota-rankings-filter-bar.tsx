@@ -3,8 +3,8 @@
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { OtaRankDatePicker } from "@/components/ota-rank-date-picker"
-import { OtaReviewDatePicker } from "@/components/ota-review-date-picker"
+import { OtaRankDatePicker } from "@/components/ota/ota-rank-date-picker"
+import { OtaReviewDatePicker } from "@/components/ota/ota-review-date-picker"
 import { Calendar, ChevronDown, Users } from "lucide-react"
 
 interface OTARankingsFilterBarProps {
