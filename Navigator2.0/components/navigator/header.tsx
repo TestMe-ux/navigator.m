@@ -59,7 +59,7 @@ export function Header() {
     getSIDListforUser();
   }, [])
   const getSIDListforUser = () => {
-    GetSIDListforUser({ UserID: 50986 })
+    GetSIDListforUser({ UserID: 46248 })
       .then((res) => {
         if (res.status) {
           localStorageService.set('Properties', res.body);
@@ -68,7 +68,7 @@ export function Header() {
           const alhambraHotel = res.body.find((property: any) =>
             property.name && property.name.toLowerCase().includes('alhambra')
           );
-          const defaultProperty = alhambraHotel || res.body[0];
+          const defaultProperty =  res.body[0];
 
           localStorageService.set('SelectedProperty', defaultProperty);
           setSelectedHotel(defaultProperty);
