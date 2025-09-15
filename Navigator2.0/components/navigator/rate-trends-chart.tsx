@@ -12,7 +12,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { TrendingUp, Filter, Download, ChevronDown, Eye, EyeOff, ArrowUp, ArrowDown, Minus, BarChart3, Star, Maximize2, Calendar, Triangle } from "lucide-react"
 import { useDateContext } from "@/components/date-context"
 import { format, eachDayOfInterval, differenceInDays, isSameDay, parseISO, subDays } from "date-fns"
-import localStorageService from "@/lib/localstorage"
+import {LocalStorageService} from "@/lib/localstorage"
 import { toPng } from "html-to-image";
 import { escapeCSVValue } from "@/lib/utils"
 import { useComparison } from "../comparison-context"
@@ -668,7 +668,7 @@ export function RateTrendsChart({ rateData, rateCompData }: any) {
   // Safely get selectedProperty on client side only
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const property = localStorageService.get('SelectedProperty')
+      const property = LocalStorageService.getItem('SelectedProperty')
       setSelectedProperty(property)
     }
   }, [])

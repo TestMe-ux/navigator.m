@@ -8,7 +8,7 @@ import { useDateContext } from "@/components/date-context"
 import { useComparison, ComparisonOption } from "@/components/comparison-context"
 import { format, differenceInDays } from "date-fns"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import localStorageService from "@/lib/localstorage"
+import {LocalStorageService} from "@/lib/localstorage"
 
 /**
  * Enhanced KPI Data Configuration
@@ -459,7 +459,7 @@ export function OverviewKpiCards(props: any) {
   // Safely get selectedProperty on client side only
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const property = localStorageService.get('SelectedProperty')
+      const property = LocalStorageService.getItem('SelectedProperty')
       setSelectedProperty(property)
     }
   }, [])

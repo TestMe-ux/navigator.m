@@ -54,7 +54,7 @@ export function OTARankingsFilterBar({
         <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
           <div className="max-w-7xl xl:max-w-none mx-auto">
             <div className="flex items-center justify-between py-4 gap-4">
-              
+
               {/* Left Section - Primary Filters */}
               <div className="flex items-center gap-4 flex-1 min-w-0">
 
@@ -80,7 +80,7 @@ export function OTARankingsFilterBar({
                     </ToggleGroupItem>
                   </ToggleGroup>
                 </div>
-        
+
                 {/* Date/Check-in Range Picker */}
                 <div className="shrink-0">
                   {viewMode === "Reviews" ? (
@@ -100,93 +100,96 @@ export function OTARankingsFilterBar({
 
                 {/* Compare with Dropdown - Only for Rank mode */}
                 {viewMode === "Rank" && (
-                <div className="shrink-0">
-                  <Popover open={isCompareOpen} onOpenChange={setIsCompareOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700 min-w-0 max-w-[160px]"
-                      >
-                        <Calendar className="w-4 h-4 shrink-0" />
-                        <span className="truncate max-w-[80px] font-semibold">
-                          Vs. {compareOptions.find(opt => opt.label === compareWith)?.label.replace('Last ', '') || "1 week"}
-                        </span>
-                        <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 z-[60]" align="start">
-                      <div className="flex">
-                        <div className="w-44 p-4">
-                          <h4 className="font-semibold text-sm text-gray-700 mb-3">Compare with</h4>
-                          <div className="space-y-1">
-                            {compareOptions.map((option) => (
-                              <Button
-                                key={option.id}
-                                variant={compareWith === option.label ? "default" : "ghost"}
-                                size="sm"
-                                className="w-full justify-start text-left h-auto py-2 px-3"
-                                onClick={() => {
-                                  setCompareWith(option.label)
-                                  setIsCompareOpen(false)
-                                }}
-                              >
-                                <span className="text-sm font-medium">
-                                  {option.label}
-                                </span>
-                              </Button>
-                            ))}
+                  <>
+                    <div className="shrink-0">
+                      <Popover open={isCompareOpen} onOpenChange={setIsCompareOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700 min-w-0 max-w-[160px]"
+                          >
+                            <Calendar className="w-4 h-4 shrink-0" />
+                            <span className="truncate max-w-[80px] font-semibold">
+                              Vs. {compareOptions.find(opt => opt.label === compareWith)?.label.replace('Last ', '') || "1 week"}
+                            </span>
+                            <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 z-[60]" align="start">
+                          <div className="flex">
+                            <div className="w-44 p-4">
+                              <h4 className="font-semibold text-sm text-gray-700 mb-3">Compare with</h4>
+                              <div className="space-y-1">
+                                {compareOptions.map((option) => (
+                                  <Button
+                                    key={option.id}
+                                    variant={compareWith === option.label ? "default" : "ghost"}
+                                    size="sm"
+                                    className="w-full justify-start text-left h-auto py-2 px-3"
+                                    onClick={() => {
+                                      setCompareWith(option.label)
+                                      setIsCompareOpen(false)
+                                    }}
+                                  >
+                                    <span className="text-sm font-medium">
+                                      {option.label}
+                                    </span>
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    {/* Compset Dropdown */}
+                    <div className="shrink-0">
+                      <Popover open={isCompsetOpen} onOpenChange={setIsCompsetOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700 min-w-0 max-w-[160px]"
+                          >
+                            <Users className="w-4 h-4 shrink-0" />
+                            <span className="truncate max-w-[80px] font-semibold">
+                              {compsetOptions.find(opt => opt.label === compSet)?.label.replace('Primary ', '') || "Primary"}
+                            </span>
+                            <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 z-[60]" align="start">
+                          <div className="flex">
+                            <div className="w-44 p-4">
+                              <h4 className="font-semibold text-sm text-gray-700 mb-3">Compset</h4>
+                              <div className="space-y-1">
+                                {compsetOptions.map((option) => (
+                                  <Button
+                                    key={option.id}
+                                    variant={compSet === option.label ? "default" : "ghost"}
+                                    size="sm"
+                                    className="w-full justify-start text-left h-auto py-2 px-3"
+                                    onClick={() => {
+                                      setCompSet(option.label)
+                                      setIsCompsetOpen(false)
+                                    }}
+                                  >
+                                    <span className="text-sm font-medium">
+                                      {option.label}
+                                    </span>
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </>
                 )}
 
-                {/* Compset Dropdown */}
-                <div className="shrink-0">
-                  <Popover open={isCompsetOpen} onOpenChange={setIsCompsetOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700 min-w-0 max-w-[160px]"
-                      >
-                        <Users className="w-4 h-4 shrink-0" />
-                        <span className="truncate max-w-[80px] font-semibold">
-                          {compsetOptions.find(opt => opt.label === compSet)?.label.replace('Primary ', '') || "Primary"}
-                        </span>
-                        <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 z-[60]" align="start">
-                      <div className="flex">
-                        <div className="w-44 p-4">
-                          <h4 className="font-semibold text-sm text-gray-700 mb-3">Compset</h4>
-                          <div className="space-y-1">
-                            {compsetOptions.map((option) => (
-                              <Button
-                                key={option.id}
-                                variant={compSet === option.label ? "default" : "ghost"}
-                                size="sm"
-                                className="w-full justify-start text-left h-auto py-2 px-3"
-                                onClick={() => {
-                                  setCompSet(option.label)
-                                  setIsCompsetOpen(false)
-                                }}
-                              >
-                                <span className="text-sm font-medium">
-                                  {option.label}
-                                </span>
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
+
 
               </div>
             </div>

@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Building2, MapPin, Plus, Minus, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { countryCoordinates } from "@/lib/countryCentroids";
-import localStorageService from "@/lib/localstorage"
+import {LocalStorageService} from "@/lib/localstorage"
 
 // Simple, reliable world map data
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
@@ -74,7 +74,7 @@ export function WorldMapVisualization({ demandAiAvg }: any) {
   // Safely get selectedProperty on client side only
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const property = localStorageService.get('SelectedProperty')
+      const property = LocalStorageService.getItem('SelectedProperty')
       setSelectedProperty(property)
     }
   }, [])

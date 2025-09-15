@@ -205,10 +205,11 @@ export default function OTARankingsPage() {
 
   // Get responsive compare text for channel widgets
   const getCompareText = useCallback(() => {
+    const comdays = compareWith == "Last 1 Week" ? 1 : 2;
     if (windowWidth <= 1280) {
-      return "vs 1 week" // Compact version for 1280px and below
+      return `vs ${comdays} week` // Compact version for 1280px and below
     }
-    return "vs. Last 1 week" // Full version for larger screens
+    return `vs. Last ${comdays} week` // Full version for larger screens
   }, [windowWidth])
 
 
@@ -430,9 +431,11 @@ export default function OTARankingsPage() {
       const rankingItem = channelRankingData?.[0]
 
       // Calculate average rank and other metrics
+      debugger;
+      const ratedays = compareWith == "Last 1 Week" ? true : false;
       const avgRank = rankingItem?.otaRank || 0
       const totalRankings = 500
-      const rankingChange = rankingItem?.changeInRank ? parseInt(rankingItem.changeInRank) : 0
+      const rankingChange = rankingItem?.changeInRank && (viewMode === "Rank" ? (ratedays ? rankingItem?.changeInRateDays <= 7 : rankingItem?.changeInRateDays > 7) : true) ? parseInt(rankingItem.changeInRank) : 0
       const reviewScore = rankingItem?.score ? parseFloat(rankingItem.score) : 0
 
       return {
@@ -450,7 +453,7 @@ export default function OTARankingsPage() {
         isActive: channel.isActive
       }
     })
-  }, [otaChannels, otaRankingData, getCompareText, selectedProperty?.hmid])
+  }, [otaChannels, otaRankingData, getCompareText, selectedProperty?.hmid, compareWith])
 
   // Create channels with dynamic compare text
   const channels = useMemo(() => transformChannelsData(), [transformChannelsData])

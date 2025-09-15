@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { GetTagInclusions, GetTagProducts } from "@/lib/mapping"
 import { useEffect } from "react"
-import localStorageService from "@/lib/localstorage"
+import {LocalStorageService} from "@/lib/localstorage"
 import { set } from "date-fns"
 
 
@@ -51,7 +51,7 @@ interface FilterSidebarProps {
 export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, losGuest }: FilterSidebarProps) {
   const [selectedProperty, setSelectedProperty] = React.useState<any>(() => {
     if (typeof window !== 'undefined') {
-      return localStorageService.get('SelectedProperty');
+      return LocalStorageService.getItem('SelectedProperty');
     }
     return null;
   });
