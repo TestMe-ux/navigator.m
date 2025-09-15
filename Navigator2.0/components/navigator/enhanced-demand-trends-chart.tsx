@@ -397,7 +397,7 @@ const CustomTooltip = ({ active, payload, label, datasetType, demandCurrencySymb
               <div className="flex items-center justify-between gap-6 min-w-fit">
                 <div className="whitespace-nowrap">
                   <span className="font-semibold text-muted-foreground">Market ADR:</span>{" "}
-                  <span className="font-bold text-red-600 dark:text-red-400">{demandCurrencySymbolState?.currencySymbol}{demandCurrencySymbolState?.ischatgptData ? (data["Market ADR"] * (demandCurrencySymbolState?.conversionRate ?? 1)).toFixed(0) : data["Market ADR"]}</span>
+                  <span className="font-bold text-red-600 dark:text-red-400"> {`\u200E ${demandCurrencySymbolState?.currencySymbol}\u200E`}{demandCurrencySymbolState?.ischatgptData ? (data["Market ADR"] * (demandCurrencySymbolState?.conversionRate ?? 1)).toFixed(0) : data["Market ADR"]}</span>
                 </div>
                 <span className={`font-bold ${getVarianceColor(data.marketADRVariance)} whitespace-nowrap flex-shrink-0`}>
                   {formatVariance(data.marketADRVariance)}
