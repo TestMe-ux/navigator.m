@@ -4,6 +4,7 @@ import { BarChart3, Calendar, Star, Wifi, Coffee, Utensils, Car, Dumbbell, Chevr
 import { useDateContext } from "@/components/date-context"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { EnhancedTableTooltip } from "./enhanced-table-tooltip"
+import { RateDetailModal } from "./rate-detail-modal"
 
 interface CalendarDay {
   date: number
@@ -128,12 +129,22 @@ interface RateTrendsTableProps {
   competitorsPerPage?: number
 }
 
-export function RateTrendsTable({ 
-  className, 
-  competitorStartIndex = 0, 
-  competitorsPerPage = 2 
+export function RateTrendsTable({
+  className,
+  competitorStartIndex = 0,
+  competitorsPerPage = 4
 }: RateTrendsTableProps) {
   const { startDate, endDate } = useDateContext()
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  
+  // Calculate dynamic column width based on rate values (further reduced for 4-competitor view)
+  const calculateRateColumnWidth = (rate: number) => {
+    const rateString = rate.toString()
+    if (rateString.length >= 4) return '62px' // For rates like 1000+ (further reduced)
+    if (rateString.length === 3) return '56px' // For rates like 100-999 (further reduced)
+    return '52px' // For rates like 10-99 (further reduced)
+  }
   
   // Generate calendar data based on selected date range
   const calendarData = useMemo(() => {
@@ -199,6 +210,32 @@ export function RateTrendsTable({
     window.URL.revokeObjectURL(url)
   }
 
+  const handleGraphClick = (date: Date) => {
+    setSelectedDate(date)
+    setIsModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setSelectedDate(null)
+  }
+
+  const handlePrevDay = () => {
+    if (selectedDate) {
+      const prevDay = new Date(selectedDate)
+      prevDay.setDate(prevDay.getDate() - 1)
+      setSelectedDate(prevDay)
+    }
+  }
+
+  const handleNextDay = () => {
+    if (selectedDate) {
+      const nextDay = new Date(selectedDate)
+      nextDay.setDate(nextDay.getDate() + 1)
+      setSelectedDate(nextDay)
+    }
+  }
+
   return (
     <div className={`w-full shadow-xl border border-border/50 bg-white dark:bg-slate-900 ${className || ''}`}>
       
@@ -208,23 +245,26 @@ export function RateTrendsTable({
           <thead className="bg-gray-50">
             {/* First Header Row - Main Column Groups */}
             <tr className="border-b border-gray-200">
-              {/* Date Column - REDUCED WIDTH FROM 121px TO 105px */}
-              <th rowSpan={2} className="bg-gray-50 text-left py-1.5 pl-4 pr-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-36" style={{width: '105px'}}>
+              {/* Date Column - Further reduced for space efficiency */}
+              <th rowSpan={2} className="bg-gray-50 text-left py-1.5 pl-3 pr-1 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '50px'}}>
                 Date
               </th>
               
-              {/* Demand Column */}
-              <th rowSpan={2} className="bg-gray-50 text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-15" style={{width: '60px', paddingLeft: '2px', paddingRight: '2px'}}>
+              {/* Demand Column (merged) - reduced width */}
+              <th rowSpan={2} colSpan={2} className="bg-gray-50 text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '30px', paddingLeft: '1px', paddingRight: '1px'}}>
                 Demand
               </th>
               
-              {/* Avg. Compset Column Group */}
-              <th colSpan={2} className="bg-gray-50 text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-24">
-                Avg. Compset
+              {/* Avg. Compset Column Group - further reduced */}
+              <th rowSpan={2} className="bg-gray-50 text-left py-1.5 pl-2 pr-2 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '33px'}}>
+                <div className="flex flex-col">
+                  <span>Avg.</span>
+                  <span>Compset</span>
+                </div>
               </th>
               
-              {/* Subscriber Column Group */}
-              <th colSpan={4} className="bg-blue-50 text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-40">
+              {/* Subscriber Column Group - reduced colspan width */}
+              <th colSpan={2} className="bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '64px'}}>
                 Subscriber
               </th>
               
@@ -234,8 +274,8 @@ export function RateTrendsTable({
                 const visibleCompetitors = competitorNames.slice(competitorStartIndex, competitorStartIndex + competitorsPerPage);
                 
                 return visibleCompetitors.map((name, index) => (
-                  <th key={index} colSpan={4} className="text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-40">
-                    {name.length > 30 ? `${name.substring(0, 30)}..` : name}
+                  <th key={index} colSpan={2} className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '64px'}}>
+                    {name.length > 15 ? `${name.substring(0, 12)}...` : name}
                   </th>
                 ));
               })()}
@@ -243,60 +283,26 @@ export function RateTrendsTable({
             
             {/* Second Header Row - Sub Columns */}
             <tr className="border-b border-gray-200">
-              {/* Avg. Compset Sub-columns */}
-              <th className="bg-gray-50 text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
-                €
-              </th>
-              <th className="bg-gray-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
-                ⟂⇂
-              </th>
+              {/* Demand columns are merged with rowSpan, no sub-columns needed */}
+              
+              {/* Avg. Compset is merged with rowSpan, no sub-columns needed */}
               
               {/* Subscriber Sub-columns */}
-              <th className="bg-blue-50 text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-16" style={{width: '64px'}}>
+              <th className="bg-blue-50 text-left py-1.5 pl-2 font-semibold text-xs text-muted-foreground border-r border-gray-200">
                 Rate
               </th>
-              <th className="bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip delayDuration={0}>
-                    <TooltipTrigger asChild>
-                      <span className="cursor-default">Vari.</span>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="bg-black text-white text-xs px-2 py-1">
-                      Variance
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </th>
-              <th className="bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip delayDuration={0}>
-                    <TooltipTrigger asChild>
-                      <span className="cursor-default">Incl.</span>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="bg-black text-white text-xs px-2 py-1">
-                      Inclusions
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </th>
-              <th className="bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+              <th className="bg-blue-50 text-center py-1.5 px-0.5 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '24px'}}>
                 Rank
               </th>
               
               {/* Dynamic Competitor Sub-columns */}
               {Array.from({ length: competitorsPerPage }, (_, compIndex) => (
                 <React.Fragment key={compIndex}>
-                  <th className="text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-16" style={{width: '64px'}}>
-                    €
+                  <th className="text-left py-1.5 pl-2 font-semibold text-xs text-muted-foreground border-r border-gray-200">
+                    Rate
                   </th>
-                  <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
-                    ⟂⇂
-                  </th>
-                  <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
-                    <Utensils className="w-3 h-3 mx-auto" />
-                  </th>
-                  <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
-                    #
+                  <th className="text-center py-1.5 px-0.5 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '24px'}}>
+                    Rank
                   </th>
                 </React.Fragment>
               ))}
@@ -321,16 +327,19 @@ export function RateTrendsTable({
               
               // Competitor data - now stable
               const competitors = [
-                { name: 'Holiday Inn Express & Suites Downtown Business Center', rate: Math.floor(seededRandom(seedValue, 10) * 150) + 50, variance: Math.floor(seededRandom(seedValue, 11) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 12) * 4) + 1 },
+                { name: 'Holiday Inn Express & Suites Downtown Business Center', rate: Math.floor(seededRandom(seedValue, 10) * 900) + 50, variance: Math.floor(seededRandom(seedValue, 11) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 12) * 4) + 1 },
                 { name: 'acom Hotel', rate: Math.floor(seededRandom(seedValue, 13) * 150) + 50, variance: Math.floor(seededRandom(seedValue, 14) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 15) * 4) + 1 },
                 { name: 'InterCity Hotel', rate: Math.floor(seededRandom(seedValue, 16) * 150) + 50, variance: Math.floor(seededRandom(seedValue, 17) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 18) * 4) + 1 },
-                { name: 'Hilton Garden', rate: Math.floor(seededRandom(seedValue, 19) * 150) + 50, variance: Math.floor(seededRandom(seedValue, 20) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 21) * 4) + 1 },
+                { name: 'Hilton Garden', rate: Math.floor(seededRandom(seedValue, 19) * 1200) + 50, variance: Math.floor(seededRandom(seedValue, 20) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 21) * 4) + 1 },
                 { name: 'Marriott Suites', rate: Math.floor(seededRandom(seedValue, 22) * 150) + 50, variance: Math.floor(seededRandom(seedValue, 23) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 24) * 4) + 1 },
                 { name: 'Sheraton Plaza', rate: Math.floor(seededRandom(seedValue, 25) * 150) + 50, variance: Math.floor(seededRandom(seedValue, 26) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 27) * 4) + 1 },
                 { name: 'Holiday Inn', rate: Math.floor(seededRandom(seedValue, 28) * 150) + 50, variance: Math.floor(seededRandom(seedValue, 29) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 30) * 4) + 1 },
                 { name: 'Crowne Plaza', rate: Math.floor(seededRandom(seedValue, 31) * 150) + 50, variance: Math.floor(seededRandom(seedValue, 32) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 33) * 4) + 1 },
                 { name: 'Four Seasons', rate: Math.floor(seededRandom(seedValue, 34) * 150) + 50, variance: Math.floor(seededRandom(seedValue, 35) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 36) * 4) + 1 }
               ];
+              
+              // Calculate dynamic width for subscriber rate
+              const subscriberRateWidth = calculateRateColumnWidth(hotelLowestRate);
               
               const isLastRow = index === 13; // Last row (0-based index, so 13 is the 14th row)
               
@@ -340,65 +349,35 @@ export function RateTrendsTable({
                   className={`${isLastRow ? 'rounded-b-lg' : 'border-b border-gray-200'} group hover:bg-gray-50`}
                 >
                   {/* Date Column - REDUCED WIDTH FROM 121px TO 105px */}
-                  <td className="bg-white group-hover:bg-gray-50 py-2 pl-4 pr-2 font-medium text-foreground text-sm border-r border-gray-200" style={{width: '105px'}}>
+                    <td className="bg-white group-hover:bg-gray-50 py-2 pl-3 pr-1 font-medium text-foreground text-sm border-r border-gray-200 align-top" style={{width: '50px'}}>
                     <div className="flex flex-col">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1">
-                          <BarChart3 className="w-3 h-3 text-blue-500" style={{strokeWidth: 2}} />
-                          <span className="text-foreground" style={{marginLeft: '10px'}}>
-                            {row.date.getDate()} {row.date.toLocaleDateString('en', {month: 'short'})}
-                          </span>
-                          <span className="text-gray-500">{row.dayName}</span>
-                        </div>
-                        {seededRandom(seedValue, 51) > 0.7 && (
-                          <TooltipProvider delayDuration={0}>
-                            <Tooltip delayDuration={0}>
+                          <TooltipProvider>
+                            <Tooltip>
                               <TooltipTrigger asChild>
-                                <Star className="w-3 h-3 text-amber-400 fill-amber-400 cursor-default hover:text-amber-500 hover:fill-amber-500 transition-colors duration-200" />
+                                <BarChart3 
+                                  className="w-3 h-3 text-blue-500 cursor-pointer hover:text-blue-600" 
+                                  style={{strokeWidth: 2}} 
+                                  onClick={() => handleGraphClick(row.date)}
+                                />
                               </TooltipTrigger>
-                              <TooltipContent side="top" className="bg-black text-white text-xs px-2 py-1 max-w-xs">
-                                {(() => {
-                                  const eventNames = ['Music Festival', 'Food & Wine Expo', 'Tech Conference', 'Art Exhibition'];
-                                  const eventText = eventNames.join(', ');
-                                  
-                                  if (eventText.length <= 60) {
-                                    return <span>{eventText}</span>;
-                                  }
-                                  
-                                  // Find break point around 60 characters
-                                  const firstLineBreak = eventText.lastIndexOf(', ', 60);
-                                  const breakPoint = firstLineBreak > 0 ? firstLineBreak + 2 : 60;
-                                  
-                                  const firstLine = eventText.substring(0, breakPoint);
-                                  const remainingText = eventText.substring(breakPoint);
-                                  
-                                  if (remainingText.length <= 60) {
-                                    return (
-                                      <div>
-                                        <div>{firstLine}</div>
-                                        <div>{remainingText}</div>
-                                      </div>
-                                    );
-                                  } else {
-                                    const secondLine = remainingText.substring(0, 57) + '...';
-                                    return (
-                                      <div>
-                                        <div>{firstLine}</div>
-                                        <div>{secondLine}</div>
-                                      </div>
-                                    );
-                                  }
-                                })()}
+                              <TooltipContent side="bottom" className="bg-black text-white text-xs px-3 py-2">
+                                Rate Evolution
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
-                        )}
+                          <span className="text-foreground" style={{marginLeft: '10px'}}>
+                            {row.date.getDate()} {row.date.toLocaleDateString('en', {month: 'short'})},
+                          </span>
+                          <span className="text-gray-500">{row.dayName}</span>
+                        </div>
                       </div>
                     </div>
                   </td>
 
-                  {/* Demand Column */}
-                  <td className="bg-white group-hover:bg-gray-50 py-2 text-center text-sm border-r border-gray-200" style={{width: '60px', paddingLeft: '2px', paddingRight: '2px'}}>
+                  {/* Demand Value Column */}
+                  <td className="bg-white group-hover:bg-gray-50 py-2 text-center text-sm border-r border-gray-200 align-top" style={{width: '20px', paddingLeft: '1px', paddingRight: '1px'}}>
                     {(() => {
                       const demandValue = Math.floor(seededRandom(seedValue, 40) * 60) + 40;
                       const getDemandColor = (value: number) => {
@@ -411,42 +390,114 @@ export function RateTrendsTable({
                     })()}
                   </td>
 
-                  {/* Avg. Compset - Rate */}
-                  <td className="bg-white group-hover:bg-gray-50 py-2 text-center text-sm border-r border-gray-200">
-                    <span className="font-semibold">${avgCompsetRate}</span>
+                  {/* Demand Event Icon Column */}
+                  <td className="bg-white group-hover:bg-gray-50 py-2 text-center text-sm border-r border-gray-200 align-top" style={{width: '10px', paddingLeft: '1px', paddingRight: '1px'}}>
+                    <div className="flex items-center justify-center">
+                      {seededRandom(seedValue, 51) > 0.7 && (
+                        <TooltipProvider delayDuration={0}>
+                          <Tooltip delayDuration={0}>
+                            <TooltipTrigger asChild>
+                              <Star className="w-3 h-3 text-amber-400 fill-amber-400 cursor-default hover:text-amber-500 hover:fill-amber-500 transition-colors duration-200" style={{marginTop: '4px'}} />
+                            </TooltipTrigger>
+                          <TooltipContent side="top" className="bg-black text-white text-xs px-2 py-1 max-w-xs">
+                            {(() => {
+                              const eventNames = ['Music Festival', 'Food & Wine Expo', 'Tech Conference', 'Art Exhibition'];
+                              const eventText = eventNames.join(', ');
+                              
+                              if (eventText.length <= 60) {
+                                return <span>{eventText}</span>;
+                              }
+                              
+                              // Find break point around 60 characters
+                              const firstLineBreak = eventText.lastIndexOf(', ', 60);
+                              const breakPoint = firstLineBreak > 0 ? firstLineBreak + 2 : 60;
+                              
+                              const firstLine = eventText.substring(0, breakPoint);
+                              const remainingText = eventText.substring(breakPoint);
+                              
+                              if (remainingText.length <= 60) {
+                                return (
+                                  <div>
+                                    <div>{firstLine}</div>
+                                    <div>{remainingText}</div>
+                                  </div>
+                                );
+                              } else {
+                                const secondLine = remainingText.substring(0, 57) + '...';
+                                return (
+                                  <div>
+                                    <div>{firstLine}</div>
+                                    <div>{secondLine}</div>
+                                  </div>
+                                );
+                              }
+                            })()}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      )}
+                    </div>
                   </td>
 
-                  {/* Avg. Compset - Variance */}
-                  <td className="bg-white group-hover:bg-gray-50 py-2 px-1 text-center text-sm border-r border-gray-200">
-                    <span className={`text-xs font-medium ${avgCompsetVariance > 0 ? 'text-red-600' : avgCompsetVariance < 0 ? 'text-green-600' : 'text-gray-500'}`}>
-                      {avgCompsetVariance > 0 ? '+' : ''}{avgCompsetVariance !== 0 ? avgCompsetVariance : '--'}
-                    </span>
+                  {/* Avg. Compset - Merged */}
+                  <td className="bg-white group-hover:bg-gray-50 py-2 pl-2 pr-2 text-left text-sm border-r border-gray-200" style={{width: '33px'}}>
+                    <div className="flex flex-col items-start">
+                      <span className="font-semibold">${avgCompsetRate}</span>
+                      <span className={`text-xs font-medium ${avgCompsetVariance > 0 ? 'text-red-600' : avgCompsetVariance < 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                        {avgCompsetVariance > 0 ? '+' : ''}{avgCompsetVariance !== 0 ? avgCompsetVariance : '--'}
+                      </span>
+                    </div>
                   </td>
 
                   {/* Subscriber - Rate */}
-                  <td className="bg-blue-50 group-hover:bg-blue-100 py-2 text-center text-sm border-r border-b border-gray-200" style={{width: '64px'}}>
+                  <td className="bg-blue-50 group-hover:bg-blue-100 py-2 pl-2 pr-2 text-center text-sm border-r border-b border-gray-200" style={{width: subscriberRateWidth, minWidth: '52px'}}>
                     <TooltipProvider delayDuration={0} skipDelayDuration={0}>
                       <Tooltip delayDuration={0} disableHoverableContent>
                         <TooltipTrigger asChild>
-                          <div className="flex items-center justify-center">
-                            <span className="font-semibold cursor-pointer text-left">{hotelLowestRate === 0 ? 'Sold Out' : `$${hotelLowestRate}`}</span>
-                            {(() => {
-                              // Get visible competitors for comparison
-                              const visibleCompetitors = competitors.slice(competitorStartIndex, competitorStartIndex + competitorsPerPage);
-                              const allRates = [hotelLowestRate, ...visibleCompetitors.map(c => c.rate)].filter(rate => rate > 0);
-                              
-                              if (allRates.length > 1 && hotelLowestRate > 0) {
-                                const minRate = Math.min(...allRates);
-                                const maxRate = Math.max(...allRates);
-                                
-                                if (hotelLowestRate === minRate && hotelLowestRate !== maxRate) {
-                                  return <div className="w-1.5 h-1.5 bg-green-500 rounded-full" style={{marginLeft: '6px'}}></div>;
-                                } else if (hotelLowestRate === maxRate && hotelLowestRate !== minRate) {
-                                  return <div className="w-1.5 h-1.5 bg-red-500 rounded-full" style={{marginLeft: '6px'}}></div>;
-                                }
-                              }
-                              return null;
-                            })()}
+                          <div className="flex items-center justify-start w-full" style={{gap: '10px'}}>
+                               {/* Column 1: Rates & Variance */}
+                               <div className="flex flex-col items-start justify-center">
+                                 <div className="text-left">
+                                   <span className="font-semibold cursor-pointer">{hotelLowestRate === 0 ? 'Sold Out' : `$${hotelLowestRate}`}</span>
+                                 </div>
+                                 <div className="text-left">
+                                   <span className={`text-xs font-medium ${hotelVariance > 0 ? 'text-red-600' : hotelVariance < 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                                     {hotelVariance > 0 ? '+' : ''}{hotelVariance !== 0 ? hotelVariance : 'NA'}
+                                   </span>
+                                 </div>
+                               </div>
+                               
+                               {/* Column 2: Dots & Inclusion Icons */}
+                               <div className="flex flex-col items-center justify-center" style={{minWidth: '20px'}}>
+                                 <div className="flex items-center justify-center" style={{minHeight: '20px'}}>
+                                   {(() => {
+                                     // Get visible competitors for comparison
+                                     const visibleCompetitors = competitors.slice(competitorStartIndex, competitorStartIndex + competitorsPerPage);
+                                     const allRates = [hotelLowestRate, ...visibleCompetitors.map(c => c.rate)].filter(rate => rate > 0);
+                                     
+                                     if (allRates.length > 1 && hotelLowestRate > 0) {
+                                       const minRate = Math.min(...allRates);
+                                       const maxRate = Math.max(...allRates);
+                                       
+                                       if (hotelLowestRate === minRate && hotelLowestRate !== maxRate) {
+                                         return <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>;
+                                       } else if (hotelLowestRate === maxRate && hotelLowestRate !== minRate) {
+                                         return <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>;
+                                       }
+                                     }
+                                     return null;
+                                   })()}
+                                 </div>
+                                 <div className="flex items-center justify-center" style={{minHeight: '20px'}}>
+                                   {(() => {
+                                     const inclusionType = Math.floor(seededRandom(seedValue, 41) * 4);
+                                     if (inclusionType === 0) return <Wifi className="w-3 h-3 text-gray-600" />;
+                                     if (inclusionType === 1) return <Coffee className="w-3 h-3 text-gray-600" />;
+                                     if (inclusionType === 2) return <Utensils className="w-3 h-3 text-gray-600" />;
+                                     return <Car className="w-3 h-3 text-gray-600" />;
+                                   })()}
+                                 </div>
+                               </div>
                           </div>
                         </TooltipTrigger>
                         <EnhancedTableTooltip
@@ -482,26 +533,9 @@ export function RateTrendsTable({
                     </TooltipProvider>
                   </td>
 
-                  {/* Subscriber - Variance */}
-                  <td className="bg-blue-50 group-hover:bg-blue-100 py-2 px-1 text-center text-sm border-r border-b border-gray-200">
-                    <span className={`text-xs font-medium ${hotelVariance > 0 ? 'text-red-600' : hotelVariance < 0 ? 'text-green-600' : 'text-gray-500'}`}>
-                      {hotelVariance > 0 ? '+' : ''}{hotelVariance !== 0 ? hotelVariance : 'NA'}
-                    </span>
-                  </td>
-
-                  {/* Subscriber - Inclusions */}
-                  <td className="bg-blue-50 group-hover:bg-blue-100 py-2 px-1 text-center text-xs border-r border-b border-gray-200">
-                    {(() => {
-                      const inclusionType = Math.floor(seededRandom(seedValue, 41) * 4);
-                      if (inclusionType === 0) return <Wifi className="w-3 h-3 text-gray-600 mx-auto" />;
-                      if (inclusionType === 1) return <Coffee className="w-3 h-3 text-gray-600 mx-auto" />;
-                      if (inclusionType === 2) return <Utensils className="w-3 h-3 text-gray-600 mx-auto" />;
-                      return <Car className="w-3 h-3 text-gray-600 mx-auto" />;
-                    })()}
-                  </td>
 
                   {/* Subscriber - Rank */}
-                  <td className="bg-blue-50 group-hover:bg-blue-100 py-2 px-1 text-center text-sm border-r border-b border-gray-200">
+                  <td className="bg-blue-50 group-hover:bg-blue-100 py-2 px-0.5 text-center text-sm border-r border-b border-gray-200 align-top" style={{width: '24px'}}>
                     {subscriberRank}
                   </td>
 
@@ -509,29 +543,54 @@ export function RateTrendsTable({
                   {competitors.slice(competitorStartIndex, competitorStartIndex + competitorsPerPage).map((competitor, compIndex) => (
                     <React.Fragment key={compIndex}>
                       {/* Rate */}
-                      <td className="py-2 text-center text-sm border-r border-gray-200 group-hover:bg-gray-50">
+                      <td className="py-2 pl-2 pr-2 text-center text-sm border-r border-gray-200 group-hover:bg-gray-50" style={{width: calculateRateColumnWidth(competitor.rate), minWidth: '52px'}}>
                         <TooltipProvider delayDuration={0} skipDelayDuration={0}>
                           <Tooltip delayDuration={0} disableHoverableContent>
                             <TooltipTrigger asChild>
-                              <div className="flex items-center justify-center">
-                                <span className="font-semibold cursor-pointer text-left">{competitor.rate === 0 ? 'Sold Out' : `$${competitor.rate}`}</span>
-                                {(() => {
-                                  // Get visible competitors for comparison
-                                  const visibleCompetitors = competitors.slice(competitorStartIndex, competitorStartIndex + competitorsPerPage);
-                                  const allRates = [hotelLowestRate, ...visibleCompetitors.map(c => c.rate)].filter(rate => rate > 0);
-                                  
-                                  if (allRates.length > 1 && competitor.rate > 0) {
-                                    const minRate = Math.min(...allRates);
-                                    const maxRate = Math.max(...allRates);
-                                    
-                                    if (competitor.rate === minRate && competitor.rate !== maxRate) {
-                                      return <div className="w-1.5 h-1.5 bg-green-500 rounded-full" style={{marginLeft: '6px'}}></div>;
-                                    } else if (competitor.rate === maxRate && competitor.rate !== minRate) {
-                                      return <div className="w-1.5 h-1.5 bg-red-500 rounded-full" style={{marginLeft: '6px'}}></div>;
-                                    }
-                                  }
-                                  return null;
-                                })()}
+                              <div className="flex items-center justify-start w-full" style={{gap: '10px'}}>
+                                   {/* Column 1: Rates & Variance */}
+                                   <div className="flex flex-col items-start justify-center">
+                                     <div className="text-left">
+                                       <span className="font-semibold cursor-pointer">{competitor.rate === 0 ? 'Sold Out' : `$${competitor.rate}`}</span>
+                                     </div>
+                                     <div className="text-left">
+                                       <span className={`text-xs font-medium ${competitor.variance > 0 ? 'text-red-600' : competitor.variance < 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                                         {competitor.variance > 0 ? '+' : ''}{competitor.variance !== 0 ? competitor.variance : 'NA'}
+                                       </span>
+                                     </div>
+                                   </div>
+                                   
+                                   {/* Column 2: Dots & Inclusion Icons */}
+                                   <div className="flex flex-col items-center justify-center" style={{minWidth: '20px'}}>
+                                     <div className="flex items-center justify-center" style={{minHeight: '20px'}}>
+                                       {(() => {
+                                         // Get visible competitors for comparison
+                                         const visibleCompetitors = competitors.slice(competitorStartIndex, competitorStartIndex + competitorsPerPage);
+                                         const allRates = [hotelLowestRate, ...visibleCompetitors.map(c => c.rate)].filter(rate => rate > 0);
+                                         
+                                         if (allRates.length > 1 && competitor.rate > 0) {
+                                           const minRate = Math.min(...allRates);
+                                           const maxRate = Math.max(...allRates);
+                                           
+                                           if (competitor.rate === minRate && competitor.rate !== maxRate) {
+                                             return <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>;
+                                           } else if (competitor.rate === maxRate && competitor.rate !== minRate) {
+                                             return <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>;
+                                           }
+                                         }
+                                         return null;
+                                       })()}
+                                     </div>
+                                     <div className="flex items-center justify-center" style={{minHeight: '20px'}}>
+                                       {(() => {
+                                         const inclusionType = Math.floor(seededRandom(seedValue, 42 + compIndex) * 4);
+                                         if (inclusionType === 0) return <Wifi className="w-3 h-3 text-gray-600" />;
+                                         if (inclusionType === 1) return <Coffee className="w-3 h-3 text-gray-600" />;
+                                         if (inclusionType === 2) return <Utensils className="w-3 h-3 text-gray-600" />;
+                                         return <Dumbbell className="w-3 h-3 text-gray-600" />;
+                                       })()}
+                                     </div>
+                                   </div>
                               </div>
                             </TooltipTrigger>
                             <EnhancedTableTooltip
@@ -567,27 +626,9 @@ export function RateTrendsTable({
                           </Tooltip>
                         </TooltipProvider>
                       </td>
-                      
-                      {/* Variance */}
-                      <td className="py-2 px-1 text-center text-sm border-r border-gray-200 group-hover:bg-gray-50">
-                        <span className={`text-xs font-medium ${competitor.variance > 0 ? 'text-red-600' : competitor.variance < 0 ? 'text-green-600' : 'text-gray-500'}`}>
-                          {competitor.variance > 0 ? '+' : ''}{competitor.variance !== 0 ? competitor.variance : 'NA'}
-                        </span>
-                      </td>
-
-                      {/* Inclusions */}
-                      <td className="py-2 px-1 text-center text-xs border-r border-gray-200 group-hover:bg-gray-50">
-                        {(() => {
-                          const inclusionType = Math.floor(seededRandom(seedValue, 42 + compIndex) * 4);
-                          if (inclusionType === 0) return <Wifi className="w-3 h-3 text-gray-600 mx-auto" />;
-                          if (inclusionType === 1) return <Coffee className="w-3 h-3 text-gray-600 mx-auto" />;
-                          if (inclusionType === 2) return <Utensils className="w-3 h-3 text-gray-600 mx-auto" />;
-                          return <Dumbbell className="w-3 h-3 text-gray-600 mx-auto" />;
-                        })()}
-                      </td>
 
                       {/* Rank */}
-                      <td className="py-2 px-1 text-center text-sm border-r border-gray-200 group-hover:bg-gray-50">
+                      <td className="py-2 px-0.5 text-center text-sm border-r border-gray-200 group-hover:bg-gray-50 align-top" style={{width: '24px'}}>
                         {competitor.rank}
                       </td>
                     </React.Fragment>
@@ -598,6 +639,15 @@ export function RateTrendsTable({
           </tbody>
         </table>
       </div>
+
+      {/* Rate Evolution Modal */}
+      <RateDetailModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        selectedDate={selectedDate}
+        onPrevDay={handlePrevDay}
+        onNextDay={handleNextDay}
+      />
     </div>
   )
 }

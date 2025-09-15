@@ -373,17 +373,119 @@ function RateTrendCalendarInner({
   const [expandedWeekIndex, setExpandedWeekIndex] = useState<number | null>(null)
   const [selectedWeekForCompetitors, setSelectedWeekForCompetitors] = useState<CalendarDay[] | null>(null)
   
+  // Helper function to determine if we should show limited days
+  const daySelectionInfo = useMemo(() => {
+    if (!startDate || !endDate) return { type: 'normal', totalDays: 0 }
+    
+    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    
+    if (totalDays === 7) {
+      return { type: '7days', totalDays: 7 } // Show today + next 6 days (7 days total)
+    } else if (totalDays === 14) {
+      return { type: '14days', totalDays: 14 } // Show today + next 13 days (14 days total)
+    } else if (totalDays === 30) {
+      return { type: '30days', totalDays: 30 } // Show today + next 29 days (30 days total)
+    } else {
+      return { type: 'custom', totalDays } // Show custom date range
+    }
+  }, [startDate, endDate])
+  
+  // Helper function to check if a date should be rendered
+  const shouldRenderDate = useCallback((day: CalendarDay) => {
+    if (!startDate || !endDate || daySelectionInfo.type === 'normal') return true
+    
+    const dayDate = new Date(day.year, day.month, day.date)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    if (daySelectionInfo.type === '7days') {
+      // For 7-day selection: show today + next 7 days (8 days total)
+      const endDate7 = new Date(today)
+      endDate7.setDate(today.getDate() + 7) // Today + 7 more days = 8 days total
+      
+      return dayDate >= today && dayDate <= endDate7
+    } else if (daySelectionInfo.type === '14days') {
+      // For 14-day selection: show today + next 14 days (15 days total)
+      const endDate14 = new Date(today)
+      endDate14.setDate(today.getDate() + 14) // Today + 14 more days = 15 days total
+      
+      return dayDate >= today && dayDate <= endDate14
+    } else if (daySelectionInfo.type === '30days') {
+      // For 30-day selection: show today + next 30 days (31 days total)
+      const endDate30 = new Date(today)
+      endDate30.setDate(today.getDate() + 30) // Today + 30 more days = 31 days total
+      
+      return dayDate >= today && dayDate <= endDate30
+    } else if (daySelectionInfo.type === 'custom') {
+      // For custom selection: show dates within the selected range
+      return dayDate >= startDate && dayDate <= endDate
+    }
+    
+    return true
+  }, [daySelectionInfo, startDate, endDate])
+  
   // Generate calendar data based on selected date range
   const calendarData = useMemo(() => {
     if (startDate && endDate) {
-    return generateCalendarData(startDate, endDate)
+      const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+      
+      if (totalDays === 7 || totalDays === 14 || totalDays === 30) {
+        // For predefined ranges (7, 14, 30 days), show data from today onwards
+        const today = new Date()
+        const endDateFromToday = new Date(today)
+        endDateFromToday.setDate(today.getDate() + totalDays - 1) // Today + N-1 days
+        
+        // Start from Monday of the week containing today
+        const startOfWeek = new Date(today)
+        const dayOfWeek = startOfWeek.getDay() // 0 = Sunday, 1 = Monday
+        const monday = new Date(startOfWeek)
+        monday.setDate(startOfWeek.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)) // Go to Monday
+        
+        // Calculate how many weeks we need to cover the range
+        const weeksNeeded = Math.ceil(totalDays / 7) + 1 // Add extra week to ensure coverage
+        const endOfRange = new Date(monday)
+        endOfRange.setDate(monday.getDate() + (weeksNeeded * 7) - 1) // Go to Sunday of last week
+        
+        return generateCalendarData(monday, endOfRange)
+      } else {
+        // For custom date ranges, show full weeks but only display data for selected dates
+        const startOfWeek = new Date(startDate)
+        const dayOfWeek = startOfWeek.getDay() // 0 = Sunday, 1 = Monday
+        const monday = new Date(startOfWeek)
+        monday.setDate(startOfWeek.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)) // Go to Monday
+        
+        // Calculate how many weeks we need to cover the entire range
+        const weeksNeeded = Math.ceil(totalDays / 7) + 1 // Add extra week to ensure coverage
+        
+        const endOfRange = new Date(monday)
+        endOfRange.setDate(monday.getDate() + (weeksNeeded * 7) - 1) // Go to Sunday of last week
+        
+        return generateCalendarData(monday, endOfRange)
+      }
     } else {
-      const defaultStart = new Date()
-      const defaultEnd = new Date()
-      defaultEnd.setDate(defaultStart.getDate() + 7) // Default to next 7 days
-      return generateCalendarData(defaultStart, defaultEnd)
+      // For default case, also start from Monday of current week
+      const today = new Date()
+      const dayOfWeek = today.getDay() // 0 = Sunday, 1 = Monday
+      const monday = new Date(today)
+      monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)) // Go to Monday
+      
+      const defaultEnd = new Date(monday)
+      defaultEnd.setDate(monday.getDate() + 6) // Default to next 6 days from Monday (full week)
+      return generateCalendarData(monday, defaultEnd)
     }
   }, [startDate, endDate])
+
+  // Filter weeks that have at least one visible day for mobile navigation
+  const visibleWeeks = useMemo(() => {
+    return calendarData.filter(week => week.some(day => shouldRenderDate(day)))
+  }, [calendarData, shouldRenderDate])
+
+  // Reset current week index when visible weeks change
+  useEffect(() => {
+    if (currentWeekIndex >= visibleWeeks.length && visibleWeeks.length > 0) {
+      setCurrentWeekIndex(0)
+    }
+  }, [visibleWeeks.length, currentWeekIndex])
 
   // Memoize competitor data to prevent refresh
   const memoizedCompetitorData = useMemo(() => {
@@ -502,11 +604,11 @@ function RateTrendCalendarInner({
   const tableData = useMemo(() => {
     return calendarData.flat().map((day, index) => {
       const date = new Date(day.year, day.month, day.date)
-      const dayName = weekDays[date.getDay()]
+      const dayName = weekDays[(date.getDay() + 6) % 7]
       
       // Calculate change percentages
       const currentPrice = parseInt(day.currentPrice.replace('$', '').replace(',', ''))
-              const priceChange = 0
+      const priceChange = 0
       
       return {
         id: index,
@@ -530,8 +632,6 @@ function RateTrendCalendarInner({
   if (currentView === "chart") {
     return <RTRateTrendsChart rateData={{}} />
   }
-
-
 
   if (currentView === "table") {
     const handleExportCSV = () => {
@@ -764,7 +864,7 @@ function RateTrendCalendarInner({
 
                           {/* Competitor Hotels Data - First 2 Only */}
                           {competitors.slice(0, 2).map((competitor, compIndex) => (
-                            <React.Fragment key={compIndex}>
+                            <div key={compIndex}>
                               {/* Rate */}
                               <td className="py-2 text-center text-sm border-r border-gray-200 group-hover:bg-gray-50">
                                 <span className="font-semibold">{competitor.rate === 0 ? 'Sold Out' : `$${competitor.rate}`}</span>
@@ -792,7 +892,7 @@ function RateTrendCalendarInner({
                               <td className="py-2 px-1 text-center text-sm border-r border-gray-200 group-hover:bg-gray-50">
                                 {competitor.rank}
                   </td>
-                            </React.Fragment>
+                            </div>
               ))}
 
                         </tr>
@@ -816,13 +916,13 @@ function RateTrendCalendarInner({
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
           <p className="text-slate-600 dark:text-slate-400">Loading calendar data...</p>
-            </div>
-              </div>
+        </div>
+      </div>
     )
   }
 
   return (
-      <div className="rounded-lg">
+    <div className="rounded-lg">
         {/* Mobile View - Single Week with Navigation */}
         <div className="block lg:hidden">
           <div className="p-4 pt-16">
@@ -832,7 +932,7 @@ function RateTrendCalendarInner({
               </Button>
               <div className="flex items-center gap-2">
               <span className="text-sm font-medium">
-                Week {currentWeekIndex + 1} of {calendarData.length}
+                Week {currentWeekIndex + 1} of {visibleWeeks.length}
               </span>
                 <Button 
                   variant="ghost" 
@@ -847,7 +947,7 @@ function RateTrendCalendarInner({
                 variant="outline"
                 size="sm"
                 onClick={nextWeek}
-                disabled={currentWeekIndex === calendarData.length - 1}
+                disabled={currentWeekIndex === visibleWeeks.length - 1}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -855,20 +955,26 @@ function RateTrendCalendarInner({
 
             {/* Mobile Grid - 2 columns */}
             <div className="grid grid-cols-2 gap-3">
-              {calendarData[currentWeekIndex]?.map((day, dayIndex) => (
+              {visibleWeeks[currentWeekIndex]?.map((day, dayIndex) => {
+                const shouldShow = shouldRenderDate(day)
+                if (!shouldShow) {
+                  // Don't show anything for dates outside selected range
+                  return null
+                }
+                return (
                 <TooltipProvider delayDuration={0} skipDelayDuration={0}>
                   <Tooltip delayDuration={0} disableHoverableContent>
                     <TooltipTrigger asChild>
                   <Card 
                     className={`p-3 h-28 cursor-pointer hover:shadow-md transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:outline-none border ${
-                      isToday(day) ? 'border-blue-300 dark:border-blue-400' :
+                      isToday(day) ? 'border-gray-200 dark:border-gray-500 bg-white dark:bg-slate-900' :
                       (() => {
                         const competitive = getCompetitiveData(day)
-                        return competitive.isMyRateHighest ? 'border-red-500 dark:border-red-400' : 
-                               competitive.isMyRateLowest ? 'border-green-500 dark:border-green-400' : 
-                               'border-gray-200 dark:border-gray-500 hover:border-gray-400 dark:hover:border-gray-400'
+                        return competitive.isMyRateHighest ? 'border-red-500 dark:border-red-400 bg-white dark:bg-slate-900' : 
+                               competitive.isMyRateLowest ? 'border-green-500 dark:border-green-400 bg-white dark:bg-slate-900' : 
+                               'border-gray-200 dark:border-gray-500 hover:border-gray-400 dark:hover:border-gray-400 bg-white dark:bg-slate-900'
                       })()
-                    } bg-white dark:bg-slate-900`} 
+                    }`} 
                     onClick={() => handleDateClick(day)}
                     role="button"
                     tabIndex={0}
@@ -885,7 +991,11 @@ function RateTrendCalendarInner({
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
                         {/* Date on left side */}
-                        <div className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                        <div className={`text-xs font-medium ${
+                          isToday(day) 
+                            ? 'w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center' 
+                            : 'text-gray-600 dark:text-gray-300'
+                        }`}>
                           {day.date}
             </div>
                         {/* Event icon after specific margin */}
@@ -946,7 +1056,7 @@ function RateTrendCalendarInner({
                   </div>
                 </Card>
                     </TooltipTrigger>
-                    <TooltipContent side="top" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 w-[460px] z-[10001]">
+                    <TooltipContent side="top" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 pr-6 w-[528px] z-[10001]">
                       <div>
                         <div className="mb-2">
                           <div className="flex justify-between items-center">
@@ -957,7 +1067,7 @@ function RateTrendCalendarInner({
                               })()} 2024</span>
                               <span className="text-sm font-normal">, {(() => {
                                 const date = new Date(day.year, day.month, day.date)
-                                return weekDays[date.getDay()]
+                                return weekDays[(date.getDay() + 6) % 7]
                               })()}</span>
                             </h3>
                             {(() => {
@@ -985,64 +1095,91 @@ function RateTrendCalendarInner({
                       </div>
                       
                         <div className="space-y-3 mb-3">
-                          <div className="grid gap-1 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '90px 150px 90px 90px'}}>
-                            <div>Lowest Rate</div>
-                            <div>Room</div>
-                            <div>Inclusion</div>
-                            <div>Channel</div>
+                          <div className="grid gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                            <div className="text-left">Lowest Rate</div>
+                            <div className="text-left">Room</div>
+                            <div className="text-left">Inclusion</div>
+                            <div className="text-left">Channel</div>
                       </div>
                       
-                          <div className="grid gap-1 text-xs mt-2" style={{gridTemplateColumns: '90px 150px 90px 90px'}}>
-                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                          <div className="grid gap-2 text-xs mt-2" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
                               $210
                         </div>
-                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
-                              STD (Standard Room)
+                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                              Standard King
                         </div>
-                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
-                              <div className="flex items-center gap-1">
-                                <Wifi className="w-3 h-3 flex-shrink-0" />
-                                <span>Breakfast</span>
-                      </div>
+                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                              <div className="flex items-start gap-1">
+                                <Wifi className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                                <div className="text-wrap">
+                                  {(() => {
+                                    const inclusionText = "Free Wifi and Airport Pickup - Drop";
+                                    if (inclusionText.length <= 19) {
+                                      return <span>{inclusionText}</span>;
+                                    }
+                                    
+                                    const firstLine = inclusionText.substring(0, 19);
+                                    const remaining = inclusionText.substring(19);
+                                    const secondLine = remaining.length > 14 
+                                      ? remaining.substring(0, 14) + "..."
+                                      : remaining;
+                                    
+                                    return (
+                                      <div>
+                                        <div>{firstLine}</div>
+                                        <div>{secondLine}</div>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
                             </div>
-                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
                               Booking.com
                             </div>
                           </div>
                         </div>
                           
                         <div className="mb-3">
-                          <div className="text-xs text-black dark:text-gray-100 mb-2">
-                            <span className="font-medium">Avg. Compset:</span> <span className="font-bold">$210</span>
+                          <div className="flex items-start gap-6">
+                            {/* Avg. Compset Section */}
+                            <div className="text-xs text-black dark:text-gray-100">
+                              <div className="text-left whitespace-nowrap">
+                                <span className="font-bold">$210</span> <span className="font-medium">- Avg. Compset</span>
+                              </div>
+                            </div>
+                            
+                            {/* Events Section with 24px margin */}
+                            {day.hasEvent && (
+                              <div style={{ marginLeft: '24px' }}>
+                                <div className="flex items-center gap-2">
+                                  <Star className="w-3 h-3 text-amber-500 fill-current" />
+                                  <div className="text-xs text-gray-800 dark:text-gray-200">
+                                    Music Festival
+                                  </div>
+                                  <div style={{ paddingLeft: '0px' }}>
+                                    <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                                      (+2 more)
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
-                          
-                        {day.hasEvent && (
-                          <div className="mb-3">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Star className="w-3 h-3 text-amber-500 fill-current" />
-                              <div className="text-xs text-gray-800 dark:text-gray-200">
-                                Music Festival
-                              </div>
-                              <div style={{ paddingLeft: '0px' }}>
-                                <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">
-                                  (+2 more)
-                        </span>
-                      </div>
-                            </div>
-                         </div>
-                       )}
                       
                         <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
-                          <div className="text-xs text-gray-800 dark:text-gray-200 leading-relaxed">
-                            Standard Room | Continental breakfast included. Breakfast rated 6. Non-refundable. If you cancel, modify the booking, or don't show up, the fee will be the total price of the reservation...
-                    </div>
+                          <div className="text-xs text-gray-800 dark:text-gray-200 leading-relaxed text-left">
+                            Standard King | Continental breakfast included. Breakfast rated 6. Non-refundable. If you cancel, modify the booking, or don't show up, the fee will be the total price of the reservation...
+                          </div>
                         </div>
                       </div>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
-              ))}
+                )
+              })}
                     </div>
           </div>
         </div>
@@ -1067,8 +1204,10 @@ function RateTrendCalendarInner({
 
           {/* Calendar Grid */}
           <div className="space-y-2">
-            {calendarData.map((week, weekIndex) => (
-              <React.Fragment key={weekIndex}>
+            {calendarData
+              .filter(week => week.some(day => shouldRenderDate(day))) // Only show weeks with at least one visible day
+              .map((week, weekIndex) => (
+              <div key={weekIndex}>
                 <div className="grid grid-cols-8 gap-2">
                 {/* Week Cell - Always shown */}
                 <Card className="p-2 min-h-fit hover:shadow-lg transition-all duration-200 relative cursor-pointer focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 bg-white dark:bg-slate-900">
@@ -1090,20 +1229,32 @@ function RateTrendCalendarInner({
             </div>
               </div>
                 </Card>
-                {week.map((day, dayIndex) => (
+                {week.map((day, dayIndex) => {
+                  const shouldShow = shouldRenderDate(day)
+                  if (!shouldShow) {
+                    // Don't show anything for dates outside selected range
+                    return (
+                      <div 
+                        key={`desktop-blank-${dayIndex}`}
+                        className="h-16"
+                      >
+                      </div>
+                    )
+                  }
+                  return (
                 <TooltipProvider delayDuration={0} skipDelayDuration={0}>
                   <Tooltip delayDuration={0} disableHoverableContent>
                     <TooltipTrigger asChild>
                   <Card
                       className={`p-2 min-h-fit hover:shadow-lg transition-all duration-200 relative cursor-pointer focus:ring-2 focus:ring-blue-500 focus:outline-none border ${
-                        isToday(day) ? 'border-blue-500 dark:border-blue-500' :
+                        isToday(day) ? 'border-gray-200 dark:border-gray-500 bg-white dark:bg-slate-900' :
                         (() => {
                           const competitive = getCompetitiveData(day)
-                          return competitive.isMyRateHighest ? 'border-red-500 dark:border-red-400' : 
-                                 competitive.isMyRateLowest ? 'border-green-500 dark:border-green-400' : 
-                                 'border-gray-200 dark:border-gray-500 hover:border-gray-400 dark:hover:border-gray-400'
+                          return competitive.isMyRateHighest ? 'border-red-500 dark:border-red-400 bg-white dark:bg-slate-900' : 
+                                 competitive.isMyRateLowest ? 'border-green-500 dark:border-green-400 bg-white dark:bg-slate-900' : 
+                                 'border-gray-200 dark:border-gray-500 hover:border-gray-400 dark:hover:border-gray-400 bg-white dark:bg-slate-900'
                         })()
-                      } bg-white dark:bg-slate-900`}
+                      }`}
                     onClick={() => handleDateClick(day)}
                     role="button"
                     tabIndex={0}
@@ -1120,7 +1271,11 @@ function RateTrendCalendarInner({
                     <div className="flex items-center justify-between rounded">
                       <div className="flex items-center gap-2">
                         {/* Date on left side */}
-                        <div className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                        <div className={`text-xs font-medium ${
+                          isToday(day) 
+                            ? 'w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center' 
+                            : 'text-gray-600 dark:text-gray-300'
+                        }`}>
                           {day.date}
             </div>
               </div>
@@ -1168,7 +1323,7 @@ function RateTrendCalendarInner({
                     </div>
                   </Card>
                     </TooltipTrigger>
-                    <TooltipContent side="top" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 w-[460px] z-[10001]">
+                    <TooltipContent side="top" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 pr-6 w-[528px] z-[10001]">
                       <div>
                         <div className="mb-2">
                           <div className="flex justify-between items-center">
@@ -1179,7 +1334,7 @@ function RateTrendCalendarInner({
                               })()} 2024</span>
                               <span className="text-sm font-normal">, {(() => {
                                 const date = new Date(day.year, day.month, day.date)
-                                return weekDays[date.getDay()]
+                                return weekDays[(date.getDay() + 6) % 7]
                               })()}</span>
                             </h3>
                             {(() => {
@@ -1207,76 +1362,103 @@ function RateTrendCalendarInner({
                   </div>
                   
                         <div className="space-y-3 mb-3">
-                          <div className="grid gap-1 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '90px 150px 90px 90px'}}>
-                            <div>Lowest Rate</div>
-                            <div>Room</div>
-                            <div>Inclusion</div>
-                            <div>Channel</div>
+                          <div className="grid gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                            <div className="text-left">Lowest Rate</div>
+                            <div className="text-left">Room</div>
+                            <div className="text-left">Inclusion</div>
+                            <div className="text-left">Channel</div>
                   </div>
                   
-                          <div className="grid gap-1 text-xs mt-2" style={{gridTemplateColumns: '90px 150px 90px 90px'}}>
-                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                          <div className="grid gap-2 text-xs mt-2" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
                               $210
                             </div>
-                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
-                              STD (Standard Room)
+                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                              Standard King
                             </div>
-                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
-                          <div className="flex items-center gap-1">
-                                <Wifi className="w-3 h-3 flex-shrink-0" />
-                                <span>Breakfast</span>
+                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                          <div className="flex items-start gap-1">
+                                <Wifi className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                                <div className="text-wrap">
+                                  {(() => {
+                                    const inclusionText = "Free Wifi and Airport Pickup - Drop";
+                                    if (inclusionText.length <= 19) {
+                                      return <span>{inclusionText}</span>;
+                                    }
+                                    
+                                    const firstLine = inclusionText.substring(0, 19);
+                                    const remaining = inclusionText.substring(19);
+                                    const secondLine = remaining.length > 14 
+                                      ? remaining.substring(0, 14) + "..."
+                                      : remaining;
+                                    
+                                    return (
+                                      <div>
+                                        <div>{firstLine}</div>
+                                        <div>{secondLine}</div>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
                               </div>
                             </div>
-                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
                               Booking.com
                             </div>
                           </div>
                   </div>
                   
                         <div className="mb-3">
-                          <div className="text-xs text-black dark:text-gray-100 mb-2">
-                            <span className="font-medium">Avg. Compset:</span> <span className="font-bold">$210</span>
-                    </div>
-                        </div>
-                          
-                        {day.hasEvent && (
-                          <div className="mb-3">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Star className="w-3 h-3 text-amber-500 fill-current" />
-                              <div className="text-xs text-gray-800 dark:text-gray-200">
-                                Music Festival
-                              </div>
-                              <div style={{ paddingLeft: '0px' }}>
-                                <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">
-                                  (+2 more)
-                                </span>
+                          <div className="flex items-start gap-6">
+                            {/* Avg. Compset Section */}
+                            <div className="text-xs text-black dark:text-gray-100">
+                              <div className="text-left whitespace-nowrap">
+                                <span className="font-bold">$210</span> <span className="font-medium">- Avg. Compset</span>
                               </div>
                             </div>
-                </div>
-              )}
+                            
+                            {/* Events Section with 24px margin */}
+                            {day.hasEvent && (
+                              <div style={{ marginLeft: '24px' }}>
+                                <div className="flex items-center gap-2">
+                                  <Star className="w-3 h-3 text-amber-500 fill-current" />
+                                  <div className="text-xs text-gray-800 dark:text-gray-200">
+                                    Music Festival
+                                  </div>
+                                  <div style={{ paddingLeft: '0px' }}>
+                                    <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                                      (+2 more)
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
 
                         <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
-                          <div className="text-xs text-gray-800 dark:text-gray-200 leading-relaxed">
-                            Standard Room | Continental breakfast included. Breakfast rated 6. Non-refundable. If you cancel, modify the booking, or don't show up, the fee will be the total price of the reservation...
-                      </div>
+                          <div className="text-xs text-gray-800 dark:text-gray-200 leading-relaxed text-left">
+                            Standard King | Continental breakfast included. Breakfast rated 6. Non-refundable. If you cancel, modify the booking, or don't show up, the fee will be the total price of the reservation...
+                          </div>
                         </div>
             </div>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-                ))}
-                        </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                  )
+                })}
+                    </div>
 
               
                 {/* Inline Competitor Table */}
                 {expandedWeekIndex === weekIndex && selectedWeekForCompetitors && (
-                  <div>
+                  <div className="mt-2">
                   <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden mb-[18px]">
 
                     
                     <div className="overflow-x-auto">
                       {/* Fixed Avg. Compset Row */}
-                      <div className="grid grid-cols-8">
+                      <div className="grid" style={{ gridTemplateColumns: `1fr repeat(7, 1fr)` }}>
                         {/* Hotel Names Column - Avg. Compset */}
                         <div>
                           <div className="px-2 py-0.5 text-xs font-medium text-gray-900 dark:text-gray-100 bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800/60 border-0 h-12 flex items-center border-b border-b-gray-300 dark:border-b-gray-500 transition-colors duration-200">
@@ -1286,33 +1468,38 @@ function RateTrendCalendarInner({
       </div>
                         </div>
 
-                        {/* Date Columns for Avg. Compset */}
+                        {/* Date Columns for Avg. Compset - Always show 7 columns, populate only visible dates */}
                         {selectedWeekForCompetitors.map((day, dayIndex) => {
+                          const isVisible = shouldRenderDate(day);
                           const competitorData = memoizedCompetitorData[dayIndex];
                           const avgRate = competitorData?.avgCompsetRate || 200;
                           const avgDiff = competitorData?.avgCompsetDifference || '+15';
 
   return (
                             <div key={`avg-${dayIndex}`}>
-                              <div className="px-2 py-0.5 text-center border-0 bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800/60 h-12 flex items-center justify-center border-b border-b-gray-300 dark:border-b-gray-500 transition-colors duration-200">
+                              <div className="px-2 py-0.5 text-center border-0 bg-blue-100 dark:bg-blue-900/50 h-12 flex items-center justify-center border-b border-b-gray-300 dark:border-b-gray-500">
                                 <div className="flex flex-col items-center">
-                                  <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                                    ${avgRate}
-              </span>
-                                  <span className={`text-xs font-medium ${
-                                    avgDiff.startsWith('+') ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'
-                                  }`}>
-                                    {avgDiff}
-                      </span>
-                        </div>
-                    </div>
-                      </div>
+                                  {isVisible ? (
+                                    <>
+                                      <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+                                        ${avgRate}
+                                      </span>
+                                      <span className={`text-xs font-medium ${
+                                        avgDiff.startsWith('+') ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'
+                                      }`}>
+                                        {avgDiff}
+                                      </span>
+                                    </>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </div>
                           );
                         })}
                       </div>
                       
                       {/* Scrollable Competitor Rows */}
-                      <div className="grid grid-cols-8 max-h-60 overflow-y-auto">
+                      <div className="grid max-h-60 overflow-y-auto" style={{ gridTemplateColumns: `1fr repeat(7, 1fr)` }}>
                         {/* Hotel Names Column */}
                         <div>
                           {memoizedCompetitorData[0]?.competitors.map((_, compIndex) => {
@@ -1327,41 +1514,45 @@ function RateTrendCalendarInner({
                           })}
                          </div>
                         
-                        {/* Date Columns aligned with calendar */}
-                        {selectedWeekForCompetitors.map((day, dayIndex) => (
-                          <div key={dayIndex}>
-                            {memoizedCompetitorData[0]?.competitors.map((_, compIndex) => {
-                              const competitorData = memoizedCompetitorData[dayIndex]
-                              const competitor = competitorData?.competitors[compIndex]
-                              const isLastRow = compIndex === memoizedCompetitorData[0]?.competitors.length - 1;
+                        {/* Date Columns aligned with calendar - Always show 7 columns, populate only visible dates */}
+                        {selectedWeekForCompetitors.map((day, dayIndex) => {
+                          const isVisible = shouldRenderDate(day);
+                          return (
+                            <div key={dayIndex}>
+                              {memoizedCompetitorData[0]?.competitors.map((_, compIndex) => {
+                                const competitorData = memoizedCompetitorData[dayIndex]
+                                const competitor = competitorData?.competitors[compIndex]
+                                const isLastRow = compIndex === memoizedCompetitorData[0]?.competitors.length - 1;
                               const hotelName = memoizedCompetitorData[0]?.competitors[compIndex]?.hotelName || 'Competitor Hotel';
 
                               return (
-                                <TooltipProvider delayDuration={0} skipDelayDuration={0}>
-                                  <Tooltip delayDuration={0} disableHoverableContent>
-                                    <TooltipTrigger asChild>
-                                      <div className={`px-2 py-0.5 text-center border-0 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800/60 h-12 flex items-center justify-center transition-colors duration-200 ${!isLastRow ? 'border-b border-b-gray-300 dark:border-b-gray-500' : ''}`}>
-                                        <div className="flex flex-col items-center">
-                                          <div className="flex items-center justify-center gap-2">
-                                            <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                                              {competitor?.rate}
-                                            </span>
-                                            {/* Competitive rate dot with 8px padding */}
-                                            {(competitor?.isLowest || competitor?.isHighest) && (
-                               <div className={`w-2 h-2 rounded-full ${
-                                                competitor?.isLowest ? 'bg-green-500 dark:bg-green-400' : 'bg-red-500 dark:bg-red-400'
-                               }`} />
-                                            )}
-                  </div>
-                                          <span className={`text-xs font-medium ${
-                                            competitor?.difference.startsWith('+') ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'
-                                          }`}>
-                                            {competitor?.difference}
-                               </span>
-            </div>
-          </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 w-[460px] z-[10001]">
+                                <div>
+                                  {isVisible ? (
+                                    <TooltipProvider delayDuration={0} skipDelayDuration={0}>
+                                      <Tooltip delayDuration={0} disableHoverableContent>
+                                        <TooltipTrigger asChild>
+                                          <div className={`px-2 py-0.5 text-center border-0 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800/60 h-12 flex items-center justify-center transition-colors duration-200 ${!isLastRow ? 'border-b border-b-gray-300 dark:border-b-gray-500' : ''}`}>
+                                            <div className="flex flex-col items-center">
+                                              <div className="flex items-center justify-center gap-2">
+                                                <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+                                                  {competitor?.rate}
+                                                </span>
+                                                {/* Competitive rate dot with 8px padding */}
+                                                {(competitor?.isLowest || competitor?.isHighest) && (
+                                   <div className={`w-2 h-2 rounded-full ${
+                                                    competitor?.isLowest ? 'bg-green-500 dark:bg-green-400' : 'bg-red-500 dark:bg-red-400'
+                                   }`} />
+                                                )}
+                                              </div>
+                                              <span className={`text-xs font-medium ${
+                                                competitor?.difference.startsWith('+') ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'
+                                              }`}>
+                                                {competitor?.difference}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </TooltipTrigger>
+                                    <TooltipContent side="top" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 pr-6 w-[528px] z-[10001]">
                                       <div>
                                         <div className="mb-2">
                                           <div className="flex justify-between items-center">
@@ -1372,7 +1563,7 @@ function RateTrendCalendarInner({
                                               })()} 2024</span>
                                               <span className="text-sm font-normal">, {(() => {
                                                 const date = new Date(day.year, day.month, day.date)
-                                                return weekDays[date.getDay()]
+                                                return weekDays[(date.getDay() + 6) % 7]
                                               })()}</span>
                                             </h3>
                                             {(() => {
@@ -1387,86 +1578,124 @@ function RateTrendCalendarInner({
                                                       competitor?.isLowest ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                                                     }`}>
                                                       {competitor?.isLowest ? 'Lowest Rate' : 'Highest Rate'}
-              </span>
-            </div>
+                                                    </span>
+                                                  </div>
                                                 )
                                               }
                                               return null
                                             })()}
-          </div>
-                                          <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mt-1 mb-4">
+                                          </div>
+                                          <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mt-1 mb-4 text-left">
                                             {hotelName}
-              </div>
-          </div>
-
+                                          </div>
+                                        </div>
+                                        
                                         <div className="space-y-3 mb-3">
-                                          <div className="grid gap-1 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '90px 150px 90px 90px'}}>
-                                            <div>Lowest Rate</div>
-                                            <div>Room</div>
-                                            <div>Inclusion</div>
-                                            <div>Channel</div>
-                          </div>
-                                            
-                                          <div className="grid gap-1 text-xs mt-2" style={{gridTemplateColumns: '90px 150px 90px 90px'}}>
-                                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                                          <div className="grid gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                                            <div className="text-left">Lowest Rate</div>
+                                            <div className="text-left">Room</div>
+                                            <div className="text-left">Inclusion</div>
+                                            <div className="text-left">Channel</div>
+                                          </div>
+                                          
+                                          <div className="grid gap-2 text-xs mt-2" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
                                               {competitor?.rate || '$210'}
                                             </div>
-                                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
-                                              STD (Standard Room)
+                                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                                              Standard King
                                             </div>
-                                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
-                          <div className="flex items-center gap-1">
-                                                <Wifi className="w-3 h-3 flex-shrink-0" />
-                                                <span>Breakfast</span>
+                                            <div className="font-semibold text-gray-900 dark:text-white text-left">
+                                              <div className="flex items-start gap-1">
+                                                <Wifi className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                                                <div className="text-wrap">
+                                                  {(() => {
+                                                    const inclusionText = "Free Wifi and Airport Pickup - Drop";
+                                                    if (inclusionText.length <= 19) {
+                                                      return <span>{inclusionText}</span>;
+                                                    }
+                                                    
+                                                    const firstLine = inclusionText.substring(0, 19);
+                                                    const remaining = inclusionText.substring(19);
+                                                    const secondLine = remaining.length > 14 
+                                                      ? remaining.substring(0, 14) + "..."
+                                                      : remaining;
+                                                    
+                                                    return (
+                                                      <div>
+                                                        <div>{firstLine}</div>
+                                                        <div>{secondLine}</div>
+                                                      </div>
+                                                    );
+                                                  })()}
+                                                </div>
                                               </div>
                                             </div>
-                                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
-                                              Booking.com
+                                            <div className="font-semibold text-gray-900 dark:text-white text-left">
+                                              {(() => {
+                                                const channelName = "Booking.com";
+                                                return channelName.length > 14 
+                                                  ? channelName.substring(0, 14) + "..."
+                                                  : channelName;
+                                              })()}
                                             </div>
-                      </div>
-                        </div>
-
-                                        <div className="mb-3">
-                                          <div className="text-xs text-black dark:text-gray-100 mb-2">
-                                            <span className="font-medium">Avg. Compset:</span> <span className="font-bold">$210</span>
                                           </div>
-                        </div>
-
-                                        {day.hasEvent && (
-                                          <div className="mb-3">
-                                            <div className="flex items-center gap-2 mb-2">
-                                              <Star className="w-3 h-3 text-amber-500 fill-current" />
-                                              <div className="text-xs text-gray-800 dark:text-gray-200">
-                                                Music Festival
-                             </div>
-                                              <div style={{ paddingLeft: '4px' }}>
-                                                <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">
-                                                  (+2 more)
-                               </span>
+                                        </div>
+                                        
+                                        <div className="mb-3">
+                                          <div className="flex items-start gap-6">
+                                            {/* Avg. Compset Section */}
+                                            <div className="text-xs text-black dark:text-gray-100">
+                                              <div className="text-left whitespace-nowrap">
+                                                <span className="font-bold">$210</span> <span className="font-medium">- Avg. Compset</span>
                                               </div>
-                             </div>
-                           </div>
-                         )}
-
-                                        <div className="pt-2 border-t border-gray-300 dark:border-gray-600">
-                                          <div className="text-xs text-gray-800 dark:text-gray-200 leading-relaxed">
-                                            Standard Room | Continental breakfast included. Breakfast rated 6. Non-refundable. If you cancel, modify the booking, or don't show up, the fee will be the total price of the reservation...
-                    </div>
+                                            </div>
+                                            
+                                            {/* Events Section with 24px margin */}
+                                            <div style={{ marginLeft: '24px' }}>
+                                              <div className="flex items-center gap-2">
+                                                <Star className="w-3 h-3 text-amber-500 fill-current" />
+                                                <div className="text-xs text-gray-800 dark:text-gray-200">
+                                                  Music Festival
+                                                </div>
+                                                <div style={{ paddingLeft: '0px' }}>
+                                                  <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                                                    (+2 more)
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      
+                                        <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
+                                          <div className="text-xs text-gray-800 dark:text-gray-200 leading-relaxed text-left">
+                                            Standard King | Continental breakfast included. Breakfast rated 6. Non-refundable. If you cancel, modify the booking, or don't show up, the fee will be the total price of the reservation...
+                                          </div>
                                         </div>
                                       </div>
                                     </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  ) : (
+                                    <div className={`px-2 py-0.5 text-center border-0 bg-white dark:bg-slate-900 h-12 flex items-center justify-center transition-colors duration-200 ${!isLastRow ? 'border-b border-b-gray-300 dark:border-b-gray-500' : ''}`}>
+                                      <div className="flex flex-col items-center">
+                                        {/* Blank cell - no content */}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
                               )
                             })}
-              </div>
-            ))}
-          </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                   </div>
                 )}
-              </React.Fragment>
+              </div>
             ))}
         </div>
       </div>

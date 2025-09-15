@@ -6,6 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
 import { ChevronDown, Filter, X, Calendar, Users, Bed, Globe } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { EnhancedDatePicker } from "@/components/enhanced-date-picker"
 import { useDateContext } from "@/components/date-context"
 import { useComparison, ComparisonOption } from "@/components/comparison-context"
@@ -503,24 +504,32 @@ export function FilterBar({ onMoreFiltersClick }: FilterBarProps) {
                   )
                 })}
 
-                {/* More Filters Button - Moved next to Primary Compset */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-10 gap-2 px-4 font-medium hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 transition-all duration-200 relative shadow-sm hover:shadow-md border-slate-200 dark:border-slate-700"
-                  onClick={onMoreFiltersClick}
-                >
-                  <Filter className="w-4 h-4" />
-                  <span className="hidden sm:inline font-semibold">More Filters</span>
-                  <span className="sm:hidden font-semibold">Filters</span>
-                  {getActiveFilters.length > 0 && (
-                    <Badge
-                      className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg"
-                    >
-                      {getActiveFilters.length}
-                    </Badge>
-                  )}
-                </Button>
+                {/* More Filters Button - Responsive with tooltip */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-10 gap-2 font-medium hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 transition-all duration-200 relative shadow-sm hover:shadow-md border-slate-200 dark:border-slate-700 xl-1366:px-4 px-2"
+                        onClick={onMoreFiltersClick}
+                      >
+                        <Filter className="w-4 h-4" />
+                        <span className="hidden xl-1366:inline font-semibold">More Filters</span>
+                        {getActiveFilters.length > 0 && (
+                          <Badge
+                            className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg"
+                          >
+                            {getActiveFilters.length}
+                          </Badge>
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="bg-slate-800 text-white border-slate-700 xl-1366:hidden">
+                      <p className="text-xs">More Filters</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
 
                 {/* Active More Filters Display */}
                 {getActiveFilters.length > 0 && (

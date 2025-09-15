@@ -13,6 +13,7 @@ import { RTRateTrendsChart } from "@/components/navigator/rt-rate-trends-chart"
 import { FilterBar } from "@/components/navigator/filter-bar"
 import { RateTrendHeader } from "@/components/navigator/rate-trend-header"
 import { FilterSidebar } from "@/components/filter-sidebar"
+import { LightningRefreshModal } from "@/components/navigator/generate-report-modal"
 import { useDateContext } from "@/components/date-context"
 import { ComparisonProvider } from "@/components/comparison-context"
 import { differenceInDays, format } from "date-fns"
@@ -100,7 +101,10 @@ export default function RateTrendPage() {
   
   // State for competitor scrolling (only for table view)
   const [competitorStartIndex, setCompetitorStartIndex] = useState(0)
-  const competitorsPerPage = 2 // Show 2 competitors at a time
+  const competitorsPerPage = 3 // Show 3 competitors at a time
+  
+  // State for Lightning Refresh Modal
+  const [isLightningRefreshModalOpen, setIsLightningRefreshModalOpen] = useState(false)
   
   // Navigation functions for competitor scrolling
   const nextCompetitors = () => {
@@ -242,7 +246,7 @@ export default function RateTrendPage() {
                   className="h-8 px-3 hover:bg-blue-500 hover:text-white hover:border-blue-500"
                   onClick={() => {
                     console.log('🔄 Lightning Refresh clicked');
-                    // Add refresh logic here
+                    setIsLightningRefreshModalOpen(true);
                   }}
                 >
                   <RefreshCw className="h-4 w-4" style={{marginRight: '2px'}} />
@@ -327,9 +331,22 @@ export default function RateTrendPage() {
             )}
             
             
-            {/* Competitor Navigation - Only visible when table view is active */}
+            {/* Rate Legends & Competitor Navigation - Only visible when table view is active */}
             {currentView === "table" && (
-              <div className="absolute right-48 z-10" style={{ top: 'calc(1rem + 4px)' }}>
+              <div className="absolute right-48 z-10 flex items-center gap-8" style={{ top: 'calc(1rem + 4px)' }}>
+                {/* Rate Legends */}
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                    <span className="text-xs text-gray-600 dark:text-gray-400">Highest Rate</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                    <span className="text-xs text-gray-600 dark:text-gray-400">Lowest Rate</span>
+                  </div>
+                </div>
+                
+                {/* Competitor Navigation */}
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-600 dark:text-gray-400">
                     Competitors {competitorStartIndex + 1}-{Math.min(competitorStartIndex + competitorsPerPage, 9)} of 9
@@ -360,6 +377,23 @@ export default function RateTrendPage() {
               </div>
             )}
             
+
+            {/* Rate Legends - Only visible when calendar view is active */}
+            {currentView === "calendar" && (
+              <div className="absolute top-4 z-10 flex items-center gap-2 hidden md:flex m-2" style={{ right: '11rem' }}>
+                {/* Rate Legends */}
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                    <span className="text-xs text-gray-600 dark:text-gray-400">Highest Rate</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                    <span className="text-xs text-gray-600 dark:text-gray-400">Lowest Rate</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* View Toggle - Positioned consistently for all views */}
             <div className="absolute top-4 right-4 lg:right-6 z-10">
@@ -462,6 +496,11 @@ export default function RateTrendPage() {
           console.log('Applied filters:', filters)
           setIsFilterSidebarOpen(false)
         }}
+      />
+      {/* Lightning Refresh Modal */}
+      <LightningRefreshModal 
+        isOpen={isLightningRefreshModalOpen}
+        onClose={() => setIsLightningRefreshModalOpen(false)}
       />
     </div>
     </ComparisonProvider>

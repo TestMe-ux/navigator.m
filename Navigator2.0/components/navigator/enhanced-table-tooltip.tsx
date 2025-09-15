@@ -42,7 +42,7 @@ export function EnhancedTableTooltip({
   return (
     <TooltipContent 
       side={tooltipSide} 
-      className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 w-[460px] z-[50]" 
+      className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 pr-6 w-[528px] z-[50]" 
       sideOffset={sideOffset} 
       avoidCollisions={true} 
       collisionPadding={20} 
@@ -76,55 +76,87 @@ export function EnhancedTableTooltip({
         </div>
         
         <div className="space-y-3 mb-3">
-          <div className="grid gap-1 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '90px 150px 90px 90px'}}>
+          <div className="grid gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
             <div className="text-left">Lowest Rate</div>
             <div className="text-left">Room</div>
             <div className="text-left">Inclusion</div>
             <div className="text-left">Channel</div>
           </div>
           
-          <div className="grid gap-1 text-xs mt-2" style={{gridTemplateColumns: '90px 150px 90px 90px'}}>
+          <div className="grid gap-2 text-xs mt-2" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
             <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
               ${rate}
             </div>
             <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
               Standard King
             </div>
-            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
-              <div className="flex items-center gap-1">
-                <Wifi className="w-3 h-3 flex-shrink-0" />
-                <span>Free WiFi</span>
+            <div className="font-semibold text-gray-900 dark:text-white text-left">
+              <div className="flex items-start gap-1">
+                <Wifi className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                <div className="text-wrap">
+                  {(() => {
+                    const inclusionText = "Free Wifi and Airport Pickup - Drop";
+                    if (inclusionText.length <= 19) {
+                      return <span>{inclusionText}</span>;
+                    }
+                    
+                    const firstLine = inclusionText.substring(0, 19);
+                    const remaining = inclusionText.substring(19);
+                    const secondLine = remaining.length > 14 
+                      ? remaining.substring(0, 14) + "..."
+                      : remaining;
+                    
+                    return (
+                      <div>
+                        <div>{firstLine}</div>
+                        <div>{secondLine}</div>
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
             </div>
-            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
-              Booking.com
+            <div className="font-semibold text-gray-900 dark:text-white text-left">
+              {(() => {
+                // Show BrandGoogleHotelFinder.com for first 2 dates (rowIndex 0 and 1)
+                const channelName = (rowIndex !== undefined && rowIndex < 2) 
+                  ? "BrandGoogleHotelFinder.com"
+                  : "Booking.com";
+                return channelName.length > 14 
+                  ? channelName.substring(0, 14) + "..."
+                  : channelName;
+              })()}
             </div>
           </div>
         </div>
         
         <div className="mb-3">
-          <div className="grid gap-1 text-xs text-black dark:text-gray-100 mb-2" style={{gridTemplateColumns: '90px 150px 90px 90px'}}>
-            <div className="text-left whitespace-nowrap">
-              <span className="font-medium">Avg. Compset:</span> <span className="font-bold">${Math.floor(rate * 0.95)}</span>
+          <div className="flex items-start gap-6">
+            {/* Avg. Compset Section */}
+            <div className="text-xs text-black dark:text-gray-100">
+              <div className="text-left whitespace-nowrap">
+                <span className="font-bold">${Math.floor(rate * 0.95)}</span> <span className="font-medium">- Avg. Compset</span>
+              </div>
             </div>
+            
+            {/* Events Section with 24px margin */}
+            {hasEvent && eventNames && eventNames.length > 0 && (
+              <div style={{ marginLeft: '24px' }}>
+                <div className="flex items-center gap-2">
+                  <Star className="w-3 h-3 text-amber-500 fill-current" />
+                  <div className="text-xs text-gray-800 dark:text-gray-200">
+                    Music Festival
+                  </div>
+                  <div style={{ paddingLeft: '0px' }}>
+                    <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                      (+2 more)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-        
-        {hasEvent && eventNames && eventNames.length > 0 && (
-          <div className="mb-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Star className="w-3 h-3 text-amber-500 fill-current" />
-              <div className="text-xs text-gray-800 dark:text-gray-200">
-                Music Festival
-              </div>
-              <div style={{ paddingLeft: '0px' }}>
-                <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">
-                  (+2 more)
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
       
         <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
           <div className="text-xs text-gray-800 dark:text-gray-200 leading-relaxed text-left">
