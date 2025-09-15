@@ -25,9 +25,9 @@ export async function updateEvents(paramsValues:any) {
     return data;    
 }
 
-export async function deleteEvents(paramsValues:any) {
-     const { data } = await apiClient.post(`${Constants.API_DeleteEvents}`, paramsValues);
-    return data;    
+export async function deleteEvents(eventId: number) {
+    const { data } = await apiClient.post(`${Constants.API_DeleteEvent}?eventId=${eventId}`);
+    return data;
 }
 
 export async function getAllSubscribeEvents(filtersValue: any) {
@@ -37,5 +37,13 @@ export async function getAllSubscribeEvents(filtersValue: any) {
 
 export async function getSubscribeUnsubscribeEvent(filtersValue: any) {
     const { data } = await apiClient.post(`${Constants.API_SubscribeUnsubscribeEvent}`, filtersValue);
+    return data;
+}
+export async function setSubscribeUnsubscribeEvent(filtersValue: any) {
+    const { data } = await apiClient.post(`${Constants.API_SubscribeUnsubscribeEvent}`, filtersValue);
+    return data;
+}
+export async function setSubsUnSubsHolidayEvent(filtersValue: any) {
+    const { data } = await apiClient.post(`${Constants.API_UpdateHolidayList}`, filtersValue);
     return data;
 }

@@ -26,6 +26,7 @@ import {
   Coffee,
   Globe,
   Presentation,
+  Store,
   Building,
   GraduationCap,
   PartyPopper,
@@ -53,20 +54,29 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn, conevrtDateforApi } from "@/lib/utils"
-import { getAllEvents, saveEvents, deleteEvents, getEventCitiesCountryList, getAllHoliday, getAllSubscribeEvents, getSubscribeUnsubscribeEvent, updateEvents } from "@/lib/events"
+import { getAllEvents, saveEvents, deleteEvents, getEventCitiesCountryList, getAllHoliday, getAllSubscribeEvents, setSubscribeUnsubscribeEvent, setSubsUnSubsHolidayEvent, updateEvents } from "@/lib/events"
 import { useDateContext } from "@/components/date-context"
-import { addDays, endOfMonth, format, getDaysInMonth, startOfMonth } from "date-fns"
+import { addDays, endOfMonth, format, getDaysInMonth, isValid, startOfMonth } from "date-fns"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
+
 
 // Helper functions for consistent date formatting
 const formatSingleDate = (dateString: string | Date) => {
+  if (!dateString) return "";
   const date = typeof dateString === 'string' ? new Date(dateString) : dateString
+  if (!isValid(date)) {
+    return ""; // or "Invalid Date" or fallback text
+  }
   return format(date, "dd MMM ''yy")
 }
 
 const formatDateRange = (startDate: string | Date, endDate: string | Date) => {
   const start = typeof startDate === 'string' ? new Date(startDate) : startDate
   const end = typeof endDate === 'string' ? new Date(endDate) : endDate
+
+  if (!start || isNaN(start.getTime()) || !end || isNaN(end.getTime())) {
+    return ""; // or some default value
+  }
 
   if (start.toDateString() === end.toDateString()) {
     return formatSingleDate(start)
@@ -84,20 +94,31 @@ const formatListHeader = (dateString: string) => {
 
 interface Event {
   id: string
+  eventId: string
   name: string
   startDate: string
   endDate: string
-  category: "conference" | "tradeshow" | "workshop" | "social" | "holidays" | "business"
+  category: "conferences" | "tradeshow" | "workshop" | "social" | "holidays" | "business"
   location: string
   description: string
   status: "bookmarked" | "suggested" | "available" | "holidays"
   country?: string
   flag?: string
-  type: "holiday" | "conference" | "festival" | "sports" | "business" | "social"
+  type: "holiday" | "conferences" | "festival" | "sports" | "business" | "social"
   priority: "high" | "medium" | "low"
   attendees?: number
   isCustom?: boolean
   createdAt?: number
+
+  eventCity: string
+  charge: string
+  masterEventId: any
+  EventProfileId: any
+  imageUrl: any
+  isRepeat: boolean
+  repeats: any
+  repeatsBy: any
+  repeatEvery: any | number | null
 }
 
 // Custom events storage key
@@ -105,6 +126,12 @@ const CUSTOM_EVENTS_KEY = 'events-calendar-custom-events'
 
 // Function to save custom events to localStorage
 const saveCustomEventsToStorage = (customEvents: Event[]) => {
+  // Check if we're on the client side
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    console.warn('localStorage is not available (SSR environment)')
+    return
+  }
+
   try {
     // Ensure we only save custom events with proper timestamps
     const eventsWithTimestamp = customEvents.filter(event => event.isCustom).map(event => ({
@@ -132,12 +159,13 @@ const saveCustomEventsToStorage = (customEvents: Event[]) => {
 
 // Function to load custom events from localStorage
 const loadCustomEventsFromStorage = (): Event[] => {
+  // Check if we're on the client side
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    console.warn('localStorage is not available (SSR environment)')
+    return []
+  }
+
   try {
-    // Check if localStorage is available
-    if (typeof localStorage === 'undefined') {
-      console.warn('localStorage is not available')
-      return []
-    }
 
     const stored = localStorage.getItem(CUSTOM_EVENTS_KEY)
     if (!stored || stored === 'null' || stored === 'undefined') {
@@ -150,18 +178,14 @@ const loadCustomEventsFromStorage = (): Event[] => {
       events = JSON.parse(stored)
     } catch (parseError) {
       console.error('Failed to parse stored events, clearing localStorage:', parseError)
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(CUSTOM_EVENTS_KEY)
-      }
+      localStorage.removeItem(CUSTOM_EVENTS_KEY)
       return []
     }
 
     // Ensure events is an array
     if (!Array.isArray(events)) {
       console.error('Stored events is not an array, clearing localStorage')
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(CUSTOM_EVENTS_KEY)
-      }
+      localStorage.removeItem(CUSTOM_EVENTS_KEY)
       return []
     }
 
@@ -185,10 +209,8 @@ const loadCustomEventsFromStorage = (): Event[] => {
     // Save back the filtered events to clean up expired ones
     if (validEvents.length !== events.length) {
       try {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(CUSTOM_EVENTS_KEY, JSON.stringify(validEvents))
-          console.log(`🗑️ Cleaned up ${expiredCount} expired events (older than 3 days)`)
-        }
+        localStorage.setItem(CUSTOM_EVENTS_KEY, JSON.stringify(validEvents))
+        console.log(`🗑️ Cleaned up ${expiredCount} expired events (older than 3 days)`)
       } catch (saveError) {
         console.error('Failed to save cleaned events:', saveError)
       }
@@ -200,952 +222,13 @@ const loadCustomEventsFromStorage = (): Event[] => {
     console.error('Failed to load custom events from localStorage:', error)
     // Clear corrupted data
     try {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(CUSTOM_EVENTS_KEY)
-      }
+      localStorage.removeItem(CUSTOM_EVENTS_KEY)
     } catch (clearError) {
       console.error('Failed to clear corrupted localStorage data:', clearError)
     }
     return []
   }
 }
-
-// Curated selection of major global events distributed strategically throughout the year
-const sampleEvents: Event[] = [
-  // JANUARY - Major holidays and tech events
-  {
-    id: "h1",
-    name: "International Day of Friendship",
-    startDate: "2025-08-01",
-    endDate: "2025-08-01",
-    category: "social",
-    location: "Global",
-    description: "UN day promoting friendship between peoples and cultures",
-    status: "suggested",
-    country: "Global",
-    flag: "🤝",
-    type: "holiday",
-    priority: "high",
-  },
-  {
-    id: "b1",
-    name: "Tech Summit 2025",
-    startDate: "2025-08-03",
-    endDate: "2025-08-05",
-    category: "business",
-    location: "Las Vegas, USA",
-    description: "Premier technology conference and innovation showcase",
-    status: "bookmarked",
-    country: "USA",
-    flag: "🇺🇸",
-
-    type: "conference",
-    priority: "high",
-  },
-  {
-    id: "h2",
-    name: "Martin Luther King Jr. Day",
-    startDate: "2025-11-08",
-    endDate: "2025-11-08",
-    category: "social",
-    location: "United States",
-    description: "Federal holiday honoring civil rights leader",
-    status: "suggested",
-    country: "USA",
-    flag: "🇺🇸",
-    type: "holiday",
-    priority: "high",
-  },
-  {
-    id: "s1",
-    name: "World Economic Forum",
-    startDate: "2025-04-03",
-    endDate: "2025-04-06",
-    category: "business",
-    location: "Davos, Switzerland",
-    description: "Annual meeting of global economic leaders",
-    status: "suggested",
-    country: "Switzerland",
-    flag: "🇨🇭",
-
-    type: "conference",
-    priority: "high",
-  },
-
-  // FEBRUARY - Cultural celebrations and mobile tech
-  {
-    id: "h3",
-    name: "Chinese New Year",
-    startDate: "2025-07-22",
-    endDate: "2025-07-22",
-    category: "social",
-    location: "China",
-    description: "Traditional lunar new year celebration",
-    status: "suggested",
-    country: "China",
-    flag: "🇨🇳",
-    type: "holiday",
-    priority: "high",
-  },
-  {
-    id: "h4",
-    name: "Valentine's Day",
-    startDate: "2025-08-14",
-    endDate: "2025-08-14",
-    category: "social",
-    location: "Global",
-    description: "Day of love and romance",
-    status: "suggested",
-    country: "Global",
-    flag: "💝",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "b2",
-    name: "Mobile World Congress",
-    startDate: "2025-06-12",
-    endDate: "2025-06-15",
-    category: "business",
-    location: "Barcelona, Spain",
-    description: "World's largest mobile industry event",
-    status: "bookmarked",
-    country: "Spain",
-    flag: "🇪🇸",
-
-    type: "conference",
-    priority: "high",
-  },
-
-  // MARCH - Spring festivals and tech
-  {
-    id: "mar1",
-    name: "SXSW",
-    startDate: "2025-10-20",
-    endDate: "2025-10-29",
-    category: "social",
-    location: "Austin, USA",
-    description: "South by Southwest - Music, interactive, and film festival",
-    status: "bookmarked",
-    country: "USA",
-    flag: "🇺🇸",
-
-    type: "festival",
-    priority: "high",
-  },
-  {
-    id: "mar2",
-    name: "St. Patrick's Day",
-    startDate: "2025-12-05",
-    endDate: "2025-12-05",
-    category: "social",
-    location: "Ireland",
-    description: "Irish cultural and religious celebration",
-    status: "suggested",
-    country: "Ireland",
-    flag: "🇮🇪",
-    type: "holiday",
-    priority: "medium",
-  },
-
-  // APRIL - Easter and AI
-  {
-    id: "apr1",
-    name: "Easter Sunday",
-    startDate: "2025-04-20",
-    endDate: "2025-04-20",
-    category: "social",
-    location: "Global",
-    description: "Christian holiday celebrating resurrection",
-    status: "suggested",
-    country: "Global",
-    flag: "🐰",
-    type: "holiday",
-    priority: "medium",
-  },
-
-  // MAY - Workers' day and major conferences
-  {
-    id: "may1",
-    name: "World Humanitarian Day",
-    startDate: "2025-08-19",
-    endDate: "2025-08-19",
-    category: "social",
-    location: "Global",
-    description: "UN day honoring humanitarian workers worldwide",
-    status: "suggested",
-    country: "Global",
-    flag: "🤲",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "may2",
-    name: "DevCon 2025",
-    startDate: "2025-08-14",
-    endDate: "2025-08-16",
-    category: "business",
-    location: "Mountain View, USA",
-    description: "Premier developer conference for emerging technologies",
-    status: "bookmarked",
-    country: "USA",
-    flag: "🇺🇸",
-    type: "conference",
-    priority: "high",
-  },
-  {
-    id: "may3",
-    name: "International Cat Day",
-    startDate: "2025-08-08",
-    endDate: "2025-08-08",
-    category: "social",
-    location: "Global",
-    description: "Day celebrating cats and promoting their welfare",
-    status: "suggested",
-    country: "Global",
-    flag: "🐱",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "may4",
-    name: "World Elephant Day",
-    startDate: "2025-08-12",
-    endDate: "2025-08-12",
-    category: "social",
-    location: "Global",
-    description: "Day dedicated to elephant conservation and protection",
-    status: "suggested",
-    country: "Global",
-    flag: "🐘",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "may5",
-    name: "International Left-Handers Day",
-    startDate: "2025-08-13",
-    endDate: "2025-08-13",
-    category: "social",
-    location: "Global",
-    description: "Day celebrating left-handed people and their unique challenges",
-    status: "suggested",
-    country: "Global",
-    flag: "✋",
-    type: "holiday",
-    priority: "low",
-  },
-  {
-    id: "may6",
-    name: "AI Summit 2025",
-    startDate: "2025-08-18",
-    endDate: "2025-08-20",
-    category: "business",
-    location: "Seattle, USA",
-    description: "Leading artificial intelligence and machine learning conference",
-    status: "suggested",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 25000,
-    type: "conference",
-    priority: "high",
-  },
-
-  // JUNE - Summer events and technology conferences
-  {
-    id: "jun1",
-    name: "International Beer Day",
-    startDate: "2025-08-01",
-    endDate: "2025-08-01",
-    category: "social",
-    location: "Global",
-    description: "International celebration of beer and brewing culture",
-    status: "suggested",
-    country: "Global",
-    flag: "🍺",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "jun2",
-    name: "World Ocean Day",
-    startDate: "2025-06-08",
-    endDate: "2025-06-08",
-    category: "social",
-    location: "Global",
-    description: "UN day celebrating ocean conservation",
-    status: "suggested",
-    country: "Global",
-    flag: "🌊",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "jun3",
-    name: "Father's Day",
-    startDate: "2025-06-15",
-    endDate: "2025-06-15",
-    category: "social",
-    location: "Global",
-    description: "Day honoring fathers and fatherhood",
-    status: "suggested",
-    country: "Global",
-    flag: "👨‍👧‍👦",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "jun4",
-    name: "E3 Gaming Expo",
-    startDate: "2025-06-10",
-    endDate: "2025-06-12",
-    category: "business",
-    location: "Los Angeles, USA",
-    description: "Electronic Entertainment Expo - Gaming industry showcase",
-    status: "suggested",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 45000,
-    type: "conference",
-    priority: "high",
-  },
-  {
-    id: "jun5",
-    name: "Summer Solstice",
-    startDate: "2025-06-21",
-    endDate: "2025-06-21",
-    category: "social",
-    location: "Global",
-    description: "Longest day of the year in Northern Hemisphere",
-    status: "suggested",
-    country: "Global",
-    flag: "☀️",
-    type: "holiday",
-    priority: "low",
-  },
-  {
-    id: "jun6",
-    name: "Cannes Lions Festival",
-    startDate: "2025-06-16",
-    endDate: "2025-06-20",
-    category: "business",
-    location: "Cannes, France",
-    description: "International Festival of Creativity in advertising",
-    status: "suggested",
-    country: "France",
-    flag: "🇫🇷",
-    attendees: 15000,
-    type: "festival",
-    priority: "medium",
-  },
-  {
-    id: "jun7",
-    name: "World Music Day",
-    startDate: "2025-06-21",
-    endDate: "2025-06-21",
-    category: "social",
-    location: "Global",
-    description: "Annual celebration of music and cultural diversity",
-    status: "suggested",
-    country: "Global",
-    flag: "🎵",
-    type: "holiday",
-    priority: "medium",
-  },
-
-  // JULY - Independence and summer events
-  {
-    id: "jul1",
-    name: "Independence Day",
-    startDate: "2025-07-04",
-    endDate: "2025-07-04",
-    category: "social",
-    location: "United States",
-    description: "American Independence Day celebration",
-    status: "suggested",
-    country: "USA",
-    flag: "🇺🇸",
-    type: "holiday",
-    priority: "high",
-  },
-
-  // AUGUST - International events
-  {
-    id: "aug1",
-    name: "Edinburgh Festival Fringe",
-    startDate: "2025-08-08",
-    endDate: "2025-08-30",
-    category: "social",
-    location: "Edinburgh, Scotland",
-    description: "World's largest arts festival",
-    status: "suggested",
-    country: "UK",
-    flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
-    attendees: 500000,
-    type: "festival",
-    priority: "high",
-  },
-  {
-    id: "aug2",
-    name: "Independence Day of India",
-    startDate: "2025-08-15",
-    endDate: "2025-08-15",
-    category: "social",
-    location: "India",
-    description: "India's Independence Day celebration",
-    status: "bookmarked",
-    country: "India",
-    flag: "🇮🇳",
-    type: "holiday",
-    priority: "high",
-  },
-  {
-    id: "aug3",
-    name: "DEF CON 33",
-    startDate: "2025-08-07",
-    endDate: "2025-08-10",
-    category: "business",
-    location: "Las Vegas, USA",
-    description: "World's largest hacking conference",
-    status: "available",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 30000,
-    type: "conference",
-    priority: "medium",
-  },
-  {
-    id: "aug4",
-    name: "Burning Man Festival",
-    startDate: "2025-08-25",
-    endDate: "2025-09-02",
-    category: "social",
-    location: "Black Rock Desert, USA",
-    description: "Annual arts and music festival in the desert",
-    status: "suggested",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 80000,
-    type: "festival",
-    priority: "medium",
-  },
-  {
-    id: "aug5",
-    name: "VMworld 2025",
-    startDate: "2025-08-26",
-    endDate: "2025-08-29",
-    category: "business",
-    location: "San Francisco, USA",
-    description: "VMware's premier technology conference",
-    status: "bookmarked",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 20000,
-    type: "conference",
-    priority: "high",
-  },
-  {
-    id: "aug6",
-    name: "La Tomatina",
-    startDate: "2025-08-27",
-    endDate: "2025-08-27",
-    category: "social",
-    location: "Buñol, Spain",
-    description: "Famous tomato-throwing festival",
-    status: "available",
-    country: "Spain",
-    flag: "🇪🇸",
-    attendees: 20000,
-    type: "festival",
-    priority: "low",
-  },
-  {
-    id: "aug7",
-    name: "International Youth Day",
-    startDate: "2025-08-12",
-    endDate: "2025-08-12",
-    category: "social",
-    location: "Global",
-    description: "UN day celebrating youth contributions",
-    status: "suggested",
-    country: "Global",
-    flag: "🌍",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "aug8",
-    name: "Gamescom 2025",
-    startDate: "2025-08-21",
-    endDate: "2025-08-25",
-    category: "business",
-    location: "Cologne, Germany",
-    description: "World's largest gaming trade fair",
-    status: "bookmarked",
-    country: "Germany",
-    flag: "🇩🇪",
-    attendees: 370000,
-    type: "conference",
-    priority: "high",
-  },
-  {
-    id: "aug9",
-    name: "World Photography Day",
-    startDate: "2025-08-19",
-    endDate: "2025-08-19",
-    category: "social",
-    location: "Global",
-    description: "Celebrating the art of photography",
-    status: "available",
-    country: "Global",
-    flag: "📸",
-    type: "holiday",
-    priority: "low",
-  },
-  {
-    id: "aug10",
-    name: "Summer Olympics 2028 Kickoff",
-    startDate: "2025-08-31",
-    endDate: "2025-08-31",
-    category: "social",
-    location: "Los Angeles, USA",
-    description: "Official countdown event for LA 2028 Olympics",
-    status: "suggested",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 50000,
-    type: "sports",
-    priority: "high",
-  },
-  {
-    id: "aug11",
-    name: "BlackHat USA 2025",
-    startDate: "2025-08-02",
-    endDate: "2025-08-07",
-    category: "business",
-    location: "Las Vegas, USA",
-    description: "Premier cybersecurity conference",
-    status: "bookmarked",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 17000,
-    type: "conference",
-    priority: "high",
-  },
-
-  // SEPTEMBER - Oktoberfest and tech events
-  {
-    id: "sep1",
-    name: "Labor Day Weekend",
-    startDate: "2025-09-01",
-    endDate: "2025-09-01",
-    category: "social",
-    location: "United States",
-    description: "American Labor Day holiday",
-    status: "suggested",
-    country: "USA",
-    flag: "🇺🇸",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "sep2",
-    name: "Oktoberfest",
-    startDate: "2025-09-20",
-    endDate: "2025-10-05",
-    category: "social",
-    location: "Munich, Germany",
-    description: "World's largest beer festival",
-    status: "bookmarked",
-    country: "Germany",
-    flag: "🇩🇪",
-    attendees: 6000000,
-    type: "festival",
-    priority: "high",
-  },
-  {
-    id: "sep3",
-    name: "Apple Event",
-    startDate: "2025-09-12",
-    endDate: "2025-09-12",
-    category: "business",
-    location: "Cupertino, USA",
-    description: "Apple's annual iPhone launch event",
-    status: "bookmarked",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 1000,
-    type: "conference",
-    priority: "high",
-  },
-  {
-    id: "sep4",
-    name: "Brazilian Independence Day",
-    startDate: "2025-09-07",
-    endDate: "2025-09-07",
-    category: "social",
-    location: "Brazil",
-    description: "Brazil's National Independence Day",
-    status: "available",
-    country: "Brazil",
-    flag: "🇧🇷",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "sep5",
-    name: "IFA Berlin 2025",
-    startDate: "2025-09-05",
-    endDate: "2025-09-10",
-    category: "business",
-    location: "Berlin, Germany",
-    description: "Global trade show for consumer electronics",
-    status: "suggested",
-    country: "Germany",
-    flag: "🇩🇪",
-    attendees: 245000,
-    type: "conference",
-    priority: "medium",
-  },
-  {
-    id: "sep6",
-    name: "World Tourism Day",
-    startDate: "2025-09-27",
-    endDate: "2025-09-27",
-    category: "social",
-    location: "Global",
-    description: "UN World Tourism Day celebration",
-    status: "available",
-    country: "Global",
-    flag: "✈️",
-    type: "holiday",
-    priority: "low",
-  },
-  {
-    id: "sep7",
-    name: "Burning Man Decompression",
-    startDate: "2025-09-14",
-    endDate: "2025-09-14",
-    category: "social",
-    location: "San Francisco, USA",
-    description: "Post-Burning Man community celebration",
-    status: "suggested",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 15000,
-    type: "festival",
-    priority: "low",
-  },
-  {
-    id: "sep8",
-    name: "React Conf 2025",
-    startDate: "2025-09-25",
-    endDate: "2025-09-26",
-    category: "business",
-    location: "Henderson, USA",
-    description: "Official React JavaScript library conference",
-    status: "bookmarked",
-    country: "USA",
-    flag: "🇺🇸",
-
-    type: "conference",
-    priority: "high",
-  },
-  {
-    id: "sep9",
-    name: "International Day of Peace",
-    startDate: "2025-09-21",
-    endDate: "2025-09-21",
-    category: "social",
-    location: "Global",
-    description: "UN International Day of Peace",
-    status: "suggested",
-    country: "Global",
-    flag: "🕊️",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "sep10",
-    name: "Formula 1 Singapore Grand Prix",
-    startDate: "2025-09-19",
-    endDate: "2025-09-21",
-    category: "social",
-    location: "Singapore",
-    description: "Night race F1 Grand Prix",
-    status: "available",
-    country: "Singapore",
-    flag: "🇸🇬",
-
-    type: "sports",
-    priority: "high",
-  },
-  {
-    id: "sep11",
-    name: "Autodesk University 2025",
-    startDate: "2025-09-17",
-    endDate: "2025-09-19",
-    category: "business",
-    location: "Las Vegas, USA",
-    description: "Autodesk's premier learning conference",
-    status: "available",
-    country: "USA",
-    flag: "🇺🇸",
-
-    type: "conference",
-    priority: "medium",
-  },
-  {
-    id: "sep12",
-    name: "Mid-Autumn Festival",
-    startDate: "2025-09-29",
-    endDate: "2025-09-29",
-    category: "social",
-    location: "China",
-    description: "Traditional Chinese moon festival",
-    status: "bookmarked",
-    country: "China",
-    flag: "🇨🇳",
-    type: "holiday",
-    priority: "high",
-  },
-
-  // OCTOBER - Halloween and major tech summit
-  {
-    id: "oct1",
-    name: "Web Summit",
-    startDate: "2025-10-07",
-    endDate: "2025-10-10",
-    category: "business",
-    location: "Lisbon, Portugal",
-    description: "Europe's largest tech conference",
-    status: "bookmarked",
-    country: "Portugal",
-    flag: "🇵🇹",
-
-    type: "conference",
-    priority: "high",
-  },
-  {
-    id: "oct2",
-    name: "Halloween",
-    startDate: "2025-10-31",
-    endDate: "2025-10-31",
-    category: "social",
-    location: "Global",
-    description: "Halloween celebration worldwide",
-    status: "suggested",
-    country: "Global",
-    flag: "🎃",
-    type: "holiday",
-    priority: "medium",
-  },
-
-  // NOVEMBER - Major holidays
-  {
-    id: "nov1",
-    name: "Diwali",
-    startDate: "2025-11-01",
-    endDate: "2025-11-01",
-    category: "social",
-    location: "India",
-    description: "Hindu festival of lights",
-    status: "suggested",
-    country: "India",
-    flag: "🇮🇳",
-    type: "holiday",
-    priority: "high",
-  },
-  {
-    id: "nov2",
-    name: "Thanksgiving",
-    startDate: "2025-11-27",
-    endDate: "2025-11-27",
-    category: "social",
-    location: "United States",
-    description: "American Thanksgiving holiday",
-    status: "suggested",
-    country: "USA",
-    flag: "🦃",
-    type: "holiday",
-    priority: "high",
-  },
-
-  // NOVEMBER continued - More business and cultural events
-  {
-    id: "nov3",
-    name: "Black Friday",
-    startDate: "2025-11-28",
-    endDate: "2025-11-28",
-    category: "business",
-    location: "Global",
-    description: "Major shopping event and retail sales day",
-    status: "suggested",
-    country: "Global",
-    flag: "🛍️",
-    type: "business",
-    priority: "high",
-  },
-  {
-    id: "nov4",
-    name: "Cyber Monday",
-    startDate: "2025-12-01",
-    endDate: "2025-12-01",
-    category: "business",
-    location: "Global",
-    description: "Online shopping event following Black Friday",
-    status: "suggested",
-    country: "Global",
-    flag: "💻",
-    type: "business",
-    priority: "high",
-  },
-  {
-    id: "nov5",
-    name: "World Cities Day",
-    startDate: "2025-10-31",
-    endDate: "2025-10-31",
-    category: "social",
-    location: "Global",
-    description: "UN day promoting sustainable urban development",
-    status: "suggested",
-    country: "Global",
-    flag: "🏙️",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "nov6",
-    name: "International Men's Day",
-    startDate: "2025-11-19",
-    endDate: "2025-11-19",
-    category: "social",
-    location: "Global",
-    description: "Day celebrating men's contributions to society",
-    status: "suggested",
-    country: "Global",
-    flag: "👨",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "nov7",
-    name: "World Television Day",
-    startDate: "2025-11-21",
-    endDate: "2025-11-21",
-    category: "social",
-    location: "Global",
-    description: "UN day recognizing television's impact on communication",
-    status: "suggested",
-    country: "Global",
-    flag: "📺",
-    type: "holiday",
-    priority: "low",
-  },
-
-  // DECEMBER - Year-end holidays and events
-  {
-    id: "dec1",
-    name: "Christmas Day",
-    startDate: "2025-12-25",
-    endDate: "2025-12-25",
-    category: "social",
-    location: "Global",
-    description: "Christian holiday celebrating birth of Jesus",
-    status: "suggested",
-    country: "Global",
-    flag: "🎄",
-    type: "holiday",
-    priority: "high",
-  },
-  {
-    id: "dec2",
-    name: "New Year's Eve",
-    startDate: "2025-12-31",
-    endDate: "2025-12-31",
-    category: "social",
-    location: "Global",
-    description: "Last day of the year celebration",
-    status: "suggested",
-    country: "Global",
-    flag: "🎆",
-    type: "holiday",
-    priority: "high",
-  },
-  {
-    id: "dec3",
-    name: "AWS re:Invent 2025",
-    startDate: "2025-12-02",
-    endDate: "2025-12-06",
-    category: "business",
-    location: "Las Vegas, USA",
-    description: "Amazon Web Services' premier cloud computing conference",
-    status: "suggested",
-    country: "USA",
-    flag: "🇺🇸",
-    attendees: 65000,
-    type: "conference",
-    priority: "high",
-  },
-  {
-    id: "dec4",
-    name: "Human Rights Day",
-    startDate: "2025-12-10",
-    endDate: "2025-12-10",
-    category: "social",
-    location: "Global",
-    description: "UN day commemorating the Universal Declaration of Human Rights",
-    status: "suggested",
-    country: "Global",
-    flag: "⚖️",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "dec5",
-    name: "International Mountain Day",
-    startDate: "2025-12-11",
-    endDate: "2025-12-11",
-    category: "social",
-    location: "Global",
-    description: "UN day celebrating mountain ecosystems and cultures",
-    status: "suggested",
-    country: "Global",
-    flag: "🏔️",
-    type: "holiday",
-    priority: "low",
-  },
-  {
-    id: "dec6",
-    name: "International Migrants Day",
-    startDate: "2025-12-18",
-    endDate: "2025-12-18",
-    category: "social",
-    location: "Global",
-    description: "UN day recognizing migrants' contributions and challenges",
-    status: "suggested",
-    country: "Global",
-    flag: "🌍",
-    type: "holiday",
-    priority: "medium",
-  },
-  {
-    id: "dec7",
-    name: "Winter Solstice",
-    startDate: "2025-12-21",
-    endDate: "2025-12-21",
-    category: "social",
-    location: "Global",
-    description: "Astronomical beginning of winter in Northern Hemisphere",
-    status: "suggested",
-    country: "Global",
-    flag: "❄️",
-    type: "holiday",
-    priority: "low",
-  },
-]
-
-
 
 // Custom Event Tooltip Component with Today's New Logic
 const EventTooltip = ({ children, event, isVisible, day, currentDate }: {
@@ -1378,10 +461,11 @@ export default function EventsCalendarPage() {
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false)
 
   const [isDayViewOpen, setIsDayViewOpen] = useState(false)
+  const [isSaveEvent, setIsSaveEvent] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
   const [bookmarkSearchQuery, setBookmarkSearchQuery] = useState("")
-  const [bookmarkCategoryFilter, setBookmarkCategoryFilter] = useState<string[]>(["all", "conference", "tradeshow", "workshop", "social", "holidays"])
+  const [bookmarkCategoryFilter, setBookmarkCategoryFilter] = useState<string[]>(["all", "conferences", "tradeshow", "workshop", "social", "holidays"])
   const [bookmarkTypeFilter, setBookmarkTypeFilter] = useState<string[]>(["all", "bookmarked", "holiday", "suggested", "available"])
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [dropdownKey, setDropdownKey] = useState(0) // Force re-render of dropdown
@@ -1389,7 +473,7 @@ export default function EventsCalendarPage() {
   // Helper function to check if a category should be checked (bookmark popup)
   const isCategoryChecked = useCallback((categoryId: string) => {
     // Always return true for individual categories when "all" is present
-    const allCategories = ["conference", "tradeshow", "workshop", "social", "holidays"]
+    const allCategories = ["conferences", "tradeshow", "workshop", "social", "holidays"]
 
     if (categoryId === "all") {
       return bookmarkCategoryFilter.includes("all")
@@ -1426,7 +510,7 @@ export default function EventsCalendarPage() {
   useEffect(() => {
     // Double-check that state is consistent for UI rendering
     if (bookmarkCategoryFilter.includes("all")) {
-      const allCategories = ["all", "conference", "tradeshow", "workshop", "social", "holidays"]
+      const allCategories = ["all", "conferences", "tradeshow", "workshop", "social", "holidays"]
       const hasAllCategories = allCategories.every(cat => bookmarkCategoryFilter.includes(cat))
 
       if (!hasAllCategories) {
@@ -1442,22 +526,22 @@ export default function EventsCalendarPage() {
   useEffect(() => {
     // Focus only on bookmark dropdown for now to avoid reference issues
     // Immediate sync for bookmark dropdown
-    setBookmarkCategoryFilter(["all", "conference", "tradeshow", "workshop", "social", "holidays"])
+    setBookmarkCategoryFilter(["all", "conferences", "tradeshow", "workshop", "social", "holidays"])
     setDropdownKey(prev => prev + 1)
 
     // Multiple delayed syncs to ensure UI renders correctly
     const timer1 = setTimeout(() => {
-      setBookmarkCategoryFilter(["all", "conference", "tradeshow", "workshop", "social", "holidays"])
+      setBookmarkCategoryFilter(["all", "conferences", "tradeshow", "workshop", "social", "holidays"])
       setDropdownKey(prev => prev + 1)
     }, 100)
 
     const timer2 = setTimeout(() => {
-      setBookmarkCategoryFilter(["all", "conference", "tradeshow", "workshop", "social", "holidays"])
+      setBookmarkCategoryFilter(["all", "conferences", "tradeshow", "workshop", "social", "holidays"])
       setDropdownKey(prev => prev + 1)
     }, 300)
 
     const timer3 = setTimeout(() => {
-      setBookmarkCategoryFilter(["all", "conference", "tradeshow", "workshop", "social", "holidays"])
+      setBookmarkCategoryFilter(["all", "conferences", "tradeshow", "workshop", "social", "holidays"])
       setDropdownKey(prev => prev + 1)
     }, 500)
 
@@ -1553,11 +637,14 @@ export default function EventsCalendarPage() {
   const [isCategoryOpen, setIsCategoryOpen] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<string[]>(["All"])
 
+  const [selectHotelLatitude, setHotelLatitude] = useState("")
+  const [selectHotelLongitude, setHotelLongitude] = useState("")
+
   // Helper function to check if a main category should be checked (main dropdown)
   const isMainCategoryChecked = useCallback((categoryName: string) => {
     // Define all category names statically
-    const allCategoryNames = ["All", "Conference", "Trade Shows", "Workshop", "Social", "Holidays"]
-    const nonAllCategories = ["Conference", "Trade Shows", "Workshop", "Social", "Holidays"]
+    const allCategoryNames = ["All", "Conferences", "Trade Shows", "Workshop", "Social", "Holidays"]
+    const nonAllCategories = ["Conferences", "Trade Shows", "Workshop", "Social", "Holidays"]
 
     if (categoryName === "All") {
       return selectedCategories.includes("All")
@@ -1592,207 +679,59 @@ export default function EventsCalendarPage() {
   const [descriptionError, setDescriptionError] = useState("")
 
 
+  // const sampleEvents: any = []
+  // // Initialize events with sample events and stored custom events
+  // useEffect(() => {
+  //   const initializeEvents = () => {
+  //     try {
+  //       const storedCustomEvents = loadCustomEventsFromStorage()
+  //       const combinedEvents = [...sampleEvents, ...storedCustomEvents]
+  //       setEvents(combinedEvents)
+  //       console.log(`🚀 Initialized with ${sampleEvents.length} sample events and ${storedCustomEvents.length} custom events`)
+  //     } catch (error) {
+  //       console.error('Failed to initialize events:', error)
+  //       // Fallback to just sample events
+  //       setEvents(sampleEvents)
+  //     }
+  //   }
 
-  // Initialize events with sample events and stored custom events
-  useEffect(() => {
-    const initializeEvents = () => {
-      try {
-        const storedCustomEvents = loadCustomEventsFromStorage()
-        const combinedEvents = [...sampleEvents, ...storedCustomEvents]
-        setEvents(combinedEvents)
-        console.log(`🚀 Initialized with ${sampleEvents.length} sample events and ${storedCustomEvents.length} custom events`)
-      } catch (error) {
-        console.error('Failed to initialize events:', error)
-        // Fallback to just sample events
-        setEvents(sampleEvents)
-      }
-    }
+  //   // Initialize immediately
+  //   initializeEvents()
 
-    // Initialize immediately
-    initializeEvents()
+  //   // Also try to reload after a short delay in case of timing issues
+  //   const timeoutId = setTimeout(() => {
+  //     const storedCustomEvents = loadCustomEventsFromStorage()
 
-    // Also try to reload after a short delay in case of timing issues
-    const timeoutId = setTimeout(() => {
-      const storedCustomEvents = loadCustomEventsFromStorage()
+  //     if (storedCustomEvents.length > 0) {
+  //       setEvents(prev => {
+  //         const currentCustomCount = prev.filter(e => e.isCustom).length
 
-      if (storedCustomEvents.length > 0) {
-        setEvents(prev => {
-          const currentCustomCount = prev.filter(e => e.isCustom).length
+  //         if (currentCustomCount !== storedCustomEvents.length) {
+  //           console.log('🔄 Reloading events due to count mismatch')
+  //           return [...sampleEvents, ...storedCustomEvents]
+  //         }
+  //         return prev
+  //       })
+  //     }
+  //   }, 500)
 
-          if (currentCustomCount !== storedCustomEvents.length) {
-            console.log('🔄 Reloading events due to count mismatch')
-            return [...sampleEvents, ...storedCustomEvents]
-          }
-          return prev
-        })
-      }
-    }, 500)
-
-    return () => clearTimeout(timeoutId)
-  }, [])
+  //   return () => clearTimeout(timeoutId)
+  // }, [])
 
   // Simulate data loading with progress tracking (only on first load)
-  useEffect(() => {
-    // Only show loading for initial load, not every re-render
-    if (events.length > 0) return;
 
-    const simulateLoading = () => {
-      setIsLoading(true)
-      setLoadingProgress(0)
-
-      // Progress interval
-      const progressInterval = setInterval(() => {
-        setLoadingProgress((prev) => {
-          const increment = Math.floor(Math.random() * 9) + 3 // 3-11% increment
-          const newProgress = prev + increment
-
-          if (newProgress >= 100) {
-            setLoadingCycle(prevCycle => prevCycle + 1)
-            return 0
-          }
-
-          return newProgress
-        })
-      }, 80)
-
-      // Simulate API call completion after 1-2 seconds (shorter for better UX)
-      const loadingTimeout = setTimeout(() => {
-        clearInterval(progressInterval)
-        setLoadingProgress(100)
-
-        // Show completion for 300ms before hiding
-        setTimeout(() => {
-          setIsLoading(false)
-          setLoadingProgress(0)
-        }, 300)
-      }, 2000) // 2 seconds
-
-      return () => {
-        clearInterval(progressInterval)
-        clearTimeout(loadingTimeout)
-      }
-    }
-
-    // Only trigger loading on component mount when there are no events
-    const cleanup = simulateLoading()
-    return cleanup
-  }, [])
 
 
 
   // Category options with distinct colors
   const categoryData = [
     { id: "all", name: "All", icon: Globe, color: "text-slate-600" },
-    { id: "conference", name: "Conference", icon: Presentation, color: "text-blue-600" },
+    { id: "conferences", name: "Conferences", icon: Presentation, color: "text-blue-600" },
     { id: "tradeshow", name: "Trade Shows", icon: Building, color: "text-purple-600" },
     { id: "workshop", name: "Workshop", icon: GraduationCap, color: "text-green-600" },
     { id: "social", name: "Social", icon: PartyPopper, color: "text-pink-600" },
     { id: "holidays", name: "Holidays", icon: Sparkles, color: "text-amber-600" }
   ]
-
-  // Country options
-  // const countryOptions = [
-  //   { id: "usa", label: "United States", flag: "🇺🇸" us },
-  //   { id: "uae", label: "United Arab Emirates", flag: "🇦🇪" AE},
-  //   { id: "uk", label: "United Kingdom", flag: "🇬🇧" },
-  //   { id: "france", label: "France", flag: "🇫🇷" },
-  //   { id: "germany", label: "Germany", flag: "🇩🇪" },
-  //   { id: "japan", label: "Japan", flag: "🇯🇵" },
-  //   { id: "spain", label: "Spain", flag: "🇪🇸" },
-  //   { id: "italy", label: "Italy", flag: "🇮🇹" },
-  //   { id: "australia", label: "Australia", flag: "🇦🇺" },
-  //   { id: "canada", label: "Canada", flag: "🇨🇦" },
-  //   { id: "singapore", label: "Singapore", flag: "🇸🇬" },
-  //   { id: "thailand", label: "Thailand", flag: "🇹🇭" }
-  // ]
-
-  // City options based on selected country
-  // const cityOptions = {
-  //   "United States": [
-  //     { id: "nyc", label: "New York" },
-  //     { id: "la", label: "Los Angeles" },
-  //     { id: "chicago", label: "Chicago" },
-  //     { id: "miami", label: "Miami" },
-  //     { id: "vegas", label: "Las Vegas" }
-  //   ],
-  //   "United Arab Emirates": [
-  //     { id: "dubai", label: "Dubai" },
-  //     { id: "abudhabi", label: "Abu Dhabi" },
-  //     { id: "sharjah", label: "Sharjah" },
-  //     { id: "fujairah", label: "Fujairah" }
-  //   ],
-  //   "United Kingdom": [
-  //     { id: "london", label: "London" },
-  //     { id: "manchester", label: "Manchester" },
-  //     { id: "birmingham", label: "Birmingham" },
-  //     { id: "edinburgh", label: "Edinburgh" },
-  //     { id: "liverpool", label: "Liverpool" }
-  //   ],
-  //   "France": [
-  //     { id: "paris", label: "Paris" },
-  //     { id: "marseille", label: "Marseille" },
-  //     { id: "lyon", label: "Lyon" },
-  //     { id: "nice", label: "Nice" },
-  //     { id: "cannes", label: "Cannes" }
-  //   ],
-  //   "Germany": [
-  //     { id: "berlin", label: "Berlin" },
-  //     { id: "munich", label: "Munich" },
-  //     { id: "hamburg", label: "Hamburg" },
-  //     { id: "cologne", label: "Cologne" },
-  //     { id: "frankfurt", label: "Frankfurt" }
-  //   ],
-  //   "Japan": [
-  //     { id: "tokyo", label: "Tokyo" },
-  //     { id: "osaka", label: "Osaka" },
-  //     { id: "kyoto", label: "Kyoto" },
-  //     { id: "yokohama", label: "Yokohama" },
-  //     { id: "kobe", label: "Kobe" }
-  //   ],
-  //   "Spain": [
-  //     { id: "madrid", label: "Madrid" },
-  //     { id: "barcelona", label: "Barcelona" },
-  //     { id: "valencia", label: "Valencia" },
-  //     { id: "seville", label: "Seville" },
-  //     { id: "bilbao", label: "Bilbao" }
-  //   ],
-  //   "Italy": [
-  //     { id: "rome", label: "Rome" },
-  //     { id: "milan", label: "Milan" },
-  //     { id: "venice", label: "Venice" },
-  //     { id: "florence", label: "Florence" },
-  //     { id: "naples", label: "Naples" }
-  //   ],
-  //   "Australia": [
-  //     { id: "sydney", label: "Sydney" },
-  //     { id: "melbourne", label: "Melbourne" },
-  //     { id: "brisbane", label: "Brisbane" },
-  //     { id: "perth", label: "Perth" },
-  //     { id: "adelaide", label: "Adelaide" }
-  //   ],
-  //   "Canada": [
-  //     { id: "toronto", label: "Toronto" },
-  //     { id: "vancouver", label: "Vancouver" },
-  //     { id: "montreal", label: "Montreal" },
-  //     { id: "calgary", label: "Calgary" },
-  //     { id: "ottawa", label: "Ottawa" }
-  //   ],
-  //   "Singapore": [
-  //     { id: "downtown", label: "Downtown Core" },
-  //     { id: "orchard", label: "Orchard" },
-  //     { id: "marina", label: "Marina Bay" },
-  //     { id: "sentosa", label: "Sentosa" }
-  //   ],
-  //   "Thailand": [
-  //     { id: "bangkok", label: "Bangkok" },
-  //     { id: "phuket", label: "Phuket" },
-  //     { id: "chiangmai", label: "Chiang Mai" },
-  //     { id: "pattaya", label: "Pattaya" },
-  //     { id: "krabi", label: "Krabi" }
-  //   ]
-  // }
-
-
 
   const [enabledEventTypes, setEnabledEventTypes] = useState<{
     bookmarked: boolean;
@@ -1823,7 +762,7 @@ export default function EventsCalendarPage() {
     option.label.toLowerCase().includes(citySearchQuery.toLowerCase())
   ) || []
 
-  // Handle country selection
+  // Handle country selection  
   const handleCountrySelect = useCallback((country: string) => {
     setSelectedCountry(country)
     setIsCountryOpen(false)
@@ -1837,6 +776,7 @@ export default function EventsCalendarPage() {
 
   // Handle city selection with multi-select logic
   const handleCitySelect = useCallback((city: string) => {
+
     setSelectedCities(prev => {
       if (city === "All") {
         // If selecting "All", toggle between all selected and all unselected
@@ -1844,7 +784,7 @@ export default function EventsCalendarPage() {
           return [] // Unselect all
         } else {
           // Get all available cities for the selected country
-          const availableCities = cityOptions[selectedCountry as keyof typeof cityOptions] || []
+          const availableCities = cityOptions || []
           return ["All", ...availableCities.map((option: any) => option.label)] // Select all
         }
       }
@@ -1861,7 +801,7 @@ export default function EventsCalendarPage() {
         newSelection = [...filteredPrev, city]
 
         // Check if all cities are now selected
-        const availableCities = cityOptions[selectedCountry as keyof typeof cityOptions] || []
+        const availableCities = cityOptions || []
         if (newSelection.length === availableCities.length && availableCities.every((option: any) => newSelection.includes(option.label))) {
           newSelection = ["All", ...newSelection]
         }
@@ -1875,7 +815,7 @@ export default function EventsCalendarPage() {
   // Helper function to check if a city should be checked
   const isCityChecked = useCallback((cityName: string) => {
     // Get available cities for the selected country
-    const availableCities = cityOptions[selectedCountry as keyof typeof cityOptions] || []
+    const availableCities = cityOptions || []
     const cityNames = availableCities.map((option: any) => option.label)
 
     if (cityName === "All") {
@@ -1890,6 +830,16 @@ export default function EventsCalendarPage() {
     return selectedCities.includes(cityName)
   }, [selectedCities, selectedCountry, cityOptions])
 
+  useEffect(() => {
+    setNewEventCountry(selectedProperty?.country || ""); // Default country
+    setNewEventCity(selectedProperty?.city || "");       // Default city
+    if (selectedProperty?.city) {
+      setSelectedCountry(`${selectedProperty?.country}`);
+      setSelectedCities([selectedProperty.city]);
+    }
+  }, [selectedProperty]);
+
+
   // Get display text for city button
   const getCityDisplayText = useCallback(() => {
     if (selectedCities.length === 0) {
@@ -1903,6 +853,8 @@ export default function EventsCalendarPage() {
     }
   }, [selectedCities])
 
+
+
   // Get country flag for selected country
   const getCountryFlag = useCallback(() => {
     const country = countryList.find(option => option.label === selectedCountry)
@@ -1911,6 +863,7 @@ export default function EventsCalendarPage() {
 
   // Handle category selection with multi-select logic
   const handleCategorySelect = useCallback((categoryName: string) => {
+
     setSelectedCategories(prev => {
       const isSelected = prev.includes(categoryName)
       let newSelection: string[]
@@ -1967,6 +920,44 @@ export default function EventsCalendarPage() {
   }, [categoryData])
 
   // Helper function to get category data for events
+
+
+  // const getCategoryData = useCallback(
+  //   (event: Event) => {
+  //     const normalize = (s?: string) => (s ?? "").toLowerCase().trim();
+  //     // Suggested events → always Social
+  //     if (event.status === "suggested") {
+  //       return categoryData.find(cat => cat.id === "social");
+  //     }
+
+  //     // Holidays
+  //     if (event.type === "holiday") {
+  //       return categoryData.find(cat => cat.id === "holidays");
+  //     }
+
+  //     const eventCategory = normalize(event.category);
+  //     const eventType = normalize(event.type);
+
+  //     // Try match by id or name (case-insensitive)
+  //     return categoryData.find(cat => {
+  //       console.log(
+  //         "Event:", event.name,
+  //         "| Category:", event.category,
+  //         "| Type:", event.type,
+  //         "| Mapped Category:", cat?.name,
+  //         "| Icon:", cat?.icon?.name
+  //       );
+  //       const id = normalize(cat.id);
+  //       const name = normalize(cat.name);
+  //       return id === eventCategory || name === eventCategory || id === eventType || name === eventType;
+  //     });
+
+
+  //   },
+  //   [categoryData]
+  // );
+
+
   const getCategoryData = useCallback((event: Event) => {
     // For suggested events, use Social icon
     if (event.status === "suggested") {
@@ -1986,118 +977,392 @@ export default function EventsCalendarPage() {
     )
   }, [categoryData])
 
+
   // Toggle bookmark status  
-  // const toggleBookmark = useCallback((eventId: string) => {    
-  //   setEvents(prevEvents => {
-  //     const newEvents = prevEvents.map(event => {
-  //       if (event.id === eventId) {
-  //         const newStatus: "bookmarked" | "suggested" | "available" = (event.status === "bookmarked" || event.status === "suggested") ? "available" : "bookmarked"
-  //         return { ...event, status: newStatus }
+  const toggleBookmark = useCallback((eventId: string) => {
+    
+    setEvents(prevEvents => {
+      let updatedEvent: Event | any = null;
+
+      const newEvents = prevEvents.map(ev => {
+        if (String(ev.eventId) === String(eventId)) {
+          const newStatus: "bookmarked" | "suggested" | "available" =
+            ev.status === "bookmarked" || ev.status === "suggested" ? "available" : "bookmarked";
+
+          updatedEvent = { ...ev, status: newStatus };
+          return updatedEvent;
+        }
+        return ev;
+      });
+
+      // Update filteredEvents
+      if (updatedEvent) {
+        setFilteredEvents(prevFiltered =>
+          prevFiltered.map(fe => (fe.eventId === eventId ? updatedEvent! : fe))
+            .filter(fe => fe.status !== "available")
+        );
+
+        // Update selectedEvent if popup is open
+        setSelectedEvent(prev => (prev?.eventId === eventId ? updatedEvent! : prev));
+        // Call API only once per toggle
+
+        callApiToUpdateEvent(updatedEvent);
+        if (
+          updatedEvent.status === "available" && // it was removed from bookmarks
+          eventId === updatedEvent.eventId
+        ) {
+          setSelectedEvent(null);       // Deselect event
+          setIsDayViewOpen(false);      // Close modal
+        }
+        setIsSaveEvent(true);
+        setTimeout(() => setLoadingProgress(0), 100);
+      }
+
+
+      return newEvents;
+    });
+  }, []);
+
+  const callApiToUpdateEvent = async (getevents: Event) => {
+    try {
+
+      if (!getevents) return;
+      console.log("call Api To UpdateEvent rows:", getevents);
+
+      if (getevents.isCustom) {
+        // Decide new status before API call
+        const filtersValues = {
+          eventId: getevents.eventId,
+          action: getevents?.status === "bookmarked" ? 1 : 2,
+          isCustom: getevents.isCustom,
+        };
+        try {
+          const response = await setSubscribeUnsubscribeEvent(filtersValues);
+          if (response?.status) {
+            //console.log("filtersValues SubscribeUnsubscribe", filtersValues)
+            setEvents(prev => prev.map(ev => ev.eventId === getevents.eventId ? response.body.eventId : ev));
+            setFilteredEvents(prev => prev.map(ev => ev.eventId === getevents.eventId ? response.body.eventId : ev));
+            setSelectedEvent(prev => prev?.eventId === getevents.eventId ? response.body.eventId : prev);
+
+          } else {
+            console.warn("API failed, UI not updated");
+          }
+        } catch (err) {
+          console.error("API Error:", err);
+        }
+      } else if (getevents.type === "holiday") {
+        var filtersValue = {
+          "EventHolidayID": getevents.eventId,
+          "SID": selectedProperty?.sid,
+          "IsActive": getevents.status == "bookmarked" ? true : false,
+          "Imapact": getevents.priority === "high" ? 1 : getevents.priority === "medium" ? 2 : 3,
+          "Type": 0
+        }
+        try {
+          //Call backend API
+          const resSubsUnsubsHoliday = await setSubsUnSubsHolidayEvent(filtersValue)
+          const result = resSubsUnsubsHoliday
+          if (result.status) {
+            setMessage("Non Custom Event Subscribe Successfully");
+          } else {
+            setMessage("Non Custom Event Not Subscribe Or Failed :" + (result.message || ""));
+          }
+        } catch (error) {
+          console.error("Error inserting event:", error);
+        }
+      } else if (getevents.status == 'suggested' || getevents.status == 'available') {
+        const addEventObj = {
+          EventId: getevents.eventId,
+          EventName: getevents.name,
+          EventFrom: getevents.startDate,
+          EventTo: getevents.endDate,
+          Charge: getevents.charge,
+          MasterEventId: getevents.masterEventId,
+          EventProfile: getevents.EventProfileId,
+          EventLocation: getevents.location,
+          EventCity: getevents.eventCity,
+          EventType: getevents.type,
+          IsCustom: 0,
+          SID: selectedProperty?.sid,
+          ImageUrl: getevents.imageUrl,
+          EventImpact: getevents.priority === "high" ? 1 : getevents.priority === "medium" ? 2 : 3,
+          EventDescription: getevents.description,
+          isRepeat: getevents.isRepeat,
+          Repeats: getevents.isRepeat ? parseInt(getevents.repeats) : null,
+          RepeatsBy: getevents.isRepeat ? getevents.repeatsBy : null,
+          RepeatEvery: getevents.isRepeat ? parseInt(getevents.repeatEvery) : null,
+          Latitude: selectHotelLatitude !== "" ? selectHotelLatitude : 0,
+          Longitude: selectHotelLongitude !== "" ? selectHotelLongitude : 0
+
+        }
+        try {
+          //Call backend API
+          const res: any = await saveEvents(addEventObj);
+          if (res?.status && res?.body?.eventId) {
+            const serverId = String(res.body.eventId);
+
+            // Replace temp ID with server ID
+            setEvents(prev =>
+              prev.map(ev => (ev.eventId === serverId ? { ...ev, eventId: serverId } : ev))
+            );
+
+          } else {
+            setMessage("Failed to add event: " + (res?.message || ""));
+          }
+        } catch (error) {
+          console.error("Error inserting event:", error);
+        }
+      } else {
+        const filtersValues = {
+          eventId: getevents.eventId,
+          action: 0,
+          isCustom: getevents.isCustom,
+        };
+        try {
+
+          const response = await setSubscribeUnsubscribeEvent(filtersValues);
+          if (response?.status) {
+            //  Update UI only after success
+            setMessage("Custom Event Subscribe Unsubscribe Successfully");
+          } else {
+            console.warn("API failed, UI not updated");
+          }
+        } catch (err) {
+          console.error("API Error:", err);
+        }
+      }
+
+    } catch (error) {
+      console.error("API error:", getevents);
+    }
+  };
+
+  // const toggleBookmark = useCallback(async (eventId: string) => {
+
+  //   const combinedEvents = [...events];
+
+  //   const getevents = combinedEvents.find(ev => String(ev.eventId) === String(eventId));
+
+  //   console.log(getevents);
+  //   if (!getevents) return;
+  //   if (getevents.isCustom) {
+  //     // Decide new status before API call
+  //     const filtersValues = {
+  //       eventId: getevents.eventId,
+  //       action: getevents?.status === "bookmarked" ? 2 : 1,
+  //       isCustom: getevents.isCustom,
+  //     };
+
+  //     try {
+
+  //       //const response = await setSubscribeUnsubscribeEvent(filtersValues);
+  //       //  if (response?.status) {
+  //       //  Update UI only after success    
+  //       // setApiSubscribeEventList
+
+  //       setEvents(prevEvents =>
+  //         prevEvents.map(ev => {
+  //           if (String(ev.eventId) === String(eventId)) {
+  //             const newStatus: "bookmarked" | "suggested" | "available" =
+  //               ev.status === "bookmarked" || ev.status === "suggested" ? "available" : "bookmarked";
+
+  //             const updatedEvent = { ...ev, status: newStatus };
+
+  //             // Update popup if this event is selected
+  //             setSelectedEvent((prev: any) => (prev?.eventId === eventId ? updatedEvent : prev));
+
+  //             // Update filteredEvents so Day View updates
+  //             setFilteredEvents(prevFiltered =>
+  //               prevFiltered.map(fe => (fe.eventId === eventId ? updatedEvent : fe))
+  //             );
+
+
+  //             console.log("Updated Event:", updatedEvent);
+
+  //             return updatedEvent;
+  //           }
+  //           return ev;
+  //         })
+  //       );
+  //       //setApiSubscribeEvents
+  //       //setEvents
+  //       // setApiSubscribeEventList(prevEvents =>
+  //       //   prevEvents.map(event => {
+  //       //     if (event.eventId === eventId) {
+  //       //       let newStatus: "bookmarked" | "suggested" | "available";
+
+  //       //       if (event.status === "bookmarked") {
+  //       //         newStatus = "suggested";   // toggle off → back to suggested
+  //       //       } else {
+  //       //         newStatus = "bookmarked";  // available or suggested → bookmarked
+  //       //       }
+
+  //       //       return { ...event, status: newStatus };
+  //       //     }
+  //       //     return event;
+  //       //   })
+  //       // );
+  //       //  
+  //       //setSelectedEvent(null)
+
+  //       // setLoadingProgress(100);
+  //       // setIsSaveEvent(true);
+  //       // setTimeout(() => setLoadingProgress(0), 100);
+  //       // } else {
+  //       //   console.warn("API failed, UI not updated");
+  //       // }
+  //     } catch (err) {
+  //       console.error("API Error:", err);
+  //     }
+  //   } else if (getevents.type === "holiday") {
+  //     if (!getevents) return;
+  //     var filtersValue = {
+  //       "EventHolidayID": getevents.eventId,
+  //       "SID": selectedProperty?.sid,
+  //       "IsActive": getevents.status == "bookmarked" ? false : true,
+  //       "Imapact": getevents.priority === "high" ? 1 : getevents.priority === "medium" ? 2 : 3,
+  //       "Type": 0
+  //     }
+  //     try {
+  //       //Call backend API
+  //       // setLoadingProgress(100)
+  //       const resSubsUnsubsHoliday = await setSubsUnSubsHolidayEvent(filtersValue)
+  //       const result = resSubsUnsubsHoliday
+  //       if (result.status) {
+  //         setEvents(prevEvents =>
+  //           prevEvents.map(ev => {
+  //             if (ev.eventId === eventId) {
+  //               const newStatus: "bookmarked" | "suggested" | "available" | "holidays" =
+  //                 (ev.status === "bookmarked" || ev.status === "suggested" || ev.status === "holidays") ? "available" : "bookmarked";
+
+  //               const updatedEvent = { ...ev, status: newStatus };
+  //               // Update popup if this event is selected
+  //               setSelectedEvent(prev => (prev?.eventId === eventId ? updatedEvent : prev));
+
+  //               return updatedEvent;
+  //             }
+  //             return ev;
+  //           })
+  //         );
+  //         // setApiSubscribeEventList(prevEvents => {
+  //         //   const newEvents = prevEvents.map(event => {
+  //         //     if (event.eventId === eventId) {
+  //         //       //const newStatus: "bookmarked" | "suggested" | "available" = (event.status === "bookmarked" || event.status === "suggested") ? "available" : "bookmarked"
+  //         //       let newStatusHoliday: "bookmarked" | "holidays" | "available";
+  //         //       if (event.status === "bookmarked") {
+  //         //         newStatusHoliday = "holidays";   // toggle off → back to suggested
+  //         //       } else {
+  //         //         newStatusHoliday = "bookmarked";  // available or suggested → bookmarked
+  //         //       }
+  //         //       return { ...event, status: newStatusHoliday }
+  //         //     }
+  //         //     return event
+  //         //   })
+  //         //   return newEvents
+  //         // })
+  //         // setLoadingProgress(100);
+  //         // setIsSaveEvent(true);
+  //         // setTimeout(() => setLoadingProgress(0), 100);
+  //         setMessage("Non Custom Event Subscribe Successfully");
+  //       } else {
+  //         setMessage("Non Custom Event Not Subscribe Or Failed :" + (result.message || ""));
   //       }
-  //       return event
-  //     })
-  //     return newEvents
-  //   })
-  // }, [])
+  //     } catch (error) {
+  //       console.error("Error inserting event:", error);
+  //     }
+  //   } else if (getevents.status == 'suggested' || getevents.status == 'available') {
+  //     const addEventObj = {
+  //       EventId: getevents.eventId,
+  //       EventName: getevents.name,
+  //       EventFrom: getevents.startDate,
+  //       EventTo: getevents.endDate,
+  //       Charge: getevents.charge,
+  //       MasterEventId: getevents.masterEventId,
+  //       EventProfile: getevents.EventProfileId,
+  //       EventLocation: getevents.location,
+  //       EventCity: getevents.eventCity,
+  //       EventType: getevents.type,
+  //       IsCustom: 0,
+  //       SID: selectedProperty?.sid,
+  //       ImageUrl: getevents.imageUrl,
+  //       EventImpact: getevents.priority === "high" ? 1 : getevents.priority === "medium" ? 2 : 3,
+  //       EventDescription: getevents.description,
+  //       isRepeat: getevents.isRepeat,
+  //       Repeats: getevents.isRepeat ? parseInt(getevents.repeats) : null,
+  //       RepeatsBy: getevents.isRepeat ? getevents.repeatsBy : null,
+  //       RepeatEvery: getevents.isRepeat ? parseInt(getevents.repeatEvery) : null,
+  //       Latitude: selectHotelLatitude !== "" ? selectHotelLatitude : 0,
+  //       Longitude: selectHotelLongitude !== "" ? selectHotelLongitude : 0
 
-  const toggleBookmark = useCallback(async (eventId: string) => {
-    const event = events.find(ev => ev.id === eventId);
-    if (!event) return;
-    const newStatus: "bookmarked" | "suggested" | "available" =
-      event.status === "bookmarked" || event.status === "suggested"
-        ? "available"
-        : "bookmarked";
-    if (event.isCustom) {
-      // Decide new status before API call
+  //     }
+  //     try {
+  //       //Call backend API
 
-      const filtersValues = {
-        eventId: event.id,
-        action: newStatus === "bookmarked" ? 1 : 2,
-        isCustom: event.isCustom,
-      };
+  //       const res: any = await saveEvents(addEventObj);
+  //       if (res?.status && res?.body?.eventId) {
+  //         const serverId = String(res.body.eventId);
 
-      try {
-        const response = await getSubscribeUnsubscribeEvent(filtersValues);
-        if (response?.status) {
-          //  Update UI only after success
-          setEvents(prevEvents =>
-            prevEvents.map(ev =>
-              ev.id === eventId ? { ...ev, status: newStatus } : ev
-            )
-          );
-        } else {
-          console.warn("API failed, UI not updated");
-        }
-      } catch (err) {
-        console.error("API Error:", err);
-      }
-    } else if (event.status == 'suggested' || event.status == 'available') {
-      let addEventObj = {
-        EventType: event.type,
-        EventImpact: 1,
-        EventTo: event.endDate,
-        EventFrom: event.startDate,
-        EventLocation: event.location,
-        EventDescription: event.description,
-        EventName: event.name,
-        Charge: "Free",
-        Sid: selectedProperty?.sid,
-        RepeatsBy: "50986",
-        IsCustom: false,
-        IsRepeat: false,
-        Latitude: 51.52937650320423,
-        Longitude: -0.12381210923194885
+  //         // Replace temp ID with server ID
+  //         setEvents(prev =>
+  //           prev.map(ev => (ev.eventId === serverId ? { ...ev, eventId: serverId } : ev))
+  //         );
 
-      }
-      try {
-        //Call backend API
-        const response: any = await saveEvents(addEventObj)
-        const result = await response.json();
-        if (result.status) {
-          setEvents((prev) => [...prev, result.data ?? event]);
-          setMessage("Non Custom Event Subscribe Successfully");
-        } else {
-          setMessage("Non Custom Event Not Subscribe Or Failed :" + (result.message || ""));
-        }
-      } catch (error) {
-        console.error("Error inserting event:", error);
-      }
-    }
-    else {
+  //         setIsSaveEvent(true);
+  //       } else {
+  //         setMessage("Failed to add event: " + (res?.message || ""));
+  //       }
+  //     } catch (error) {
+  //       console.error("Error inserting event:", error);
+  //     }
+  //   }
+  //   else {
+  //     const filtersValues = {
+  //       eventId: getevents.id,
+  //       action: 0,
+  //       isCustom: getevents.isCustom,
+  //     };
+  //     try {
 
-      const filtersValues = {
-        eventId: event.id,
-        action: 0,
-        isCustom: event.isCustom,
-      };
-      try {
-        const response = await getSubscribeUnsubscribeEvent(filtersValues);
-        if (response?.status) {
-          //  Update UI only after success
-          setEvents(prevEvents =>
-            prevEvents.map(ev =>
-              ev.id === eventId ? { ...ev, status: newStatus } : ev
-            )
-          );
-        } else {
-          console.warn("API failed, UI not updated");
-        }
-      } catch (err) {
-        console.error("API Error:", err);
-      }
-    }
+  //       const response = await setSubscribeUnsubscribeEvent(filtersValues);
+  //       if (response?.status) {
+  //         //  Update UI only after success
 
-  }, [events]);
+  //         //setApiSubscribeEvents
+  //         setEvents(prevEvents =>
+  //           prevEvents.map(ev => {
+  //             if (String(ev.eventId) === String(eventId)) {
+  //               const newStatus: "bookmarked" | "suggested" | "available" =
+  //                 ev.status === "bookmarked" || ev.status === "suggested" ? "available" : "bookmarked";
 
-  const [newEvent, setNewEvent] = useState({
-    name: "",
-    startDate: "",
-    endDate: "",
-    category: "conference" as "conference" | "tradeshow" | "workshop" | "social",
-    country: "",
-    city: "",
-    description: "",
-  })
+  //               const updatedEvent = { ...ev, status: newStatus };
+
+  //               // Update popup if this event is selected
+  //               setSelectedEvent(prev => (String(prev?.eventId) === String(eventId) ? updatedEvent : prev));
+
+  //               // Update filteredEvents so Day View updates
+  //               setFilteredEvents(prevFiltered =>
+  //                 prevFiltered.map(fe => (String(fe.eventId) === String(eventId) ? updatedEvent : fe))
+  //               );
+
+  //               return updatedEvent;
+  //             }
+  //             return ev;
+  //           })
+  //         );
+  //         setLoadingProgress(100);
+  //         setIsSaveEvent(true);
+  //         setTimeout(() => setLoadingProgress(0), 100);
+
+  //       } else {
+  //         console.warn("API failed, UI not updated");
+  //       }
+  //     } catch (err) {
+  //       console.error("API Error:", err);
+  //     }
+  //   }
+  // }, []); //events
+
+
 
   // Add Event modal states
   const [newEventCountry, setNewEventCountry] = useState("")
@@ -2107,42 +1372,95 @@ export default function EventsCalendarPage() {
   const [isEditEventOpen, setIsEditEventOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
 
+  const [newEvent, setNewEvent] = useState({
+    name: "",
+    startDate: "",
+    endDate: "",
+    category: "conferences" as "conferences" | "tradeshow" | "workshop" | "social",
+    country: selectedProperty?.country,
+    city: "",
+    description: "",
+  })
+
   // Handle new event country selection
   const handleNewEventCountrySelect = (country: string) => {
-    setNewEventCountry(country)
-    setNewEvent((prev) => ({ ...prev, country }))
+    setNewEventCountry(country);
+    setNewEvent(prev => ({ ...prev, country }));
 
-    // Auto-select first city of the new country
-    const cities = cityOptions
-    if (cities && cities.length > 0) {
-      const firstCity = cities[0].label
-      setNewEventCity(firstCity)
-      setNewEvent((prev) => ({ ...prev, city: firstCity }))
+    // Auto-select first city for the selected country
+    const countryCities: { id: string; label: string }[] =
+      cityOptions[country as keyof typeof cityOptions] ||
+      (selectedProperty?.city ? [{ id: selectedProperty.city, label: selectedProperty.city }] : []);
+
+    if (countryCities.length > 0) {
+      // Pick selectedProperty city if it belongs to this country, else first city
+      const matchedCity = countryCities.find((c: any) => c.label === selectedProperty?.city);
+      const firstCityLabel = matchedCity ? matchedCity.label : countryCities[0].label;
+
+      setNewEventCity(firstCityLabel);
+      setNewEvent(prev => ({ ...prev, city: firstCityLabel }));
     } else {
-      setNewEventCity("")
-      setNewEvent((prev) => ({ ...prev, city: "" }))
+      setNewEventCity("");
+      setNewEvent(prev => ({ ...prev, city: "" }));
     }
-  }
+  };
 
   // Handle new event city selection
   const handleNewEventCitySelect = (city: string) => {
+
     setNewEventCity(city)
     setNewEvent((prev) => ({ ...prev, city }))
   }
 
+  useEffect(() => {
+    const defaultCountry = selectedProperty?.country || selectedCountry;
+
+    if (defaultCountry && !newEvent.country) {
+      setNewEvent(prev => ({ ...prev, country: defaultCountry }));
+    }
+    setNewEventCountry(defaultCountry);
+
+    // Auto-select first city of the new country
+    const cities = cityOptions
+    const countryCities: { id: string; label: string }[] =
+      cities[defaultCountry as keyof typeof cityOptions] ||
+      (selectedProperty?.city ? [{ id: selectedProperty.city, label: selectedProperty.city }] : []);
+
+
+    if (countryCities.length > 0) {
+      //const matchedCity = countryCities.find((c: any) => c.label === (`${selectedProperty?.city}` ? `${selectedProperty?.city}` : ""));
+      const matchedCity = selectedProperty?.city
+        ? countryCities.find(c =>
+          c.label &&
+          selectedProperty.city &&
+          c.label.trim().toLowerCase() === selectedProperty.city.trim().toLowerCase()
+        )
+        : undefined;
+
+      const firstCityLabel = matchedCity ? matchedCity.label : countryCities[0].label;
+
+      setNewEventCity(firstCityLabel);
+      setNewEvent(prev => ({ ...prev, city: firstCityLabel }));
+    } else {
+      setNewEventCity("");
+      setNewEvent(prev => ({ ...prev, city: "" }));
+    }
+  }, [countryList, selectedProperty?.city, selectedCountry]);
+
   // Handle edit event
   const handleEditEvent = async (event: Event) => {
+
     setEditingEvent(event)
     setNewEvent({
       name: event.name,
       startDate: event.startDate,
       endDate: event.endDate,
       category: event.type as typeof newEvent.category,
-      country: event.country || "",
+      country: event.country || event.location.split(", ")[1],
       city: event.location.split(", ")[0] || "",
       description: event.description,
     })
-    setNewEventCountry(event.country || "")
+    setNewEventCountry(event.country || event.location.split(", ")[1])
     setNewEventCity(event.location.split(", ")[0] || "")
     setIsEditEventOpen(true)
   }
@@ -2159,7 +1477,7 @@ export default function EventsCalendarPage() {
 
   // Show delete confirmation dialog
   const showDeleteConfirmation = (eventId: string) => {
-    const event = events.find(e => e.id === eventId)
+    const event = events.find(e => e.eventId === eventId)
     if (event && event.isCustom) {
       setEventToDelete(event)
       setIsDeleteDialogOpen(true)
@@ -2170,37 +1488,40 @@ export default function EventsCalendarPage() {
   const handleDeleteEvent = async (eventId: any) => {
 
     try {
-      const response = await deleteEvents(eventId);
-      const result = await response.json();
+      const response = await deleteEvents(Number(eventId));
 
-      if (result.status) {
-        //delete  state with new event   
+      if (response.status) {
+
+
+        setEvents(prev => prev.filter(event => event.eventId !== eventId));
+
+        setApiEvents(prev => prev.filter(ev => ev.eventId !== eventId));
+        setApiHolidays(prev => prev.filter(ev => ev.eventId !== eventId));
+        setApiSubscribeEvents(prev => prev.filter(ev => ev.eventId !== eventId));
+
+        setFilteredEvents(prev =>
+          prev ? prev.filter(ev => ev.eventId !== eventId) : []
+        );
+
+        setSelectedEvent(prev => (prev?.eventId === eventId ? null : prev));
 
         setMessage("Event deleted successfully!");
         setIsDeleteDialogOpen(false);
+        setEventToDelete(null);
+        setIsSaveEvent(true);
       } else {
-        setMessage("Failed to delete  event: " + (result.message || ""));
+        setMessage("Failed to delete event: " + (response.message || ""));
       }
     } catch (error) {
       console.error("Error delete  event:", error);
       setMessage("Something went wrong while delete  event!");
     }
-
-    // setEvents((prev) => {
-    //   const updatedEvents = prev.filter((event) => event.id !== eventId)
-    //   // Save only custom events to localStorage
-    //   const customEvents = updatedEvents.filter(e => e.isCustom)
-    //   saveCustomEventsToStorage(customEvents)
-    //   return updatedEvents
-    // })
-    // setIsDeleteDialogOpen(false)
-    // setEventToDelete(null)
   }
 
   // Handle save edited event
   const handleSaveEditedEvent = async () => {
-    if (!editingEvent) return
 
+    if (!editingEvent) return
     const updatedEvent: Event = {
       ...editingEvent,
       name: newEvent.name,
@@ -2212,233 +1533,307 @@ export default function EventsCalendarPage() {
       type: newEvent.category as Event["type"],
       country: newEvent.country,
     }
-    let addEventObj = {
+    let updateEventObj = {
       Sid: selectedProperty?.sid,
-      EventId: updatedEvent.id,
+      EventId: updatedEvent.eventId,
       EventName: updatedEvent.name,
       EventDescription: updatedEvent.description,
       EventLocation: updatedEvent.location,
       EventFrom: updatedEvent.startDate,
       EventTo: updatedEvent.endDate,
       EventType: updatedEvent.type,
-      EventImpact: 1,
+      EventImpact: updatedEvent.priority === "high" ? 1 : updatedEvent.priority === "medium" ? 2 : 3,
       Charge: "Free",
       RepeatsBy: "50986",
       IsCustom: true,
       IsRepeat: false,
-      Latitude: 13.7451222401638,
-      Longitude: 100.556809902191
+      Latitude: selectHotelLatitude ? selectHotelLatitude : 0,
+      Longitude: selectHotelLongitude ? selectHotelLongitude : 0
     }
     try {
-      const response = await updateEvents(updatedEvent);
-      const result = await response.json();
 
-      if (result.status) {
-        //Update state with new event
-        setEvents((prev) => {
-          const updatedEvents = prev.map((event) =>
-            event.id === editingEvent.id ? updatedEvent : event
-          );
-          const customEvents = updatedEvents.filter(e => e.isCustom)
-          saveCustomEventsToStorage(customEvents)
-          setMessage("Event updated successfully!");
-          return updatedEvents
-        })
-      } else {
-        setMessage("Failed to update event: " + (result.message || ""));
+      const resEdit = await updateEvents(updateEventObj);
+      if (resEdit?.status) {
+        // setEvents(prev => [...prev, tempEvent]);
+        const serverId = String(resEdit?.body?.eventId ?? "");
+        setIsSaveEvent(true);
+      }
+      else {
+        setMessage("Failed to update event: " + (resEdit.message || ""));
       }
     } catch (error) {
       console.error("Error updating event:", error);
       setMessage("Something went wrong while updating event!");
     }
 
-    // setEvents((prev) => {
-    //   const updatedEvents = prev.map((event) =>
-    //     event.id === editingEvent.id ? updatedEvent : event
-    //   )
-    //   // Save only custom events to localStorage
-    //   const customEvents = updatedEvents.filter(e => e.isCustom)
-    //   saveCustomEventsToStorage(customEvents)
-    //   return updatedEvents
-    // })
-
     setIsEditEventOpen(false)
     setEditingEvent(null)
-    setNewEvent({
+    setNewEvent((prev) => ({
       name: "",
       startDate: "",
       endDate: "",
-      category: "conference",
-      country: "",
-      city: "",
+      category: "conferences",
+      country: prev.country,
+      city: prev.city,
       description: "",
-    })
-    setNewEventCountry("")
-    setNewEventCity("")
+    }));
+    // setNewEventCountry("")
+    // setNewEventCity("")
   }
 
-  // Fetch events from API
   useEffect(() => {
-    setMonthPickerYear(currentDate.getFullYear())
-    const fetchEventsData = async () => {
-      const startDate = startOfMonth(currentDate)
-      const endDate = endOfMonth(currentDate);
-      try {
-        setIsLoading(true)
-        const filtersValue = {
-          "Country": [selectedProperty?.country ?? ''],
-          "City": [],
-          "SID": selectedProperty?.sid,
-          "PageNumber": 1,
-          "PageCount": 500,
-          "StartDate": startDate,
-          "EndDate": endDate
-        }
+    if (isSaveEvent) {
+      // load events from API
+      fetchAllData();
+      //fetchAllSubscribeEvents()
 
-        const response = await getAllEvents(filtersValue)
-        if (response?.status && response?.body?.eventDetails) {
-          setApiEvents(response.body.eventDetails)
-          const countryListResponse = response.body.country || [];
-          const countryList = countryListResponse.map((country: any) => ({
-            label: country,
-            id: country,
-            flag: "https://optima.rategain.com/optima/Content/images/flag/" + country + ".jpg"
-          }))
-          setCountryList(countryList);
+      // reset so it can trigger next time too
+      setIsSaveEvent(false);
+    }
+  }, [isSaveEvent]);
+
+  // useEffect(() => {
+  //   setMonthPickerYear(currentDate.getFullYear())
+
+  //   if (!!currentDate && selectedProperty?.sid) {
+  //     setIsLoading(true);
+  //     setLoadingProgress(0);
+
+  //     let progressInterval: NodeJS.Timeout;
+
+  //     const startProgress = () => {
+  //       progressInterval = setInterval(() => {
+  //         setLoadingProgress((prev) => {
+  //           const increment = Math.floor(Math.random() * 9) + 3; // 3–11%
+  //           const next = prev + increment;
+
+  //           // Loop back or cap it just below 100 (e.g., 97%)
+  //           return next >= 97 ? 97 : next;
+  //         });
+  //       }, 80);
+  //     };
+
+  //     startProgress();
+  //     // Fetch all APIs
+  //     Promise.all([
+  //       fetchEventsData(),
+  //       fetchEventCitiesCountryList(),
+  //       fetchHolidayData(),
+  //       fetchAllSubscribeEvents()
+  //     ]).then(() => {
+  //       // APIs done — show 100% progress and hide loader after brief delay
+  //       clearInterval(progressInterval);
+  //       setLoadingProgress(100);
+
+  //       setTimeout(() => {
+  //         setIsLoading(false);
+  //         setLoadingProgress(0); // reset for next load cycle
+  //       }, 100); // Delay gives smooth transition
+  //     });
+  //   }
+  // }, [currentDate, selectedProperty?.sid, selectedCountry])
+  useEffect(() => {
+    fetchAllData();
+  }, [currentDate, selectedProperty?.sid, selectedCountry]);
+
+  const fetchAllData = useCallback(async () => {
+    if (!currentDate || !selectedProperty?.sid) return;
+
+    setIsLoading(true);
+    setLoadingProgress(0);
+
+    let progressInterval: NodeJS.Timeout;
+    progressInterval = setInterval(() => {
+      setLoadingProgress(prev => Math.min(prev + Math.floor(Math.random() * 9 + 3), 97));
+    }, 80);
+
+    try {
+      await Promise.all([
+        fetchEventsData(),
+        fetchEventCitiesCountryList(),
+        fetchHolidayData(),
+        fetchAllSubscribeEvents()
+      ]);
+    } catch (err) {
+      console.error("Failed to fetch data:", err);
+    } finally {
+      clearInterval(progressInterval);
+      setLoadingProgress(100);
+      setTimeout(() => {
+        setIsLoading(false);
+        setLoadingProgress(0);
+      }, 100);
+    }
+  }, [currentDate, selectedProperty?.sid, selectedCountry]);
+
+
+  const fetchEventsData = useCallback(async () => {
+    const startDate = startOfMonth(currentDate)
+    const endDate = endOfMonth(currentDate);
+
+    try {
+      setIsLoading(true)
+      const filtersValue = {
+        "Country": [selectedCountry == "" ? selectedProperty?.country : selectedCountry],
+        "City": selectedCities.includes("All") ? [] : selectedCities,
+        "SID": selectedProperty?.sid,
+        "PageNumber": 1,
+        "PageCount": 500,
+        "StartDate": startDate,
+        "EndDate": endDate
+      }
+
+      const response = await getAllEvents(filtersValue)
+      if (response?.status && response?.body?.eventDetails) {
+        setApiEvents(response.body.eventDetails)
+        const countryListResponse = response.body.country || [];
+        const countryList = countryListResponse.map((country: any) => ({
+          label: country,
+          id: country,
+          flag: "https://optima.rategain.com/optima/Content/images/flag/" + country + ".jpg"
+        }))
+        setCountryList(countryList);
+        setHotelLatitude(response.body.hotelLatitude)
+        setHotelLongitude(response.body.hotelLongitude)
+        if (selectedCountry === "" || selectedCountry === undefined) {
           setSelectedCountry(selectedProperty?.country || countryList[0]?.label || "")
         }
-      } catch (error) {
-        console.error('Failed to fetch events:', error)
-        // Fallback to sample data if API fails
-        setApiEvents([])
-      } finally {
-        setIsLoading(false)
+
       }
+    } catch (error) {
+      console.error('Failed to fetch events:', error)
+      // Fallback to sample data if API fails
+      setApiEvents([])
+    } finally {
+      setIsLoading(false)
     }
-    const fetchEventCitiesCountryList = async () => {
-      try {
-        const response = await getEventCitiesCountryList({ CountryName: selectedProperty?.country || '' })
-        if (response?.status && response?.body?.cities) {
-          const cities = response.body.cities.map((city: any) => ({
-            label: city,
-            id: city
-          }))
-          console.log(`🌆 Fetched ${cities} cities for country ${selectedProperty?.country || ''}`)
-          setCityOptions(cities);
-          // setSelectedCity(cities[0]?.label || '')
-        }
-      } catch (error) {
-        console.error('Failed to fetch country list:', error)
+  }, [currentDate, selectedProperty?.sid, selectedCountry])
+  const fetchEventCitiesCountryList = async () => {
+    try {
+      let getCountryValue = selectedCountry == "" ? selectedProperty?.country : selectedCountry
+      const response = await getEventCitiesCountryList({ CountryName: getCountryValue || "" })
+      if (response?.status && response?.body?.cities) {
+        const cities = response.body.cities.map((city: any) => ({
+          label: city,
+          id: city
+        }))
+        setCityOptions(cities);
+        // setSelectedCities([["All"], ...(response.body?.cities ?? [])])
       }
+    } catch (error) {
+      console.error('Failed to fetch country list:', error)
     }
-    const fetchHolidayData = async () => {
-      const startDate = startOfMonth(currentDate)
-      const endDate = endOfMonth(currentDate);
-      try {
-        setIsLoading(true)
-        const filtersValue = {
-          "Country": [selectedProperty?.country ?? ''],
-          "City": [selectedProperty?.city ?? ''],
-          "SID": selectedProperty?.sid,
-          "FromDate": conevrtDateforApi(startDate?.toString()),
-          "ToDate": conevrtDateforApi(endDate?.toString()),
-          "Type": [],
-          "Impact": [],
-          "SearchType": ""
-        }
-        const response = await getAllHoliday(filtersValue)
-        if (response?.status && response?.body) {
-          var holidays = [...response.body[0].holidayDetail];
-          const combinedEvents = [] as Event[]
-          console.log("holidays===>>", holidays)
-          holidays.map((x, index) => {
-            const convertedEvent: Event = {
-              id: `api-${index}-00`,
-              name: x.holidayName || '',
-              startDate: x.holidayDispalyDate || new Date().toISOString().split('T')[0],
-              endDate: x.holidayDispalyDate || new Date().toISOString().split('T')[0],
-              category: 'holidays',
-              location: x.holidayCountry || '',
-              description: '',
-              status: x.isSubscribe == true ? "bookmarked" : "holidays" as const,
-              country: x.holidayCountry || '',
-              flag: '🇦🇪',
-              type: 'holiday',
-              priority: 'high'
-            }
-            combinedEvents.push(convertedEvent)
+  }
+  const fetchHolidayData = useCallback(async () => {
+    const startDate = startOfMonth(currentDate)
+    const endDate = endOfMonth(currentDate);
+    try {
+      setIsLoading(true)
+      const filtersValue = {
+        "Country": [selectedCountry == "" ? selectedProperty?.country : selectedCountry],
+        "City": selectedCities.includes("All") ? [] : selectedCities,
+        "SID": selectedProperty?.sid,
+        "FromDate": conevrtDateforApi(startDate?.toString()),
+        "ToDate": conevrtDateforApi(endDate?.toString()),
+        "Type": selectedCategories.includes("All") ? [] : selectedCategories,
+        "Impact": [],
+        "SearchType": ""
+      }
+      const response = await getAllHoliday(filtersValue)
+      if (response?.status && response?.body) {
+        var holidays = [...response.body[0].holidayDetail];
+        const combinedEvents = [] as Event[]
+        holidays.map((x, index) => {
+          const convertedEvent: Event = {
+            id: `apiHoliday_${index}`,
+            eventId: x.eventHolidayID,
+            name: x.holidayName || '',
+            startDate: x.holidayDispalyDate || new Date().toISOString().split('T')[0],
+            endDate: x.holidayDispalyDate || new Date().toISOString().split('T')[0],
+            category: 'holidays',
+            location: x.holidayCountry || '',
+            description: '',
+            status: x.isSubscribe == true ? "bookmarked" : "holidays" as const,
+            country: x.holidayCountry || '',
+            flag: '🇦🇪',
+            type: 'holiday',
+            priority: 'high',
+            eventCity: "",
+            charge: "",
+            masterEventId: "",
+            EventProfileId: "",
+            imageUrl: "",
+            isRepeat: false,
+            repeats: "",
+            repeatsBy: "",
+            repeatEvery: null
           }
-          )
-          setApiHolidays(combinedEvents);
+          combinedEvents.push(convertedEvent)
         }
-      } catch (error) {
-        console.error('Failed to fetch events:', error)
-        // Fallback to sample data if API fails
-        setApiHolidays([])
-      } finally {
-        setIsLoading(false)
+        )
+        setApiHolidays(combinedEvents);
       }
+    } catch (error) {
+      console.error('Failed to fetch events:', error)
+      // Fallback to sample data if API fails
+      setApiHolidays([])
+    } finally {
+      setIsLoading(false)
     }
+  }, [currentDate, selectedProperty?.sid, selectedCountry])
 
-    const fetchAllSubscribeEvents = async () => {
-      const startDate = startOfMonth(currentDate)
-      const endDate = endOfMonth(currentDate);
-      try {
-        setIsLoading(true)
-        const filtersValue = {
-          //"Country": [selectedProperty?.country ?? ''],
-          //"City": [selectedProperty?.city ?? ''],
-          "SID": selectedProperty?.sid,
-          "StartDate": conevrtDateforApi(startDate?.toString()),
-          "EndDate": conevrtDateforApi(endDate?.toString()),
-          "Distance": 100,
-          "pageNumber": 1,
-          "pageCount": 500,
-          "lattitude": 0,
-          "longitude": 0
-        }
-        const response = await getAllSubscribeEvents(filtersValue)
-        if (response?.status && response?.body) {
-          var Subscribes = [...response.body.eventDetails];
-          const combinedSubscribeEvents = [] as Event[]
-          console.log("Subscribes===>>", Subscribes)
-          Subscribes.filter(x => x.isSubscribed === true).map((apiEvent, index) => {
-            const convertedSubscribeEvent: Event = {
-              id: `api-${index}`,
-              name: apiEvent.eventName || 'Unnamed Event',
-              startDate: apiEvent.startDate || apiEvent.eventFrom || new Date().toISOString().split('T')[0],
-              endDate: apiEvent.endDate || apiEvent.eventTo || new Date().toISOString().split('T')[0],
-              category: apiEvent.eventType?.trim(),
-              location: apiEvent.eventLocation || 'Dubai, UAE',
-              description: apiEvent.eventDescription || 'Event details not available',
-              status: apiEvent.isSubscribed ? "bookmarked" : "available" as const,
-              country: apiEvent.eventCountry || '',
-              flag: apiEvent.flag || '🇦🇪',
-              isCustom: apiEvent.isCustom || false,
-              type: apiEvent.eventType?.trim() || 'business',
-              priority: apiEvent.eventColor === 'PositiveHigh' ? 'high' : apiEvent.eventColor === 'medium' ? 'medium' : 'low'
 
-            }
-            combinedSubscribeEvents.push(convertedSubscribeEvent)
-          })
-          setApiSubscribeEvents(combinedSubscribeEvents);
-        }
-      } catch (error) {
-        console.error('Failed to fetch events:', error)
-        // Fallback to sample data if API fails
-        setApiSubscribeEvents([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
+  // useEffect(() => {
 
-    if (!!currentDate && selectedProperty?.sid) {
-      // Only fetch events if both start and end dates are set
-      Promise.all([fetchEventsData(), fetchEventCitiesCountryList(), fetchHolidayData(), fetchAllSubscribeEvents()]);
-      // fetchEventsData();
-      // fetchEventCitiesCountryList();
-    }
-  }, [currentDate, selectedProperty?.sid])
+  //   let filtered = apiSubscribeEventList.filter(x => x.status === "bookmarked" || x.type === "holiday");
+
+  //   //  // --- Country filtering ---
+  //   if (selectedCountry !== selectedProperty?.country && selectedCountry !== "All") {
+  //     const normalizedSelected = selectedCountry.trim().toLowerCase();
+  //     filtered = filtered.filter(ev => (ev.country ?? "").trim().toLowerCase() === normalizedSelected);
+  //   }
+
+
+  //   // --- City filtering ---
+  //   if (selectedCities.length > 0 && !selectedCities.includes("All")) {
+  //     filtered = filtered.filter(x =>
+  //       selectedCities.some(city => {
+  //         const normalizedSelected = city.trim().toLowerCase();
+  //         const eventCity = (x.eventCity ?? "").trim().toLowerCase();
+
+  //         return normalizedSelected === eventCity;
+  //       })
+  //     );
+  //   }
+
+  //   if (selectedCategories.length > 0 && !selectedCategories.includes("All")) {
+  //     filtered = filtered.filter(x =>
+  //       selectedCategories.some(c =>
+  //         c.toLowerCase() === String(x.category).toLowerCase() ||
+  //         normalizeCategory(c) === normalizeCategory(x.category)
+  //       )
+  //     );
+  //   }
+
+  //   setFilteredEvents(filtered);
+  // }, [apiSubscribeEventList, selectedCategories, selectedCities, selectedCountry]);
+
+  // const normalizeCategory = (cat?: string) => {
+  //   if (!cat) return "";
+  //   const map: Record<string, string> = {
+  //     "conference": "conferences",
+  //     "conferences": "conferences",
+  //     "tradeshow": "tradeshow",
+  //     "trade show": "tradeshow",
+  //     "trade shows": "tradeshow",
+  //     "workshop": "workshop",
+  //     "social": "social",
+  //     "holiday": "holidays",
+  //     "holidays": "holidays",
+  //     "business": "business"
+  //   };
+  //   return map[cat.toLowerCase()] || cat.toLowerCase();
+  // };
 
   // Combine API events with sample events
   useEffect(() => {
@@ -2446,54 +1841,190 @@ export default function EventsCalendarPage() {
     // Convert API events to our Event interface format
     apiEvents.forEach((apiEvent, index) => {
       const convertedEvent: Event = {
-        id: `api-${index}`,
-        name: apiEvent.eventName || 'Unnamed Event',
+        id: apiEvent.eventId > 0 ? apiEvent.eventId : `api_${index}`,
+        eventId: apiEvent.eventId,
+        name: apiEvent.eventName || '',
         startDate: apiEvent.startDate || apiEvent.eventFrom || new Date().toISOString().split('T')[0],
         endDate: apiEvent.endDate || apiEvent.eventTo || new Date().toISOString().split('T')[0],
         category: apiEvent.eventType?.trim(),
-        location: apiEvent.eventLocation || 'Dubai, UAE',
-        description: apiEvent.eventDescription || 'Event details not available',
-        status: apiEvent.isSubscribed ? "bookmarked" : "available" as const,
+        location: apiEvent.eventLocation || '',
+        description: apiEvent.eventDescription || '',
+        status: apiEvent.isSubscribed ? "bookmarked" : "suggested" as const,
         country: apiEvent.eventCountry || '',
         flag: apiEvent.flag || '🇦🇪',
         isCustom: apiEvent.isCustom || false,
         type: apiEvent.eventType?.trim() || 'business',
-        priority: apiEvent.eventColor === 'PositiveHigh' ? 'high' : apiEvent.eventColor === 'medium' ? 'medium' : 'low'
-
+        priority: apiEvent.eventColor === 'PositiveHigh' ? 'high' : apiEvent.eventColor === 'medium' ? 'medium' : 'low',
+        eventCity: apiEvent.eventCity,
+        charge: apiEvent.charge || "",
+        masterEventId: apiEvent.masterEventId || "",
+        EventProfileId: apiEvent.eventProfileId || "",
+        imageUrl: apiEvent.imageUrl || "",
+        isRepeat: apiEvent.isRepeat || false,
+        repeats: apiEvent.repeats || "",
+        repeatsBy: apiEvent.repeatsBy || "",
+        repeatEvery: apiEvent.repeatEvery || null,
       }
       combinedEvents.push(convertedEvent)
     })
-    // const merged = [...combinedEvents, ...apiHolidays, ...apiSubscribeEvents];
-    // const uniqueEvents = Array.from(
-    //   new Map(merged.map(item => [item.name, item])).values()
-    // );
     setEvents([...combinedEvents, ...apiHolidays])
-
     setApiSubscribeEventList([...apiHolidays, ...apiSubscribeEvents])
   }, [apiEvents, apiHolidays, apiSubscribeEvents])
 
   // Filter events based on current view and enabled event types
+  // useEffect(() => {
+
+  //   //const filterSubsHoliday = apiSubscribeEventList.filter(x => x.status === "bookmarked");
+  //   let filtered = apiSubscribeEventList.filter((event) => {
+  //     // Check each event type independently and only show if enabled
+
+  //     // Status-based filtering (bookmarked)
+  //     if (event.status === "bookmarked" && enabledEventTypes.bookmarked) return true
+
+  //     // Type-based filtering (holidays)  
+  //     if (event.type === "holiday" && enabledEventTypes.holidays) return true
+
+  //     // For other events, show them by default for now (since we don't have legend buttons for them yet)
+  //     // But we need to make sure they don't conflict with status-based filtering
+  //     if (event.status !== "bookmarked" && event.type !== "holiday") {
+  //       return true // Show other events by default
+  //     }
+
+  //     return false
+  //   })
+
+  //   setFilteredEvents(filtered)
+  // }, [apiSubscribeEventList, enabledEventTypes])
+
+
   useEffect(() => {
-    let filtered = events.filter((event) => {
-      // Check each event type independently and only show if enabled
+    let filtered = [...apiSubscribeEventList];
 
-      // Status-based filtering (bookmarked)
-      if (event.status === "bookmarked" && enabledEventTypes.bookmarked) return true
+    // Status/type filter
+    filtered = filtered.filter(event => {
+      if (event.status === "bookmarked" && enabledEventTypes.bookmarked) return true;
+      if (event.type === "holiday" && enabledEventTypes.holidays) return true;
+      if (event.status !== "bookmarked" && event.type !== "holiday") return true; // default show others
+      return false;
+    });
 
-      // Type-based filtering (holidays)  
-      if (event.type === "holiday" && enabledEventTypes.holidays) return true
+    // Country filter
+    if (selectedCountry !== selectedProperty?.country && selectedCountry !== "All") {
+      const normalizedSelected = selectedCountry.trim().toLowerCase();
+      filtered = filtered.filter(ev => (ev.country ?? "").trim().toLowerCase() === normalizedSelected);
+    }
 
-      // For other events, show them by default for now (since we don't have legend buttons for them yet)
-      // But we need to make sure they don't conflict with status-based filtering
-      if (event.status !== "bookmarked" && event.type !== "holiday") {
-        return true // Show other events by default
-      }
+    // City filter
+    if (!selectedCities.includes(`${selectedProperty?.city}`) && !selectedCities.includes("All")) {
+      filtered = filtered.filter(x =>
+        selectedCities.some(city => (x.eventCity ?? "").trim().toLowerCase() === city.trim().toLowerCase())
+      );
+    }
 
-      return false
-    })
+    // Category filter
+    if (selectedCategories.includes("All")) {
+      // Show all events, do nothing
+    } else if (selectedCategories.length > 0) {
+      // Show only matching categories
+      filtered = filtered.filter(event => {
+        const eventCategory = (event.category ?? event.type ?? "").toLowerCase().trim();
+        return selectedCategories.some(selected => {
+          const selectedCat = selected.toLowerCase().trim();
+          const matchedCategory = categoryData.find(
+            cat => cat.id.toLowerCase() === selectedCat || cat.name.toLowerCase() === selectedCat
+          );
+          if (!matchedCategory) return false;
+          const catId = matchedCategory.id.toLowerCase().trim();
+          const catName = matchedCategory.name.toLowerCase().trim();
+          return eventCategory === catId || eventCategory === catName;
+        });
+      });
+    } else {
+      // No category selected → show nothing
+      filtered = [];
+    }
 
-    setFilteredEvents(filtered)
-  }, [events, enabledEventTypes])
+    setFilteredEvents(filtered);
+  }, [
+    apiSubscribeEventList,
+    enabledEventTypes,
+    selectedCountry,
+    selectedCities,
+    selectedCategories
+  ]);
+
+  // useEffect(() => {
+  //   debugger
+  //   let filtered = apiSubscribeEventList.filter((event) => {
+  //     //  Status/type filter
+  //     if (event.status === "bookmarked" && enabledEventTypes.bookmarked) return true;
+  //     if (event.type === "holiday" && enabledEventTypes.holidays) return true;
+  //     if (event.status !== "bookmarked" && event.type !== "holiday") return true; // default show others
+  //     return false;
+  //   });
+
+  //   //  Country filter
+  //   if (selectedCountry !== selectedProperty?.country && selectedCountry !== "All") {
+  //     const normalizedSelected = selectedCountry.trim().toLowerCase();
+  //     filtered = filtered.filter(ev => (ev.country ?? "").trim().toLowerCase() === normalizedSelected);
+  //   }
+
+  //   //  City filter
+  //   if (!selectedCities.includes(`${selectedProperty?.city}`) && !selectedCities.includes("All")) {
+  //     filtered = filtered.filter(x =>
+  //       selectedCities.some(city => (x.eventCity ?? "").trim().toLowerCase() === city.trim().toLowerCase())
+  //     );
+  //   }
+
+  //   //  Category filter
+  //   // if (selectedCategories.length > 0 && !selectedCategories.includes("All")) {
+  //   //   filtered = filtered.filter(x =>
+  //   //     selectedCategories.some(c => categoryData(c) === categoryData(x.category))
+  //   //   );
+  //   // }
+
+
+  //   if (selectedCategories.length > 0 && !selectedCategories.includes("All")) {
+  //     filtered = filtered.filter(x => {
+  //       const eventCategory = (x.category ?? x.type ?? "").toLowerCase().trim();
+
+  //       return selectedCategories.some(selected => {
+  //         const selectedCat = selected.toLowerCase().trim();
+
+  //         // match with categoryData by id or name
+  //         const matchedCategory = categoryData.find(cat =>
+  //           cat.id.toLowerCase() === selectedCat || cat.name.toLowerCase() === selectedCat
+  //         );
+
+  //         if (!matchedCategory) return false;
+
+  //         // normalize categoryData id and name
+  //         const catId = matchedCategory.id.toLowerCase().trim();
+  //         const catName = matchedCategory.name.toLowerCase().trim();
+
+  //         return eventCategory === catId || eventCategory === catName;
+  //       });
+  //     });
+  //   }
+
+
+
+  //   setFilteredEvents(filtered);
+  // }, [
+  //   apiSubscribeEventList,
+  //   enabledEventTypes,
+  //   selectedCountry,
+  //   selectedCities,
+  //   selectedCategories
+  // ]);
+
+
+  useEffect(() => {
+    if (!isBookmarkModalOpen) {
+      // Clear the search input when modal closes
+      setBookmarkSearchQuery("");
+    }
+  }, [isBookmarkModalOpen]);
 
   const monthNames = [
     "Jan",
@@ -2517,15 +2048,44 @@ export default function EventsCalendarPage() {
     return firstDay
   }
 
+  // const navigateMonth = (direction: "prev" | "next") => {
+  //   setCurrentDate((prev) => {
+  //     const newDate = new Date(prev)
+  //     if (direction === "prev") {
+  //       newDate.setMonth(prev.getMonth() - 1)
+  //     } else {
+  //       newDate.setMonth(prev.getMonth() + 1)
+  //     }
+  //     return newDate
+  //   })
+  // }
+
+  // Previous/Next month navigation
   const navigateMonth = (direction: "prev" | "next") => {
-    setCurrentDate((prev) => {
-      const newDate = new Date(prev)
+    setCurrentDate(prevDate => {
+      const restrictions = getDateRestrictions()
+      const newDate = new Date(prevDate)
+
       if (direction === "prev") {
-        newDate.setMonth(prev.getMonth() - 1)
+        newDate.setMonth(prevDate.getMonth() - 1)
       } else {
-        newDate.setMonth(prev.getMonth() + 1)
+        newDate.setMonth(prevDate.getMonth() + 1)
       }
-      return newDate
+
+      // stop navigation if out of range
+      const newYear = newDate.getFullYear()
+      const newMonth = newDate.getMonth()
+
+      if (
+        newYear < restrictions.minYear ||
+        newYear > restrictions.maxYear ||
+        (newYear === restrictions.minYear && newMonth < restrictions.minMonth) ||
+        (newYear === restrictions.maxYear && newMonth > restrictions.maxMonth)
+      ) {
+        return prevDate // ❌ don't change
+      }
+
+      return newDate // ✅ valid new date
     })
   }
 
@@ -2559,7 +2119,72 @@ export default function EventsCalendarPage() {
     setCurrentDate(new Date(year, month, 1))
     setMonthPickerYear(year)
     setIsMonthPickerOpen(false)
+    setYearJumpDirection(null)
   }
+
+  const fetchAllSubscribeEvents = async () => {
+
+    const startDate = startOfMonth(currentDate)
+    const endDate = endOfMonth(currentDate);
+    try {
+      setIsLoading(true)
+      const filtersValue = {
+        // "Country": [selectedCountry == "" ? selectedProperty?.country : selectedCountry],
+        // "EventType": selectedCategories.includes("All") ? [] : selectedCategories,
+        // "City": selectedCities.includes("All") ? [] : selectedCities,
+        "SID": selectedProperty?.sid,
+        "StartDate": conevrtDateforApi(startDate?.toString()),
+        "EndDate": conevrtDateforApi(endDate?.toString()),
+        "Distance": 100,
+        "pageNumber": 1,
+        "pageCount": 500,
+        "lattitude": selectHotelLatitude == "" ? 0 : selectHotelLatitude,
+        "longitude": selectHotelLongitude == "" ? 0 : selectHotelLongitude
+      }
+      const response = await getAllSubscribeEvents(filtersValue)
+      if (response?.status && response?.body) {
+        var Subscribes = [...response.body.eventDetails];
+        const combinedSubscribeEvents = [] as Event[]
+        Subscribes.filter(x => x.isSubscribed === true
+        ).map((apiEvent, index) => {
+          const convertedSubscribeEvent: Event = {
+            id: `apiSubsCribe_${index}`,
+            eventId: apiEvent.eventId,
+            name: apiEvent.eventName || '',
+            startDate: apiEvent.startDate || apiEvent.eventFrom || new Date().toISOString().split('T')[0],
+            endDate: apiEvent.endDate || apiEvent.eventTo || new Date().toISOString().split('T')[0],
+            category: apiEvent.eventType?.trim(),
+            location: apiEvent.eventLocation || '',
+            description: apiEvent.eventDescription || '',
+            status: apiEvent.isSubscribed === true ? "bookmarked" : "available" as const,
+            country: apiEvent.eventCountry || '',
+            flag: apiEvent.flag || '🇦🇪',
+            isCustom: apiEvent.isCustom || false,
+            type: apiEvent.eventType?.trim() || 'business',
+            priority: apiEvent.eventColor === 'PositiveHigh' ? 'high' : apiEvent.eventColor === 'medium' ? 'medium' : 'low',
+            eventCity: apiEvent.eventCity,
+            charge: apiEvent.charge,
+            masterEventId: apiEvent.masterEventId || "",
+            EventProfileId: apiEvent.eventProfileId || "",
+            imageUrl: apiEvent.imageUrl || "",
+            isRepeat: apiEvent.isRepeat || false,
+            repeats: apiEvent.repeats || "",
+            repeatsBy: apiEvent.repeatsBy || "",
+            repeatEvery: apiEvent.repeatEvery || null
+          }
+          combinedSubscribeEvents.push(convertedSubscribeEvent)
+        })
+        setApiSubscribeEvents(combinedSubscribeEvents);
+      }
+    } catch (error) {
+      console.error('Failed to fetch events:', error)
+      // Fallback to sample data if API fails
+      setApiSubscribeEvents([])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
 
   // Update month picker year when currentDate changes
   // useEffect(() => {
@@ -2569,11 +2194,11 @@ export default function EventsCalendarPage() {
   // Get date restrictions for month picker
   const getDateRestrictions = () => {
     const currentYear = new Date().getFullYear()
-    const nextYear = currentYear + 1
+    //    const nextYear = currentYear + 1
 
     return {
-      minYear: currentYear,
-      maxYear: nextYear,
+      minYear: currentYear - 1,
+      maxYear: currentYear + 1,
       minMonth: 0, // January of current year
       maxMonth: 11 // December of next year
     }
@@ -2588,29 +2213,72 @@ export default function EventsCalendarPage() {
 
 
   // Check if a month is selectable
-  const isMonthSelectable = (month: number, year: number) => {
+  // Direction can be "prevYear" | "nextYear" or null
+  const isMonthSelectable = (
+    month: number,
+    year: number,
+    referenceDate: Date = currentDate,
+    direction: "prevYear" | "nextYear" | null = null
+  ) => {
     const restrictions = getDateRestrictions()
-    const currentYear = new Date().getFullYear()
+    const currentMonth = referenceDate.getMonth()
+    const currentYear = referenceDate.getFullYear()
 
-    if (year < restrictions.minYear || year > restrictions.maxYear) {
-      return false
-    }
+    // Year out of allowed range
+    if (year < restrictions.minYear || year > restrictions.maxYear) return false
 
-    // For current year, can select from January onwards
     if (year === currentYear) {
-      return month >= 0 // January onwards
-    }
-
-    // For next year, can select all months
-    if (year === currentYear + 1) {
+      // In the current year, all months are selectable
       return true
     }
 
-    return false
+    // Year jump logic
+    if (direction === "prevYear") {
+      if (month < currentMonth) return false // Only months AFTER current month selectable
+    } else if (direction === "nextYear") {
+      if (month > currentMonth) return false // Only months BEFORE current month selectable
+    }
+
+    // Boundary check for min/max year
+    if ((year === restrictions.minYear && month < restrictions.minMonth) ||
+      (year === restrictions.maxYear && month > restrictions.maxMonth)) {
+      return false
+    }
+
+    return true
   }
 
+  // const isMonthSelectable = (month: number, year: number) => {
+  //   const restrictions = getDateRestrictions()
+  //   //const currentYear = new Date().getFullYear()
+
+  //   if (year < restrictions.minYear || year > restrictions.maxYear) {
+  //     return false
+  //   }
+
+  //   return true
+
+  //   // if (year < restrictions.minYear || year > restrictions.maxYear) {
+  //   //   return false
+  //   // }
+
+  //   // // For current year, can select from January onwards
+  //   // if (year === currentYear) {
+  //   //   return month >= 0 // January onwards
+  //   // }
+
+  //   // // For next year, can select all months
+  //   // if (year === currentYear + 1) {
+  //   //   return true
+  //   // }
+
+  //   // return false
+  // }
+
+  const [yearJumpDirection, setYearJumpDirection] = useState<"prevYear" | "nextYear" | null>(null)
   // Month picker year navigation
   const navigateMonthPickerYear = (direction: "prev" | "next") => {
+    setYearJumpDirection(direction === "prev" ? "prevYear" : "nextYear")
     const restrictions = getDateRestrictions()
     setMonthPickerYear(prev => {
       if (direction === "prev" && prev > restrictions.minYear) {
@@ -2626,9 +2294,17 @@ export default function EventsCalendarPage() {
   const [message, setMessage] = useState<string>("");
 
   const handleAddEvent = async () => {
+    // Validate required fields
+    if (!newEvent.name || !newEvent.startDate || !newEvent.endDate) {
+      setDescriptionError("Please fill all required fields");
+      return;
+    }
 
-    const event: Event = {
-      id: Date.now().toString(),
+    const tempId = `temp_${Date.now()}`;
+
+    const tempEvent: Event = {
+      id: tempId,
+      eventId: "", // will be updated with server ID
       name: newEvent.name,
       startDate: newEvent.startDate,
       endDate: newEvent.endDate,
@@ -2641,68 +2317,165 @@ export default function EventsCalendarPage() {
       country: newEvent.country,
       isCustom: true,
       createdAt: Date.now(),
+      eventCity: newEvent.city || "",
+      charge: "Free",
+      masterEventId: "",
+      EventProfileId: "",
+      imageUrl: "",
+      isRepeat: false,
+      repeats: "",
+      repeatsBy: "",
+      repeatEvery: null,
     };
-    let addEventObj = {
-      EventType: event.type,
-      EventImpact: 1,
-      EventTo: event.endDate,
-      EventFrom: event.startDate,
-      EventLocation: event.location,
-      EventDescription: event.description,
-      EventName: event.name,
-      Charge: "Free",
-      Sid: selectedProperty?.sid,
-      RepeatsBy: "50986",
+
+    // Optimistically add to UI immediately
+    setEvents(prev => [tempEvent, ...prev]);
+
+    const addEventObj = {
+      EventType: tempEvent.type,
+      EventImpact: tempEvent.priority === "high" ? 1 : tempEvent.priority === "medium" ? 2 : 3,
+      EventTo: tempEvent.endDate,
+      EventFrom: tempEvent.startDate,
+      EventLocation: tempEvent.location,
+      EventDescription: tempEvent.description,
+      EventName: tempEvent.name,
+      Charge: tempEvent.charge,
+      SID: selectedProperty?.sid,
+      RepeatsBy: tempEvent.repeatsBy,
       IsCustom: true,
       IsRepeat: false,
-      Latitude: 51.52937650320423,
-      Longitude: -0.12381210923194885
+      Latitude: selectHotelLatitude || 0,
+      Longitude: selectHotelLongitude || 0,
+    };
 
-    }
-
+    // 3 Call API in background
     try {
-      //Call backend API
-      const response: any = await saveEvents(addEventObj)
-      const result = await response.json();
-      if (result.status) {
-        //body response   ===>>  action: 1 eventId: 14717 isCustom: true
-        //success (similar to Angular if(response.status))
-        setEvents((prev) => [...prev, result.data ?? event]);
-        setMessage("Event added successfully!");
+      const res: any = await saveEvents(addEventObj);
+
+      if (res?.status && res?.body?.eventId) {
+        const serverId = String(res.body.eventId);
+
+        // Replace temp ID with server ID
+        setEvents(prev =>
+          prev.map(ev => (ev.id === tempId ? { ...ev, id: serverId, eventId: serverId } : ev))
+        );
+
+        setIsSaveEvent(true);
       } else {
-        setMessage("Failed to add event: " + (result.message || ""));
+        // Remove temp event if API fails
+        setEvents(prev => prev.filter(ev => ev.id !== tempId));
+        setMessage("Failed to add event: " + (res?.message || ""));
       }
     } catch (error) {
       console.error("Error inserting event:", error);
+      setEvents(prev => prev.filter(ev => ev.id !== tempId)); // rollback
       setMessage("Something went wrong!");
+    } finally {
+      // 4️⃣ Reset form & close modal
+      setNewEvent(prev => ({
+        name: "",
+        startDate: "",
+        endDate: "",
+        category: "conferences",
+        country: prev.country,
+        city: prev.city,
+        description: "",
+      }));
+      setIsStartDateOpen(false);
+      setIsEndDateOpen(false);
+      setDescriptionError("");
+      setIsAddEventOpen(false);
     }
+  };
 
 
+  // const handleAddEvent = async () => {
+  //   const tempId = `temp_${Date.now()}`;
+  //   const tempEvent: Event = {
+  //     id: tempId,
+  //     eventId: "",
+  //     name: newEvent.name,
+  //     startDate: newEvent.startDate,
+  //     endDate: newEvent.endDate,
+  //     category: newEvent.category === "social" ? "social" : "business",
+  //     location: `${newEvent.city}, ${newEvent.country}`,
+  //     description: newEvent.description,
+  //     status: "bookmarked",
+  //     type: newEvent.category as Event["type"],
+  //     priority: "medium",
+  //     country: newEvent.country,
+  //     isCustom: true,
+  //     createdAt: Date.now(),
+  //     eventCity: "",
+  //     charge: "Free",
+  //     masterEventId: "",
+  //     EventProfileId: "",
+  //     imageUrl: "",
+  //     isRepeat: false,
+  //     repeats: "",
+  //     repeatsBy: "",
+  //     repeatEvery: null
+  //   };
+  //   let addEventObj = {
+  //     EventType: tempEvent.type,
+  //     EventImpact: tempEvent.priority === "high" ? 1 : tempEvent.priority === "medium" ? 2 : 3,
+  //     EventTo: tempEvent.endDate,
+  //     EventFrom: tempEvent.startDate,
+  //     EventLocation: tempEvent.location,
+  //     EventDescription: tempEvent.description,
+  //     EventName: tempEvent.name,
+  //     Charge: tempEvent.charge,
+  //     SID: selectedProperty?.sid,
+  //     RepeatsBy: tempEvent.repeatsBy,
+  //     IsCustom: true,
+  //     IsRepeat: false,
+  //     Latitude: selectHotelLatitude !== "" ? selectHotelLatitude : 0,
+  //     Longitude: selectHotelLongitude !== "" ? selectHotelLongitude : 0
+  //   }
 
-    setEvents((prev) => {
-      const updatedEvents = [...prev, event]
-      // Save only custom events to localStorage
-      const customEvents = updatedEvents.filter(e => e.isCustom)
-      saveCustomEventsToStorage(customEvents)
-      return updatedEvents
-    })
+  //   try {
 
-    setNewEvent({
-      name: "",
-      startDate: "",
-      endDate: "",
-      category: "conference",
-      country: "",
-      city: "",
-      description: "",
-    })
-    setNewEventCountry("")
-    setNewEventCity("")
-    setIsStartDateOpen(false)
-    setIsEndDateOpen(false)
-    setDescriptionError("")
-    setIsAddEventOpen(false)
-  }
+  //     const res: any = await saveEvents(addEventObj);
+  //     if (res?.status) {
+  //       const serverId = String(res?.body?.eventId ?? "");
+  //       setLoadingProgress(100);
+  //       setIsSaveEvent(true);
+  //       setTimeout(() => setLoadingProgress(0), 100);
+
+  //     } else {
+  //       setMessage("Failed to add event: " + (res.message || ""));
+  //     }
+
+  //   } catch (error) {
+  //     console.error("Error inserting event:", error);
+  //     setMessage("Something went wrong!");
+  //   }
+  //   setNewEvent((prev) => ({
+  //     name: "",
+  //     startDate: "",
+  //     endDate: "",
+  //     category: "conferences",
+  //     country: prev.country,
+  //     city: prev.city,
+  //     description: "",
+  //   }));
+  //   // setNewEvent({
+  //   //   name: "",
+  //   //   startDate: "",
+  //   //   endDate: "",
+  //   //   category: "conferences",
+  //   //   country: "",
+  //   //   city: "",
+  //   //   description: "",
+  //   // })
+  //   // setNewEventCountry("")
+  //   // setNewEventCity("")
+
+  //   setIsStartDateOpen(false)
+  //   setIsEndDateOpen(false)
+  //   setDescriptionError("")
+  //   setIsAddEventOpen(false)
+  // }
 
 
 
@@ -2729,7 +2502,18 @@ export default function EventsCalendarPage() {
     })
   }, [currentDate, filteredEvents])
 
-  const getEventsForSelectedDate = () => {
+  // const getEventsForSelectedDate = () => {
+  //   if (!selectedDate) return []
+  //   const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`
+  //   return filteredEvents.filter((event) => {
+  //     const eventStart = new Date(event.startDate)
+  //     const eventEnd = new Date(event.endDate)
+  //     const checkDate = new Date(dateStr + "T00:00:00")
+  //     return checkDate >= eventStart && checkDate <= eventEnd
+  //   })
+  // }
+
+  const getEventsForSelectedDate = useCallback(() => {
     if (!selectedDate) return []
     const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`
     return filteredEvents.filter((event) => {
@@ -2737,8 +2521,24 @@ export default function EventsCalendarPage() {
       const eventEnd = new Date(event.endDate)
       const checkDate = new Date(dateStr + "T00:00:00")
       return checkDate >= eventStart && checkDate <= eventEnd
-    })
-  }
+    });
+    // if (!selectedDate) return [];
+
+    // const checkDate = new Date(selectedDate);
+    // checkDate.setHours(0, 0, 0, 0); // normalize date to ignore time
+
+    // return events.filter(event => {
+    //   const start = new Date(event.startDate);
+    //   const end = new Date(event.endDate);
+    //   start.setHours(0, 0, 0, 0);
+    //   end.setHours(0, 0, 0, 0);
+
+    //   return checkDate >= start && checkDate <= end;
+    // });
+  }, [filteredEvents, selectedDate]);
+
+
+
 
   const handleDateClick = (day: number) => {
     const clickedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
@@ -2784,7 +2584,7 @@ export default function EventsCalendarPage() {
       case "holiday":
         return <Sparkles className="h-2 w-2" />
       case "business":
-      case "conference":
+      case "conferences":
         return <Briefcase className="h-2 w-2" />
       case "sports":
         return <Trophy className="h-2 w-2" />
@@ -2831,7 +2631,8 @@ export default function EventsCalendarPage() {
 
   // Filter events for bookmark modal
   const getFilteredBookmarkEvents = useMemo(() => {
-    let filtered = apiSubscribeEventList
+
+    let filtered = [...events]
     //events
 
     // Apply bookmark search filter
@@ -2874,22 +2675,38 @@ export default function EventsCalendarPage() {
         })
       })
     }
-
     return filtered.sort((a, b) => {
-      // Sort only by date to maintain consistent positioning
-      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-    })
-  }, [apiSubscribeEventList, bookmarkSearchQuery, bookmarkCategoryFilter, bookmarkTypeFilter])
+      const aIsBookmarked = a.status === 'bookmarked' ? 1 : 0;
+      const bIsBookmarked = b.status === 'bookmarked' ? 1 : 0;
+
+      if (bIsBookmarked - aIsBookmarked !== 0) {
+        return bIsBookmarked - aIsBookmarked; // Bookmarked first
+      }
+
+      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime(); // Then by date
+    });
+
+  }, [events, bookmarkSearchQuery, bookmarkCategoryFilter, bookmarkTypeFilter])
+
+  const groupedBookmarkEvents = useMemo(() => {
+    return getFilteredBookmarkEvents.reduce((acc, event) => {
+      const date = new Date(event.startDate).toDateString();
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(event);
+      return acc;
+    }, {} as Record<string, Event[]>);
+  }, [getFilteredBookmarkEvents]);
 
   // Handle category selection with multi-select logic
   const handleCategorySelection = (category: string) => {
+
     setBookmarkCategoryFilter(prev => {
       if (category === "all") {
         // If selecting "All", toggle between all selected and all unselected
         if (prev.includes("all")) {
           return [] // Unselect all
         } else {
-          return ["all", "conference", "tradeshow", "workshop", "social", "holidays"] // Select all
+          return ["all", "conferences", "tradeshow", "workshop", "social", "holidays"] // Select all
         }
       }
 
@@ -2905,7 +2722,7 @@ export default function EventsCalendarPage() {
         newSelection = [...filteredPrev, category]
 
         // If all individual categories are now selected, add "all"
-        const allCategories = ["conference", "tradeshow", "workshop", "social", "holidays"]
+        const allCategories = ["conferences", "tradeshow", "workshop", "social", "holidays"]
         if (newSelection.length === allCategories.length && allCategories.every(cat => newSelection.includes(cat))) {
           newSelection = ["all", ...newSelection]
         }
@@ -3109,26 +2926,45 @@ export default function EventsCalendarPage() {
     return days
   }
 
+  // Filter events for the currently selected month
+  const currentYear = currentDate.getFullYear()
+  const currentMonth = currentDate.getMonth()
+
+  // const monthFilteredEvents = filteredEvents.filter(event => {
+  //   const eventDate = new Date(event.startDate)
+  //   return eventDate.getFullYear() === currentYear && eventDate.getMonth() === currentMonth
+  // })
+
+  const monthFilteredEvents = useMemo(() => {
+    return filteredEvents.filter(event => {
+      const eventDate = new Date(event.startDate);
+      return eventDate.getFullYear() === currentYear && eventDate.getMonth() === currentMonth;
+    });
+  }, [filteredEvents, currentYear, currentMonth]);
+
+
+  // Group events by date
+  // const groupedEvents = monthFilteredEvents.reduce(
+  //   (acc, event) => {
+  //     const date = new Date(event.startDate).toDateString()
+  //     if (!acc[date]) acc[date] = []
+  //     acc[date].push(event)
+  //     return acc
+  //   },
+  //   {} as Record<string, Event[]>,
+  // )
+
+  const groupedEvents = useMemo(() => {
+    return monthFilteredEvents.reduce((acc, event) => {
+      const date = new Date(event.startDate).toDateString();
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(event);
+      return acc;
+    }, {} as Record<string, Event[]>);
+  }, [monthFilteredEvents]);
+
   const renderEventsList = () => {
-    // Filter events for the currently selected month
-    const currentYear = currentDate.getFullYear()
-    const currentMonth = currentDate.getMonth()
 
-    const monthFilteredEvents = filteredEvents.filter(event => {
-      const eventDate = new Date(event.startDate)
-      return eventDate.getFullYear() === currentYear && eventDate.getMonth() === currentMonth
-    })
-
-    // Group events by date
-    const groupedEvents = monthFilteredEvents.reduce(
-      (acc, event) => {
-        const date = new Date(event.startDate).toDateString()
-        if (!acc[date]) acc[date] = []
-        acc[date].push(event)
-        return acc
-      },
-      {} as Record<string, Event[]>,
-    )
 
     return (
       <Card className="overflow-hidden">
@@ -3155,7 +2991,7 @@ export default function EventsCalendarPage() {
               </div>
             ) : (
               <div>
-                {Object.entries(groupedEvents).map(([date, events]) => (
+                {Object.entries(groupedEvents).map(([date, eventsForDate]) => (
                   <div key={date}>
                     {/* Date Row */}
                     <div className="bg-blue-50 dark:bg-blue-950 border-b border-blue-200 dark:border-blue-800 px-4 py-2">
@@ -3174,14 +3010,14 @@ export default function EventsCalendarPage() {
                           }}
                           title="Click to view all events on this date"
                         >
-                          {events.length} event{events.length !== 1 ? 's' : ''}
+                          {eventsForDate.length} event{eventsForDate.length !== 1 ? 's' : ''}
                         </button>
                       </div>
                     </div>
 
                     {/* Events for this date */}
                     <div className="divide-y divide-border">
-                      {events.map((event) => (
+                      {eventsForDate.map((event) => (
                         <div
                           key={event.id}
                           className="grid grid-cols-12 gap-4 px-4 py-3 cursor-pointer items-center"
@@ -3237,7 +3073,7 @@ export default function EventsCalendarPage() {
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  toggleBookmark(event.id)
+                                  toggleBookmark(event.eventId)
                                 }}
                                 className="h-8 w-8 p-0"
                               >
@@ -3278,7 +3114,7 @@ export default function EventsCalendarPage() {
                                     size="sm"
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      showDeleteConfirmation(event.id)
+                                      showDeleteConfirmation(event.eventId)
                                     }}
                                     className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
                                   >
@@ -3335,6 +3171,12 @@ export default function EventsCalendarPage() {
       </span>
     );
   }
+  function bookMarkDialogClose(): void {
+    setIsBookmarkModalOpen(false);
+    setBookmarkSearchQuery("");
+    setBookmarkCategoryFilter(["all", "conferences", "tradeshow", "workshop", "social", "holidays"]);
+    setBookmarkTypeFilter(["all", "bookmarked", "holiday", "suggested", "available"]);
+  }
   // Show loading state when data is being fetched
   if (isLoading) {
     return (
@@ -3349,6 +3191,8 @@ export default function EventsCalendarPage() {
     );
   }
 
+
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
       {/* Enhanced Header */}
@@ -3361,7 +3205,18 @@ export default function EventsCalendarPage() {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => navigateMonth("prev")} className="hover:bg-primary/10">
+                        {/* <Button variant="ghost" size="icon" onClick={() => navigateMonth("prev")} 
+                        className="hover:bg-primary/10"> */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigateMonth("prev")}
+                          className="hover:bg-primary/10"
+                          disabled={
+                            currentDate.getFullYear() === getDateRestrictions().minYear &&
+                            currentDate.getMonth() === getDateRestrictions().minMonth
+                          }
+                        >
                           <ChevronLeft className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
@@ -3408,6 +3263,30 @@ export default function EventsCalendarPage() {
                         {/* Month Grid */}
                         <div className="grid grid-cols-3 gap-1.5 p-3">
                           {monthNames.map((month, index) => {
+                            const isSelectable = isMonthSelectable(index, monthPickerYear, currentDate, yearJumpDirection)
+                            const isCurrentMonth = index === currentDate.getMonth() && monthPickerYear === currentDate.getFullYear()
+                            const isToday = index === new Date().getMonth() && monthPickerYear === new Date().getFullYear()
+
+                            return (
+                              <Button
+                                key={month}
+                                variant={isCurrentMonth ? "default" : "ghost"}
+                                size="sm"
+                                onClick={() => isSelectable && navigateToMonth(index, monthPickerYear)}
+                                disabled={!isSelectable}
+                                className={cn(
+                                  "h-9 text-xs font-medium transition-all",
+                                  isCurrentMonth && "bg-primary text-primary-foreground",
+                                  isToday && !isCurrentMonth && "ring-1 ring-primary ring-opacity-50",
+                                  !isSelectable && "opacity-40 cursor-not-allowed",
+                                  isSelectable && !isCurrentMonth && "hover:bg-primary/10"
+                                )}
+                              >
+                                {month}
+                              </Button>
+                            )
+                          })}
+                          {/* {monthNames.map((month, index) => {
                             const isSelectable = isMonthSelectable(index, monthPickerYear)
                             const isCurrentMonth = index === currentDate.getMonth() && monthPickerYear === currentDate.getFullYear()
                             const isToday = index === new Date().getMonth() && monthPickerYear === new Date().getFullYear()
@@ -3430,18 +3309,26 @@ export default function EventsCalendarPage() {
                                 {month}
                               </Button>
                             )
-                          })}
+                          })} */}
                         </div>
                       </div>
                     </PopoverContent>
                   </Popover>
 
-
-
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => navigateMonth("next")} className="hover:bg-primary/10">
+                        {/* <Button variant="ghost" size="icon" onClick={() => navigateMonth("next")} className="hover:bg-primary/10"> */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigateMonth("next")}
+                          className="hover:bg-primary/10"
+                          disabled={
+                            currentDate.getFullYear() === getDateRestrictions().maxYear &&
+                            currentDate.getMonth() === getDateRestrictions().maxMonth
+                          }
+                        >
                           <ChevronRight className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
@@ -3491,9 +3378,10 @@ export default function EventsCalendarPage() {
                             onClick={(e) => {
                               e.stopPropagation() // Prevent event bubbling to parent popover
                               setIsCountrySearchFocused(true)
-                              if (e.target instanceof HTMLInputElement) {
-                                e.target.focus()
-                              }
+                              // if (e.target instanceof HTMLInputElement) {
+                              //   e.target.focus()
+                              // }
+                              e.currentTarget.focus()
                             }}
                             onFocus={() => setIsCountrySearchFocused(true)}
                             onBlur={() => setIsCountrySearchFocused(false)}
@@ -3565,9 +3453,10 @@ export default function EventsCalendarPage() {
                             onClick={(e) => {
                               e.stopPropagation() // Prevent event bubbling to parent popover
                               setIsCitySearchFocused(true)
-                              if (e.target instanceof HTMLInputElement) {
-                                e.target.focus()
-                              }
+                              // if (e.target instanceof HTMLInputElement) {
+                              //   e.target.focus()
+                              // }
+                              e.currentTarget.focus()
                             }}
                             onFocus={() => setIsCitySearchFocused(true)}
                             onBlur={() => setIsCitySearchFocused(false)}
@@ -3676,7 +3565,7 @@ export default function EventsCalendarPage() {
                     <span className="xl:hidden inline">Bookmark</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-4xl h-[600px] min-h-[500px] flex flex-col">
+                <DialogContent className="max-w-4xl h-[500px] min-h-[500px] flex flex-col">
                   <DialogHeader className="flex-shrink-0">
                     <DialogTitle className="flex items-center gap-3 text-lg">
                       <BookmarkIcon className="h-5 w-5 text-green-600" />
@@ -3723,12 +3612,12 @@ export default function EventsCalendarPage() {
                             <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
-                                checked={isCategoryChecked("conference")}
-                                onChange={() => handleCategorySelection("conference")}
+                                checked={isCategoryChecked("conferences")}
+                                onChange={() => handleCategorySelection("conferences")}
                                 className="rounded h-3.5 w-3.5"
                               />
-                              <Presentation className={`h-3.5 w-3.5 ${getCategoryColor("conference")}`} />
-                              <span>Conference</span>
+                              <Presentation className={`h-3.5 w-3.5 ${getCategoryColor("conferences")}`} />
+                              <span>Conferences</span>
                             </label>
                             <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
@@ -3807,7 +3696,7 @@ export default function EventsCalendarPage() {
                               />
                               <span>Bookmarked</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
+                            {/* <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={isTypeChecked("holiday")}
@@ -3815,7 +3704,7 @@ export default function EventsCalendarPage() {
                                 className="rounded h-3.5 w-3.5"
                               />
                               <span>Holidays</span>
-                            </label>
+                            </label> */}
                             <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
@@ -3826,7 +3715,7 @@ export default function EventsCalendarPage() {
                               <span>Suggested</span>
                             </label>
 
-                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
+                            {/* <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={isTypeChecked("available")}
@@ -3834,7 +3723,7 @@ export default function EventsCalendarPage() {
                                 className="rounded h-3.5 w-3.5"
                               />
                               <span>Available</span>
-                            </label>
+                            </label> */}
                           </div>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -3857,9 +3746,9 @@ export default function EventsCalendarPage() {
                           </p>
                         </div>
                       ) : (
-                        getFilteredBookmarkEvents.map((event) => (
+                        getFilteredBookmarkEvents.map((event, index) => (
                           <div
-                            key={event.id}
+                            key={`${event.eventId + "_" + index}`}
                             className={cn(
                               "flex items-center justify-between p-3 border rounded-lg",
                               (event.status === "bookmarked" || event.status === "suggested") && "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800"
@@ -3911,7 +3800,7 @@ export default function EventsCalendarPage() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => showDeleteConfirmation(event.id)}
+                                    onClick={() => showDeleteConfirmation(event.eventId)}
                                     className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
                                     title="Delete Event"
                                   >
@@ -3926,7 +3815,7 @@ export default function EventsCalendarPage() {
                                 onMouseDown={(e) => {
                                   e.preventDefault()
                                   e.stopPropagation()
-                                  toggleBookmark(event.id)
+                                  toggleBookmark(event.eventId)
                                 }}
                                 className={cn(
                                   "px-3 gap-2 text-xs",
@@ -3951,7 +3840,7 @@ export default function EventsCalendarPage() {
                     <div className="text-xs text-muted-foreground">
                       {events.filter((e) => e.status === "bookmarked").length} events bookmarked
                     </div>
-                    <Button onClick={() => setIsBookmarkModalOpen(false)} className="px-4 py-2 text-sm">Done</Button>
+                    <Button onClick={() => bookMarkDialogClose()} className="px-4 py-2 text-sm">Done</Button>
                   </div>
                 </DialogContent>
               </Dialog>
@@ -4005,15 +3894,15 @@ export default function EventsCalendarPage() {
                             </SelectTrigger>
                             <SelectContent className="max-h-60" hideScrollButtons={true}>
                               <SelectItem
-                                value="conference"
+                                value="conferences"
                                 className={cn(
                                   "flex items-center gap-2 cursor-pointer pl-3 [&>span:first-child]:hidden",
-                                  newEvent.category === "conference" ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
+                                  newEvent.category === "conferences" ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
                                 )}
                               >
                                 <div className="flex items-center gap-2">
-                                  <Presentation className={`h-4 w-4 ${getCategoryColor("conference")}`} />
-                                  <span>Conference</span>
+                                  <Presentation className={`h-4 w-4 ${getCategoryColor("conferences")}`} />
+                                  <span>Conferences</span>
                                 </div>
                               </SelectItem>
                               <SelectItem
@@ -4175,12 +4064,13 @@ export default function EventsCalendarPage() {
                         <div className="mt-1">
                           <Popover open={isCreateCountryOpen} onOpenChange={setIsCreateCountryOpen}>
                             <PopoverTrigger asChild>
-                              <Button
+                              <Button disabled
                                 variant="outline"
                                 role="combobox"
                                 aria-expanded={isCreateCountryOpen}
                                 className="w-full justify-between"
                               >
+
                                 {newEventCountry ? (
                                   <div className="flex items-center gap-2">
                                     <span className="text-sm">
@@ -4205,8 +4095,10 @@ export default function EventsCalendarPage() {
                                       <CommandItem
                                         key={option.id}
                                         value={option.label}
-                                        onSelect={(currentValue) => {
+                                        onSelect={(currentValue: string) => {
                                           handleNewEventCountrySelect(currentValue)
+                                          setNewEventCountry(currentValue);
+                                          setNewEvent((prev) => ({ ...prev, country: currentValue }));
                                           setIsCreateCountryOpen(false)
                                         }}
                                         className="flex items-center gap-2 cursor-pointer"
@@ -4232,14 +4124,15 @@ export default function EventsCalendarPage() {
                       <div>
                         <Label htmlFor="city">City *</Label>
                         <div className="mt-1">
+                          {/* //disabled={!newEventCountry} */}
                           <Popover open={isCreateCityOpen} onOpenChange={setIsCreateCityOpen}>
                             <PopoverTrigger asChild>
-                              <Button
+                              <Button disabled
                                 variant="outline"
                                 role="combobox"
                                 aria-expanded={isCreateCityOpen}
                                 className="w-full justify-between"
-                                disabled={!newEventCountry}
+
                               >
                                 {newEventCity ? newEventCity : (newEventCountry ? "Select a city" : "Select country first")}
                                 <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -4250,13 +4143,16 @@ export default function EventsCalendarPage() {
                                 <CommandInput placeholder="Search cities..." className="border-0" />
                                 <CommandList className="max-h-[200px] overflow-y-scroll">
                                   <CommandEmpty>No city found.</CommandEmpty>
+
                                   <CommandGroup>
                                     {newEventCountry && cityOptions[newEventCountry as keyof typeof cityOptions]?.map((option: any) => (
                                       <CommandItem
                                         key={option.id}
                                         value={option.label}
-                                        onSelect={(currentValue) => {
+                                        onSelect={(currentValue: string) => {
                                           handleNewEventCitySelect(currentValue)
+                                          setNewEventCity(currentValue);
+                                          setNewEvent((prev) => ({ ...prev, city: currentValue }));
                                           setIsCreateCityOpen(false)
                                         }}
                                         className="cursor-pointer"
@@ -4359,15 +4255,15 @@ export default function EventsCalendarPage() {
                             </SelectTrigger>
                             <SelectContent className="max-h-60" hideScrollButtons={true}>
                               <SelectItem
-                                value="conference"
+                                value="conferences"
                                 className={cn(
                                   "flex items-center gap-2 cursor-pointer pl-3 [&>span:first-child]:hidden",
-                                  newEvent.category === "conference" ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
+                                  newEvent.category === "conferences" ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : ""
                                 )}
                               >
                                 <div className="flex items-center gap-2">
-                                  <Presentation className={`h-4 w-4 ${getCategoryColor("conference")}`} />
-                                  <span>Conference</span>
+                                  <Presentation className={`h-4 w-4 ${getCategoryColor("conferences")}`} />
+                                  <span>Conferences</span>
                                 </div>
                               </SelectItem>
                               <SelectItem
@@ -4525,7 +4421,7 @@ export default function EventsCalendarPage() {
                         <div className="mt-1">
                           <Popover open={isEditCountryOpen} onOpenChange={setIsEditCountryOpen}>
                             <PopoverTrigger asChild>
-                              <Button
+                              <Button disabled
                                 variant="outline"
                                 role="combobox"
                                 aria-expanded={isEditCountryOpen}
@@ -4582,6 +4478,7 @@ export default function EventsCalendarPage() {
                       <div>
                         <Label htmlFor="edit-city">City *</Label>
                         <div className="mt-1">
+                          {/* disabled={!newEventCountry} */}
                           <Popover open={isEditCityOpen} onOpenChange={setIsEditCityOpen}>
                             <PopoverTrigger asChild>
                               <Button
@@ -4589,7 +4486,7 @@ export default function EventsCalendarPage() {
                                 role="combobox"
                                 aria-expanded={isEditCityOpen}
                                 className="w-full justify-between"
-                                disabled={!newEventCountry}
+                                disabled
                               >
                                 {newEventCity ? newEventCity : (newEventCountry ? "Select a city" : "Select country first")}
                                 <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -4827,7 +4724,7 @@ export default function EventsCalendarPage() {
             <div className="space-y-3">
               {getEventsForSelectedDate().map((event) => (
                 <div
-                  key={event.id}
+                  key={event.id || event.eventId}
                   className={cn(
                     "flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors cursor-pointer",
                     event.status === "bookmarked" && "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800",
@@ -4886,7 +4783,7 @@ export default function EventsCalendarPage() {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation()
-                            showDeleteConfirmation(event.id)
+                            showDeleteConfirmation(event.eventId)
                           }}
                           className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
                           title="Delete Event"
@@ -4901,7 +4798,7 @@ export default function EventsCalendarPage() {
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation()
-                        toggleBookmark(event.id)
+                        toggleBookmark(event.eventId)
                       }}
                       className={cn(
                         "px-3 gap-2 text-xs",
@@ -4938,123 +4835,123 @@ export default function EventsCalendarPage() {
       </Dialog>
 
       {/* Event Detail Modal */}
-      {selectedEvent && (
-        <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle className="text-left">
-                <div className="mb-3">
-                  <div className="leading-relaxed break-words">
-                    {selectedEvent.name}
-                    {selectedEvent.status === "bookmarked" && <Star className="h-5 w-5 fill-current text-green-600 inline ml-2" />}
-                    {selectedEvent.type === "holiday" && <Sparkles className={`h-5 w-5 ${getCategoryColor("holidays")} inline ml-2`} />}
-                  </div>
-                </div>
-                <Badge className={cn(getStatusColor(selectedEvent.status))}>
-                  {selectedEvent.status === "available" ? "Available" : selectedEvent.status}
-                </Badge>
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <CalendarIcon className="h-4 w-4" />
-                  {formatDateRange(selectedEvent.startDate, selectedEvent.endDate)}
-                </div>
-
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <AlertCircle className="h-4 w-4" />
-                  <span className="capitalize">{selectedEvent.category} Event</span>
-                </div>
-              </div>
-
-              {selectedEvent.description && (
-                <div>
-                  <Label className="text-sm font-medium">Description</Label>
-                  <p className="text-muted-foreground mt-1">{selectedEvent.description}</p>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between pt-4 border-t">
-                {/* Edit and Delete buttons for custom events */}
-                {selectedEvent.isCustom ? (
-                  <div className="flex items-center gap-2">
-                    <div className="relative group">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          handleEditEvent(selectedEvent)
-                          setSelectedEvent(null)
-                        }}
-                        className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                        Edit Event
-                      </div>
-                    </div>
-                    <div className="relative group">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => showDeleteConfirmation(selectedEvent.id)}
-                        className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                        Delete Event
-                      </div>
+      {
+        selectedEvent && (
+          <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-left">
+                  <div className="mb-3">
+                    <div className="leading-relaxed break-words">
+                      {selectedEvent.name}
+                      {selectedEvent.status === "bookmarked" && <Star className="h-5 w-5 fill-current text-green-600 inline ml-2" />}
+                      {selectedEvent.type === "holiday" && <Sparkles className={`h-5 w-5 ${getCategoryColor("holidays")} inline ml-2`} />}
                     </div>
                   </div>
-                ) : (
-                  <div></div>
+                  <Badge className={cn(getStatusColor(selectedEvent.status))}>
+                    {selectedEvent.status === "available" ? "Available" : selectedEvent.status}
+                  </Badge>
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <CalendarIcon className="h-4 w-4" />
+                    {formatDateRange(selectedEvent.startDate, selectedEvent.endDate)}
+                  </div>
+
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <AlertCircle className="h-4 w-4" />
+                    <span className="capitalize">{selectedEvent.category} Event</span>
+                  </div>
+                </div>
+
+                {selectedEvent.description && (
+                  <div>
+                    <Label className="text-sm font-medium">Description</Label>
+                    <p className="text-muted-foreground mt-1">{selectedEvent.description}</p>
+                  </div>
                 )}
 
-                <div className="flex items-center gap-2">
-                  {selectedEvent.status !== "available" ? (
-                    <Button
-                      variant={selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested" ? "default" : "outline"}
-                      onMouseDown={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        toggleBookmark(selectedEvent.id)
-                      }}
-                      className={cn(
-                        "px-4 gap-3",
-                        selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested"
-                          ? "bg-green-600 hover:bg-green-700 text-white"
-                          : "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
-                      )}
-                    >
-                      <BookmarkIcon
-                        className={cn("h-4 w-4", (selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") && "fill-current")}
-                      />
-                      {(selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") ? "Remove Bookmark" : "Bookmark Event"}
-                    </Button>
+                <div className="flex items-center justify-between pt-4 border-t">
+                  {/* Edit and Delete buttons for custom events */}
+                  {selectedEvent.isCustom ? (
+                    <div className="flex items-center gap-2">
+                      <div className="relative group">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            handleEditEvent(selectedEvent)
+                            setSelectedEvent(null)
+                          }}
+                          className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                          Edit Event
+                        </div>
+                      </div>
+                      <div className="relative group">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => showDeleteConfirmation(selectedEvent.eventId)}
+                          className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                          Delete Event
+                        </div>
+                      </div>
+                    </div>
                   ) : (
-                    <Button
-                      variant="outline"
-                      onMouseDown={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        toggleBookmark(selectedEvent.id)
-                      }}
-                      className="px-4 gap-3 hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
-                    >
-                      <BookmarkIcon className="h-4 w-4" />
-                      Bookmark Event
-                    </Button>
+                    <div></div>
                   )}
+
+                  <div className="flex items-center gap-2">
+                    {selectedEvent.status !== "available" ? (
+                      <Button
+                        variant={selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested" ? "default" : "outline"}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleBookmark(selectedEvent.eventId)
+                        }}
+                        className={cn(
+                          "px-4 gap-3",
+                          selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested"
+                            ? "bg-green-600 hover:bg-green-700 text-white"
+                            : "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
+                        )}
+                      >
+                        <BookmarkIcon
+                          className={cn("h-4 w-4", (selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") && "fill-current")}
+                        />
+                        {(selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested") ? "Remove Bookmark" : "Bookmark Event"}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleBookmark(selectedEvent.eventId)
+                        }}
+                        className="px-4 gap-3 hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
+                      >
+                        <BookmarkIcon className="h-4 w-4" />
+                        Bookmark Event
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+            </DialogContent>
+          </Dialog>
+        )
+      }
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -5075,7 +4972,7 @@ export default function EventsCalendarPage() {
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => eventToDelete && handleDeleteEvent(eventToDelete.id)}
+              onClick={() => eventToDelete && handleDeleteEvent(eventToDelete.eventId)}
               className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
             >
               Delete
@@ -5083,6 +4980,6 @@ export default function EventsCalendarPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </div >
   )
 }

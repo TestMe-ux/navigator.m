@@ -79,9 +79,9 @@ function SummaryCard({
               </p>
             </div>
           </div>
-
+ 
           {/* Change Indicator */}
-          {trend && (
+          {trend && trend !== '0%' && (
             <div className={`flex items-center gap-2 ${trendDirection === "up"
               ? "text-emerald-600 dark:text-emerald-400"
               : "text-red-600 dark:text-red-400"
@@ -105,17 +105,19 @@ function SummaryCard({
   )
 }
 
-export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverageData }: any) {
-  const [selectedProperty] = useSelectedProperty()
+export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverageData, demandCurrencySymbol, demandData }: any) {
+  const selectedProperty: any = localStorageService.get('SelectedProperty')
   const [trendValue, setTrendValue] = useState(0);
+  const [demandTrendValue, setDemandTrendValue] = useState(0);
   const [mounted, setMounted] = useState(false);
-
-  // Prevent hydration mismatch by only rendering after client-side hydration
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
+  const ischatgptData = demandData?.ischatgptData ?? false;
   console.log("Filter sumarry card", filter)
+  
+  // Ensure component is mounted to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+  
   useEffect(() => {
     if (!avgDemand) return;
     let newTrend;
@@ -126,7 +128,15 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
         : filter === "yoy"
           ? avgDemand?.AvrageHotelADRYoy
           : avgDemand?.AvrageHotelADRWow;
-    console.log("newTrend", newTrend)
+    let demandIndexTrend;
+    demandIndexTrend = filter === "wow"
+      ? avgDemand?.AverageWow
+      : filter === "mom"
+        ? avgDemand?.AverageMom
+        : filter === "yoy"
+          ? avgDemand?.AverageYoy
+          : avgDemand?.AverageWow;
+    setDemandTrendValue(demandIndexTrend);
     setTrendValue(newTrend);
   }, [filter, avgDemand]);
 
@@ -136,8 +146,20 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
   
   const summaryData: SummaryCardProps[] = [
     {
-      title: "Avg. Market ADR",
-      value: `\u200E ${currencySymbol}\u200E  ${avgDemand?.AvrageHotelADR?.toFixed(0) || '0'}`,
+      title: "Demand Index",
+      value: `${avgDemand?.AverageDI}`,
+      trend: `${demandTrendValue}%`,
+      trendDirection: `${demandTrendValue > 0 ? "up" : "down"}`,
+      icon: BarChart3,
+      iconColorClass: "text-blue-600 dark:text-blue-400",
+      bgColorClass: "bg-emerald-50 dark:bg-emerald-950",
+      tooltipId: "avg-demand-index",
+      comparetext: filter,
+      isVisible: true
+    },
+    {
+      title: "Market ADR",
+      value: `\u200E ${demandCurrencySymbol?.currencySymbol ?? '$'}\u200E  ${ischatgptData ? (avgDemand?.AvrageHotelADR * (demandCurrencySymbol?.conversionRate ?? 1)).toFixed(2) : avgDemand?.AvrageHotelADR}`,
       trend: `${trendValue}%`,
       trendDirection: `${trendValue > 0 ? "up" : "down"}`,
       icon: DollarSign,
@@ -148,29 +170,41 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
       isVisible: true
     },
     {
-      title: "Avg. Market RevPAR",
-      value: `\u200E ${currencySymbol}\u200E  ${avgDemand?.AvrageRevPAR?.toFixed(0) || '0'}`,
-      trend: "2.1%",
+      title: "Market RevPAR",
+      value: `\u200E${demandCurrencySymbol?.currencySymbol ?? '$'} ${((avgDemand?.AvrageRevPAR ?? 0) * (demandCurrencySymbol?.conversionRate ?? 1)).toFixed(2)}`,
+      trend: "0%",
       trendDirection: "up",
-      icon: BarChart3,
-      iconColorClass: "text-blue-600 dark:text-blue-400",
+      icon: TrendingUp,
+      iconColorClass: "text-purple-600 dark:text-purple-400",
       bgColorClass: "bg-blue-50 dark:bg-blue-950",
       tooltipId: "avg-market-revpar",
       comparetext: filter,
       isVisible: avgDemand?.AvrageRevPAR > 0 ? true : false
     },
     {
-      title: "Top Source Market",
-      value: `${demandAIPerCountryAverageData[0]?.srcCountryName}`,
-      trend: "",
+      title: "Market Occupancy",
+      value: avgDemand?.AvrageOccupancy ? `${avgDemand?.AvrageOccupancy}%` : 'N/A',
+      trend: "0%",
       trendDirection: "up",
       icon: Users,
       iconColorClass: "text-amber-600 dark:text-amber-400",
-      bgColorClass: "bg-amber-50 dark:bg-amber-950",
-      tooltipId: "top-source-market",
+      bgColorClass: "bg-blue-50 dark:bg-blue-950",
+      tooltipId: "avg-market-revpar",
       comparetext: filter,
-      isVisible: !!demandAIPerCountryAverageData[0]?.srcCountryName ? true : false
+      isVisible: avgDemand?.AvrageOccupancy > 0 ? true : false
     },
+    // {
+    //   title: "Top Source Market",
+    //   value: `${demandAIPerCountryAverageData[0]?.srcCountryName}`,
+    //   trend: "",
+    //   trendDirection: "up",
+    //   icon: Users,
+    //   iconColorClass: "text-amber-600 dark:text-amber-400",
+    //   bgColorClass: "bg-amber-50 dark:bg-amber-950",
+    //   tooltipId: "top-source-market",
+    //   comparetext: filter,
+    //   isVisible: !!demandAIPerCountryAverageData[0]?.srcCountryName ? true : false
+    // },
   ]
 
   return (
@@ -180,7 +214,7 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
           <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-1">Market Summary</h2>
           <p className="text-sm text-slate-600 dark:text-slate-400">Key performance indicators and market positioning</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 lg:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 lg:gap-6">
           {summaryData.filter((data) => data.isVisible).map((data) => (
             <SummaryCard key={data.title} {...data} />
           ))}

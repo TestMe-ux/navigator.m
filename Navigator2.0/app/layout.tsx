@@ -1,14 +1,13 @@
 import type React from "react"
 import type { Metadata } from "next"
 import "./globals.css"
-import { Header } from "@/components/navigator/header"
-import { FilterSidebar } from "@/components/filter-sidebar"
-import { LayoutContent } from "@/components/layout-content"
+import { ConditionalLayout } from "@/components/conditional-layout"
 import { ThemeProvider } from "@/components/theme-provider"
 import { DateProvider } from "@/components/date-context"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { Toaster } from "@/components/ui/toaster"
 import { ComparisonProvider } from "@/components/comparison-context"
+import { DatadogProvider } from "@/lib/datadogRum"
 
 /**
  * Root Layout Metadata
@@ -63,6 +62,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="antialiased font-sans bg-background text-foreground">
+         <DatadogProvider />
         <ErrorBoundary>
           <ThemeProvider
             attribute="class"
@@ -73,9 +73,8 @@ export default function RootLayout({
 
             <ComparisonProvider>
               <DateProvider>
-                {/* Fixed Header - Appears on all pages */}
-                <Header />
-                <LayoutContent>{children}</LayoutContent>
+                {/* Conditional Layout - Header only appears on non-auth pages */}
+                <ConditionalLayout>{children}</ConditionalLayout>
                 {/* Toast notifications */}
                 <Toaster />
               </DateProvider>

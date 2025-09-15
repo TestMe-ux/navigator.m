@@ -9,12 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
-import { TrendingUp, Filter, Download, ChevronDown, Eye, EyeOff, ArrowUp, ArrowDown, Minus, BarChart3, Star, Maximize2, Calendar } from "lucide-react"
+import { TrendingUp, Filter, Download, ChevronDown, Eye, EyeOff, ArrowUp, ArrowDown, Minus, BarChart3, Star, Maximize2, Calendar, Triangle } from "lucide-react"
 import { useDateContext } from "@/components/date-context"
-import { format, eachDayOfInterval, differenceInDays } from "date-fns"
+import { format, eachDayOfInterval, differenceInDays, isSameDay, parseISO, subDays } from "date-fns"
 import localStorageService from "@/lib/localstorage"
 import { toPng } from "html-to-image";
 import { escapeCSVValue } from "@/lib/utils"
+import { useComparison } from "../comparison-context"
 /**
  * Chart Data Configuration
  * Professional rate trends data with multiple channels and time periods
@@ -73,33 +74,38 @@ interface RateDataResponse {
 /**
  * Transform actual rate data to chart format
  */
-const transformRateData = (rateData: RateDataResponse): RateData[] => {
-
+const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataResponse, selectedComparison: number): RateData[] => {
   // Check if rateData is empty or invalid
-  if (!rateData || Object.keys(rateData).length === 0) {
+  if (!rateData || Object.keys(rateData).length === 0 || !rateCompData || Object.keys(rateCompData).length === 0) {
     return []
   }
 
   // Handle both nested (body.pricePositioningEntites) and direct (pricePositioningEntites) data structures
   const entities = rateData?.body?.pricePositioningEntites || rateData?.pricePositioningEntites
-
-  if (!entities) {
+  const compEntities = rateCompData?.body?.pricePositioningEntites || rateCompData?.pricePositioningEntites
+  if (!entities || !compEntities) {
 
     return []
   }
 
+  // console.log("entities", entities);
   const transformedData: RateData[] = []
 
   // Group data by check-in date
   const dateMap = new Map<string, any>()
 
   entities.forEach((entity, entityIndex) => {
-
-
     entity.subscriberPropertyRate.forEach((rateEntry, rateIndex) => {
-
       const checkInDate = rateEntry.checkInDateTime.split('T')[0] // Extract date part
-
+      const compData = compEntities
+        .filter(ce => ce.propertyID === entity.propertyID)[0]
+        ?.subscriberPropertyRate
+        .find(re =>
+          isSameDay(
+            parseISO(re.checkInDateTime),
+            subDays(parseISO(rateEntry.checkInDateTime), selectedComparison)
+          )
+        );
       if (!dateMap.has(checkInDate)) {
         dateMap.set(checkInDate, {
           date: checkInDate,
@@ -111,24 +117,31 @@ const transformRateData = (rateData: RateDataResponse): RateData[] => {
       }
 
       const dateData = dateMap.get(checkInDate)
-      const rate = parseFloat(rateEntry.rate) || 0
-
+      const rate = parseFloat(rateEntry.rate) || 0;
       // Map property types to chart data
       if (entity.propertyType === 0) {
         // Direct/Subscriber property
+        dateData.directStatus = rateEntry.status === null ? rateEntry.rate : rateEntry.status;
         dateData.direct = rate
+        dateData.compareRate = compData?.rate ? parseFloat(compData.rate) : 0;
+        dateData.compareStatus = compData?.status === null ? compData.rate : compData?.status;
       } else if (entity.propertyType === 2) {
         // Avg Compset
+        dateData.avgCompsetStatus = rateEntry.status === null ? rateEntry.rate : rateEntry.status;
         dateData.avgCompset = rate
+        dateData.compareavgCompset = compData?.rate ? parseFloat(compData.rate) : 0;
+        dateData.compareavgCompsetStatus = compData?.status === null ? compData.rate : compData?.status;
       } else if (entity.propertyType === 1) {
         // Competitor property - create dynamic property key
         const competitorKey = `competitor_${entity.propertyID}`
+        dateData[`${competitorKey}_Status`] = rateEntry.status === null ? rateEntry.rate : rateEntry.status;
         dateData[competitorKey] = rate
         dateData[`${competitorKey}_name`] = entity.propertName
+        dateData[`compare${competitorKey}`] = compData?.rate ? parseFloat(compData.rate) : 0;
+        dateData[`compare${competitorKey}_Status`] = compData?.status === null ? compData.rate : compData?.status;
       }
     })
   })
-
   // Convert map to array and sort by date
   transformedData.push(...Array.from(dateMap.values()))
   transformedData.sort((a, b) => a.timestamp - b.timestamp)
@@ -306,13 +319,20 @@ function CustomXAxisTick({ x, y, payload, data }: CustomXAxisTickProps) {
   )
 }
 
+const formatYAxis = (value: string | number): string => {
+  const num = Number(value)
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`
+  if (num >= 1_000) return `${(num / 1_000).toFixed(0)}K`
+  return String(num)
+}
 /**
  * Enhanced Custom Tooltip with price positioning analysis
  */
-function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$' }: CustomTooltipProps & { coordinate?: { x: number, y: number }, currencySymbol?: string }) {
+function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$', legendVisibility = {} }: CustomTooltipProps & { coordinate?: { x: number, y: number }, currencySymbol?: string, legendVisibility?: Record<string, boolean> }) {
+
   if (active && payload && payload.length) {
     const data = payload[0]?.payload
-
+    debugger;
     // Find Avg. Compset rate for variance calculations
     const avgCompsetEntry = payload.find(entry => entry.name === 'Avg. Compset')
     const avgCompsetRate = avgCompsetEntry?.value || 0
@@ -341,8 +361,12 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
     // Find the actual Avg Compset rate from the payload
     const actualAvgCompsetEntry = payload.find(entry => entry.name.includes('Compset') || entry.dataKey === 'avgCompset')
     const actualAvgCompsetRate = actualAvgCompsetEntry?.value || 0
-
-    const competitorRatesForRanking = allRates.filter(rate => rate !== actualAvgCompsetRate)
+    const competitorRatesForRanking = (() => {
+      const cloneallRates = [...allRates];
+      const idx = cloneallRates.findIndex(r => r === actualAvgCompsetRate);
+      if (idx !== -1) cloneallRates.splice(idx, 1);
+      return cloneallRates;
+    })();
     const sortedRates = competitorRatesForRanking.sort((a, b) => a - b)
     const myPosition = sortedRates.indexOf(myHotelRate) + 1
     const totalHotels = sortedRates.length
@@ -352,7 +376,7 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
     // Get position text for each hotel (excluding Avg Compset)
     const getPositionText = (rate: number, hotelName: string) => {
       // Don't calculate position for Avg Compset
-      if (rate === actualAvgCompsetRate) return ''
+      if (rate === actualAvgCompsetRate && hotelName === "Compset Avg. Rate") return ''
 
       const position = sortedRates.indexOf(rate) + 1
 
@@ -386,11 +410,30 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
           )}
         </div>
 
+        {/* Tooltip Header */}
+        <div className="mb-2 p-2 bg-gray-50 dark:bg-slate-800/50 rounded-md border border-gray-200 dark:border-slate-600">
+          <div className="flex items-center justify-between gap-2 text-xs font-semibold text-gray-700 dark:text-slate-300">
+            <div className="flex-1">Property</div>
+            <div className="min-w-[60px] text-right">Price ({`\u200E${currencySymbol}\u200E`})</div>
+            <div className="min-w-[40px] flex items-right justify-end gap-1">
+              <Triangle className="h-4 w-4" />
+              <span>%</span>
+            </div>
+            <div className="min-w-[50px] text-right">Rank</div>
+          </div>
+        </div>
+
         {/* Compact Rate Details */}
         <div className="space-y-1">
           {(() => {
+            // Filter payload to only show properties with visible legends
+            const visiblePayload = payload.filter(entry => {
+              const dataKey = entry.dataKey as string
+              return legendVisibility[dataKey] === true
+            })
+
             // Custom sorting logic based on property types and ranking
-            const sortedPayload = [...payload].sort((a, b) => {
+            const sortedPayload = [...visiblePayload].sort((a, b) => {
               const aValue = a.value || 0
               const bValue = b.value || 0
 
@@ -421,19 +464,39 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
             })
 
             return sortedPayload.map((entry, index) => {
+              debugger;
               // Check if this is the direct property (propertyType=0) or Avg Compset (propertyType=2)
-              const isDirectProperty = entry.dataKey === 'direct' || entry.name.includes('Hotel') && !entry.name.includes('Compset')
+              const isDirectProperty = entry.dataKey === 'direct' && !entry.name.includes('Compset')
               const isAvgCompset = entry.name.includes('Compset') || entry.dataKey === 'avgCompset'
               const isCheapest = index === 0
-
               // Calculate variance against Avg. Compset for all entries except Avg. Compset itself
-              const priceDiff = !isAvgCompset && avgCompsetRate > 0 ?
-                ((entry.value - avgCompsetRate) / avgCompsetRate * 100) : 0
 
               const isCompetitiveThreat = !isDirectProperty && !isAvgCompset && entry.value < myHotelRate
               // Exclude Avg Compset from ranking - only show position for competitors
               const positionText = !isAvgCompset ? getPositionText(entry.value, entry.name) : ''
 
+              const competitorKey = entry.dataKey;
+              const statusKey = `${competitorKey}_Status`;
+              const statusData = entry.payload[statusKey];
+              const comparestatusData = entry.payload[`compare${statusKey}`];
+              const directStatus = isDirectProperty ? entry.payload.directStatus : "";
+              const compareStatus = isDirectProperty ? entry.payload.compareStatus : "";
+              const avgCompStatus = isAvgCompset ? entry.payload.avgCompsetStatus : "";
+              const compareavgCompsetStatus = isAvgCompset ? entry.payload.compareavgCompsetStatus : "";
+              const compareRate = isDirectProperty ? entry.payload.compareRate : entry.payload[`compare${competitorKey}`];
+              var priceDiff = 0;
+              if (isDirectProperty && compareRate > 0) {
+                priceDiff = ((entry.value - compareRate) / compareRate * 100)
+              }
+              else if (isAvgCompset && entry.payload.compareavgCompset > 0) {
+                priceDiff = ((entry.value - entry.payload.compareavgCompset) / entry.payload.compareavgCompset * 100);
+              }
+              else if (!isDirectProperty && !isAvgCompset && compareRate > 0) {
+                priceDiff = ((entry.value - compareRate) / compareRate * 100);
+              }
+              // const normalizedStatus =
+              //   (statusData ? String(statusData) : directStatus).toUpperCase();
+              const normalizedStatus = (statusData || directStatus || avgCompStatus || "").toString().toUpperCase();
               return (
                 <div key={entry.name} className={`flex items-center justify-between gap-2 p-2 rounded transition-all ${index < 2
                   ? isDirectProperty
@@ -472,29 +535,104 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
                         ? 'text-emerald-700 dark:text-emerald-300'
                         : 'text-gray-900 dark:text-slate-100'
                       }`}>
-                      {`\u200E${currencySymbol}\u200E ${entry.value?.toLocaleString()}`}
+
+                      {normalizedStatus
+                        ? (() => {
+                          const normalized = normalizedStatus.toUpperCase();
+
+                          if ((normalized === "O" && entry.value > 0) || avgCompStatus > 0) {
+                            return `${entry.value?.toLocaleString()}`;
+                          }
+
+                          if (normalized === "C") {
+                            return "Sold Out";
+                          }
+
+                          if (["NP", "ND", "RF", "TNA"].includes(normalized)) {
+                            return "-";
+                          }
+
+                          return "-";
+                        })()
+                        : `${entry.value?.toLocaleString()}`}
+
+                      {/* {entry.value === 0
+                        ? '-' + `${statusData}`
+                        : `\u200E${currencySymbol}\u200E ${entry.value?.toLocaleString()}`} */}
+                      {/* {`\u200E${currencySymbol}\u200E ${entry.value?.toLocaleString()}`} ${data?.directStatus} */}
                     </div>
                     {/* Variance column - empty for Avg. Compset to maintain alignment */}
                     <div className="text-xs font-medium min-w-[40px]">
-                      {!isAvgCompset && (
+                      {(
+                        <span
+                          className={`${priceDiff > 0
+                            ? 'text-red-600 dark:text-red-400 font-bold'
+                            : 'text-green-600 dark:text-green-400 font-bold'
+                            }`}
+                        >
+                          {normalizedStatus
+                            ? (() => {
+                              const normalized = normalizedStatus.toUpperCase();
+
+                              if ((normalized === "O" && entry.value > 0 && (comparestatusData === "O" || compareavgCompsetStatus === "O" || compareStatus === "O")) || avgCompStatus > 0) {
+                                return `${priceDiff > 0 ? "+" : ""}${Math.round(priceDiff)}%`;
+                              }
+
+                              if (normalized === "C" || comparestatusData === "C" || compareavgCompsetStatus === "C" || compareStatus === "C") {
+                                return " ";
+                              }
+
+                              if (["NP", "ND", "RF", "TNA"].includes(normalized) || ["NP", "ND", "RF", "TNA"].includes(comparestatusData) || ["NP", "ND", "RF", "TNA"].includes(compareavgCompsetStatus) || ["NP", "ND", "RF", "TNA"].includes(compareStatus)) {
+                                return "-";
+                              }
+
+                              return "-";
+                            })()
+                            : `${priceDiff > 0 ? '+' : ''}${priceDiff.toFixed(2)}%`}
+
+                          {/* {priceDiff === 0 ? '' : `${priceDiff > 0 ? '+' : ''}${priceDiff.toFixed(0)}%`} */}
+                        </span>
+                      )}
+                      {/* {!isAvgCompset && (
                         <span className={`${priceDiff > 0
                           ? 'text-red-600 dark:text-red-400 font-bold'
                           : 'text-green-600 dark:text-green-400 font-bold'
                           }`}>
                           {priceDiff > 0 ? '+' : ''}{priceDiff.toFixed(0)}%
                         </span>
-                      )}
+                      )} */}
                     </div>
                     {/* Ranking column - only for competitors, not for Avg Compset */}
-                    <div className={`text-xs font-medium min-w-[50px] ${!isAvgCompset && positionText === 'Lowest'
-                      ? 'text-emerald-600 dark:text-emerald-400 font-bold'
-                      : !isAvgCompset && positionText === 'Highest'
-                        ? 'text-red-600 dark:text-red-400 font-bold'
-                        : !isAvgCompset && positionText
-                          ? 'text-gray-600 dark:text-gray-400'
-                          : ''
+                    <div className={`text-xs font-medium min-w-[50px] 
+                       ${!isAvgCompset && positionText === 'Lowest'
+                        ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                        : !isAvgCompset && positionText === 'Highest'
+                          ? 'text-red-600 dark:text-red-400 font-bold'
+                          : !isAvgCompset && positionText
+                            ? 'text-gray-600 dark:text-gray-400'
+                            : ''
                       }`}>
-                      {!isAvgCompset && positionText}
+                      {normalizedStatus
+                        ? (() => {
+                          const normalized = normalizedStatus.toUpperCase();
+
+                          if ((normalized === "O" && entry.value > 0) || avgCompStatus > 0) {
+                            return positionText
+                          }
+
+                          if (normalized === "C") {
+                            return !isAvgCompset && positionText === "#0" ? " " : positionText;
+                          }
+
+                          if (["NP", "ND", "RF", "TNA"].includes(normalized)) {
+                            return "-";
+                          }
+
+                          return "-";
+                        })()
+                        : (
+                          !isAvgCompset && positionText === "" ? "-" : positionText
+                        )}
                     </div>
                   </div>
                 </div>
@@ -523,10 +661,10 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
  * @component
  * @version 2.0.0
  */
-export function RateTrendsChart({ rateData }: any) {
+export function RateTrendsChart({ rateData, rateCompData }: any) {
   const { startDate, endDate } = useDateContext()
   const [selectedProperty, setSelectedProperty] = useState<any>(null)
-  
+  const { selectedComparison } = useComparison()
   // Safely get selectedProperty on client side only
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -540,17 +678,9 @@ export function RateTrendsChart({ rateData }: any) {
 
   // State management
   const [errorMessage, setErrorMessage] = useState<string>('')
-  const [legendVisibility, setLegendVisibility] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {}
-    // This will be populated by generateChannelConfigs
-    return initial
-  })
-
-  const [channelVisibility, setChannelVisibility] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {}
-    // This will be populated by generateChannelConfigs
-    return initial
-  })
+  const [legendVisibility, setLegendVisibility] = useState<Record<string, boolean>>({})
+  const [channelVisibility, setChannelVisibility] = useState<Record<string, boolean>>({})
+  const [isInitialized, setIsInitialized] = useState<boolean>(false)
 
   // Tab state
   const [activeTab, setActiveTab] = useState<string>('chart')
@@ -558,12 +688,9 @@ export function RateTrendsChart({ rateData }: any) {
   // Generate data - with fallback dates if context dates are null
   const data = useMemo(() => {
     // Transform actual rate data to chart format
-    const transformedData = transformRateData(rateData)
-
-    console.log("transformedData", transformedData);
-
+    const transformedData = transformRateData(rateData, rateCompData, selectedComparison)
     return transformedData
-  }, [rateData])
+  }, [rateData, rateCompData])
 
   // Initialize visibility states when channel configs change
   useEffect(() => {
@@ -572,12 +699,28 @@ export function RateTrendsChart({ rateData }: any) {
       const initialChannelVisibility: Record<string, boolean> = {}
 
       channelConfigs.forEach(config => {
-        initialLegendVisibility[config.key] = true // All legends visible by default
         initialChannelVisibility[config.key] = config.isVisible
+        // Show legend for channels that are initially selected
+        initialLegendVisibility[config.key] = config.isVisible
+      })
+
+      // Force avgCompset to always be visible by default
+      if (channelConfigs.find(config => config.key === 'avgCompset')) {
+        initialChannelVisibility['avgCompset'] = true
+        initialLegendVisibility['avgCompset'] = true
+      }
+
+      // Ensure that all selected channels also have their legends visible
+      // This prevents the "disabled" appearance for selected channels
+      Object.keys(initialChannelVisibility).forEach(key => {
+        if (initialChannelVisibility[key]) {
+          initialLegendVisibility[key] = true
+        }
       })
 
       setLegendVisibility(initialLegendVisibility)
       setChannelVisibility(initialChannelVisibility)
+      setIsInitialized(true)
     }
   }, [channelConfigs])
 
@@ -587,7 +730,7 @@ export function RateTrendsChart({ rateData }: any) {
     [channelConfigs, channelVisibility]
   )
 
-  // Filter competitor channels only for the dropdown (exclude My Hotel)
+  // Filter competitor channels only for the dropdown (exclude My Hotel and avgCompset)
   const competitorChannels = useMemo(() =>
     channelConfigs.filter(config => config.type === 'competitor'),
     [channelConfigs]
@@ -598,33 +741,33 @@ export function RateTrendsChart({ rateData }: any) {
     [competitorChannels, channelVisibility]
   )
 
-  // Always include My Hotel line + visible competitors for chart rendering
+  // Always include My Hotel line + avgCompset + visible competitors for chart rendering
   const myHotelChannel = useMemo(() =>
     channelConfigs.find(config => config.type === 'direct'),
     [channelConfigs]
   )
 
-  const allSelectedChannels = useMemo(() =>
-    myHotelChannel ? [myHotelChannel, ...visibleCompetitors] : visibleCompetitors,
-    [myHotelChannel, visibleCompetitors]
+  const avgCompsetChannel = useMemo(() =>
+    channelConfigs.find(config => config.key === 'avgCompset'),
+    [channelConfigs]
   )
 
-  // Only first 10 channels will be active on chart (dynamically fills slots when hotels are deselected)
-  const chartChannels = useMemo(() =>
-    allSelectedChannels.slice(0, 10),
-    [allSelectedChannels]
-  )
-
-  // Get channels that are selected but beyond the 10-limit (for disabled legends)
-  const disabledChannels = useMemo(() =>
-    allSelectedChannels.slice(10),
-    [allSelectedChannels]
-  )
+  const allSelectedChannels = useMemo(() => {
+    const channels = []
+    if (myHotelChannel) channels.push(myHotelChannel)
+    if (avgCompsetChannel) channels.push(avgCompsetChannel)
+    channels.push(...visibleCompetitors)
+    return channels
+  }, [myHotelChannel, avgCompsetChannel, visibleCompetitors])
 
   // Clean up legend states only for hotels that are completely deselected
   useEffect(() => {
-    const allSelectedKeys = allSelectedChannels.map(channel => channel.key)
+    // Skip cleanup during initial setup to prevent interference with initialization
+    if (!isInitialized) {
+      return
+    }
 
+    const allSelectedKeys = allSelectedChannels.map(channel => channel.key)
 
     setLegendVisibility(prev => {
       const updated = { ...prev }
@@ -633,7 +776,6 @@ export function RateTrendsChart({ rateData }: any) {
       // Only clean up legend states for hotels that are completely deselected from dropdown
       for (const key in updated) {
         if (!allSelectedKeys.includes(key as any) && updated[key] === true) {
-
           updated[key] = false
           needsUpdate = true
         }
@@ -641,25 +783,23 @@ export function RateTrendsChart({ rateData }: any) {
 
       return needsUpdate ? updated : prev
     })
-  }, [allSelectedChannels])
+  }, [allSelectedChannels, isInitialized])
 
   // Auto-clear error messages when visible legend count drops below 10
   useEffect(() => {
-    const allSelectedKeys = allSelectedChannels.map(channel => channel.key)
-    const currentVisibleCount = allSelectedKeys.filter(key => legendVisibility[key]).length
-
+    // Only count channels that are both selected in dropdown AND visible in legend
+    const currentVisibleCount = Object.keys(legendVisibility).filter(key =>
+      legendVisibility[key] && channelVisibility[key]
+    ).length
 
     // Clear error message if we're now under the limit
     if (currentVisibleCount < 10 && errorMessage) {
-
       setErrorMessage('')
     }
-  }, [legendVisibility, allSelectedChannels, errorMessage])
+  }, [legendVisibility, channelVisibility, errorMessage])
 
   // Toggle channel visibility - no limit, dropdown selection should always work
   const toggleChannelVisibility = useCallback((channelKey: string) => {
-
-
     // Update channel visibility first
     setChannelVisibility(prev => {
       const wasVisible = prev[channelKey]
@@ -668,27 +808,17 @@ export function RateTrendsChart({ rateData }: any) {
         [channelKey]: !wasVisible
       }
 
-
+      // Update legend visibility to match channel visibility
+      setLegendVisibility(prevLegend => ({
+        ...prevLegend,
+        [channelKey]: !wasVisible
+      }))
 
       return newVisibility
     })
 
-    // Update legend visibility separately - always sync with channel visibility
-    setLegendVisibility(prevLegend => {
-      const wasChannelVisible = prevLegend[channelKey]
-      const newLegendVisibility = {
-        ...prevLegend,
-        [channelKey]: !wasChannelVisible
-      }
-
-
-
-      return newLegendVisibility
-    })
-
     // Always clear any existing error message for dropdown actions
     setErrorMessage('')
-
   }, [])
 
   // Toggle all competitors - Select All functionality
@@ -700,57 +830,41 @@ export function RateTrendsChart({ rateData }: any) {
     // Check if all competitors are currently selected
     const allSelected = competitorChannels.every(config => channelVisibility[config.key])
 
-    let selectedCount = 0
     competitorChannels.forEach(config => {
       const newValue = !allSelected
-      if (newVisibility[config.key] !== newValue) {
-        selectedCount++
-
-      }
       newVisibility[config.key] = newValue
+      // Always set legend visibility to match channel visibility
+      // The 10-channel limit will be enforced by the legend click handler
       newLegendVisibility[config.key] = newValue
     })
 
     setChannelVisibility(newVisibility)
     setLegendVisibility(newLegendVisibility)
-    setErrorMessage('')
+    if (competitorChannels.length > 10) {
+      setErrorMessage('Maximum 10 properties can be displayed on the graph. Please hide a property first to show a new one.')
+      setTimeout(() => setErrorMessage(''), 5000)
+    }
 
-
-  }, [channelVisibility, legendVisibility, competitorChannels])
+  }, [channelVisibility, legendVisibility, competitorChannels, myHotelChannel])
 
   // Toggle legend visibility (for hiding/showing lines in chart) - ONLY for legend clicks
   const toggleLegendVisibility = useCallback((dataKey: string) => {
-
-
-    // Check if this channel is in the disabled list (11th+ selected channels)
-    const isDisabledChannel = disabledChannels.some(channel => channel.key === dataKey)
-
-    if (isDisabledChannel) {
-
-      setErrorMessage('Maximum 10 hotels can be shown on the chart. Please deselect a hotel first to enable this one.')
-      // Clear error message after 5 seconds
-      setTimeout(() => setErrorMessage(''), 5000)
-      return
-    }
-
     // Use functional state update to avoid stale closure issues
     setLegendVisibility(prev => {
       // Calculate current state using fresh state from setter
       const isCurrentlyVisible = prev[dataKey]
 
-
       // If trying to enable a hidden legend, check the 10-visible limit
       if (!isCurrentlyVisible) {
         // Count currently visible legends using fresh state
-        const allSelectedKeys = allSelectedChannels.map(channel => channel.key)
-        const currentVisibleCount = allSelectedKeys.filter(key => prev[key]).length
-
-
+        // Only count channels that are both selected in dropdown AND visible in legend
+        const currentVisibleCount = Object.keys(prev).filter(key =>
+          prev[key] && channelVisibility[key]
+        ).length
 
         // Block if already at 10 visible legends
         if (currentVisibleCount >= 10) {
-
-          setErrorMessage('Maximum 10 channels can be displayed on the graph. Please hide a channel first to show a new one.')
+          setErrorMessage('Maximum 10 properties can be displayed on the graph. Please hide a property first to show a new one.')
           setTimeout(() => setErrorMessage(''), 5000)
           return prev // Return unchanged state
         }
@@ -762,14 +876,13 @@ export function RateTrendsChart({ rateData }: any) {
         [dataKey]: !prev[dataKey]
       }
 
-      // Log the new state for debugging
-      const allSelectedKeys = allSelectedChannels.map(channel => channel.key)
-      const newVisibleCount = allSelectedKeys.filter(key => newState[key]).length
-
+      // Count new visible legends for error clearing
+      const newVisibleCount = Object.keys(newState).filter(key =>
+        newState[key] && channelVisibility[key]
+      ).length
 
       // If we're now under 10 visible legends, clear any error immediately
       if (newVisibleCount < 10) {
-
         setErrorMessage('')
       }
 
@@ -777,8 +890,8 @@ export function RateTrendsChart({ rateData }: any) {
     })
 
     // Always clear error message on successful toggle (backup)
-    setTimeout(() => setErrorMessage(''), 0)
-  }, [disabledChannels, allSelectedChannels])
+    // setTimeout(() => setErrorMessage(''), 0)
+  }, [channelVisibility])
 
   // Custom tooltip position to keep it within chart bounds
   // const getTooltipPosition = useCallback((coordinate: { x: number, y: number }, viewBox: any) => {
@@ -934,7 +1047,7 @@ export function RateTrendsChart({ rateData }: any) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", 'RateShopping_Rate_' + selectedProperty?.sid + '_' + new Date().getTime()+".csv");
+    link.setAttribute("download", 'RateShopping_Rate_' + selectedProperty?.sid + '_' + new Date().getTime() + ".csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1036,7 +1149,7 @@ export function RateTrendsChart({ rateData }: any) {
                   {/* Footer */}
                   <div className="mt-3 pt-2 border-t border-gray-200 dark:border-slate-700">
                     <p className="text-xs text-gray-600 dark:text-slate-400 text-center">
-                      Only first 10 selected competitors will be displayed on chart
+                      Initially shows 4 channels. Select up to 10 total channels for display.
                     </p>
                   </div>
                 </div>
@@ -1044,7 +1157,7 @@ export function RateTrendsChart({ rateData }: any) {
             </DropdownMenu>
 
             {/* Download Button */}
-            <DropdownMenu>
+            {/* <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="btn-minimal">
                   <Download className="w-4 h-4" />
@@ -1054,7 +1167,7 @@ export function RateTrendsChart({ rateData }: any) {
                 <DropdownMenuItem onClick={() => handleDownloadImageRate()}>Export as Image</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleDownload()}>Export as CSV</DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
+            </DropdownMenu> */}
           </div>
         </div>
       </CardHeader>
@@ -1073,8 +1186,6 @@ export function RateTrendsChart({ rateData }: any) {
 
           {/* Chart Container */}
           <div className="h-[384px] w-full">
-
-
             {!hasData ? (
               <div className="h-full bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse flex items-center justify-center">
                 <div className="text-center">
@@ -1112,9 +1223,10 @@ export function RateTrendsChart({ rateData }: any) {
                     }}
                     axisLine={false}
                     tickLine={false}
+                    tickFormatter={formatYAxis}
                   />
                   <Tooltip
-                    content={<CustomTooltip currencySymbol={selectedProperty?.currencySymbol ?? '$'} />}
+                    content={<CustomTooltip currencySymbol={selectedProperty?.currencySymbol ?? '$'} legendVisibility={legendVisibility} />}
                     allowEscapeViewBox={{ x: true, y: true }}
                     offset={10}
                     isAnimationActive={false}
@@ -1123,20 +1235,27 @@ export function RateTrendsChart({ rateData }: any) {
                       pointerEvents: 'none'
                     }}
                   />
+
                   <Legend
                     verticalAlign="bottom"
-                    height={35}
                     iconType="line"
                     wrapperStyle={{
-                      paddingTop: "5px",
-                      marginBottom: "-10px",
-                      fontSize: "12px",
-                      cursor: "pointer",
-                      lineHeight: "1.6",
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: "18px",
-                      justifyContent: "center"
+                      ...(channelConfigs.length > 15
+                        ? {
+                          maxHeight: '80px',
+                          overflowY: 'auto',
+                          overflowX: 'hidden'
+                        }
+                        : { height: 35 }),
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      lineHeight: '1.6',
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '18px',
+                      justifyContent: 'center',
+                      paddingTop: '5px',
+                      marginBottom: '-10px'
                     }}
                     onClick={(event: any) => {
                       if (event.dataKey && typeof event.dataKey === 'string') {
@@ -1151,58 +1270,47 @@ export function RateTrendsChart({ rateData }: any) {
                         // Toggle legend visibility
                         toggleLegendVisibility(event.dataKey)
 
-                        // Also update channel visibility to sync with dropdown
-                        setChannelVisibility(prev => ({
-                          ...prev,
-                          [event.dataKey]: !prev[event.dataKey]
-                        }))
+                        // // Also update channel visibility to sync with dropdown
+                        // setChannelVisibility(prev => ({
+                        //   ...prev,
+                        //   [event.dataKey]: !prev[event.dataKey]
+                        // }))
 
                       }
                     }}
                     formatter={(value, entry: any) => {
                       const dataKey = entry.dataKey as string
-                      const isDisabledChannel = disabledChannels.some(channel => channel.key === dataKey)
-                      const isActiveChannel = chartChannels.some(channel => channel.key === dataKey)
 
                       // Check if this is a non-clickable legend (Direct or Avg Compset)
                       const isDirectProperty = dataKey === 'direct'
                       const isAvgCompset = dataKey === 'avgCompset' || dataKey.includes('avgCompset')
                       const isNonClickable = isDirectProperty || isAvgCompset
 
-                      if (isDisabledChannel) {
-                        // Disabled channels (11th+) - always grey and strike-through
+                      // Check if channel is selected in dropdown
+                      const isChannelSelected = channelVisibility[dataKey]
+
+                      if (!isChannelSelected) {
+                        // Don't show legend for unselected channels
+                        return null
+                      } else {
+                        // Channel is selected - use legend visibility state
+                        const isLegendVisible = legendVisibility[dataKey]
                         return (
                           <span style={{
-                            color: '#9ca3af',
-                            fontWeight: 400,
-                            textDecoration: 'line-through',
-                            opacity: 0.6,
-                            cursor: 'default'
-                          }}>
-                            {value}
-                          </span>
-                        )
-                      } else if (isActiveChannel) {
-                        // Active channels (first 10) - normal legend visibility logic
-                        return (
-                          <span style={{
-                            color: legendVisibility[dataKey] ? entry.color : '#9ca3af',
-                            fontWeight: legendVisibility[dataKey] ? 500 : 400,
-                            textDecoration: legendVisibility[dataKey] ? 'none' : 'line-through',
+                            color: isLegendVisible ? entry.color : '#9ca3af',
+                            fontWeight: isLegendVisible ? 500 : 400,
+                            textDecoration: isLegendVisible ? 'none' : 'line-through',
                             cursor: isNonClickable ? 'default' : 'pointer'
                           }}>
                             {value}
                           </span>
                         )
-                      } else {
-                        // Fallback
-                        return <span style={{ cursor: 'pointer' }}>{value}</span>
                       }
                     }}
                   />
-                  {/* Render active channels (first 10) */}
-                  {chartChannels.map((config) => {
-                    const isVisible = legendVisibility[config.key] && channelVisibility[config.key]
+                  {/* Render only selected channels */}
+                  {channelConfigs.filter(config => channelVisibility[config.key]).map((config) => {
+                    const isVisible = legendVisibility[config.key]
 
                     return (
                       <Line
@@ -1215,24 +1323,9 @@ export function RateTrendsChart({ rateData }: any) {
                         name={config.name}
                         dot={isVisible ? { r: 3 } : false}
                         activeDot={isVisible ? { r: 5, stroke: config.color, strokeWidth: 2 } : false}
-                        hide={!isVisible}
                       />
                     )
                   })}
-                  {/* Render disabled channels (11th+) as hidden lines for legend display */}
-                  {disabledChannels.map((config) => (
-                    <Line
-                      key={config.key}
-                      type="monotone"
-                      dataKey={config.key}
-                      stroke="transparent"
-                      strokeWidth={0}
-                      name={config.name}
-                      dot={false}
-                      activeDot={false}
-                      hide={true}
-                    />
-                  ))}
                 </LineChart>
               </ResponsiveContainer>
             )}

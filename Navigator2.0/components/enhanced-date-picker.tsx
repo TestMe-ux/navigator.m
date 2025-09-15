@@ -21,6 +21,7 @@ import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import localStorageService from "@/lib/localstorage"
 
 type DateMode = "next7days" | "next14days" | "next30days" | "customRange"
 
@@ -53,6 +54,7 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
 
   // Initialize with next 7 days if no dates provided
   React.useEffect(() => {
+    debugger;
     if (!startDate && !endDate) {
       // Ensure Next 7 Days is selected and applied by default
       const today = new Date()
@@ -60,10 +62,12 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
       setSelectedStartDate(today)
       setSelectedEndDate(sevenDaysFromNow)
       setMode("next7days") // Explicitly set mode to next7days
+      localStorageService.set("preferredDateMode", "next7days")
       setCurrentMonth(today)
       // Auto-apply the default selection
       onChange?.(today, sevenDaysFromNow)
     } else {
+      setMode(localStorageService.get("preferredDateMode") || "next7days")
       setSelectedStartDate(startDate)
       setSelectedEndDate(endDate)
       if (startDate) {
@@ -82,6 +86,7 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
   }, []) // Empty dependency - runs only once on mount
 
   const handleDateSelect = (date: Date) => {
+    debugger
     if (!selectedStartDate || selectedEndDate) {
       setSelectedStartDate(date)
       setSelectedEndDate(undefined)
@@ -98,8 +103,9 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
     if (newMode === "customRange" && mode !== "customRange") {
       setPreviousMode(mode)
     }
-    
+
     setMode(newMode)
+    localStorageService.set("preferredDateMode", newMode)
     const today = new Date()
     let newStartDate: Date | undefined
     let newEndDate: Date | undefined
@@ -309,7 +315,7 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
       const daysDiff = Math.round((selectedEndDate.getTime() - selectedStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
 
       // Check if it matches common patterns
-      if (isSameDay(selectedStartDate, today)) {
+      if (isSameDay(selectedStartDate, today) && mode !== "customRange") {
         if (daysDiff === 7) return `Next 7 Days • ${dateRangeText}`
         if (daysDiff === 14) return `Next 14 Days • ${dateRangeText}`
         if (daysDiff === 30) return `Next 30 Days • ${dateRangeText}`

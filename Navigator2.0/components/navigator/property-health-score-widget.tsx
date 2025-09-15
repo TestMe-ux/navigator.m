@@ -4,7 +4,7 @@ import type React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowDown, ArrowUp, AlertCircle, TrendingUp, DollarSign, Bed, Plane, MapPin, Globe, Building2, Wallet, CheckCircle } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { getOTAChannels, getOTARankOnAllChannel } from "@/lib/otarank"
+import { getOTAChannels, getOTARankOnAllChannel, GetMasterActiveReviews } from "@/lib/otarank"
 import { useDateContext } from "../date-context"
 import localStorageService from "@/lib/localstorage"
 import { conevrtDateforApi } from "@/lib/utils"
@@ -210,6 +210,7 @@ export function PropertyHealthScoreWidget(props: any) {
   const isFetchingRef = useRef(false); // avoid overlapping requests
   const [otachannel, setotachannel] = useState<any[]>([]);
   const [otaRankOnChannel, setotaRankOnChannel] = useState<any>([]);
+  const [masterActiveReviews, setMasterActiveReviews] = useState<any>([]);
   const [combinedData, setCombinedData] = useState<any>([]);
   const { startDate, endDate, setDateRange } = useDateContext()
   // Calculate overall summary stats
@@ -258,22 +259,21 @@ export function PropertyHealthScoreWidget(props: any) {
         setotaRankOnChannel([]);
         return;
       }
-      const otach =Array.isArray(chRes.body) ? chRes.body.flat() : [];
+      const otach = Array.isArray(chRes.body) ? chRes.body.flat() : [];
       setotachannel(otach);
       // setOtaChannels(otach);
 
       // 2) get OTA rank on all channels
       const rankRes = await getOTARankOnAllChannel({
         SID: selectedProperty?.sid,
-        CheckInDateStart: startDate?.toUTCString(),
-        CheckInEndDate: endDate?.toUTCString(),
+        CheckInDateStart: conevrtDateforApi(startDate?.toString()),
+        CheckInEndDate: conevrtDateforApi(endDate?.toString()),
       });
 
       if (!rankRes?.status) {
         setotaRankOnChannel([]);
         return;
       }
-
       const flatranOnChaneel = Array.isArray(rankRes.body) ? rankRes.body.flat() : [];
       // Map by otaId for faster lookup (ensure types match)
 
@@ -288,6 +288,14 @@ export function PropertyHealthScoreWidget(props: any) {
 
       setotaRankOnChannel(merged);
 
+      const resReviews = await GetMasterActiveReviews()
+      if (!resReviews?.status) {
+        setMasterActiveReviews([]);
+        return;
+      }
+      setMasterActiveReviews(resReviews.body)
+      //console.log("resReviews", resReviews.body);
+
       // 3) combine with the parity that we currently have (if any)
       if (props?.parityData && !isEmptyObject(props.parityData)) {
         combineRankParity(merged, props.parityData);
@@ -296,6 +304,7 @@ export function PropertyHealthScoreWidget(props: any) {
         const otaOnly = merged.map((m: any) => ({ ...m, parity: null }));
         setCombinedData(otaOnly);
       }
+
     } catch (err) {
       console.error('fetchOtaAndRanks error', err);
     } finally {
@@ -347,7 +356,7 @@ export function PropertyHealthScoreWidget(props: any) {
         parityRaw: a2,
       })),
     ];
-    debugger;
+
     const filtered = merged.filter(item => {
       const cw = item.channelWisewinMeetLoss;
       const hasChannelWisewin =
@@ -375,7 +384,7 @@ export function PropertyHealthScoreWidget(props: any) {
           </div>
 
           {/* Enhanced Summary Stats */}
-          <div className="flex items-center gap-minimal-md">
+          {/* <div className="flex items-center gap-minimal-md">
             <div className="card-minimal p-3 text-center">
               <div className="text-2xl font-semibold text-foreground tracking-tight">{combinedData?.length}</div>
               <div className="text-minimal-caption text-muted-foreground">Channels</div>
@@ -393,7 +402,7 @@ export function PropertyHealthScoreWidget(props: any) {
               </div>
               <div className="text-minimal-caption text-muted-foreground">Total Violations</div>
             </div>
-          </div>
+          </div> */}
         </div>
       </CardHeader>
 
@@ -404,9 +413,18 @@ export function PropertyHealthScoreWidget(props: any) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 -mt-2.5">
           {combinedData.map((channel: any) => {
             // const Icon = channel.channelIcon
+            if (!masterActiveReviews) return;
             const sortedData = [...channel.data].sort((a, b) => parseScore(b.score) - parseScore(a.score));
             const subsOtaranData = channel.data.filter((xy: any) => xy.propertyID == selectedProperty?.hmid)
             const Subindex = sortedData.findIndex((h: any) => h.propertyID === selectedProperty?.hmid);
+
+            // filter reviews that match ANY of the names
+            const matchedReviews = masterActiveReviews.filter(
+              (r: any) => r.channelName === channel.name
+            );
+
+            const outOfScores = matchedReviews.map((r: any) => r.outOfScore);
+
             return (
               <Card key={channel.name} className="hover:shadow-xl hover:scale-[1.01] transition-all duration-300 transform-gpu cursor-default">
                 <CardHeader className="pb-2">
@@ -423,19 +441,21 @@ export function PropertyHealthScoreWidget(props: any) {
                     {/* Ranking Metric - Optimized */}
                     <div className="text-center space-y-2">
                       <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Ranking</div>
-                      {subsOtaranData.length > 0 ? (
+                      {subsOtaranData.length > 0 && subsOtaranData[0]?.otaRank <= 500 ? (
                         <div className="space-y-1">
                           <div className="flex items-center justify-center gap-1">
                             <span className="text-lg font-semibold text-foreground">{subsOtaranData[0]?.otaRank}</span>
-                            {subsOtaranData[0]?.changeInRank !== undefined && subsOtaranData[0]?.changeInRank !== 0 && (
+
+                            {/* {subsOtaranData[0]?.changeInRank !== undefined && subsOtaranData[0]?.changeInRank !== 0 && (
                               <span className={`text-xs font-medium flex items-center ${subsOtaranData[0]?.changeInRank > 0
                                 ? "text-emerald-600 dark:text-emerald-400"
                                 : "text-red-600 dark:text-red-400"
                                 }`}>
                                 {subsOtaranData[0]?.changeInRank > 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-                                {Math.abs(subsOtaranData[0]?.changeInRank)}
+                                
                               </span>
-                            )}
+                            )} */}
+
                           </div>
                           <div className="text-xs text-muted-foreground">
                             of 500
@@ -452,7 +472,8 @@ export function PropertyHealthScoreWidget(props: any) {
                       {subsOtaranData.length > 0 ? (
                         <div className="space-y-1">
                           <div className="text-lg font-semibold text-foreground">{subsOtaranData[0]?.score}</div>
-                          <div className="text-xs text-muted-foreground"> {Subindex + 1}</div>
+                          <div className="text-xs text-muted-foreground">out of {outOfScores}</div>
+                          {/* {Subindex + 1} */}
                         </div>
                       ) : (
                         <div className="text-base text-muted-foreground">--</div>
@@ -469,7 +490,7 @@ export function PropertyHealthScoreWidget(props: any) {
                             {channel?.channelWisewinMeetLoss?.parityScore}%
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {channel?.channelWisewinMeetLoss?.violationCount ?? 0} issues
+                            {channel.isBrand ? props?.parityData?.totalviolationCount ?? 0 : channel?.channelWisewinMeetLoss?.violationCount ?? 0} issues
                           </div>
                         </div>
                       ) : (
