@@ -43,7 +43,8 @@ function OTAChannelCards({
   totalChannelPages,
   handlePrevChannels,
   handleNextChannels,
-  isLoading = false
+  isLoading = false,
+
 }: OTAChannelCardsProps) {
   if (isLoading) {
     return (
@@ -73,7 +74,6 @@ function OTAChannelCards({
       </div>
     )
   }
-
   return (
     <div className="w-full animate-slide-up">
       {/* Channel Cards with Pagination */}

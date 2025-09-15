@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Eye, EyeOff, Activity, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { InputWithTooltip, ValidationHelpers } from "@/components/auth/field-tooltip"
-import { LocalStorageService } from "@/lib/localstorage"
+import { LocalStorageService, LoginResponse } from "@/lib/localstorage"
 import { GetSIDListforUser } from "@/lib/login"
 
 /**
@@ -184,7 +184,7 @@ export function LoginForm() {
 
     try {
       // Import login functions dynamically to avoid SSR issues
-      const { Login, handleSuccessfulLogin, handleLoginError } = await import('@/lib/login')
+      const { Login } = await import('@/lib/login')
 
       // Prepare login data
       const loginData = {
@@ -202,7 +202,8 @@ export function LoginForm() {
 
       if (loginSuccess) {
         // Redirect to dashboard on success
-        window.location.href = '/'
+        getSIDListforUser();
+        // window.location.href = '/'
       } else {
         setErrors(prev => ({
           ...prev,
@@ -212,8 +213,6 @@ export function LoginForm() {
 
     } catch (error) {
       console.error('Login error:', error)
-      // Import handleLoginError function
-      const { handleLoginError } = await import('@/lib/login')
       const errorMessage = handleLoginError(error)
       setErrors(prev => ({
         ...prev,
@@ -223,10 +222,57 @@ export function LoginForm() {
       setIsLoading(false)
     }
   }
+  function handleLoginError(error: any) {
+    console.error('Login error:', error);
+    LocalStorageService.setLoginStatus(false);
 
+    // Return user-friendly error message
+    if (error.response?.status === 401) {
+      return "Invalid username or password. Please try again.";
+    } else if (error.response?.status === 400) {
+      return "Invalid request. Please check your input.";
+    } else if (error.response?.status >= 500) {
+      return "Server error. Please try again later.";
+    } else {
+      return "Login failed. Please try again.";
+    }
+  }
   /**
    * Toggle password visibility
    */
+  function handleSuccessfulLogin(response: LoginResponse, stayLoggedIn: boolean = false) {
+    if (response.status) {
+      // Clear existing localStorage
+      LocalStorageService.clear();
+
+      // Store user details
+      LocalStorageService.setUserDetails(response.body.userDetails);
+
+      // Store user token
+      LocalStorageService.setUserToken(LocalStorageService.getAccessToken() || '');
+
+      // Calculate and store refresh time
+      const refreshTime = new Date(response.body.expiration);
+      LocalStorageService.setRefreshTime(refreshTime.getTime());
+
+      // Store access token
+      LocalStorageService.setAccessToken(response.body.token);
+
+      // Set login status
+      LocalStorageService.setLoginStatus(true);
+
+      // Get SID list for user
+      // GetSIDListforUser(response.body).catch(error => {
+      //     console.error('Error getting SID list:', error);
+      // });
+
+      return true;
+    } else {
+      // Set login status to false on failure
+      LocalStorageService.setLoginStatus(false);
+      return false;
+    }
+  }
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword)
   }
