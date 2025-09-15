@@ -59,7 +59,7 @@ export function Header() {
     getSIDListforUser();
   }, [])
   const getSIDListforUser = () => {
-    GetSIDListforUser({ UserID: 46248 })
+    GetSIDListforUser({ UserID: 50986 })
       .then((res) => {
         if (res.status) {
           localStorageService.set('Properties', res.body);
