@@ -12,7 +12,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { TrendingUp, Filter, Download, ChevronDown, Eye, EyeOff, ArrowUp, ArrowDown, Minus, BarChart3, Star, Maximize2, Calendar, Triangle } from "lucide-react"
 import { useDateContext } from "@/components/date-context"
 import { format, eachDayOfInterval, differenceInDays, isSameDay, parseISO, subDays } from "date-fns"
-import {LocalStorageService} from "@/lib/localstorage"
+import { LocalStorageService } from "@/lib/localstorage"
 import { toPng } from "html-to-image";
 import { escapeCSVValue } from "@/lib/utils"
 import { useComparison } from "../comparison-context"
@@ -830,12 +830,30 @@ export function RateTrendsChart({ rateData, rateCompData }: any) {
     // Check if all competitors are currently selected
     const allSelected = competitorChannels.every(config => channelVisibility[config.key])
 
+    // competitorChannels.forEach(config => {
+    //   const newValue = !allSelected
+    //   newVisibility[config.key] = newValue
+    //   // Always set legend visibility to match channel visibility
+    //   // The 10-channel limit will be enforced by the legend click handler
+    //   newLegendVisibility[config.key] = newValue
+    // })
     competitorChannels.forEach(config => {
       const newValue = !allSelected
       newVisibility[config.key] = newValue
-      // Always set legend visibility to match channel visibility
-      // The 10-channel limit will be enforced by the legend click handler
-      newLegendVisibility[config.key] = newValue
+      // For legend visibility, respect the 10-channel limit
+      // Only show legend for first 10 selected channels (including My Hotel)
+      const myHotelKey = myHotelChannel?.key
+      const selectedCompetitors = competitorChannels.filter(c => newVisibility[c.key])
+      const totalSelected = (myHotelKey && newVisibility[myHotelKey] ? 1 : 0) + selectedCompetitors.length
+
+      if (totalSelected <= 10) {
+        newLegendVisibility[config.key] = newValue
+      } else {
+
+        // If we're over the limit, only show legend for first channels
+        const competitorIndex = selectedCompetitors.findIndex(c => c.key === config.key)
+        newLegendVisibility[config.key] = competitorIndex < (10 - (myHotelKey && newVisibility[myHotelKey] ? 1 : 0)) ? newValue : false
+      }
     })
 
     setChannelVisibility(newVisibility)
