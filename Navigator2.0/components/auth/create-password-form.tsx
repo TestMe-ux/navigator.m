@@ -25,12 +25,18 @@ import { CryptoUtils } from "@/lib/crypto"
  * @component
  * @version 1.0.0
  */
-export function CreatePasswordForm() {
+interface CreatePasswordFormProps {
+  userId: string;
+  token: string;
+}
+
+export function CreatePasswordForm({ userId, token }: CreatePasswordFormProps) {
   // State management
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordFocused, setPasswordFocused] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [errors, setErrors] = useState({
@@ -236,8 +242,8 @@ export function CreatePasswordForm() {
 
     try {
       const passwordEncrypted = CryptoUtils.encryptString(password);
-      // Simulate API call for password creation - fast response
-      const response = await PasswordRecovery({ uid: "", token: "", pwd: passwordEncrypted })
+      // API call for password creation using validated userId and token
+      const response = await PasswordRecovery({ uid: userId, token: token, pwd: passwordEncrypted })
 
       if (response.status) {
 

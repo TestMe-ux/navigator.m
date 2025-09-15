@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent } from "@/components/ui/card"
 import { Eye, EyeOff, Activity, Loader2 } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { InputWithTooltip, ValidationHelpers } from "@/components/auth/field-tooltip"
 import { LocalStorageService, LoginResponse } from "@/lib/localstorage"
 import { GetSIDListforUser } from "@/lib/login"
@@ -28,6 +29,8 @@ import { GetSIDListforUser } from "@/lib/login"
  * @version 1.0.0
  */
 export function LoginForm() {
+  const router = useRouter()
+  
   // State management for form fields and UI
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -201,9 +204,11 @@ export function LoginForm() {
       const loginSuccess = handleSuccessfulLogin(response, stayLoggedIn)
 
       if (loginSuccess) {
-        // Redirect to dashboard on success
+        // Get SID list for user
         getSIDListforUser();
-        // window.location.href = '/'
+        
+        // Redirect to dashboard on success
+       
       } else {
         setErrors(prev => ({
           ...prev,
@@ -294,7 +299,7 @@ export function LoginForm() {
           LocalStorageService.setItem('SelectedProperty', defaultProperty);
           setSelectedHotel(defaultProperty);
           setHotelOptions(res.body);
-          window.location.href = '/'
+          router.push('/')
           // setotachannel(res.body);
           // getOTARankOnAllChannels(res.body);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
