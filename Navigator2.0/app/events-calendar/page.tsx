@@ -1019,7 +1019,7 @@ export default function EventsCalendarPage() {
         // Call API only once per toggle
 
         if (selectedProperty?.sid) {
-          // callApiToUpdateEvent(updatedEvent, selectedProperty?.sid);
+           callApiToUpdateEvent(updatedEvent, selectedProperty?.sid);
         } else {
           console.warn("Skipping API call: selectedProperty.sid is undefined");
         }
@@ -1030,7 +1030,7 @@ export default function EventsCalendarPage() {
           setSelectedEvent(null);       // Deselect event
           setIsDayViewOpen(false);      // Close modal
         }
-        // setIsSaveEvent(true);
+         setIsSaveEvent(true);
         // setTimeout(() => setLoadingProgress(0), 100);
       }
 
