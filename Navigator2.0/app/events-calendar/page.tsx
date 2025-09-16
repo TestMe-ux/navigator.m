@@ -923,12 +923,16 @@ export default function EventsCalendarPage() {
   // Helper function to get category data for events
   const getCategoryData = useCallback(
     (event: Event) => {
+
       const normalize = (s?: string) => (s ?? "").toLowerCase().trim();
 
-      const eventCategory = normalize(event.category);
+      let eventCategory = normalize(event.category);
       const eventType = normalize(event.type);
       const eventStatus = normalize(event.status);
 
+      if (eventCategory === "conference") {
+        eventCategory = eventCategory + "s"; // -> "conferences"
+      }
       //  Match by explicit category first (highest priority)
       if (eventCategory) {
         const byCategory = categoryData.find(cat => {
@@ -992,7 +996,7 @@ export default function EventsCalendarPage() {
 
   // Toggle bookmark status  
   const toggleBookmark = useCallback((eventId: string) => {
-    debugger
+
     setEvents(prevEvents => {
       let updatedEvent: Event | any = null;
 
@@ -1875,7 +1879,7 @@ export default function EventsCalendarPage() {
         category: apiEvent.eventType?.trim(),
         location: apiEvent.eventLocation || '',
         description: apiEvent.eventDescription || '',
-        status: apiEvent.isSubscribed === true ? "bookmarked" : "suggested" as const,
+        status: apiEvent.isSubscribed === true ? "bookmarked" : "available" as const,
         country: apiEvent.eventCountry || '',
         flag: apiEvent.flag || '🇦🇪',
         isCustom: apiEvent.isCustom || false,
@@ -2658,7 +2662,7 @@ export default function EventsCalendarPage() {
   }
 
   // Filter events for bookmark modal
-  const ALL_TYPES = ["bookmarked", "suggested"];
+  const ALL_TYPES = ["bookmarked", "available"];
   const getFilteredBookmarkEvents = useMemo(() => {
     // Deduplicate events by eventId
     const seen = new Set();
@@ -2699,22 +2703,44 @@ export default function EventsCalendarPage() {
       return [];
     } else {
       filtered = filtered.filter((event) => {
-        return selectedTypes.some((type) => {
-          switch (type) {
-            case "bookmarked":
-              return event.status === "bookmarked"; // actual bookmarks
-            case "holiday":
-              return event.type === "holiday"; // holidays
-            case "suggested":
-              return event.category === "social"; // social events count as suggested
-            case "available":
-              return event.status === "available";
-            default:
-              return event.type === type; // fallback for other types
-          }
-        });
+        const conditionMap: Record<string, (event: any) => boolean> = {
+          bookmarked: (event) =>
+            event.status === "bookmarked" || event.type === "holiday",
+
+          available: (event) =>
+            event.status === "available" || event.type === "holiday",
+
+          suggested: (event) =>
+            event.category?.toLowerCase() === "social",
+        };
+
+        return selectedTypes.some(type =>
+          conditionMap[type] ? conditionMap[type](event) : event.type === type
+        );
       });
     }
+
+    // const selectedTypes = bookmarkTypeFilter.filter(t => t !== "all");
+    // if (selectedTypes.length === 0) {
+    //   return [];
+    // } else {
+    //   filtered = filtered.filter((event) => {
+    //     return selectedTypes.some((type) => {
+    //       switch (type) {
+    //         case "bookmarked":
+    //           return event.status === "bookmarked"; // actual bookmarks
+    //         case "holidays":
+    //           return event.type === "holiday"; // holidays
+    //         case "suggested":
+    //           return event.category === "social"; // social events count as suggested
+    //         case "available":
+    //           return event.status === "available";
+    //         default:
+    //           return event.type === type; // fallback for other types
+    //       }
+    //     });
+    //   });
+    // }
 
     // ✅ sort the filtered array, not the Set
     return filtered.sort((a, b) => {
@@ -3809,7 +3835,7 @@ export default function EventsCalendarPage() {
                               />
                               <span>Holidays</span>
                             </label> */}
-                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
+                            {/* <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={isTypeChecked("suggested")}
@@ -3817,9 +3843,9 @@ export default function EventsCalendarPage() {
                                 className="rounded h-3.5 w-3.5"
                               />
                               <span>Suggested</span>
-                            </label>
+                            </label> */}
 
-                            {/* <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
+                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={isTypeChecked("available")}
@@ -3827,7 +3853,7 @@ export default function EventsCalendarPage() {
                                 className="rounded h-3.5 w-3.5"
                               />
                               <span>Available</span>
-                            </label> */}
+                            </label>
                           </div>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -3924,14 +3950,7 @@ export default function EventsCalendarPage() {
                               )}
 
                               <Button
-                                variant={
-                                  event.status === "bookmarked"
-                                    ? "default"
-                                    : event.status === "suggested"
-                                      ? "default"
-                                      : "outline"
-                                }
-                                // variant={event.status === "bookmarked" || event.status === "suggested" ? "default" : "outline"}
+                                variant={event.status === "bookmarked" || event.status === "suggested" ? "default" : "outline"}
                                 size="sm"
                                 onMouseDown={(e) => {
                                   e.preventDefault()
@@ -3940,28 +3959,15 @@ export default function EventsCalendarPage() {
                                 }}
                                 className={cn(
                                   "px-3 gap-2 text-xs",
-                                  event.status === "bookmarked"
+                                  event.status === "bookmarked" || event.status === "suggested"
                                     ? "bg-green-600 hover:bg-green-700 text-white"
-                                    : event.status === "suggested"
-                                      ? "bg-green-500 hover:bg-green-700 text-white"
-                                      : "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
+                                    : "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
                                 )}
-                              // className={cn(
-                              //   "px-3 gap-2 text-xs",
-                              //   event.status === "bookmarked" || event.status === "suggested"
-                              //     ? "bg-green-600 hover:bg-green-700 text-white"
-                              //     : "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
-                              // )}
                               >
                                 <BookmarkIcon
                                   className={cn("h-3 w-3", (event.status === "bookmarked" || event.status === "suggested") && "fill-current")}
                                 />
-                                {event.status === "bookmarked"
-                                  ? "Bookmarked"
-                                  : event.status === "suggested"
-                                    ? "Suggested"
-                                    : "Bookmark"}
-                                {/* {event.status === "bookmarked" || event.status === "suggested" ? "Bookmarked" : "Bookmark"} */}
+                                {event.status === "bookmarked" || event.status === "suggested" ? "Bookmarked" : "Bookmark"}
                               </Button>
                             </div>
                           </div>
