@@ -242,29 +242,35 @@ export function ResetPasswordForm() {
 
     try {
       // Simulate resend API call - fast response
-      await new Promise(resolve => setTimeout(resolve, 300))
+      const response = await ResetPassword({ "uname": email })
       console.log('Password reset email resent to:', email)
+      if (response.status) {
+        const newResendCount = resendCount + 1
+        setResendCount(newResendCount)
 
-      const newResendCount = resendCount + 1
-      setResendCount(newResendCount)
+        if (newResendCount === 1) {
+          // First resend - show success message
+          setResendMessage("Password reset link sent successfully!")
+          setMessageType("success")
+        } else {
+          // Subsequent resends - show helpful info message
+          setResendMessage(
+            "We have already sent you a password reset link. Please check your email inbox and junk/spam folder. If you still haven't received the email after a few minutes, please contact our support team at help@rategain.com for assistance."
+          )
+          setMessageType("info")
+        }
 
-      if (newResendCount === 1) {
-        // First resend - show success message
-        setResendMessage("Password reset link sent successfully!")
-        setMessageType("success")
-      } else {
-        // Subsequent resends - show helpful info message
-        setResendMessage(
-          "We have already sent you a password reset link. Please check your email inbox and junk/spam folder. If you still haven't received the email after a few minutes, please contact our support team at help@rategain.com for assistance."
-        )
+        // Clear message after 8 seconds for success, 16 seconds for info
+        setTimeout(() => {
+          setResendMessage("")
+          setMessageType("")
+        }, newResendCount === 1 ? 8000 : 16000)
+      }
+      else {
+        setResendMessage("Failed to resend email. Please try again.")
         setMessageType("info")
       }
 
-      // Clear message after 8 seconds for success, 16 seconds for info
-      setTimeout(() => {
-        setResendMessage("")
-        setMessageType("")
-      }, newResendCount === 1 ? 8000 : 16000)
 
     } catch (error) {
       console.error('Resend error:', error)
@@ -355,7 +361,7 @@ export function ResetPasswordForm() {
             <div className="h-[18px]"></div>
 
             <Button
-              onClick={() => window.location.href = '/login/create-password'}
+              onClick={() => window.location.href = '/login'}
               className="w-full h-12 text-base font-semibold bg-gradient-brand hover:opacity-90 text-white shadow-brand rounded-lg transition-all transform hover:scale-[1.02]"
             >
               Done

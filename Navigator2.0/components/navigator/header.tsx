@@ -11,6 +11,7 @@ import { ChevronDown, UserCircle, Search, Bell, Menu, X, Activity } from "lucide
 import { ThemeToggle } from "@/components/theme-toggle"
 import { GetSIDListforUser } from "@/lib/login"
 import { LocalStorageService } from "@/lib/localstorage"
+import { useUserDetail } from "@/hooks/use-local-storage"
 
 /**
  * Navigation Configuration
@@ -43,6 +44,7 @@ export function Header() {
   const [hotelSearch, setHotelSearch] = useState("")
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [notificationCount] = useState(3) // Mock notification count
+  const [userDetail] = useUserDetail();
 
 
   useEffect(() => {
@@ -325,8 +327,8 @@ export function Header() {
               align="end"
             >
               <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 mb-1">
-                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Namrata Jain</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">namrata.jain@rategain.com</p>
+                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{userDetail?.firstName + " " + userDetail?.lastName}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{userDetail?.email}</p>
               </div>
               <DropdownMenuItem asChild>
                 <Link
@@ -341,9 +343,9 @@ export function Header() {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-white dark:hover:bg-white cursor-pointer">
-                <div className="flex items-center gap-2" onClick={() => { 
-                  LocalStorageService.logout(); 
-                  window.location.href = '/login' 
+                <div className="flex items-center gap-2" onClick={() => {
+                  LocalStorageService.logout();
+                  window.location.href = '/login'
                 }}>
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

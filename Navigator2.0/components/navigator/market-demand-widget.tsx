@@ -291,7 +291,7 @@ export function MarketDemandWidget() {
                 <span className="text-sm font-medium text-foreground/80">Market RevPAR</span>
               </div>
               <div className="space-y-1">
-                <div className="text-xl font-bold text-foreground">{`\u200E${demandCurrencySymbol?.currencySymbol ?? '$'} ${((avgDemand?.AvrageRevPAR ?? 0) * (demandCurrencySymbol?.conversionRate ?? 1)).toFixed(2)}`}</div>
+                <div className="text-xl font-bold text-foreground">{`\u200E${demandCurrencySymbol?.currencySymbol ?? '$'}\u200E ${((avgDemand?.AvrageRevPAR ?? 0) * (demandCurrencySymbol?.conversionRate ?? 1)).toFixed(2)}`}</div>
                 {/* <div className="flex items-center gap-1">
                   <span className="text-red-600 dark:text-red-400 text-sm font-medium bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded">
                     0%
