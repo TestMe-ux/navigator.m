@@ -2098,34 +2098,102 @@ export default function EventsCalendarPage() {
   //   })
   // }
 
-  // Previous/Next month navigation
-  const navigateMonth = (direction: "prev" | "next") => {
+  // Previous/Next month navigation  
+  const navigateMonth = (direction: "prev" | "next" | "prevYear" | "nextYear") => {
     setCurrentDate(prevDate => {
-      const restrictions = getDateRestrictions()
+      const today = new Date()
       const newDate = new Date(prevDate)
 
-      if (direction === "prev") {
-        newDate.setMonth(prevDate.getMonth() - 1)
-      } else {
-        newDate.setMonth(prevDate.getMonth() + 1)
+      // 🔹 Move by month or year
+      switch (direction) {
+        case "prev":
+          newDate.setMonth(prevDate.getMonth() - 1)
+          break
+        case "next":
+          newDate.setMonth(prevDate.getMonth() + 1)
+          break
+        case "prevYear":
+          newDate.setFullYear(prevDate.getFullYear() - 1)
+          break
+        case "nextYear":
+          newDate.setFullYear(prevDate.getFullYear() + 1)
+          break
       }
 
-      // stop navigation if out of range
       const newYear = newDate.getFullYear()
       const newMonth = newDate.getMonth()
+      const currentYear = today.getFullYear()
+      const currentMonth = today.getMonth()
 
-      if (
-        newYear < restrictions.minYear ||
-        newYear > restrictions.maxYear ||
-        (newYear === restrictions.minYear && newMonth < restrictions.minMonth) ||
-        (newYear === restrictions.maxYear && newMonth > restrictions.maxMonth)
-      ) {
-        return prevDate // ❌ don't change
+      // 🔹 Apply rules
+      if (newYear === currentYear) {
+        return newDate // ✅ all months allowed
       }
 
-      return newDate // ✅ valid new date
+      if (newYear === currentYear + 1) {
+        // ✅ Next year → only up to current month
+        if (newMonth <= currentMonth) return newDate
+      }
+
+      if (newYear === currentYear - 1) {
+        // ✅ Previous year → only months >= current month
+        if (newMonth >= currentMonth) return newDate
+      }
+
+      return prevDate // ❌ invalid navigation
     })
   }
+
+
+  // const navigateMonth = (direction: "prev" | "next") => {
+  //   setCurrentDate(prevDate => {
+  //     const restrictions = getDateRestrictions()
+  //     const newDate = new Date(prevDate)
+
+  //     if (direction === "prev") {
+  //       newDate.setMonth(prevDate.getMonth() - 1)
+  //     } else {
+  //       newDate.setMonth(prevDate.getMonth() + 1)
+  //     }
+
+  //     // stop navigation if out of range
+  //     const newYear = newDate.getFullYear()
+  //     const newMonth = newDate.getMonth()
+
+  //     if (
+  //       newYear < restrictions.minYear ||
+  //       newYear > restrictions.maxYear ||
+  //       (newYear === restrictions.minYear && newMonth < restrictions.minMonth) ||
+  //       (newYear === restrictions.maxYear && newMonth > restrictions.maxMonth)
+  //     ) {
+  //       return prevDate // ❌ don't change
+  //     }
+
+  //     return newDate // ✅ valid new date
+  //   })
+  // }
+
+  const isPrevDisabled = (currentDate: Date) => {
+    const today = new Date()
+    const currentYear = today.getFullYear()
+    const currentMonth = today.getMonth()
+
+    if (currentDate.getFullYear() < currentYear - 1) return true
+    if (currentDate.getFullYear() === currentYear - 1 && currentDate.getMonth() <= currentMonth) return true
+    return false
+  }
+
+  const isNextDisabled = (currentDate: Date) => {
+    const today = new Date()
+    const currentYear = today.getFullYear()
+    const currentMonth = today.getMonth()
+
+    if (currentDate.getFullYear() > currentYear + 1) return true
+    if (currentDate.getFullYear() === currentYear + 1 && currentDate.getMonth() >= currentMonth) return true
+    return false
+  }
+
+
 
   // Navigate to today's month - call today's new logic
   const navigateToToday = () => {
@@ -3337,11 +3405,18 @@ export default function EventsCalendarPage() {
                           size="icon"
                           onClick={() => navigateMonth("prev")}
                           className="hover:bg-primary/10"
+                          disabled={isPrevDisabled(currentDate)}
+                        >
+                          {/* <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigateMonth("prev")}
+                          className="hover:bg-primary/10"
                           disabled={
                             currentDate.getFullYear() === getDateRestrictions().minYear &&
                             currentDate.getMonth() === getDateRestrictions().minMonth
                           }
-                        >
+                        > */}
                           <ChevronLeft className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
@@ -3454,11 +3529,18 @@ export default function EventsCalendarPage() {
                           size="icon"
                           onClick={() => navigateMonth("next")}
                           className="hover:bg-primary/10"
+                          disabled={isNextDisabled(currentDate)}
+                        >
+                          {/* <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigateMonth("next")}
+                          className="hover:bg-primary/10"
                           disabled={
                             currentDate.getFullYear() === getDateRestrictions().maxYear &&
                             currentDate.getMonth() === getDateRestrictions().maxMonth
                           }
-                        >
+                        > */}
                           <ChevronRight className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
