@@ -8,6 +8,10 @@ RUN npm install
 
 # Copy source code and build
 COPY . .
+ARG ENV
+ENV ENV $ENV
+# Use MY_ENV_VARIABLE in subsequent instructions, e.g., in a RUN command
+RUN echo "The value is: $ENV"
 RUN npm run build
 
 # Stage 2: Run Next.js app in production
