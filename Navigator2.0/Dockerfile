@@ -6,15 +6,6 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
-# Accept ARG for environment
-ARG ENVIRONMENT
-
-# Default fallback to .env.local if ENVIRONMENT is empty
-RUN if [ -n "$ENVIRONMENT" ]; then \
-      cp .env.$ENVIRONMENT .env.local ; \
-    else \
-      cp .env.local .env.local ; \
-    fi
 # Copy source code and build
 COPY . .
 RUN npm run build
