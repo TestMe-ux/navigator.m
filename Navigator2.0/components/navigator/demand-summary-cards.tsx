@@ -171,7 +171,7 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
     },
     {
       title: "Market RevPAR",
-      value: `\u200E${demandCurrencySymbol?.currencySymbol ?? '$'} ${((avgDemand?.AvrageRevPAR ?? 0) * (demandCurrencySymbol?.conversionRate ?? 1)).toFixed(2)}`,
+      value: `\u200E${demandCurrencySymbol?.currencySymbol ?? '$'}\u200E ${((avgDemand?.AvrageRevPAR ?? 0) * (demandCurrencySymbol?.conversionRate ?? 1)).toFixed(2)}`,
       trend: "0%",
       trendDirection: "up",
       icon: TrendingUp,
