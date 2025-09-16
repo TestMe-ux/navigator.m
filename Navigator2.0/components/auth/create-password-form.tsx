@@ -248,14 +248,17 @@ export function CreatePasswordForm({ userId, token }: CreatePasswordFormProps) {
       if (response.status) {
 
         if (response.message === "Success") {
-
+          console.log('Password created successfully')
+          setIsSubmitted(true)
           // if (this.Identifier == 1) {
           //   this.router.navigate(['welcome'], { queryParams: { userid: this.UserId, token: response.body } });
           // }
         }
         else {
-
-          //   this.sendToResetPasswordBool = true;
+          setErrors(prev => ({
+            ...prev,
+            general: "Somthing Went Worng Please Try Again!"
+          }))
         }
 
       }
