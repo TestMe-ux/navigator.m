@@ -5,7 +5,7 @@ import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleto
 import { format } from "date-fns"
 import { toPng } from "html-to-image"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
-import { getOTAChannels, getOTARankOnAllChannel, getOTARankTrends } from "@/lib/otarank"
+import { GetMasterActiveReviews, getOTAChannels, getOTARankOnAllChannel, getOTARankTrends } from "@/lib/otarank"
 // Import the new components
 import { OTARankingsFilterBar } from "@/components/ota/ota-rankings-filter-bar"
 import OTAChannelCards from "@/components/ota/ota-channel-cards"
@@ -29,7 +29,7 @@ const COMPSET_OPTIONS = [
 export default function OTARankingsPage() {
   const [selectedProperty] = useSelectedProperty()
   const cardRef = useRef<HTMLDivElement>(null)
-
+  const [masterActiveReviews, setMasterActiveReviews] = useState<any>([]);
   // Page loading state for full-page loading effect
   const [isPageLoading, setIsPageLoading] = useState(false)
 
@@ -275,6 +275,7 @@ export default function OTARankingsPage() {
 
   // Transform ranking trends data from API
   const transformRankTrendsData = useCallback((trendDataPerCheckin: any[]) => {
+    debugger
     const otaRankTrendData: any[] = []
     const otaRankGraphData: any[] = []
 
@@ -506,6 +507,7 @@ export default function OTARankingsPage() {
 
     // Transform API data to match the expected format for charts
     const transformedData = otaRankGraphData.map((item, index) => {
+      debugger;
       const date = new Date(item.checkInDate)
       const formattedDate = format(date, 'MMM d')
       const fullDate = format(date, 'yyyy-MM-dd')
@@ -585,8 +587,18 @@ export default function OTARankingsPage() {
         setIsLoadingChannels(false)
       }
     }
+    const GetMasterActiveReview = async () => {
+      if (!selectedProperty?.sid) return
+      const resReviews = await GetMasterActiveReviews()
+      if (!resReviews?.status) {
+        setMasterActiveReviews([]);
+        return;
+      }
+      setMasterActiveReviews(resReviews.body)
 
-    fetchChannels()
+    };
+    Promise.all([GetMasterActiveReview(), fetchChannels()]);
+    // fetchChannels()
   }, [selectedProperty?.sid])
 
   // Fetch OTA Ranking data
@@ -853,6 +865,7 @@ export default function OTARankingsPage() {
               handlePrevChannels={handlePrevChannels}
               handleNextChannels={handleNextChannels}
               isLoading={isLoadingChannels || isLoadingRanking}
+              masterActiveReviews={masterActiveReviews}
             />
 
             {/* Main Content Views */}
@@ -896,6 +909,7 @@ export default function OTARankingsPage() {
                     reviewsData={reviewsData}
                     otaRankingData={otaRankingData}
                     isLoading={isLoadingReviews || isTabSwitching}
+                    masterActiveReviews={masterActiveReviews}
                   />
                 </>
               )

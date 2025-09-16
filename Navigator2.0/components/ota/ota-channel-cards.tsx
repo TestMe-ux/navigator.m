@@ -32,6 +32,7 @@ interface OTAChannelCardsProps {
   handlePrevChannels: () => void
   handleNextChannels: () => void
   isLoading?: boolean
+  masterActiveReviews: []
 }
 
 function OTAChannelCards({
@@ -44,6 +45,7 @@ function OTAChannelCards({
   handlePrevChannels,
   handleNextChannels,
   isLoading = false,
+  masterActiveReviews
 
 }: OTAChannelCardsProps) {
   if (isLoading) {
@@ -74,6 +76,14 @@ function OTAChannelCards({
       </div>
     )
   }
+  const outOfScore = (channelname: any) => {
+    debugger
+    if (masterActiveReviews.length > 0) {
+      const match: any = masterActiveReviews.find((item: any) => item.channelName.toLowerCase() === channelname.toLowerCase());
+      return match ? match?.outOfScore : 10;
+    }
+    return 10;
+  };
   return (
     <div className="w-full animate-slide-up">
       {/* Channel Cards with Pagination */}
@@ -166,7 +176,7 @@ function OTAChannelCards({
                           </span>
                           {viewMode === "Reviews" ? (
                             channel.reviewScore > 0 &&
-                            <span className="text-xs text-muted-foreground">/ 10</span>
+                            <span className="text-xs text-muted-foreground">/ {outOfScore(channel.name)}</span>
                           ) : (
                             channel.avgRank > 0 &&
                             <span className="text-xs text-muted-foreground">/ {channel.totalRankings}</span>
@@ -184,7 +194,7 @@ function OTAChannelCards({
                                     ? "text-green-600 dark:text-green-400"
                                     : "text-red-600 dark:text-red-400"
                                     }`}>
-                                    {channel.rankingChange > 0 ? `+${channel.rankingChange}` : channel.rankingChange}%
+                                    {channel.rankingChange > 0 ? `+${channel.rankingChange}` : channel.rankingChange}
                                   </span>
                                   <span className="text-xs text-muted-foreground leading-none">{channel.compareText}</span>
                                 </>
@@ -234,7 +244,7 @@ function OTAChannelCards({
                             <span className="text-xs text-muted-foreground">/ {channel.totalRankings}</span>
                           ) : (
                             channel.reviewScore > 0 &&
-                            <span className="text-xs text-muted-foreground">/ 10</span>
+                            <span className="text-xs text-muted-foreground">/ {outOfScore(channel.name)}</span>
                           )}
                         </div>
                         <div className="flex items-center space-x-1 mt-auto pt-1">
@@ -248,7 +258,7 @@ function OTAChannelCards({
                                       ? "text-green-600 dark:text-green-400"
                                       : "text-red-600 dark:text-red-400"
                                       }`}>
-                                      {channel.rankingChange > 0 ? `+${channel.rankingChange}` : channel.rankingChange}%
+                                      {channel.rankingChange > 0 ? `+${channel.rankingChange}` : channel.rankingChange}
                                     </span>
                                     <span className="text-xs text-muted-foreground leading-none">{channel.compareText}</span>
                                   </>

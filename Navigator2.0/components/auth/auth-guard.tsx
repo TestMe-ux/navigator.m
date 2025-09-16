@@ -113,3 +113,4 @@ export function AuthGuard({ children }: AuthGuardProps) {
   // If not authenticated and not public route, show nothing (redirect will happen)
   return null
 }
+
