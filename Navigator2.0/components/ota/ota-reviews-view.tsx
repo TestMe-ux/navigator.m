@@ -20,7 +20,8 @@ interface OTAReviewsViewProps {
   setReviewsViewMode: (mode: "graph" | "table") => void
   reviewsData: any[]
   otaRankingData: any[]
-  isLoading?: boolean
+  isLoading?: boolean,
+  masterActiveReviews: any[]
 }
 
 function OTAReviewsView({
@@ -32,7 +33,8 @@ function OTAReviewsView({
   setReviewsViewMode,
   reviewsData,
   otaRankingData,
-  isLoading = false
+  isLoading = false,
+  masterActiveReviews
 }: OTAReviewsViewProps) {
   console.log('OTAReviewsView rendered with data:', {
     reviewsDataLength: reviewsData?.length || 0,
@@ -77,6 +79,7 @@ function OTAReviewsView({
     // fallback sort (you can replace this with another field if needed)
     return b.intermediateProperty - a.intermediateProperty;
   }) : []
+  const outOfScore = masterActiveReviews.length > 0 ? (masterActiveReviews.find((item: any) => item.channelName.toLowerCase() === selectedChannel.toLowerCase())?.outOfScore || 10) : 10;
   return (
     <Card className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 mb-6">
       <CardHeader className="p-6 pb-2">
@@ -202,7 +205,7 @@ function OTAReviewsView({
                       const minScore = Math.min(...displayData.map(h => parseFloat(h.score) || 0))
                       const isBest = parseFloat(hotel.score) === maxScore
                       const isWorst = parseFloat(hotel.score) === minScore
-                      
+
                       return {
                         'Hotel Name': hotel.hotelName,
                         'Review Score': hotel.score,
@@ -242,7 +245,7 @@ function OTAReviewsView({
       </CardHeader>
       <CardContent className="px-6 pt-1 pb-0">
         {reviewsViewMode === "table" ? (
-          <div style={{ height: '400px',backgroundColor:"white" }} className="mt-3 mb-6" id="reviews-table" >
+          <div style={{ height: '400px', backgroundColor: "white" }} className="mt-3 mb-6" id="reviews-table" >
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
@@ -260,7 +263,7 @@ function OTAReviewsView({
                           <th className="text-left py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200">Hotel</th>
                           <th className="text-right py-1.5 px-2 pr-16 font-semibold text-xs text-muted-foreground">
                             Review Score
-                            <div className="text-xs text-muted-foreground font-normal mt-0.5">Out of 10</div>
+                            <div className="text-xs text-muted-foreground font-normal mt-0.5">Out of {outOfScore}</div>
                           </th>
                           <th className="text-right py-1.5 px-2 pr-8 font-semibold text-xs text-muted-foreground">
                             Number of<br />Reviews

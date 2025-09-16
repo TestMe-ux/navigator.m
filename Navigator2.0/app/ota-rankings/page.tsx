@@ -5,7 +5,7 @@ import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleto
 import { format } from "date-fns"
 import { toPng } from "html-to-image"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
-import { getOTAChannels, getOTARankOnAllChannel, getOTARankTrends } from "@/lib/otarank"
+import { GetMasterActiveReviews, getOTAChannels, getOTARankOnAllChannel, getOTARankTrends } from "@/lib/otarank"
 // Import the new components
 import { OTARankingsFilterBar } from "@/components/ota/ota-rankings-filter-bar"
 import OTAChannelCards from "@/components/ota/ota-channel-cards"
@@ -29,7 +29,7 @@ const COMPSET_OPTIONS = [
 export default function OTARankingsPage() {
   const [selectedProperty] = useSelectedProperty()
   const cardRef = useRef<HTMLDivElement>(null)
-
+  const [masterActiveReviews, setMasterActiveReviews] = useState<any>([]);
   // Page loading state for full-page loading effect
   const [isPageLoading, setIsPageLoading] = useState(false)
 
@@ -316,30 +316,84 @@ export default function OTARankingsPage() {
       }
     })
 
+    // Ensure all compset properties are included, even if they don't have data
+    const allCompsetProperties = [
+      // Add selected property if not already included
+      ...(selectedProperty?.hmid && !otaRankTrendData.some(rt => rt.propertyId === selectedProperty.hmid) ? [{
+        channel: otaRankTrendData[0]?.channel || '',
+        otaId: otaRankTrendData[0]?.otaId || selectedChannel,
+        hotelName: selectedProperty.name || 'My Hotel',
+        propertyId: selectedProperty.hmid,
+        otaRankData: []
+      }] : []),
+      // Add all compset properties that are not already included
+      ...filteredCompsetData
+        .filter((property: any) => !otaRankTrendData.some(rt => rt.propertyId === property.propertyID))
+        .map((property: any) => ({
+          channel: otaRankTrendData[0]?.channel || '',
+          otaId: otaRankTrendData[0]?.otaId || selectedChannel,
+          hotelName: property.name || `Property ${property.propertyID}`,
+          propertyId: property.propertyID,
+          otaRankData: []
+        }))
+    ]
+
+    // Combine existing data with missing compset properties
+    const allRankTrendData = [...otaRankTrendData, ...allCompsetProperties]
+
     // Sort properties to put selected property first (myHotel)
-    const sortedRankTrendData = [...otaRankTrendData].sort((a, b) => {
+    const sortedRankTrendData = [...allRankTrendData].sort((a, b) => {
       if (a.propertyId === selectedProperty?.hmid) return -1
       if (b.propertyId === selectedProperty?.hmid) return 1
       return 0
     })
 
-    console.log('Final ranking trend data properties:', sortedRankTrendData.map(rt => ({
+    console.log('Final ranking trend data properties (including missing compset):', sortedRankTrendData.map(rt => ({
       hotelName: rt.hotelName,
       propertyId: rt.propertyId,
-      channel: rt.channel
+      channel: rt.channel,
+      hasData: rt.otaRankData.length > 0
     })));
+
     // Populate graph data with ranking information
     sortedRankTrendData.forEach((rankTrendData, i) => {
       const dataKey = rankTrendData?.propertyId === selectedProperty?.hmid ? 'myHotel' : `property${rankTrendData?.propertyId}`
 
-      rankTrendData.otaRankData.forEach((element: any) => {
-        let dataIndex = otaRankGraphData.findIndex((value) => element.checkInDate.getTime() === value.checkInDate)
-        if (dataIndex !== -1) {
-          otaRankGraphData[dataIndex][dataKey] = element.otaRank
-          // Store changeInRank for variance calculation
-          otaRankGraphData[dataIndex][`${dataKey}ChangeInRank`] = element.changeInRateDays > 0 ? element.changeInRank : null
-        }
-      })
+      // If property has no data, set all dates to rank 501 and changeInRank null
+      if (rankTrendData.otaRankData.length === 0) {
+        otaRankGraphData.forEach((graphDataPoint) => {
+          graphDataPoint[dataKey] = 501
+          graphDataPoint[`${dataKey}ChangeInRank`] = null
+        })
+      } else {
+        // Process existing data
+        rankTrendData.otaRankData.forEach((element: any) => {
+          let dataIndex = otaRankGraphData.findIndex((value) => element.checkInDate.getTime() === value.checkInDate)
+          if (dataIndex !== -1) {
+            // Check if checking date is available, if not set rank to 501
+            const isCheckingDateAvailable = element.checkInDate && element.checkInDate instanceof Date
+            // Check if property data is available (has otaRank), if not set rank to 501
+            const isPropertyDataAvailable = element.otaRank !== undefined && element.otaRank !== null
+            
+            const rankValue = (isCheckingDateAvailable && isPropertyDataAvailable) ? element.otaRank : 501
+            const changeInRankValue = (isCheckingDateAvailable && isPropertyDataAvailable) ? 
+              (element.changeInRateDays > 0 ? element.changeInRank : null) : 
+              null
+            
+            otaRankGraphData[dataIndex][dataKey] = rankValue
+            // Store changeInRank for variance calculation
+            otaRankGraphData[dataIndex][`${dataKey}ChangeInRank`] = changeInRankValue
+          }
+        })
+
+        // Fill missing dates for this property with rank 501 and changeInRank null
+        otaRankGraphData.forEach((graphDataPoint) => {
+          if (graphDataPoint[dataKey] === undefined) {
+            graphDataPoint[dataKey] = 501
+            graphDataPoint[`${dataKey}ChangeInRank`] = null
+          }
+        })
+      }
     })
 
     // // Calculate variance data for each property
@@ -431,11 +485,14 @@ export default function OTARankingsPage() {
       const rankingItem = channelRankingData?.[0]
 
       // Calculate average rank and other metrics
-      debugger;
+    
       const ratedays = compareWith == "Last 1 Week" ? true : false;
-      const avgRank = rankingItem?.otaRank || 0
+      // Check if property data is available, if not set rank to 501
+      const isPropertyDataAvailable = rankingItem?.otaRank !== undefined && rankingItem?.otaRank !== null
+      const avgRank = isPropertyDataAvailable ? rankingItem.otaRank : 501
       const totalRankings = 500
-      const rankingChange = rankingItem?.changeInRank && (viewMode === "Rank" ? (ratedays ? rankingItem?.changeInRateDays <= 7 : rankingItem?.changeInRateDays > 7) : true) ? parseInt(rankingItem.changeInRank) : 0
+      debugger;
+      const rankingChange = isPropertyDataAvailable && rankingItem?.changeInRank && (viewMode === "Rank" ? (ratedays ? rankingItem?.changeInRateDays <= 7 && rankingItem?.changeInRateDays > 0 : rankingItem?.changeInRateDays > 7 ) : true) ? parseInt(rankingItem.changeInRank) : 0
       const reviewScore = rankingItem?.score ? parseFloat(rankingItem.score) : 0
 
       return {
@@ -585,8 +642,18 @@ export default function OTARankingsPage() {
         setIsLoadingChannels(false)
       }
     }
+    const GetMasterActiveReview = async () => {
+      if (!selectedProperty?.sid) return
+      const resReviews = await GetMasterActiveReviews()
+      if (!resReviews?.status) {
+        setMasterActiveReviews([]);
+        return;
+      }
+      setMasterActiveReviews(resReviews.body)
 
-    fetchChannels()
+    };
+    Promise.all([GetMasterActiveReview(), fetchChannels()]);
+    // fetchChannels()
   }, [selectedProperty?.sid])
 
   // Fetch OTA Ranking data
@@ -737,10 +804,10 @@ export default function OTARankingsPage() {
   }, [])
 
   const handleNextCompetitors = useCallback(() => {
-    const visibleCompetitors = availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey])
-    const maxPages = Math.ceil(visibleCompetitors.length / 4) - 1
+    const allCompetitors = availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel')
+    const maxPages = Math.ceil(allCompetitors.length / 4) - 1
     setCompetitorPage(prev => Math.min(maxPages, prev + 1))
-  }, [availableHotelLines, legendVisibility])
+  }, [availableHotelLines])
 
   // Legend visibility toggle
   const toggleLegendVisibility = useCallback((dataKey: string) => {
@@ -748,8 +815,6 @@ export default function OTARankingsPage() {
       ...prev,
       [dataKey]: !prev[dataKey]
     }))
-    // Reset competitor page when legend visibility changes
-    setCompetitorPage(0)
   }, [])
 
   // Download handlers
@@ -769,7 +834,6 @@ export default function OTARankingsPage() {
   }, [rankViewMode])
 
   const handleDownloadCSV = useCallback(() => {
-    debugger;
     const csvData = rankingTrendsData.map(item => {
       const row: any = { Date: item.date, Channel: selectedChannelData?.name || selectedChannel }
       availableHotelLines.forEach(hotel => {
@@ -853,6 +917,7 @@ export default function OTARankingsPage() {
               handlePrevChannels={handlePrevChannels}
               handleNextChannels={handleNextChannels}
               isLoading={isLoadingChannels || isLoadingRanking}
+              masterActiveReviews={masterActiveReviews}
             />
 
             {/* Main Content Views */}
@@ -896,6 +961,7 @@ export default function OTARankingsPage() {
                     reviewsData={reviewsData}
                     otaRankingData={otaRankingData}
                     isLoading={isLoadingReviews || isTabSwitching}
+                    masterActiveReviews={masterActiveReviews}
                   />
                 </>
               )

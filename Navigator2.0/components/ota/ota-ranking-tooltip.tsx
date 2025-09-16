@@ -104,9 +104,9 @@ export function OTARankingTooltip({
 
                 {/* Rank Column - Right aligned */}
                 <div className="flex items-center gap-3">
-                  <div className={`text-xs font-bold w-6 text-right ${isMyHotel ? 'text-blue-900 dark:text-blue-200' : 'text-gray-900 dark:text-slate-100'
+                  <div className={`text-xs font-bold w-6 text-right ${isMyHotel && rank <= 500 ? 'text-blue-900 dark:text-blue-200' : rank <= 500 ? 'text-gray-900 dark:text-slate-100' : 'text-red-600 dark:text-red-400'
                     }`}>
-                    #{rank}
+                    #{rank > 500 ? '500+' : rank}
                   </div>
                   <div className={`text-xs font-medium w-6 text-right ${variance === 'NF' ? 'text-gray-500' :
                     variance.toString().startsWith('+') ?
