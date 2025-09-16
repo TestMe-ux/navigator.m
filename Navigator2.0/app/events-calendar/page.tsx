@@ -992,7 +992,7 @@ export default function EventsCalendarPage() {
 
   // Toggle bookmark status  
   const toggleBookmark = useCallback((eventId: string) => {
-
+    debugger
     setEvents(prevEvents => {
       let updatedEvent: Event | any = null;
 
@@ -1019,7 +1019,13 @@ export default function EventsCalendarPage() {
         // Call API only once per toggle
 
         if (selectedProperty?.sid) {
-           callApiToUpdateEvent(updatedEvent, selectedProperty?.sid);
+          console.log(
+            "API Calling bookmarked/unbookmarked →",
+            updatedEvent,
+            "SID:",
+            selectedProperty.sid
+          );
+          callApiToUpdateEvent(updatedEvent, selectedProperty?.sid);
         } else {
           console.warn("Skipping API call: selectedProperty.sid is undefined");
         }
@@ -1030,7 +1036,7 @@ export default function EventsCalendarPage() {
           setSelectedEvent(null);       // Deselect event
           setIsDayViewOpen(false);      // Close modal
         }
-         setIsSaveEvent(true);
+        //setIsSaveEvent(true);
         // setTimeout(() => setLoadingProgress(0), 100);
       }
 
@@ -1043,7 +1049,7 @@ export default function EventsCalendarPage() {
     try {
 
       if (!getevents) return;
-      console.log("call Api To UpdateEvent rows:", getevents);
+      //console.log("call Api To UpdateEvent rows:", getevents);
 
       if (getevents.isCustom) {
         // Decide new status before API call
@@ -1923,11 +1929,18 @@ export default function EventsCalendarPage() {
 
     // Status/type filter
     filtered = filtered.filter(event => {
-      if (event.status === "bookmarked" && enabledEventTypes.bookmarked) return true;
-      if (event.type === "holiday" && enabledEventTypes.holidays && event.status == "bookmarked") return true;
-      if (event.status !== "bookmarked" && event.type !== "holiday") return true; // default show others
+      if (event.type !== "holiday" && event.status === "bookmarked" && enabledEventTypes.bookmarked) return true;
+      if (event.type === "holiday" && event.status == "bookmarked" && enabledEventTypes.holidays) return true;
+      // if (event.type === "conference" && enabledEventTypes.conferences) return true;
+      // if (event.type === "social" && enabledEventTypes.social) return true;
       return false;
     });
+    // filtered = filtered.filter(event => {
+    //   if (event.status === "bookmarked" && enabledEventTypes.bookmarked) return true;
+    //   if (event.type === "holiday" && enabledEventTypes.holidays && event.status == "bookmarked") return true;
+    //   if (event.status !== "bookmarked" && event.type !== "holiday") return true; // default show others
+    //   return false;
+    // });
 
     // Country filter
     if (selectedCountry !== selectedProperty?.country && selectedCountry !== "All") {
@@ -4950,7 +4963,7 @@ export default function EventsCalendarPage() {
             <div className="text-sm text-muted-foreground">
               {getEventsForSelectedDate().length} event{getEventsForSelectedDate().length !== 1 ? "s" : ""} on this day
             </div>
-            <Button onClick={() => setIsDayViewOpen(false)} className="px-4">Close</Button>
+            <Button onClick={() => setIsDayViewOpen(false)} className="px-3">Close</Button>
           </div>
         </DialogContent>
       </Dialog>
