@@ -2,16 +2,18 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+ARG ENV=dev
 # Install dependencies
 COPY package*.json ./
 RUN npm install
 
 # Copy source code and build
 COPY . .
-ARG ENV
-ENV ENV $ENV
+
 # Use MY_ENV_VARIABLE in subsequent instructions, e.g., in a RUN command
-RUN echo "The value is: $ENV"
+RUN echo "The value is: ${ENV}"
+RUN cp .env.${ENV} .env
+
 RUN npm run build
 
 # Stage 2: Run Next.js app in production
