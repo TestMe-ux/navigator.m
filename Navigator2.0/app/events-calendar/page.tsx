@@ -122,7 +122,7 @@ interface Event {
 }
 
 // Custom events storage key
-const CUSTOM_EVENTS_KEY = 'events-calendar-custom-events'
+//const CUSTOM_EVENTS_KEY = 'events-calendar-custom-events'
 
 // Function to save custom events to localStorage
 // const saveCustomEventsToStorage = (customEvents: Event[]) => {
@@ -2061,6 +2061,8 @@ export default function EventsCalendarPage() {
     if (!isBookmarkModalOpen) {
       // Clear the search input when modal closes
       setBookmarkSearchQuery("");
+      bookMarkDialogClose();
+      fetchAllData();
     }
   }, [isBookmarkModalOpen]);
 
@@ -2773,10 +2775,10 @@ export default function EventsCalendarPage() {
       filtered = filtered.filter((event) => {
         const conditionMap: Record<string, (event: any) => boolean> = {
           bookmarked: (event) =>
-            event.status === "bookmarked" || event.type === "holiday",
+            (event.status === "bookmarked" && event.type === "holiday") || event.status === "bookmarked",
 
           available: (event) =>
-            event.status === "available" || event.type === "holiday",
+            (event.status === "available" && event.type === "holiday") || event.status === "available",
 
           suggested: (event) =>
             event.category?.toLowerCase() === "social",
@@ -3369,6 +3371,7 @@ export default function EventsCalendarPage() {
     setBookmarkSearchQuery("");
     setBookmarkCategoryFilter(["all", "conferences", "tradeshow", "workshop", "social", "holidays"]);
     setBookmarkTypeFilter(["all", "bookmarked", "holiday", "suggested", "available"]);
+    fetchAllData();
   }
   // Show loading state when data is being fetched
   if (isLoading) {
