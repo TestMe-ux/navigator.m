@@ -995,8 +995,8 @@ export default function EventsCalendarPage() {
 
 
   // Toggle bookmark status  
-  const toggleBookmark = useCallback((eventId: string) => {
-
+  const toggleBookmark = useCallback((eventId: string, SID: string) => {
+    
     setEvents(prevEvents => {
       let updatedEvent: Event | any = null;
 
@@ -1022,16 +1022,15 @@ export default function EventsCalendarPage() {
         setSelectedEvent(prev => (prev?.eventId === eventId ? updatedEvent! : prev));
         // Call API only once per toggle
 
-        if (selectedProperty?.sid) {
-          console.log(
-            "API Calling bookmarked/unbookmarked →",
-            updatedEvent,
-            "SID:",
-            selectedProperty.sid
-          );
-          callApiToUpdateEvent(updatedEvent, selectedProperty?.sid);
+        if (Number(SID)) {
+          console.log("TOGGLE BOOKMARK DEBUG:", {
+            eventId,
+            sid: selectedProperty?.sid,
+            updatedEvent
+          });
+          callApiToUpdateEvent(updatedEvent, Number(SID));
         } else {
-          console.warn("Skipping API call: selectedProperty.sid is undefined");
+          console.log("Skipping API call: selectedProperty.sid is undefined");
         }
         if (
           updatedEvent.status === "available" && // it was removed from bookmarks
@@ -1049,7 +1048,7 @@ export default function EventsCalendarPage() {
     });
   }, []);
 
-  const callApiToUpdateEvent = async (getevents: Event, sid: any) => {
+  const callApiToUpdateEvent = async (getevents: Event, sid: number) => {
     try {
 
       if (!getevents) return;
@@ -2064,6 +2063,9 @@ export default function EventsCalendarPage() {
       bookMarkDialogClose();
       fetchAllData();
     }
+    // if (isBookmarkModalOpen) {
+    //   console.log("POPUP OPEN - selectedProperty:", selectedProperty);
+    // }
   }, [isBookmarkModalOpen]);
 
   const monthNames = [
@@ -3268,7 +3270,7 @@ export default function EventsCalendarPage() {
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  toggleBookmark(event.eventId)
+                                  toggleBookmark(event.eventId, `${selectedProperty?.sid}`)
                                 }}
                                 className="h-8 w-8 p-0"
                               >
@@ -4040,7 +4042,7 @@ export default function EventsCalendarPage() {
                                 onMouseDown={(e) => {
                                   e.preventDefault()
                                   e.stopPropagation()
-                                  toggleBookmark(event.eventId)
+                                  toggleBookmark(event.eventId, `${selectedProperty?.sid}`)
                                 }}
                                 className={cn(
                                   "px-3 gap-2 text-xs",
@@ -5023,7 +5025,7 @@ export default function EventsCalendarPage() {
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation()
-                        toggleBookmark(event.eventId)
+                        toggleBookmark(event.eventId, `${selectedProperty?.sid}`)
                       }}
                       className={cn(
                         "px-3 gap-2 text-xs",
@@ -5143,7 +5145,7 @@ export default function EventsCalendarPage() {
                         variant={selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested" ? "default" : "outline"}
                         onClick={(e) => {
                           e.stopPropagation()
-                          toggleBookmark(selectedEvent.eventId)
+                          toggleBookmark(selectedEvent.eventId, `${selectedProperty?.sid}`)
                         }}
                         className={cn(
                           "px-4 gap-3",
@@ -5162,7 +5164,7 @@ export default function EventsCalendarPage() {
                         variant="outline"
                         onClick={(e) => {
                           e.stopPropagation()
-                          toggleBookmark(selectedEvent.eventId)
+                          toggleBookmark(selectedEvent.eventId, `${selectedProperty?.sid}`)
                         }}
                         className="px-4 gap-3 hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
                       >
