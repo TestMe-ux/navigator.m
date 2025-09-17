@@ -8,7 +8,8 @@ import { useDateContext } from "@/components/date-context"
 import { useComparison, ComparisonOption } from "@/components/comparison-context"
 import { format, differenceInDays } from "date-fns"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import {LocalStorageService} from "@/lib/localstorage"
+import { LocalStorageService } from "@/lib/localstorage"
+import { useSelectedProperty } from "@/hooks/use-local-storage"
 
 /**
  * Enhanced KPI Data Configuration
@@ -307,6 +308,7 @@ function getKPITooltipContent(metricId: string): string {
  * Modern design with improved accessibility and better visual hierarchy
  */
 function KPICard({ metric }: { metric: KPIMetric }) {
+
   const animatedValue = useAnimatedCounter(typeof metric.value === 'number' ? metric.value : 0, 1500)
   const colors = getColorClasses(metric.color, metric.urgency)
 
@@ -325,7 +327,8 @@ function KPICard({ metric }: { metric: KPIMetric }) {
   const getDisplayValue = () => {
     if (metric.format === 'text') return metric.value
     if (typeof metric.value === 'number') {
-      return formatValue(animatedValue, metric.format, undefined)
+      debugger
+      return formatValue(animatedValue, metric.format, { currencySymbol: metric.currencyCode })
     }
     return metric.value
   }
@@ -395,8 +398,8 @@ function KPICard({ metric }: { metric: KPIMetric }) {
                 </Tooltip>
               ) : (
                 <p className={`text-2xl font-bold tracking-tight ${String(getDisplayValue()).trim().toLowerCase() === 'sold out'
-                    ? 'text-emerald-600  dark:text-emerald-100'
-                    : 'text-slate-900  dark:text-slate-100'
+                  ? 'text-emerald-600  dark:text-emerald-100'
+                  : 'text-slate-900  dark:text-slate-100'
                   }`}>
                   {metric.id === 'market-position'
                     ? (() => {
@@ -454,23 +457,18 @@ function KPICard({ metric }: { metric: KPIMetric }) {
  */
 export function OverviewKpiCards(props: any) {
   const { startDate, endDate, isLoading: contextIsLoading } = useDateContext()
-  const [selectedProperty, setSelectedProperty] = useState<any>(null)
 
+  const [selectedProperty] = useSelectedProperty()
   // Safely get selectedProperty on client side only
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const property = LocalStorageService.getItem('SelectedProperty')
-      setSelectedProperty(property)
-    }
-  }, [])
   const { selectedComparison } = useComparison()
   const metrics = useMemo(() => {
     // Use default dates if context dates aren't available
     const fallbackStartDate = startDate || new Date()
     const fallbackEndDate = endDate || new Date(Date.now() + 6 * 24 * 60 * 60 * 1000)
     if (!startDate || !endDate) return []
+
     return generateKPIData(fallbackStartDate, fallbackEndDate, props?.parityData, props?.rateData, props?.rateCompData, props?.parityDataComp, selectedProperty, selectedComparison)
-  }, [startDate, endDate, props?.parityData, props?.rateData, props?.rateCompData, props?.parityDataComp])
+  }, [startDate, endDate, props?.parityData, props?.rateData, props?.rateCompData, props?.parityDataComp, selectedProperty?.sid])
 
 
 
