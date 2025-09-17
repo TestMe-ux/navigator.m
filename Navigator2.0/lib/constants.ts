@@ -28,4 +28,6 @@ export class Constants {
     public static readonly API_GETALLREPORTS = "Report/GetReportDates";
     public static readonly API_GETREPORTDATA = "Report/GetReportData";
     public static readonly API_GETSCHEDULEDATA = "Report/GetScheduleReportData";
+    public static readonly API_GetSummaryData = "SelfServe/GetRRDSelfServe";
+    public static readonly API_GetChartData = "SelfServe/GetChartData";
 }

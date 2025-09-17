@@ -21,6 +21,7 @@ export interface LoginResponse {
     expiration: string;
     // Add other response properties as needed
   };
+  message?: string;
 }
 
 export class LocalStorageService {

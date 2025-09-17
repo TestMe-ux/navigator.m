@@ -150,7 +150,7 @@ function OTAChannelCards({
                       <div className="flex flex-col h-full">
                         <div className="flex items-baseline space-x-1">
                           <span className="text-lg font-bold text-foreground leading-none">
-                            {viewMode === "Reviews" ? channel.reviewScore > 0 ? channel.reviewScore : '--' : channel.avgRank > 0 ? channel.avgRank : (
+                            {viewMode === "Reviews" ? channel.reviewScore > 0 ? channel.reviewScore : '--' : channel.avgRank > 0 && channel.avgRank < 500 ? channel.avgRank : (
                               <div className="flex items-center justify-end space-x-1">
                                 <TooltipProvider>
                                   <Tooltip>
@@ -178,7 +178,7 @@ function OTAChannelCards({
                             channel.reviewScore > 0 &&
                             <span className="text-xs text-muted-foreground">/ {outOfScore(channel.name)}</span>
                           ) : (
-                            channel.avgRank > 0 &&
+                            channel.avgRank > 0 && channel.avgRank < 500 &&
                             <span className="text-xs text-muted-foreground">/ {channel.totalRankings}</span>
                           )}
                         </div>
@@ -215,7 +215,7 @@ function OTAChannelCards({
                       <div className="flex flex-col h-full">
                         <div className="flex items-baseline space-x-1">
                           <span className="text-lg font-bold text-foreground leading-none">
-                            {viewMode === "Reviews" ? channel.avgRank > 0 ? channel.avgRank : (
+                            {viewMode === "Reviews" ? channel.avgRank > 0 && channel.avgRank < 500 ? channel.avgRank : (
                               <div className="flex items-center justify-end space-x-1">
                                 <TooltipProvider>
                                   <Tooltip>
@@ -240,7 +240,7 @@ function OTAChannelCards({
                               </div>) : channel.reviewScore > 0 ? channel.reviewScore : '--'}
                           </span>
                           {viewMode === "Reviews" ? (
-                            channel.avgRank > 0 &&
+                            channel.avgRank > 0 && channel.avgRank < 500 &&
                             <span className="text-xs text-muted-foreground">/ {channel.totalRankings}</span>
                           ) : (
                             channel.reviewScore > 0 &&
