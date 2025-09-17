@@ -2703,12 +2703,34 @@ export default function EventsCalendarPage() {
 
   // Get event background color and border based on type/status
   const getEventBgColor = (event: Event) => {
-    // Priority order: bookmarked > holiday > suggested > default
-    if (event.status === "bookmarked") return "bg-gradient-to-r from-green-50 to-green-25 text-green-700 border border-green-200 border-l-4 border-l-green-500 shadow-sm dark:from-green-900 dark:to-green-800 dark:text-green-300 dark:border-green-600 dark:border-l-green-400"
-    if (event.type === "holiday") return "bg-gradient-to-r from-purple-50 to-purple-25 text-purple-700 border border-purple-200 border-l-4 border-l-purple-500 shadow-sm dark:from-purple-900 dark:to-purple-800 dark:text-purple-300 dark:border-purple-600 dark:border-l-purple-400"
-    if (event.status === "suggested") return "bg-gradient-to-r from-blue-50 to-blue-25 text-blue-700 border border-blue-200 border-l-4 border-l-blue-500 shadow-sm dark:from-blue-900 dark:to-blue-800 dark:text-blue-300 dark:border-blue-600 dark:border-l-blue-400"
-    return "bg-gradient-to-r from-gray-50 to-gray-25 text-gray-700 border border-gray-200 border-l-4 border-l-gray-400 shadow-sm dark:from-gray-800 dark:to-gray-700 dark:text-gray-300 dark:border-gray-600 dark:border-l-gray-500"
+  // Priority order: holiday + bookmarked > bookmarked > holiday > suggested > default
+
+  if (event.type === "holiday" && event.status === "bookmarked") {
+    return "bg-gradient-to-r from-purple-50 to-purple-25 text-purple-700 border border-purple-200 border-l-4 border-l-purple-500 shadow-sm dark:from-purple-900 dark:to-purple-800 dark:text-purple-300 dark:border-purple-600 dark:border-l-purple-400";
   }
+
+  if (event.status === "bookmarked") {
+    return "bg-gradient-to-r from-green-50 to-green-25 text-green-700 border border-green-200 border-l-4 border-l-green-500 shadow-sm dark:from-green-900 dark:to-green-800 dark:text-green-300 dark:border-green-600 dark:border-l-green-400";
+  }
+
+  if (event.type === "holiday") {
+    return "bg-gradient-to-r from-yellow-50 to-yellow-25 text-yellow-700 border border-yellow-200 border-l-4 border-l-yellow-500 shadow-sm dark:from-yellow-900 dark:to-yellow-800 dark:text-yellow-300 dark:border-yellow-600 dark:border-l-yellow-400";
+  }
+
+  if (event.status === "suggested") {
+    return "bg-gradient-to-r from-blue-50 to-blue-25 text-blue-700 border border-blue-200 border-l-4 border-l-blue-500 shadow-sm dark:from-blue-900 dark:to-blue-800 dark:text-blue-300 dark:border-blue-600 dark:border-l-blue-400";
+  }
+
+  return "bg-gradient-to-r from-gray-50 to-gray-25 text-gray-700 border border-gray-200 border-l-4 border-l-gray-400 shadow-sm dark:from-gray-800 dark:to-gray-700 dark:text-gray-300 dark:border-gray-600 dark:border-l-gray-500";
+};
+
+  // const getEventBgColor = (event: Event) => {
+  //   // Priority order: bookmarked > holiday > suggested > default
+  //   if (event.status === "bookmarked") return "bg-gradient-to-r from-green-50 to-green-25 text-green-700 border border-green-200 border-l-4 border-l-green-500 shadow-sm dark:from-green-900 dark:to-green-800 dark:text-green-300 dark:border-green-600 dark:border-l-green-400"
+  //   if (event.type === "holiday") return "bg-gradient-to-r from-purple-50 to-purple-25 text-purple-700 border border-purple-200 border-l-4 border-l-purple-500 shadow-sm dark:from-purple-900 dark:to-purple-800 dark:text-purple-300 dark:border-purple-600 dark:border-l-purple-400"
+  //   if (event.status === "suggested") return "bg-gradient-to-r from-blue-50 to-blue-25 text-blue-700 border border-blue-200 border-l-4 border-l-blue-500 shadow-sm dark:from-blue-900 dark:to-blue-800 dark:text-blue-300 dark:border-blue-600 dark:border-l-blue-400"
+  //   return "bg-gradient-to-r from-gray-50 to-gray-25 text-gray-700 border border-gray-200 border-l-4 border-l-gray-400 shadow-sm dark:from-gray-800 dark:to-gray-700 dark:text-gray-300 dark:border-gray-600 dark:border-l-gray-500"
+  // }
 
   // Check if event spans multiple days
   const isMultiDayEvent = (event: Event) => {
