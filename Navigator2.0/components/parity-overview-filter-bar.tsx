@@ -14,6 +14,12 @@ import { useParityDateContext, useParityChannelContext } from "@/components/pari
 
 interface ParityOverviewFilterBarProps {
   className?: string
+  benchmarkChannel?: {
+    channelId: number
+    channelName: string
+    isBrand: boolean
+  } | null
+  onChannelSelectionChange?: (selectedChannels: any[]) => void
 }
 
 /**
@@ -28,7 +34,7 @@ interface ParityOverviewFilterBarProps {
  * @component
  * @version 5.0.0 - Independent Filter Components
  */
-export function ParityOverviewFilterBar({ className }: ParityOverviewFilterBarProps) {
+export function ParityOverviewFilterBar({ className, benchmarkChannel, onChannelSelectionChange }: ParityOverviewFilterBarProps) {
   const [selectedProperty] = useSelectedProperty()
   const { startDate, endDate, setDateRange } = useParityDateContext()
   const { selectedChannels, setSelectedChannels, availableChannels, setAvailableChannels, fallbackChannels } = useParityChannelContext()
@@ -173,13 +179,18 @@ export function ParityOverviewFilterBar({ className }: ParityOverviewFilterBarPr
    * Handle channel selection with multi-select logic for parity page
    */
   const handleChannelSelect = useCallback((channel: any, channelData: any) => {
+    // Disable benchmark channels - they cannot be selected
+    if (benchmarkChannel && channel === benchmarkChannel.channelId) {
+      return
+    }
+
     setSelectedChannels(prev => {
       const isSelected = prev.includes(channel)
       let newSelection: number[]
 
       if (channel === -1) {
         // If selecting "All Channels", clear all others
-        newSelection = isSelected ? [] : channelData.map((c: any) => c.cid)
+        newSelection = isSelected ? [] : channelData.map((c: any) => c.cid).filter((cid: number) => cid !== benchmarkChannel?.channelId)
       } else {
         // If selecting a specific channel
         if (isSelected) {
@@ -192,14 +203,21 @@ export function ParityOverviewFilterBar({ className }: ParityOverviewFilterBarPr
         }
       }
       if (newSelection.length === channelData.length - 2 || newSelection.length === channelData.length) {
-        newSelection = channelData.map((c: any) => c.cid) // Reset to "All Channels" if all are selected
+        newSelection = channelData.map((c: any) => c.cid).filter((cid: number) => cid !== benchmarkChannel?.channelId) // Reset to "All Channels" if all are selected, excluding benchmark
       } else {
         newSelection = newSelection.filter(c => c !== -1) // Ensure "All Channels" is not included
       }
       console.log(`📋 Parity channel selection changed: ${newSelection.join(", ")}`)
+      
+      // Trigger API call callback
+      if (onChannelSelectionChange) {
+        const selectedChannelObjects = channelData.filter((c: any) => newSelection.includes(c.cid))
+        onChannelSelectionChange(selectedChannelObjects)
+      }
+      
       return newSelection
     })
-  }, [setSelectedChannels])
+  }, [setSelectedChannels, benchmarkChannel, onChannelSelectionChange])
 
   const onOpenChangeSelect = (open: any) => {
     if (!open) {
@@ -247,22 +265,39 @@ export function ParityOverviewFilterBar({ className }: ParityOverviewFilterBarPr
                       <div className="w-56 p-4">
                         <h4 className="font-semibold text-sm text-gray-700 mb-3">Channels</h4>
                         <div className="space-y-1 max-h-80 overflow-y-auto">
-                          {availableChannels?.map((option: any) => (
-                            <label
-                              key={option.cid}
-                              className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
-                                checked={selectedChannels.includes(option?.cid)}
-                                onChange={() => handleChannelSelect(option?.cid, availableChannels)}
-                              />
-                              <span className="font-medium text-sm flex-1">
-                                {option?.name}
-                              </span>
-                            </label>
-                          ))}
+                          {availableChannels?.map((option: any) => {
+                            const isBenchmark = benchmarkChannel && option.cid === benchmarkChannel.channelId
+                            return (
+                              <label
+                                key={option.cid}
+                                className={cn(
+                                  "py-2 px-3 transition-colors rounded-sm flex items-center",
+                                  isBenchmark 
+                                    ? "opacity-50 cursor-not-allowed" 
+                                    : "hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+                                )}
+                              >
+                                <input
+                                  type="checkbox"
+                                  className={cn(
+                                    "h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3",
+                                    isBenchmark ? "cursor-not-allowed" : "cursor-pointer"
+                                  )}
+                                  checked={selectedChannels.includes(option?.cid)}
+                                  onChange={() => !isBenchmark && handleChannelSelect(option?.cid, availableChannels)}
+                                  disabled={isBenchmark}
+                                />
+                                <span className="font-medium text-sm flex-1">
+                                  {option?.name}
+                                  {isBenchmark && (
+                                    <span className="text-xs text-muted-foreground ml-2">
+                                      (Disabled - Benchmark)
+                                    </span>
+                                  )}
+                                </span>
+                              </label>
+                            )
+                          })}
                         </div>
                       </div>
                     </div>

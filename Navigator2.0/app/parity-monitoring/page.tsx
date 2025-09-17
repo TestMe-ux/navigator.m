@@ -183,7 +183,20 @@ const parityData = [
 function ParityMonitoringContent() {
   const [selectedProperty] = useSelectedProperty()
   const { startDate, endDate } = useParityDateContext()
-  const { channelFilter } = useParityChannelContext()
+  const { selectedChannels } = useParityChannelContext()
+    const [parityResponseData, setParityResponseData] = useState<any>(null)
+  
+  // Function to handle data from child component (if needed)
+  const handleChildData = useCallback((data: any) => {
+    console.log('Data received from child:', data)
+    // You can process data from the child component here if needed
+  }, [])
+
+  // Function to handle channel selection changes
+  const handleChannelSelectionChange = useCallback((selectedChannels: any[]) => {
+    console.log('Channel selection changed:', selectedChannels)
+    // This will trigger the useEffect that fetches parity data
+  }, [])
 
   const [filters, setFilters] = useState({
     rateType: "lowest",
@@ -361,7 +374,7 @@ function ParityMonitoringContent() {
 
   // Fetch parity data when dependencies change
   useEffect(() => {
-    if (!selectedProperty?.sid || !startDate || !endDate) {
+    if (!selectedProperty?.sid || !startDate || !endDate || selectedChannels.length === 0) {
       console.warn('Missing required parameters for parity data fetch')
       return
     }
@@ -395,7 +408,7 @@ function ParityMonitoringContent() {
           "sid": selectedProperty.sid,
           "checkInStartDate": conevrtDateforApi(startDate.toString()),
           "checkInEndDate": conevrtDateforApi(endDate.toString()),
-          "channelName": channelFilter.channelId.length > 0 ? channelFilter.channelId : [-1],
+          "channelName": selectedChannels,
           "guest": null,
           "los": null,
           "promotion": null,
@@ -409,9 +422,12 @@ function ParityMonitoringContent() {
         if (!isCancelled && response.status && response.body) {
           console.log('✅ Parity data fetched successfully:', response.body)
           setApiParityData(response.body)
+          setParityResponseData(response.body)
+          
         } else if (!isCancelled) {
           console.warn('⚠️ Parity API returned unsuccessful response:', response)
           setApiParityData(null)
+          setParityResponseData(null)
         }
       } catch (error) {
         if (!isCancelled) {
@@ -437,7 +453,7 @@ function ParityMonitoringContent() {
     return () => {
       isCancelled = true
     }
-  }, [selectedProperty?.sid, startDate, endDate, JSON.stringify(channelFilter.channelId)])
+  }, [selectedProperty?.sid, startDate, endDate, JSON.stringify(selectedChannels)])
 
   // Chart configuration from OTA Rankings
   const MAX_LINES = 10
@@ -623,29 +639,73 @@ function ParityMonitoringContent() {
     const channels = apiData.otaViolationChannelRate.violationChannelRatesCollection
     return channels.map((channel: any) => {
       // Calculate overall parity metrics from daily data
-      const dailyRates = channel.checkInDateWiseRates || []
-      const totalWin = dailyRates.reduce((sum: number, day: any) => sum + (day.winCount || 0), 0)
-      const totalMeet = dailyRates.reduce((sum: number, day: any) => sum + (day.meetCount || 0), 0)
-      const totalLoss = dailyRates.reduce((sum: number, day: any) => sum + (day.lossCount || 0), 0)
+      const dailyRates = channel.channelWisewinMeetLoss || []
+      const totalWin = dailyRates.winCount
+      const totalMeet = dailyRates.meetCount
+      const totalLoss = dailyRates.lossCount
       const total = totalWin + totalMeet + totalLoss
-
+      const winPercent = total > 0 ? Math.round((totalWin / total) * 100) : 0
+      const meetPercent = total > 0 ? Math.round((totalMeet / total) * 100) : 0
+      const lossPercent = total > 0 ? Math.round((totalLoss / total) * 100) : 0
       const parityScore = total > 0 ? Math.round(((totalWin + totalMeet) / total) * 100) : 0
-      const currentRate = dailyRates.length > 0 ? dailyRates[dailyRates.length - 1]?.rate || 0 : 0
+
+      // Calculate violations from checkInDateWiseRates
+      const checkInDateWiseRates = channel.checkInDateWiseRates || []
+      const totalCheckInDates = checkInDateWiseRates.length
+      
+      // Count rate violations (true rateViolation values)
+      const rateViolationCount = checkInDateWiseRates.filter((rate: any) => rate.rateViolation === true).length
+      const rateViolations = totalCheckInDates > 0 ? Math.round((rateViolationCount / totalCheckInDates) * 100) : 0
+      
+      // Count availability violations (true availViolation values)
+      const availabilityViolationCount = checkInDateWiseRates.filter((rate: any) => rate.availViolation === true).length
+      const availabilityViolations = totalCheckInDates > 0 ? Math.round((availabilityViolationCount / totalCheckInDates) * 100) : 0
+      
+      // Total violations = rate violations + availability violations
+      const totalViolations = rateViolations + availabilityViolations
 
       return {
         channelName: channel.channelName,
-        currentRate,
+        channelIcon: channel.channelIcon,
         parityScore,
-        isInParity: parityScore >= 85,
-        trend: Math.random() > 0.5 ? 'up' : 'down', // Would be calculated from historical data
+        trend: Math.random() > 0.5 ? 'up' : 'down' as 'up' | 'down',
         trendValue: Math.random() * 5,
-        color: channel.isBrand ? 'primary' : 
+        winPercent,
+        meetPercent,
+        lossPercent,
+        totalViolations,
+        violationsTrend: Math.random() > 0.5 ? 'up' : 'down' as 'up' | 'down',
+        violationsTrendValue: Math.round(Math.random() * 10) + 1,
+        rateViolations,
+        rateViolationsTrend: Math.random() > 0.5 ? 'up' : 'down' as 'up' | 'down',
+        rateViolationsTrendValue: Math.round(Math.random() * 8) + 1,
+        availabilityViolations,
+        availabilityViolationsTrend: Math.random() > 0.5 ? 'up' : 'down' as 'up' | 'down',
+        availabilityViolationsTrendValue: Math.round(Math.random() * 5) + 1,
+        color: channel.isBrand ? 'blue-600' : 
                channel.channelName?.toLowerCase().includes('booking') ? 'blue-500' :
                channel.channelName?.toLowerCase().includes('expedia') ? 'orange-500' :
-               channel.channelName?.toLowerCase().includes('agoda') ? 'purple-500' : 'gray-500'
+               channel.channelName?.toLowerCase().includes('agoda') ? 'purple-500' : 'gray-500',
+        isBrand: channel.isBrand || false
       }
     })
   }
+
+  // Get benchmark channel info
+  const benchmarkChannel = useMemo(() => {
+    if (apiParityData && apiParityData.otaViolationChannelRate?.violationChannelRatesCollection?.length > 0) {
+      const channels = apiParityData.otaViolationChannelRate.violationChannelRatesCollection
+      const benchmark = channels.find((ch: any) => ch.isBrand)
+      if (benchmark) {
+        return {
+          channelId: benchmark.channelId,
+          channelName: benchmark.channelName,
+          isBrand: benchmark.isBrand
+        }
+      }
+    }
+    return null
+  }, [apiParityData])
 
   // Get card data (API or fallback)
   const cardData = useMemo(() => {
@@ -661,7 +721,7 @@ function ParityMonitoringContent() {
     return [
       { 
         channelName: "MakeMyTripBooking", 
-        channelIcon: "M", 
+        channelIcon: "https://storage.googleapis.com/rgdatalake/rg_optimanew/ChannelIcon/MakeMyTrip.svg", 
         parityScore: 35, 
         trend: 'down', 
         trendValue: 3.2,
@@ -677,7 +737,8 @@ function ParityMonitoringContent() {
         availabilityViolations: 44,
         availabilityViolationsTrend: 'up',
         availabilityViolationsTrendValue: 3.2,
-        color: 'blue-600'
+        color: 'blue-600',
+        isBrand: true
       },
       { 
         channelName: "Tripadvisor", 
@@ -697,11 +758,12 @@ function ParityMonitoringContent() {
         availabilityViolations: 12,
         availabilityViolationsTrend: 'up',
         availabilityViolationsTrendValue: 2.5,
-        color: 'green-600'
+        color: 'green-600',
+        isBrand: false
       },
       { 
         channelName: "Expedia", 
-        channelIcon: "✈", 
+        channelIcon: "https://storage.googleapis.com/rgdatalake/rg_optimanew/ChannelIcon/Expedia.svg", 
         parityScore: 62, 
         trend: 'down', 
         trendValue: 3.2,
@@ -757,7 +819,8 @@ function ParityMonitoringContent() {
         availabilityViolations: 7,
         availabilityViolationsTrend: 'up',
         availabilityViolationsTrendValue: 3.2,
-        color: 'purple-600'
+        color: 'purple-600',
+        isBrand: false
       },
       { 
         channelName: "Kayak", 
@@ -797,7 +860,8 @@ function ParityMonitoringContent() {
         availabilityViolations: 14,
         availabilityViolationsTrend: 'up',
         availabilityViolationsTrendValue: 1.2,
-        color: 'indigo-600'
+        color: 'indigo-600',
+        isBrand: false
       }
     ]
   }, [apiParityData])
@@ -822,6 +886,7 @@ function ParityMonitoringContent() {
     availabilityViolationsTrend: 'up' | 'down'
     availabilityViolationsTrendValue: number
     color: string
+    isBrand?: boolean
   }
 
   // Parity Tooltip component (adapted for rates instead of rankings)
@@ -1035,7 +1100,10 @@ function ParityMonitoringContent() {
           {/* Enhanced Filter Bar with Sticky Positioning */}
           <div className="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200 relative overflow-hidden">
             {isLoadingData && <WidgetProgress />}
-            <ParityOverviewFilterBar />
+            <ParityOverviewFilterBar 
+              benchmarkChannel={benchmarkChannel}
+              onChannelSelectionChange={handleChannelSelectionChange}
+            />
           </div>
 
           {/* Professional Header Section */}
@@ -1167,22 +1235,70 @@ function ParityMonitoringContent() {
                       scrollbarColor: '#cbd5e1 transparent'
                     } : {}}
                   >
-                {cardData.map((channel: CardDataType, index: number) => (
-                      <Card key={index} className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+                {(() => {
+                  // Sort channels: benchmark first, then alphabetical order
+                  const sortedCardData = [...cardData].sort((a, b) => {
+                    // Benchmark channel (isBrand: true) comes first
+                    if (a.isBrand && !b.isBrand) return -1
+                    if (!a.isBrand && b.isBrand) return 1
+                    
+                    // For non-benchmark channels, sort alphabetically by channel name
+                    return a.channelName?.localeCompare(b.channelName || '') || 0
+                  })
+                  
+                  return sortedCardData.map((channel: CardDataType, index: number) => {
+                    const isBenchmark = channel.isBrand === true
+                  return (
+                      <Card key={index} className={cn(
+                        "border shadow-sm transition-shadow duration-200",
+                        isBenchmark 
+                          ? "bg-blue-50 border-blue-300 hover:bg-blue-100 cursor-default" 
+                          : "bg-white border-gray-200 hover:shadow-md"
+                      )}>
                         <CardContent className="p-6">
                           {/* Header with Icon and Name */}
                           <div className="flex items-center gap-3 mb-6">
-                            <div className={`w-7 h-7 rounded-md flex items-center justify-center text-white font-bold text-xs bg-${channel.color} shadow-sm`}>
-                              {channel.channelIcon}
-                  </div>
+                          <div
+                            className={`w-7 h-7 rounded-md flex items-center justify-center text-white font-bold text-xs bg-${channel.color} shadow-sm`}
+                          >
+                            {/* Check if channelIcon is a URL (starts with http) */}
+                            {channel.channelIcon && channel.channelIcon.startsWith('http') ? (
+                              <img 
+                                src={channel.channelIcon} 
+                                alt={channel.channelName} 
+                                className="w-5 h-5 rounded"
+                                onError={(e) => {
+                                  // Hide the image and show fallback on error
+                                  e.currentTarget.style.display = 'none'
+                                  e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                                }}
+                              />
+                            ) : null}
+                            {/* Fallback: Show channelIcon as text (for emojis/letters) or first letter of channel name */}
+                            <div className={cn(
+                              "w-7 h-7 rounded-md flex items-center justify-center text-white font-bold text-xs shadow-sm",
+                              `bg-${channel.color}`,
+                              channel.channelIcon && channel.channelIcon.startsWith('http') ? "hidden" : "block"
+                            )}>
+                              <span className="w-7 h-7 rounded-md flex items-center justify-center text-white font-bold text-xs shadow-sm">
+                                {channel.channelIcon && !channel.channelIcon.startsWith('http') 
+                                  ? channel.channelIcon 
+                                  : channel.channelName.charAt(0).toUpperCase()
+                                }
+                              </span>
+                            </div>
+                          </div>
                             <div className="flex-1 flex items-center justify-between">
-                              <h3 className="text-base font-semibold text-gray-900">
-                                {index === 0 && channel.channelName.length > 14 
+                              <h3 className={cn(
+                                "text-base font-semibold",
+                                isBenchmark ? "text-blue-900" : "text-gray-900"
+                              )}>
+                                {isBenchmark && channel.channelName.length > 14 
                                   ? `${channel.channelName.substring(0, 14)}...`
                                   : channel.channelName
                                 }
                               </h3>
-                              {index === 0 && (
+                              {isBenchmark && (
                                 <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-800 bg-blue-100 rounded-md">
                                   Benchmark
                                 </span>
@@ -1196,9 +1312,15 @@ function ParityMonitoringContent() {
                               {/* Left: Parity Score */}
                               <div>
                                 <div className="flex items-baseline gap-2 mb-1">
-                                  <span className="text-2xl font-bold text-gray-900">{channel.parityScore}%</span>
+                                  <span className={cn(
+                                    "text-2xl font-bold",
+                                    isBenchmark ? "text-blue-900" : "text-gray-900"
+                                  )}>{channel.parityScore}%</span>
                     </div>
-                                <p className="text-xs text-gray-500 font-medium">Parity Score</p>
+                                <p className={cn(
+                                  "text-xs font-medium",
+                                  isBenchmark ? "text-blue-700" : "text-gray-500"
+                                )}>Parity Score</p>
                   </div>
 
                               {/* Left Side: Vertical Win/Meet/Loss Bar with 64px margin */}
@@ -1232,9 +1354,15 @@ function ParityMonitoringContent() {
                           {/* Total Violations */}
                           <div className="mb-4">
                             <div className="flex items-baseline gap-2 mb-1">
-                              <span className="text-xl font-bold text-gray-900">{channel.totalViolations}%</span>
+                              <span className={cn(
+                                "text-xl font-bold",
+                                isBenchmark ? "text-blue-900" : "text-gray-900"
+                              )}>{channel.totalViolations}%</span>
                     </div>
-                            <p className="text-xs text-gray-500 font-medium">Violations</p>
+                            <p className={cn(
+                              "text-xs font-medium",
+                              isBenchmark ? "text-blue-700" : "text-gray-500"
+                            )}>Violations</p>
                   </div>
 
                           {/* Rate and Availability Violations */}
@@ -1242,9 +1370,15 @@ function ParityMonitoringContent() {
                             {/* Rate Violations */}
                             <div style={{ width: '114px' }}>
                               <div className="flex items-baseline gap-1 mb-1">
-                                <span className="text-base font-bold text-gray-900">{channel.rateViolations}%</span>
+                                <span className={cn(
+                                  "text-base font-bold",
+                                  isBenchmark ? "text-blue-900" : "text-gray-900"
+                                )}>{channel.rateViolations}%</span>
                         </div>
-                              <p className="text-xs text-gray-500 font-medium">
+                              <p className={cn(
+                                "text-xs font-medium",
+                                isBenchmark ? "text-blue-700" : "text-gray-500"
+                              )}>
                                 <span className="hidden xl:inline">Rate Violations</span>
                                 <span className="xl:hidden">Rate Vio.</span>
                               </p>
@@ -1253,9 +1387,15 @@ function ParityMonitoringContent() {
                             {/* Availability Violations */}
                             <div style={{ marginLeft: '-14px' }}>
                               <div className="flex items-baseline gap-1 mb-1">
-                                <span className="text-base font-bold text-gray-900">{channel.availabilityViolations}%</span>
+                                <span className={cn(
+                                  "text-base font-bold",
+                                  isBenchmark ? "text-blue-900" : "text-gray-900"
+                                )}>{channel.availabilityViolations}%</span>
                         </div>
-                              <p className="text-xs text-gray-500 font-medium">
+                              <p className={cn(
+                                "text-xs font-medium",
+                                isBenchmark ? "text-blue-700" : "text-gray-500"
+                              )}>
                                 <span className="hidden xl:inline">Availability Violations</span>
                                 <span className="xl:hidden">Availability Vio.</span>
                               </p>
@@ -1263,7 +1403,9 @@ function ParityMonitoringContent() {
             </div>
           </CardContent>
         </Card>
-                ))}
+        )
+      })
+                  })()}
             </div>
         )}
             </CardContent>
@@ -1273,305 +1415,8 @@ function ParityMonitoringContent() {
           {/* Parity Calendar View */}
           <Card className="shadow-lg relative overflow-hidden">
             {isLoadingData && <WidgetProgress />}
-            <ParityCalendarView />
-          </Card>
-
-          {/* Permanent Tooltip Preview for Testing - 29 Jan */}
-          <Card className="shadow-lg mt-6 p-4">
-            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
-              Tooltip Preview - 29 Jan 2025 (MakeMyTrip vs TripAdvisor)
-            </h3>
-            <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
-              <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                <strong>📝 Note:</strong> Any changes made to this permanent tooltip structure will be automatically applied to all other tooltips in the application:
-              </p>
-              <ul className="text-xs text-yellow-700 dark:text-yellow-300 mt-2 ml-4 space-y-1">
-                <li>• Main parity chart tooltip (hover on chart)</li>
-                <li>• Calendar view benchmark tooltips (MakeMyTrip row)</li>
-                <li>• Calendar view regular channel tooltips (all other channels)</li>
-                <li>• All interactive hover tooltips throughout the app</li>
-              </ul>
-            </div>
-            
-            <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-3 min-w-[500px] max-w-[700px] w-fit">
-              {/* Date Heading */}
-              <div className="mb-2">
-                <h3 className="text-gray-900 dark:text-white text-left">
-                  <span className="text-base font-bold">29 Jan 2025</span>
-                  <span className="text-sm font-normal">, Wed</span>
-                </h3>
-              </div>
-
-              {/* Semantic Table Structure */}
-              <div className="mt-4">
-                {(() => {
-                  // TripAdvisor sample data for 29 Jan
-                  const channelName = "TripAdvisor"
-                  const truncatedChannelName = channelName.length > 12 ? `${channelName.substring(0, 9)}...` : channelName
-                  const rateText = "13,648,873"
-                  const truncatedRate = rateText.length > 11 ? `${rateText.substring(0, 8)}...` : rateText
-                  const roomType = 'Deluxe Room Superior Executive Suite with Ocean View and Private Balcony Premium'
-                  const getRoomAbbreviation = (room: string) => {
-                    if (room.includes('Apartment')) return 'APT'
-                    if (room.includes('Bungalow')) return 'BNW'
-                    if (room.includes('Deluxe')) return 'DLX'
-                    if (room.includes('Standard')) return 'STD'
-                    if (room.includes('Studio')) return 'STU'
-                    if (room.includes('Suite')) return 'SUI'
-                    if (room.includes('Superior')) return 'SUP'
-                    return 'ROO'
-                  }
-                  const roomAbbr = getRoomAbbreviation(roomType)
-                  const roomWithAbbr = `${roomAbbr} - ${roomType}`
-                  
-                  // Room: 150px width - Break words with hyphen, use full width
-                  const formatRoomText = (text: string) => {
-                    if (text.length <= 20) return text // Single line for short text
-                    if (text.length <= 40) {
-                      // Break at character 20, add hyphen if breaking a word
-                      const firstLine = text.substring(0, 20)
-                      const secondLine = text.substring(20)
-                      
-                      // Check if we're breaking in the middle of a word
-                      if (text[19] !== ' ' && text[20] !== ' ' && text[20]) {
-                        return {
-                          firstLine: firstLine + '-',
-                          secondLine: secondLine
-                        }
-                      }
-                      return {
-                        firstLine: firstLine,
-                        secondLine: secondLine
-                      }
-                    }
-                    // Truncate after 40 chars with ellipsis
-                    const truncated = text.substring(0, 37) + '...'
-                    const firstLine = truncated.substring(0, 20)
-                    const secondLine = truncated.substring(20)
-                    
-                    // Check if we're breaking in the middle of a word
-                    if (truncated[19] !== ' ' && truncated[20] !== ' ' && truncated[20]) {
-                      return {
-                        firstLine: firstLine + '-',
-                        secondLine: secondLine
-                      }
-                    }
-                    return {
-                      firstLine: firstLine,
-                      secondLine: secondLine
-                    }
-                  }
-                  
-                  // Inclusion: 150px width - Break words with hyphen, use full width
-                  const formatInclusionText = (text: string) => {
-                    if (text.length <= 20) return text // Single line for short text
-                    if (text.length <= 40) {
-                      // Break at character 20, add hyphen if breaking a word
-                      const firstLine = text.substring(0, 20)
-                      const secondLine = text.substring(20)
-                      
-                      // Check if we're breaking in the middle of a word
-                      if (text[19] !== ' ' && text[20] !== ' ' && text[20]) {
-                        return {
-                          firstLine: firstLine + '-',
-                          secondLine: secondLine
-                        }
-                      }
-                      return {
-                        firstLine: firstLine,
-                        secondLine: secondLine
-                      }
-                    }
-                    // Truncate after 40 chars with ellipsis
-                    const truncated = text.substring(0, 37) + '...'
-                    const firstLine = truncated.substring(0, 20)
-                    const secondLine = truncated.substring(20)
-                    
-                    // Check if we're breaking in the middle of a word
-                    if (truncated[19] !== ' ' && truncated[20] !== ' ' && truncated[20]) {
-                      return {
-                        firstLine: firstLine + '-',
-                        secondLine: secondLine
-                      }
-                    }
-                    return {
-                      firstLine: firstLine,
-                      secondLine: secondLine
-                    }
-                  }
-                  
-                  const formattedRoom = formatRoomText(roomWithAbbr)
-                  const inclusion = 'Free WiFi, Breakfast, Pool Access, Spa Services, Gym Access, Concierge Service, Parking'
-                  const formattedInclusion = formatInclusionText(inclusion)
-                  
-                  // Fixed column widths
-                  const channelWidth = '130px'
-                  const rateWidth = '100px'
-                  const roomWidth = '150px'
-                  const inclusionWidth = '150px'
-                  
-                  return (
-                    <table className="text-xs" style={{ borderSpacing: '0 0', tableLayout: 'fixed', width: '530px' }}>
-                      <thead>
-                        <tr className="text-gray-500 dark:text-slate-400 font-medium">
-                          <th className="text-left pb-2 pl-2" style={{ width: channelWidth, paddingRight: '16px' }}>Channel</th>
-                          <th className="text-left pb-2" style={{ width: rateWidth, paddingRight: '16px' }}>Rate (Rp)</th>
-                          <th className="text-left pb-2" style={{ width: roomWidth, paddingRight: '10px' }}>Room</th>
-                          <th className="text-left pb-2" style={{ width: inclusionWidth }}>Inclusion</th>
-                        </tr>
-                      </thead>
-                                              <tbody className="space-y-1">
-                          {/* Benchmark Channel Row (MakeMyTrip) */}
-                          <tr className="bg-blue-50 dark:bg-blue-900/30">
-                            {/* Channel */}
-                            <td className="py-1.5 pl-2 rounded-l align-top" style={{ width: channelWidth, paddingRight: '16px' }}>
-                              <span className="font-medium text-blue-900 dark:text-blue-200" title="MakeMyTrip Benchmark">
-                                {(() => {
-                                  const benchmarkChannelName = "MakeMyTrip Benchmark"
-                                  const formattedBenchmarkChannel = formatChannelText(benchmarkChannelName)
-                                  
-                                  if (typeof formattedBenchmarkChannel === 'string') {
-                                    return formattedBenchmarkChannel
-                                  } else {
-                                    return (
-                                      <div>
-                                        <div className="leading-tight">{formattedBenchmarkChannel.firstLine}</div>
-                                        <div className="leading-tight">{formattedBenchmarkChannel.secondLine}</div>
-                                      </div>
-                                    )
-                                  }
-                                })()}
-                              </span>
-                            </td>
-                            
-                            {/* Rate */}
-                            <td className="py-1.5 text-left font-bold text-blue-900 dark:text-blue-200 align-top" style={{ width: rateWidth, paddingRight: '16px' }}>
-                              <div title="12,398,873">12,398,873</div>
-                            </td>
-                            
-                            {/* Room with abbreviation */}
-                            <td className="py-1.5 text-left text-blue-900 dark:text-blue-200 align-top" style={{ width: roomWidth, paddingRight: '10px' }}>
-                              {(() => {
-                                const benchmarkRoomType = 'Deluxe Room Superior Executive Suite with Ocean View and Private Balcony Premium'
-                                const benchmarkRoomAbbr = getRoomAbbreviation(benchmarkRoomType)
-                                const benchmarkRoomWithAbbr = `${benchmarkRoomAbbr} - ${benchmarkRoomType}`
-                                const benchmarkFormattedRoom = formatRoomText(benchmarkRoomWithAbbr)
-                                
-                                if (typeof benchmarkFormattedRoom === 'string') {
-                                  return <div title={benchmarkRoomWithAbbr}>{benchmarkFormattedRoom}</div>
-                                } else {
-                                  return (
-                                    <div title={benchmarkRoomWithAbbr}>
-                                      <div className="leading-tight">{benchmarkFormattedRoom.firstLine}</div>
-                                      <div className="leading-tight">{benchmarkFormattedRoom.secondLine}</div>
-                                    </div>
-                                  )
-                                }
-                              })()}
-                            </td>
-                            
-                            {/* Inclusion */}
-                            <td className="py-1.5 text-left text-blue-900 dark:text-blue-200 rounded-r align-top" style={{ width: inclusionWidth }}>
-                              {(() => {
-                                const benchmarkInclusion = 'Free WiFi, Breakfast, Pool Access, Spa Services, Gym Access, Concierge Service, Parking'
-                                const benchmarkFormattedInclusion = formatInclusionText(benchmarkInclusion)
-                                
-                                if (typeof benchmarkFormattedInclusion === 'string') {
-                                  return <div title={benchmarkInclusion}>{benchmarkFormattedInclusion}</div>
-                                } else {
-                                  return (
-                                    <div title={benchmarkInclusion}>
-                                      <div className="leading-tight">{benchmarkFormattedInclusion.firstLine}</div>
-                                      <div className="leading-tight">{benchmarkFormattedInclusion.secondLine}</div>
-                                    </div>
-                                  )
-                                }
-                              })()}
-                            </td>
-                          </tr>
-                          
-                          {/* Hovered Channel Row (TripAdvisor) */}
-                          <tr>
-                            {/* Channel */}
-                            <td className="py-1.5 pl-2 rounded-l align-top" style={{ width: channelWidth, paddingRight: '16px' }}>
-                              <span className="font-medium text-gray-900 dark:text-slate-100" title={channelName}>
-                                {(() => {
-                                  const formattedChannelName = formatChannelText(channelName)
-                                  
-                                  if (typeof formattedChannelName === 'string') {
-                                    return formattedChannelName
-                                  } else {
-                                    return (
-                                      <div>
-                                        <div className="leading-tight">{formattedChannelName.firstLine}</div>
-                                        <div className="leading-tight">{formattedChannelName.secondLine}</div>
-                                      </div>
-                                    )
-                                  }
-                                })()}
-                              </span>
-                            </td>
-                            
-                            {/* Rate */}
-                            <td className="py-1.5 text-left font-bold text-gray-900 dark:text-slate-100 align-top" style={{ width: rateWidth, paddingRight: '16px' }}>
-                              <div title={rateText}>{rateText}</div>
-                            </td>
-                            
-                            {/* Room Type - 2-line format */}
-                            <td className="py-1.5 text-gray-700 dark:text-slate-300 align-top" style={{ width: roomWidth, paddingRight: '10px' }}>
-                              {typeof formattedRoom === 'string' ? (
-                                <div title={roomWithAbbr}>
-                                  {formattedRoom}
-                                </div>
-                              ) : (
-                                <div title={roomWithAbbr}>
-                                  <div className="leading-tight">{formattedRoom.firstLine}</div>
-                                  <div className="leading-tight">{formattedRoom.secondLine}</div>
-                                </div>
-                              )}
-                            </td>
-                            
-                            {/* Inclusion - 2-line format */}
-                            <td className="py-1.5 text-gray-700 dark:text-slate-300 rounded-r align-top" style={{ width: inclusionWidth }}>
-                              {typeof formattedInclusion === 'string' ? (
-                                <div title={inclusion}>
-                                  {formattedInclusion}
-                                </div>
-                              ) : (
-                                <div title={inclusion}>
-                                  <div className="leading-tight">{formattedInclusion.firstLine}</div>
-                                  <div className="leading-tight">{formattedInclusion.secondLine}</div>
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                          
-                          {/* Rate Difference Row */}
-                          <tr>
-                            {/* Difference label in Channel column */}
-                            <td className="py-1.5 pr-2 text-left font-normal" style={{ width: channelWidth, paddingRight: '16px', borderTop: '1px solid #e5e7eb' }}>
-                              <span className="text-xs text-gray-500 dark:text-slate-400" style={{ marginLeft: '8px' }}>Difference</span>
-                            </td>
-                            
-                            {/* Rate difference */}
-                            <td className="py-1.5 text-left font-bold text-green-600 dark:text-green-400" style={{ width: rateWidth, paddingRight: '16px', borderTop: '1px solid #e5e7eb' }}>
-                              <div className="truncate">-1,250,000</div>
-                            </td>
-                            
-                            {/* Empty Room column */}
-                            <td className="py-1.5" style={{ width: roomWidth, paddingRight: '10px', borderTop: '1px solid #e5e7eb' }}>
-                            </td>
-                            
-                            {/* Empty Inclusion column */}
-                            <td className="py-1.5 rounded-r" style={{ width: inclusionWidth, borderTop: '1px solid #e5e7eb' }}>
-                            </td>
-                          </tr>
-                        </tbody>
-                    </table>
-                  )
-                })()}
-              </div>
-            </div>
+            <ParityCalendarView  parityDataMain={apiParityData} 
+            onDataUpdate={handleChildData} />
           </Card>
 
             </div>

@@ -96,7 +96,7 @@ export function ParityChannelProvider({ children }: { children: React.ReactNode 
   }
 
   return (
-    <ParityChannelContext.Provider value={{ 
+    <ParityChannelContext.Provider value={{
       selectedChannels, 
       setSelectedChannels, 
       channelFilter,
@@ -111,9 +111,15 @@ export function ParityChannelProvider({ children }: { children: React.ReactNode 
 
 interface ParityFilterBarProps {
   className?: string
+  benchmarkChannel?: {
+    channelId: number
+    channelName: string
+    isBrand: boolean
+  } | null
+  onChannelSelectionChange?: (selectedChannels: any[]) => void
 }
 
-export function ParityFilterBar({ className }: ParityFilterBarProps) {
+export function ParityFilterBar({ className, benchmarkChannel, onChannelSelectionChange }: ParityFilterBarProps) {
   const { startDate, endDate, setDateRange } = useParityDateContext()
   const { selectedChannels, setSelectedChannels, availableChannels, setAvailableChannels, fallbackChannels } = useParityChannelContext()
   const [selectedProperty] = useSelectedProperty()
@@ -176,6 +182,28 @@ export function ParityFilterBar({ className }: ParityFilterBarProps) {
 
   const handleChannelToggle = (channel: any) => {
     const isSelected = selectedChannels.some(ch => ch.channelId === channel.channelId)
+    
+    // Disable benchmark channels - they cannot be selected
+    if (benchmarkChannel && channel.channelId === benchmarkChannel.channelId) {
+      return
+    }
+    
+    // Special handling for "All Channels" - exclude benchmark channels
+    if (channel.channelId === -1 && channel.channelName === "All Channels") {
+      if (isSelected) {
+        // If "All Channels" is selected, clear all selections
+        setSelectedChannels([])
+      } else {
+        // Select all channels except benchmark channels and the "All Channels" item itself
+        const nonBenchmarkChannels = availableChannels.filter(ch => 
+          ch.channelId !== -1 && ch.channelId !== benchmarkChannel?.channelId
+        )
+        setSelectedChannels(nonBenchmarkChannels)
+      }
+      return
+    }
+    
+    // Regular channel toggle logic
     if (isSelected) {
       setSelectedChannels(selectedChannels.filter(ch => ch.channelId !== channel.channelId))
     } else {
@@ -186,6 +214,27 @@ export function ParityFilterBar({ className }: ParityFilterBarProps) {
   const clearChannelFilter = () => {
     setSelectedChannels([])
     setIsChannelOpen(false)
+  }
+
+  // Auto-select non-benchmark channels when dropdown closes
+  const handleDropdownOpenChange = (open: boolean) => {
+    setIsChannelOpen(open)
+    
+    if (!open && selectedChannels.length === 0) {
+      // Auto-select all non-benchmark channels when dropdown closes with no selection
+      const nonBenchmarkChannels = availableChannels.filter(ch => 
+        ch.channelId !== -1 && ch.channelId !== benchmarkChannel?.channelId
+      )
+      setSelectedChannels(nonBenchmarkChannels)
+      
+      // Trigger API call callback
+      if (onChannelSelectionChange) {
+        onChannelSelectionChange(nonBenchmarkChannels)
+      }
+    } else if (!open && onChannelSelectionChange) {
+      // Trigger API call callback when dropdown closes with existing selection
+      onChannelSelectionChange(selectedChannels)
+    }
   }
 
   const selectedChannelCount = selectedChannels.length
@@ -211,10 +260,9 @@ export function ParityFilterBar({ className }: ParityFilterBarProps) {
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <EnhancedDatePicker
-              selectedStartDate={startDate}
-              selectedEndDate={endDate}
-              onDateRangeChange={(start, end) => setDateRange(start, end)}
-              maxDays={30}
+              startDate={startDate || undefined}
+              endDate={endDate || undefined}
+              onChange={(start: Date | undefined, end: Date | undefined) => setDateRange(start || null, end || null)}
             />
           </PopoverContent>
         </Popover>
@@ -224,7 +272,7 @@ export function ParityFilterBar({ className }: ParityFilterBarProps) {
       <div className="flex items-center gap-2">
         <Globe className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium text-foreground">Channels:</span>
-        <DropdownMenu open={isChannelOpen} onOpenChange={setIsChannelOpen}>
+        <DropdownMenu open={isChannelOpen} onOpenChange={handleDropdownOpenChange}>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="h-9 px-3 bg-card gap-2">
               <Globe className="h-4 w-4" />
@@ -258,6 +306,9 @@ export function ParityFilterBar({ className }: ParityFilterBarProps) {
               <div className="grid gap-2 max-h-64 overflow-y-auto">
                 {availableChannels.map((channel) => {
                   const isSelected = selectedChannels.some(ch => ch.channelId === channel.channelId)
+                  const isAllChannels = channel.channelId === -1 && channel.channelName === "All Channels"
+                  const isBenchmark = benchmarkChannel && channel.channelId === benchmarkChannel.channelId
+                  
                   return (
                     <div
                       key={channel.channelId}
@@ -265,16 +316,18 @@ export function ParityFilterBar({ className }: ParityFilterBarProps) {
                         "flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors",
                         isSelected 
                           ? "bg-primary/10 border border-primary/20" 
-                          : "hover:bg-muted"
+                          : "hover:bg-muted",
+                        isBenchmark && "opacity-50 cursor-not-allowed"
                       )}
-                      onClick={() => handleChannelToggle(channel)}
+                      onClick={() => !isBenchmark && handleChannelToggle(channel)}
                     >
                       <div 
                         className={cn(
                           "w-4 h-4 rounded border-2 transition-colors",
                           isSelected 
                             ? "bg-primary border-primary" 
-                            : "border-muted-foreground"
+                            : "border-muted-foreground",
+                          isBenchmark && "opacity-50"
                         )}
                       >
                         {isSelected && (
@@ -291,7 +344,19 @@ export function ParityFilterBar({ className }: ParityFilterBarProps) {
                             className="w-5 h-5 rounded"
                           />
                         )}
-                        <span className="text-sm">{channel.channelName}</span>
+                        <div className="flex flex-col flex-1">
+                          <span className="text-sm">{channel.channelName}</span>
+                          {isAllChannels && (
+                            <span className="text-xs text-muted-foreground">
+                              (Excludes benchmark channels)
+                            </span>
+                          )}
+                          {isBenchmark && (
+                            <span className="text-xs text-muted-foreground">
+                              (Disabled - Benchmark)
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )
