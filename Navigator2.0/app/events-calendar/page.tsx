@@ -996,7 +996,7 @@ export default function EventsCalendarPage() {
 
   // Toggle bookmark status  
   const toggleBookmark = useCallback((eventId: string, SID: string) => {
-    
+
     setEvents(prevEvents => {
       let updatedEvent: Event | any = null;
 
@@ -2061,7 +2061,6 @@ export default function EventsCalendarPage() {
       // Clear the search input when modal closes
       setBookmarkSearchQuery("");
       bookMarkDialogClose();
-      fetchAllData();
     }
     // if (isBookmarkModalOpen) {
     //   console.log("POPUP OPEN - selectedProperty:", selectedProperty);
@@ -2735,6 +2734,7 @@ export default function EventsCalendarPage() {
 
   // Filter events for bookmark modal
   const ALL_TYPES = ["bookmarked", "available"];
+
   const getFilteredBookmarkEvents = useMemo(() => {
     // Deduplicate events by eventId
     const seen = new Set();
@@ -2743,16 +2743,17 @@ export default function EventsCalendarPage() {
       seen.add(event.eventId);
       return true;
     });
-
+    
     // Apply bookmark search filter
     if (bookmarkSearchQuery) {
       const searchLower = bookmarkSearchQuery.toLowerCase();
       filtered = filtered.filter(
         (event) =>
-          event.name.toLowerCase().includes(searchLower) ||
-          event.description.toLowerCase().includes(searchLower)
+          (event.name?.toLowerCase() || "").includes(searchLower) ||
+          (event.description?.toLowerCase() || "").includes(searchLower)
       );
     }
+
 
     // Apply category filter
     if (!bookmarkCategoryFilter.includes("all")) {
@@ -2780,7 +2781,10 @@ export default function EventsCalendarPage() {
             (event.status === "bookmarked" && event.type === "holiday") || event.status === "bookmarked",
 
           available: (event) =>
-            (event.status === "available" && event.type === "holiday") || event.status === "available",
+            (event.status === "available" && event.type === "holiday") ||
+            (event.status === "holidays" && event.type === "holiday") || event.status === "available",
+
+
 
           suggested: (event) =>
             event.category?.toLowerCase() === "social",
@@ -3373,7 +3377,7 @@ export default function EventsCalendarPage() {
     setBookmarkSearchQuery("");
     setBookmarkCategoryFilter(["all", "conferences", "tradeshow", "workshop", "social", "holidays"]);
     setBookmarkTypeFilter(["all", "bookmarked", "holiday", "suggested", "available"]);
-    fetchAllData();
+   
   }
   // Show loading state when data is being fetched
   if (isLoading) {
@@ -5056,7 +5060,7 @@ export default function EventsCalendarPage() {
             <div className="text-sm text-muted-foreground">
               {getEventsForSelectedDate().length} event{getEventsForSelectedDate().length !== 1 ? "s" : ""} on this day
             </div>
-            <Button onClick={() => setIsDayViewOpen(false)} className="px-3">Close</Button>
+            <Button onClick={() => setIsDayViewOpen(false)} className="px-4 mt-0.5max-w-4xl max-h-[80vh] relative -translate-y-[8px]">Close</Button>
           </div>
         </DialogContent>
       </Dialog>
