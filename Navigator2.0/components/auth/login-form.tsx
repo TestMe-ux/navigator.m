@@ -30,7 +30,7 @@ import { GetSIDListforUser } from "@/lib/login"
  */
 export function LoginForm() {
   const router = useRouter()
-  
+
   // State management for form fields and UI
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -206,13 +206,13 @@ export function LoginForm() {
       if (loginSuccess) {
         // Get SID list for user
         getSIDListforUser();
-        
+
         // Redirect to dashboard on success
-       
+
       } else {
         setErrors(prev => ({
           ...prev,
-          general: "Login failed. Please check your credentials and try again."
+          general: response?.message || "Login failed. Please check your credentials and try again."
         }))
       }
 

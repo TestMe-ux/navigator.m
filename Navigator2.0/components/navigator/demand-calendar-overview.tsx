@@ -497,7 +497,7 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
         const eventNames = matchingEvents.length > 0 ? matchingEvents.map((e: any) => e.eventName).join(', ') : '';
         console.log("eventNames", eventNames);
         return [
-          formatDate(demand.checkinDate),
+          format(demand.checkinDate,'MM/dd/yyyy'),
           //new Date(demand.checkinDate).toLocaleDateString('en-US'),
           new Date(demand.checkinDate).toLocaleDateString('en-US', { weekday: 'short' }),
           demand.demandIndex,

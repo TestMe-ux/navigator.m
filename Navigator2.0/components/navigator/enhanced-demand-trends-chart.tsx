@@ -112,6 +112,7 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
 
 // Generate events for chart dates (similar to calendar logic)
 function generateChartEvents(trendData: any[], events: any, holidaysData: any) {
+  debugger;
   const eventsData = [
     ...(Array.isArray(events) ? events : []),
     ...(Array.isArray(holidaysData) ? holidaysData : [])

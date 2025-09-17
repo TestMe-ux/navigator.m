@@ -1,12 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { UserCircle, Camera } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { useUserDetail, useSelectedProperty } from "@/hooks/use-local-storage"
 import { format } from "date-fns"
+import { get } from "http"
+import { getRateShopsData, getUsageTrendChartData } from "@/lib/reports"
 
 // Mock data for the usage trend chart - different datasets for each view
 const generateUsageData = (viewBy: string) => {
@@ -56,6 +58,8 @@ export default function MyAccountPage() {
   const [loadingCycle, setLoadingCycle] = useState(1)
   const [userDetail] = useUserDetail()
   const [selectedProperty] = useSelectedProperty()
+  const [rateShops, setRateShops] = useState<any>({});
+  const [chartData, setChartData] = useState<any[]>([]);
   // Dummy girl image for testing
   const dummyGirlImage = "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face"
 
@@ -81,6 +85,8 @@ export default function MyAccountPage() {
 
   // Loading effect similar to Demand and OTA Ranking pages
   useEffect(() => {
+    if (!selectedProperty?.sid) return;
+    getRateShops();
     setIsLoading(true)
     setLoadingProgress(0)
 
@@ -113,8 +119,34 @@ export default function MyAccountPage() {
       clearInterval(progressInterval)
       clearTimeout(loadingTimeout)
     }
-  }, [])
-
+  }, [selectedProperty?.sid])
+  const getRateShops = async () => {
+    const filtersValue = { sid: selectedProperty?.sid || 0 };
+    const response = await getRateShopsData(filtersValue);
+    if (response?.status) {
+      setRateShops(response.body);
+      // usageTrendChartData(response.body);
+      console.log("Rate Shops Data:", response);
+    }
+  }
+  useEffect(() => {
+    if (Object.keys(rateShops).length === 0) return
+    usageTrendChartData(rateShops);
+  }, [viewBy, rateShops])
+  const usageTrendChartData = async (rateShopsData: any) => {
+    const filtersValue = {
+      sid: selectedProperty?.sid,
+      CPStartDate: selectedProperty?.pghStartDate,
+      CPEndDate: selectedProperty?.pghEndDate,
+      Frequency: viewBy,
+      PackageId: rateShopsData?.packageId
+    };
+    const response = await getUsageTrendChartData(filtersValue);
+    if (response?.status) {
+      setChartData(response.body);
+      console.log("Rate Shops Data:", response);
+    }
+  }
   // Custom My Account Loading Skeleton
   const MyAccountLoadingSkeleton = () => (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -337,8 +369,8 @@ export default function MyAccountPage() {
                         {/* Criteria Section */}
                         <div className="space-y-1">
                           <h3 className="text-sm font-semibold text-foreground capitalize tracking-wide">Criteria:</h3>
-                          <p className="text-sm text-foreground">3 Competitors</p>
-                          <p className="text-sm text-foreground">7 Channels</p>
+                          <p className="text-sm text-foreground">{rateShops?.compsetCount} Competitors</p>
+                          <p className="text-sm text-foreground">{rateShops?.channelCount} Channels</p>
                         </div>
 
                         {/* Custom Section */}
@@ -370,15 +402,15 @@ export default function MyAccountPage() {
                           </div>
                           <div className="flex justify-between items-center py-2 border-b border-dashed border-border">
                             <span className="text-sm text-muted-foreground">Scheduled</span>
-                            <span className="text-sm font-semibold">246828</span>
+                            <span className="text-sm font-semibold">{rateShops?.consumedShopsBatch}</span>
                           </div>
                           <div className="flex justify-between items-center py-2 border-b border-dashed border-border">
                             <span className="text-sm text-muted-foreground">On Demand</span>
-                            <span className="text-sm font-semibold">57441</span>
+                            <span className="text-sm font-semibold">{rateShops?.consumedShopsOnDemand}</span>
                           </div>
                           <div className="flex justify-between items-center py-2">
                             <span className="text-sm text-muted-foreground">Lightning Refresh</span>
-                            <span className="text-sm font-semibold">11562</span>
+                            <span className="text-sm font-semibold">{rateShops?.consumedShopsRTRR}</span>
                           </div>
                         </div>
                       </div>
@@ -387,7 +419,7 @@ export default function MyAccountPage() {
                       <div>
                         <div className="flex justify-between items-center mb-4">
                           <h3 className="text-lg font-semibold">Usage Trend</h3>
-                          <div className="flex items-center">
+                          <div className="flex items-center gap-3">
                             <span className="text-sm text-muted-foreground mr-2">View By:</span>
                             <div className="flex border border-border rounded-md overflow-hidden">
                               {["Daily", "Weekly", "Monthly", "Yearly"].map((period, index) => (
@@ -408,16 +440,22 @@ export default function MyAccountPage() {
                         <div className="h-72 w-full bg-white dark:bg-slate-900 rounded">
                           <ResponsiveContainer width="100%" height="100%">
                             <BarChart
-                              data={generateUsageData(viewBy)}
+                              data={chartData}
                               margin={{ top: 20, right: 0, left: 0, bottom: 0 }}
                               barCategoryGap="20%"
+                              height={288}
+                              // width={Math.max(chartData.length * 100, 800)}
                             >
                               <XAxis
-                                dataKey="date"
+                                dataKey="reportDate"
                                 fontSize={11}
                                 tick={{ fontSize: 11, fill: "#666" }}
                                 axisLine={{ stroke: "#e5e7eb" }}
                                 tickLine={{ stroke: "#e5e7eb" }}
+                                tickFormatter={(value) => {
+                                  const values = format(new Date(value), viewBy === 'Daily' ? 'dd MMM' : viewBy === 'Weekly' ? "'Week' w" : viewBy === 'Monthly' ? 'MMM' : 'yyyy');
+                                  return values.toString()
+                                }}
                               />
                               <YAxis
                                 fontSize={11}
@@ -482,6 +520,18 @@ export default function MyAccountPage() {
                                           weekday: null
                                         }
                                       }
+                                      if (viewType === 'Yearly') {
+                                        return {
+                                          main: format(dateStr, "yyyy"),
+                                          weekday: null
+                                        }
+                                      }
+                                       if (viewType === 'Monthly') {
+                                        return {
+                                          main: format(dateStr, "MMM yyyy"),
+                                          weekday: null
+                                        }
+                                      }
                                       return {
                                         main: dateStr,
                                         weekday: null
@@ -536,9 +586,9 @@ export default function MyAccountPage() {
                                   gap: '48px'
                                 }}
                               />
-                              <Bar dataKey="Scheduled" stackId="usage" fill="#3b82f6" name="Scheduled" radius={[0, 0, 0, 0]} />
-                              <Bar dataKey="OnDemand" stackId="usage" fill="#10b981" name="On Demand" radius={[0, 0, 0, 0]} />
-                              <Bar dataKey="LightningRefresh" stackId="usage" fill="#8b5cf6" name="Lightning Refresh" radius={[2, 2, 0, 0]} />
+                              <Bar dataKey="scheduledConsumedShops" stackId="usage" fill="#3b82f6" name="Scheduled" radius={[0, 0, 0, 0]} />
+                              <Bar dataKey="onDemandConsumedShops" stackId="usage" fill="#10b981" name="On Demand" radius={[0, 0, 0, 0]} />
+                              <Bar dataKey="lightningRefreshConsumedShops" stackId="usage" fill="#8b5cf6" name="Lightning Refresh" radius={[2, 2, 0, 0]} />
                             </BarChart>
                           </ResponsiveContainer>
                         </div>
@@ -574,9 +624,9 @@ export default function MyAccountPage() {
 
             {/* Footer spacing */}
             <div className="h-8"></div>
-          </div>
-        </div>
-      </main>
-    </div>
+          </div >
+        </div >
+      </main >
+    </div >
   )
 }
