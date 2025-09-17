@@ -2743,7 +2743,7 @@ export default function EventsCalendarPage() {
       seen.add(event.eventId);
       return true;
     });
-    
+
     // Apply bookmark search filter
     if (bookmarkSearchQuery) {
       const searchLower = bookmarkSearchQuery.toLowerCase();
@@ -3377,7 +3377,7 @@ export default function EventsCalendarPage() {
     setBookmarkSearchQuery("");
     setBookmarkCategoryFilter(["all", "conferences", "tradeshow", "workshop", "social", "holidays"]);
     setBookmarkTypeFilter(["all", "bookmarked", "holiday", "suggested", "available"]);
-   
+    fetchAllData();
   }
   // Show loading state when data is being fetched
   if (isLoading) {
@@ -4069,7 +4069,13 @@ export default function EventsCalendarPage() {
 
                   <div className="flex items-center justify-between pt-3 border-t flex-shrink-0">
                     <div className="text-xs text-muted-foreground">
-                      {events.filter((e) => e.status === "bookmarked").length} events bookmarked
+                      {/* {events.filter((e) => e.status === "bookmarked").length} events bookmarked */}
+                      {
+                        getFilteredBookmarkEvents.filter(
+                          (e) => e.status?.toLowerCase() === "bookmarked"
+                        ).length
+                      }{" "}
+                      events bookmarked
                     </div>
                     <Button onClick={() => bookMarkDialogClose()} className="px-4 py-2 text-sm">Done</Button>
                   </div>
