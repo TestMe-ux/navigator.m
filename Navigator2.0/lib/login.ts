@@ -47,3 +47,7 @@ export async function PasswordRecovery(filtersValue: any) {
     const { data } = await apiClient.get(`${Constants.API_SET_PasswordRecovery}`, { params: filtersValue });
     return data;
 }
+export async function GetPackageDetails(filtersValue: any) {
+    const { data } = await apiClient.get(`${Constants.API_GetPackageDetails}`, { params: filtersValue });
+    return data;
+}
