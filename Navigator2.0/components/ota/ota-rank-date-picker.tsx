@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {LocalStorageService} from "@/lib/localstorage"
+import { m } from "framer-motion"
 
 type DateMode = "next7days" | "next14days" | "next30days" | "customRange"
 
@@ -33,11 +34,11 @@ interface OtaRankDatePickerProps {
 }
 
 export function OtaRankDatePicker({ startDate, endDate, onChange, className }: OtaRankDatePickerProps) {
-  // Initialize with Next 30 Days by default
+  // Initialize with Next 7 Days by default
   const getDefaultDates = () => {
     const today = new Date()
-    const thirtyDaysFromNow = addDays(today, 29)
-    return { start: today, end: thirtyDaysFromNow }
+    const sevenDaysFromNow = addDays(today, 6)
+    return { start: today, end: sevenDaysFromNow }
   }
 
   const defaultDates = getDefaultDates()
@@ -48,25 +49,26 @@ export function OtaRankDatePicker({ startDate, endDate, onChange, className }: O
     endDate || defaultDates.end
   )
   const [currentMonth, setCurrentMonth] = React.useState<Date>(selectedStartDate || new Date())
-  const [mode, setMode] = React.useState<DateMode>("next30days")
-  const [previousMode, setPreviousMode] = React.useState<DateMode>("next30days")
+  const [mode, setMode] = React.useState<DateMode>("next7days")
+  const [previousMode, setPreviousMode] = React.useState<DateMode>("next7days")
   const [isOpen, setIsOpen] = React.useState(false)
 
   // Initialize with next 7 days if no dates provided
   React.useEffect(() => {
+    debugger
     if (!startDate && !endDate) {
       // Ensure Next 7 Days is selected and applied by default
       const today = new Date()
-      const sevenDaysFromNow = addDays(today, 29)
+      const sevenDaysFromNow = addDays(today, 6)
       setSelectedStartDate(today)
       setSelectedEndDate(sevenDaysFromNow)
-      setMode("next30days") // Explicitly set mode to next7days
-      LocalStorageService.setItem("otaRankPreferredDateMode", "next30days")
+      setMode("next7days") // Explicitly set mode to next7days
+      LocalStorageService.setItem("otaRankPreferredDateMode", "next7days")
       setCurrentMonth(today)
       // Auto-apply the default selection
       onChange?.(today, sevenDaysFromNow)
     } else {
-      setMode(LocalStorageService.getItem("otaRankPreferredDateMode") || "next30days")
+      setMode(LocalStorageService.getItem("otaRankPreferredDateMode") || "next7days")
       setSelectedStartDate(startDate)
       setSelectedEndDate(endDate)
       if (startDate) {
@@ -77,14 +79,16 @@ export function OtaRankDatePicker({ startDate, endDate, onChange, className }: O
 
   // Ensure default dates are applied on component mount
   React.useEffect(() => {
+    debugger;
     if (!startDate && !endDate) {
       const today = new Date()
-      const sevenDaysFromNow = addDays(today, 29)
+      const sevenDaysFromNow = addDays(today, 6)
       onChange?.(today, sevenDaysFromNow)
     }
   }, []) // Empty dependency - runs only once on mount
 
   const handleDateSelect = (date: Date) => {
+    debugger;
     if (!selectedStartDate || selectedEndDate) {
       setSelectedStartDate(date)
       setSelectedEndDate(undefined)
@@ -307,7 +311,7 @@ export function OtaRankDatePicker({ startDate, endDate, onChange, className }: O
       const daysDiff = Math.round((selectedEndDate.getTime() - selectedStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
 
       // Check if it matches common patterns
-      if (isSameDay(selectedStartDate, today)) {
+      if (isSameDay(selectedStartDate, today) && mode !== "customRange") {
         if (daysDiff === 7) return `Next 7 Days • ${dateRangeText}`
         if (daysDiff === 14) return `Next 14 Days • ${dateRangeText}`
         if (daysDiff === 30) return `Next 30 Days • ${dateRangeText}`

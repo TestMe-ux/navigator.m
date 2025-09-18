@@ -66,7 +66,7 @@ export default function OTARankingsPage() {
 
   // Date picker state - Initialize with future dates for Rank mode
   const [startDate, setStartDate] = useState<Date | null>(new Date())
-  const [endDate, setEndDate] = useState<Date | null>(new Date(Date.now() + 29 * 24 * 60 * 60 * 1000)) // 30 days from now
+  const [endDate, setEndDate] = useState<Date | null>(new Date(Date.now() + 6 * 24 * 60 * 60 * 1000)) // 30 days from now
 
   // Filter dropdown states
   const [isCompareOpen, setIsCompareOpen] = useState(false)
@@ -255,15 +255,15 @@ export default function OTARankingsPage() {
         setOtaReviewsData([])
       }, 0)
 
-      // Set to future dates for Rank mode (Next 30 Days)
+      // Set to future dates for Rank mode (Next 7 Days)
       const today = new Date()
-      const thirtyDaysFromNow = new Date(today.getTime() + 29 * 24 * 60 * 60 * 1000)
+      const sevenDaysFromNow = new Date(today.getTime() + 6 * 24 * 60 * 60 * 1000)
       console.log('Switching to Rank mode - setting date range:', {
         startDate: format(today, 'yyyy-MM-dd'),
-        endDate: format(thirtyDaysFromNow, 'yyyy-MM-dd')
+        endDate: format(sevenDaysFromNow, 'yyyy-MM-dd')
       })
       setStartDate(today)
-      setEndDate(thirtyDaysFromNow)
+      setEndDate(sevenDaysFromNow)
     }
 
     // Clear loading state after a short delay to allow data to clear

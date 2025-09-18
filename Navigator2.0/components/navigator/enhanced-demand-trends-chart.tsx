@@ -167,11 +167,13 @@ function generateChartEvents(trendData: any[], events: any, holidaysData: any) {
 }
 
 function countryAvgMap(data: any[][]) {
-  debugger;
   const totals = new Map<string, { sum: number; count: number }>();
 
+  // Step 1: Aggregate totalflights, excluding "Others"
   data.forEach(day =>
     day.forEach(({ srcCountryName, totalflights }) => {
+      if (srcCountryName === "Others") return;
+
       const curr = totals.get(srcCountryName) || { sum: 0, count: 0 };
       curr.sum += totalflights;
       curr.count += 1;
@@ -179,30 +181,31 @@ function countryAvgMap(data: any[][]) {
     })
   );
 
+  // Step 2: Calculate averages
   const averages = Array.from(totals.entries()).map(([srcCountryName, { sum, count }]) => ({
     srcCountryName,
     totalflights: +(sum / count).toFixed(0),
   }));
-  const top4 = averages; //.slice(0, 4);
-  // const others = averages.slice(4);
 
-  // if (others.length > 0) {
-  //   const othersTotal = others.reduce(
-  //     (acc, curr) => {
-  //       acc.sum += curr.totalflights;
-  //       acc.count += 1;
-  //       return acc;
-  //     },
-  //     { sum: 0, count: 0 }
-  //   );
+  // Step 3: Sort descending by totalflights
+  averages.sort((a, b) => b.totalflights - a.totalflights);
 
-  //   top4.push({
-  //     srcCountryName: "Others",
-  //     totalflights: +(othersTotal.sum / othersTotal.count).toFixed(0),
-  //   });
-  // }
+  // Step 4: Top 4 + Others
+  const top4 = averages.slice(0, 4);
+
+  if (averages.length > 4) {
+    const top4Sum = top4.reduce((acc, curr) => acc + curr.totalflights, 0);
+    const othersTotal = Math.max(0, 100 - top4Sum); // Cap at 0 to prevent negatives
+
+    top4.push({
+      srcCountryName: "Others",
+      totalflights: othersTotal,
+    });
+  }
+
   return top4;
 }
+
 // Aggregate daily data into weeks
 function aggregateDataByWeek(dailyData: any[], startDate: Date, endDate: Date) {
   const weeks = eachWeekOfInterval({ start: startDate, end: endDate }, { weekStartsOn: 1 }) // Start week on Monday
