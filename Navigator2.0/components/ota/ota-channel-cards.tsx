@@ -85,14 +85,15 @@ function OTAChannelCards({
     return 10;
   };
   return (
-    <div className="w-full animate-slide-up">
-      {/* Channel Cards with Pagination */}
-      <div className="relative mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+    <TooltipProvider>
+      <div className="w-full animate-slide-up">
+        {/* Channel Cards with Pagination */}
+        <div className="relative mb-6 overflow-visible">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 overflow-visible">
           {currentChannels.map((channel, index) => (
             <div key={channel.id} className="relative">
               <Card
-                className={`group relative overflow-hidden bg-gradient-to-br from-card to-card/80 backdrop-blur-sm border-2 transition-all duration-300 cursor-pointer hover:shadow-2xl hover:-translate-y-1 ${selectedChannel.toLowerCase() === channel.name.toLowerCase()
+                className={`group relative overflow-visible bg-gradient-to-br from-card to-card/80 backdrop-blur-sm border-2 transition-all duration-300 cursor-pointer hover:shadow-2xl hover:-translate-y-1 ${selectedChannel.toLowerCase() === channel.name.toLowerCase()
                   ? "ring-2 ring-primary/70 shadow-xl border-primary/60 scale-105"
                   : "border-border/50 hover:border-primary/20"
                   }`}
@@ -150,29 +151,50 @@ function OTAChannelCards({
                       <div className="flex flex-col h-full">
                         <div className="flex items-baseline space-x-1">
                           <span className="text-lg font-bold text-foreground leading-none">
-                            {viewMode === "Reviews" ? channel.reviewScore > 0 ? channel.reviewScore : '--' : channel.avgRank > 0 && channel.avgRank < 500 ? channel.avgRank : (
-                              <div className="flex items-center justify-end space-x-1">
-                                <TooltipProvider>
+                            {viewMode === "Reviews" ? (
+                              // REVIEW SCORE FIELD - NO TOOLTIP EVER
+                              <span className="text-foreground">
+                                {channel.reviewScore > 0 ? channel.reviewScore : '--'}
+                              </span>
+                            ) : (
+                              // RANK FIELD - WITH TOOLTIP WHEN NEEDED (RANK TAB)
+                              channel.avgRank > 0 && channel.avgRank < 500 ? (
+                                <span className="text-foreground">{channel.avgRank}</span>
+                              ) : (
+                                <div className="flex items-center justify-end space-x-1">
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <span className="text-red-600 dark:text-red-400 font-semibold text-lg cursor-help">#500+</span>
                                     </TooltipTrigger>
-                                    <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                    <TooltipContent 
+                                      side="top" 
+                                      align="center" 
+                                      className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[99999]"
+                                      sideOffset={5}
+                                      avoidCollisions={true}
+                                      collisionPadding={10}
+                                    >
                                       <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
                                     </TooltipContent>
                                   </Tooltip>
-                                </TooltipProvider>
-                                <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <Info className="w-3 h-3 text-red-600 dark:text-red-400 cursor-help transition-colors" />
                                     </TooltipTrigger>
-                                    <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                    <TooltipContent 
+                                      side="top" 
+                                      align="center" 
+                                      className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[99999]"
+                                      sideOffset={5}
+                                      avoidCollisions={true}
+                                      collisionPadding={10}
+                                    >
                                       <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
                                     </TooltipContent>
                                   </Tooltip>
-                                </TooltipProvider>
-                              </div>)}
+                                </div>
+                              )
+                            )}
                           </span>
                           {viewMode === "Reviews" ? (
                             channel.reviewScore > 0 &&
@@ -215,29 +237,50 @@ function OTAChannelCards({
                       <div className="flex flex-col h-full">
                         <div className="flex items-baseline space-x-1">
                           <span className="text-lg font-bold text-foreground leading-none">
-                            {viewMode === "Reviews" ? channel.avgRank > 0 && channel.avgRank < 500 ? channel.avgRank : (
-                              <div className="flex items-center justify-end space-x-1">
-                                <TooltipProvider>
+                            {viewMode === "Reviews" ? (
+                              // RANK FIELD IN REVIEWS MODE - WITH TOOLTIP WHEN NEEDED
+                              channel.avgRank > 0 && channel.avgRank < 500 ? (
+                                <span className="text-foreground">{channel.avgRank}</span>
+                              ) : (
+                                <div className="flex items-center justify-end space-x-1">
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <span className="text-red-600 dark:text-red-400 font-semibold text-lg cursor-help">#500+</span>
                                     </TooltipTrigger>
-                                    <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                    <TooltipContent 
+                                      side="left" 
+                                      align="center" 
+                                      className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[99999]"
+                                      sideOffset={5}
+                                      avoidCollisions={true}
+                                      collisionPadding={10}
+                                    >
                                       <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
                                     </TooltipContent>
                                   </Tooltip>
-                                </TooltipProvider>
-                                <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <Info className="w-3 h-3 text-red-600 dark:text-red-400 cursor-help transition-colors" />
                                     </TooltipTrigger>
-                                    <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                    <TooltipContent 
+                                      side="left" 
+                                      align="center" 
+                                      className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[99999]"
+                                      sideOffset={5}
+                                      avoidCollisions={true}
+                                      collisionPadding={10}
+                                    >
                                       <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
                                     </TooltipContent>
                                   </Tooltip>
-                                </TooltipProvider>
-                              </div>) : channel.reviewScore > 0 ? channel.reviewScore : '--'}
+                                </div>
+                              )
+                            ) : (
+                              // REVIEW SCORE FIELD IN RANK MODE - NO TOOLTIP EVER
+                              <span className="text-foreground">
+                                {channel.reviewScore > 0 ? channel.reviewScore : '--'}
+                              </span>
+                            )}
                           </span>
                           {viewMode === "Reviews" ? (
                             channel.avgRank > 0 && channel.avgRank < 500 &&
@@ -284,43 +327,51 @@ function OTAChannelCards({
               {/* Navigation Arrows - Show on top-right of last channel widget */}
               {index === currentChannels.length - 1 && totalChannelPages > 1 && (
                 <div className="absolute -top-4 -right-2 flex gap-1">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handlePrevChannels}
-                          disabled={currentChannelPage === 0}
-                          className="w-8 h-8 p-0 rounded-full shadow-lg bg-background hover:bg-muted border-2"
-                        >
-                          <ChevronLeft className="w-3 h-3" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="bg-black text-white border-black">
-                        <p>Previous channels</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePrevChannels}
+                        disabled={currentChannelPage === 0}
+                        className="w-8 h-8 p-0 rounded-full shadow-lg bg-background hover:bg-muted border-2"
+                      >
+                        <ChevronLeft className="w-3 h-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent 
+                      side="bottom" 
+                      align="center" 
+                      className="bg-black text-white border-black z-[99999]"
+                      avoidCollisions={true}
+                      collisionPadding={10}
+                    >
+                      <p>Previous channels</p>
+                    </TooltipContent>
+                  </Tooltip>
 
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleNextChannels}
-                          disabled={currentChannelPage >= totalChannelPages - 1}
-                          className="w-8 h-8 p-0 rounded-full shadow-lg bg-background hover:bg-muted border-2"
-                        >
-                          <ChevronRight className="w-3 h-3" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="bg-black text-white border-black">
-                        <p>Next channels</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNextChannels}
+                        disabled={currentChannelPage >= totalChannelPages - 1}
+                        className="w-8 h-8 p-0 rounded-full shadow-lg bg-background hover:bg-muted border-2"
+                      >
+                        <ChevronRight className="w-3 h-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent 
+                      side="bottom" 
+                      align="center" 
+                      className="bg-black text-white border-black z-[99999]"
+                      avoidCollisions={true}
+                      collisionPadding={10}
+                    >
+                      <p>Next channels</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               )}
             </div>
@@ -328,6 +379,7 @@ function OTAChannelCards({
         </div>
       </div>
     </div>
+    </TooltipProvider>
   )
 }
 

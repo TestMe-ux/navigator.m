@@ -22,7 +22,7 @@ import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import {LocalStorageService} from "@/lib/localstorage"
+import { LocalStorageService } from "@/lib/localstorage"
 
 type DateMode = "last15days" | "last30days" | "customRange"
 
@@ -301,7 +301,7 @@ export function OtaReviewDatePicker({ startDate, endDate, onChange, className }:
       const daysDiff = Math.round((selectedEndDate.getTime() - selectedStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
 
       // Check if it matches common patterns
-      if (isSameDay(selectedEndDate, today)) {
+      if (isSameDay(selectedEndDate, today) && mode !== "customRange") {
         if (daysDiff === 15) return `Last 15 Days • ${dateRangeText}`
         if (daysDiff === 30) return `Last 30 Days • ${dateRangeText}`
       }
