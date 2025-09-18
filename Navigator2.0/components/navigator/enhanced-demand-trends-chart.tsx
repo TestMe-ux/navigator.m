@@ -167,6 +167,7 @@ function generateChartEvents(trendData: any[], events: any, holidaysData: any) {
 }
 
 function countryAvgMap(data: any[][]) {
+  debugger;
   const totals = new Map<string, { sum: number; count: number }>();
 
   // Step 1: Aggregate totalflights, excluding "Others"
@@ -193,9 +194,9 @@ function countryAvgMap(data: any[][]) {
   // Step 4: Top 4 + Others
   const top4 = averages.slice(0, 4);
 
-  if (averages.length > 4) {
-    const top4Sum = top4.reduce((acc, curr) => acc + curr.totalflights, 0);
-    const othersTotal = Math.max(0, 100 - top4Sum); // Cap at 0 to prevent negatives
+  const top4Sum = top4.reduce((acc, curr) => acc + curr.totalflights, 0);
+  const othersTotal = Math.max(0, 100 - top4Sum); // Cap at 0 to prevent negatives
+  if (othersTotal > 0) {
 
     top4.push({
       srcCountryName: "Others",
