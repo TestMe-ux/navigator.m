@@ -4099,7 +4099,7 @@ export default function EventsCalendarPage() {
                       }{" "}
                       events bookmarked
                     </div>
-                    <Button onClick={() => bookMarkDialogClose()} className="px-4 py-2 text-sm">Done</Button>
+                    {/* <Button onClick={() => bookMarkDialogClose()} className="px-4 py-2 text-sm">Done</Button> */}
                   </div>
                 </DialogContent>
               </Dialog>
