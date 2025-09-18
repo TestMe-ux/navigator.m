@@ -9,6 +9,7 @@ import { useUserDetail, useSelectedProperty } from "@/hooks/use-local-storage"
 import { differenceInDays, format, isSameMonth, isSameYear, parseISO } from "date-fns"
 import { get } from "http"
 import { getRateShopsData, getUsageTrendChartData } from "@/lib/reports"
+import { GetPackageDetails } from "@/lib/login"
 
 // Mock data for the usage trend chart - different datasets for each view
 // const generateUsageData = (viewBy: string) => {
@@ -61,6 +62,7 @@ export default function MyAccountPage() {
   const [userDetail] = useUserDetail()
   const [selectedProperty] = useSelectedProperty()
   const [rateShops, setRateShops] = useState<any>({});
+  const [packageDetail, setPackageDetail] = useState<any>({});
   const [chartData, setChartData] = useState<any[]>([]);
 
   // Dummy girl image for testing
@@ -115,12 +117,23 @@ export default function MyAccountPage() {
 
       try {
         const filtersValue = { sid: selectedProperty.sid };
-        const response = await getRateShopsData(filtersValue);
+        Promise.all([await getRateShopsData(filtersValue), await GetPackageDetails(filtersValue)]).then(([rateShopsResponse, packageResponse]) => {
+          if (!isCancelled && rateShopsResponse?.status) {
+            setRateShops(rateShopsResponse.body);
+          }
+          if (!isCancelled && packageResponse?.status) {
+            setPackageDetail(packageResponse.body);
+          }
+        });
+        // const response = await getRateShopsData(filtersValue);
+        // const responsePackage = await GetPackageDetails(filtersValue);
 
-        if (!isCancelled && response?.status) {
-          setRateShops(response.body);
-          console.log("Rate Shops Data:", response);
-        }
+        // if (!isCancelled && response?.status) {
+
+        // }
+        // if (!isCancelled && responsePackage?.status) {
+
+        // }
       } catch (error) {
         console.error("Error loading rate shops:", error);
       } finally {
@@ -430,8 +443,8 @@ export default function MyAccountPage() {
 
                         {/* Custom Section */}
                         <div className="space-y-1">
-                          <h3 className="text-sm font-semibold text-foreground capitalize tracking-wide">Custom:</h3>
-                          <p className="text-sm text-foreground">NA</p>
+                          <h3 className="text-sm font-semibold text-foreground capitalize tracking-wide">{packageDetail?.displayName||'Custom'}:</h3>
+                          <p className="text-sm text-foreground">{packageDetail?.packageName||'NA'}</p>
                         </div>
                       </div>
                     </div>
@@ -497,56 +510,66 @@ export default function MyAccountPage() {
                           {isChartLoading ? (
                             // 👇 Loading Skeleton
                             <div className="space-y-4">
-                              <div className="flex items-center justify-between">
-                                {/* <div className="h-6 w-28 bg-gray-300 animate-pulse rounded mb-2"></div> */}
-                                {/* <div className="flex border border-border rounded-md overflow-hidden">
-                                  <div className="h-8 w-16 bg-gray-300 animate-pulse"></div>
-                                  <div className="h-8 w-16 bg-gray-300 animate-pulse"></div>
-                                  <div className="h-8 w-16 bg-gray-300 animate-pulse"></div>
-                                  <div className="h-8 w-16 bg-gray-300 animate-pulse"></div>
-                                </div> */}
-                              </div>
-                              <div className="h-72 w-full bg-gray-300 animate-pulse rounded"></div>
+                              {/* <div className="flex items-center justify-between">
+                                {Array.from({ length: 10}).map((_, i) => (
+                                  <div key={i} className="flex flex-col justify-end items-center w-4 sm:w-6 lg:w-8">
+                                    <div className="w-full bg-gray-300 dark:bg-slate-700 rounded-t-md" style={{
+                                      height: `${Math.random() * 60 + 60}px`
+                                    }} />
+                                    <div className="h-2 w-6 mt-2 bg-gray-200 dark:bg-slate-800 rounded-sm" />
+                                  </div>
+                                ))}
+                              </div> */}
+                              <div className="h-72 w-full bg-gray-300 items-center justify-between animate-pulse rounded text-center"></div>
                             </div>
                           ) : (
                             <div className="h-72 w-full flex">
                               {/* Fixed Y-Axis */}
                               <div className="flex-shrink-0 w-12 h-full bg-white dark:bg-slate-900 relative">
-                                <div className="absolute top-5 right-1 w-full">
+                                {/* Y-axis bar line */}
+                                <div className="absolute top-5 bottom-8 left-[calc(100%-1px)] w-px bg-gray-200 dark:bg-slate-700" />
+
+                                {/* Max value label */}
+                                <div className="absolute top-5 right-0 w-full">
                                   <div className="text-xs text-muted-foreground text-right">
-                                    {useKFormat ? `${(maxValue / 1000).toFixed(0)}K` : maxValue.toString()}
+                                    {useKFormat ? `${(maxValue / 1000).toFixed(0)}K -` : maxValue.toString() + " -"}
                                   </div>
                                 </div>
-                                <div className="absolute bottom-5 right-1 w-full">
-                                  <div className="text-xs text-muted-foreground text-right">0  </div>
+
+                                {/* 0 label */}
+                                <div className="absolute bottom-7 right-0 w-full">
+                                  <div className="text-xs text-muted-foreground text-right">0 -</div>
                                 </div>
+
+                                {/* Mid labels */}
                                 {(() => {
-                                  const steps = 5
-                                  const stepValue = maxValue / steps
-                                  const chartHeight = 288 // h-72 = 288px
-                                  const labelSpacing = (chartHeight - 40) / steps // 40px for top and bottom padding
+                                  const steps = 5;
+                                  const stepValue = maxValue / steps;
+                                  const chartHeight = 288; // h-72
+                                  const labelSpacing = (chartHeight - 40) / steps;
 
                                   return Array.from({ length: steps - 1 }, (_, i) => {
-                                    const value = Math.round(stepValue * (steps - i - 1))
-                                    const topPosition = 20 + (labelSpacing * (i + 1)) // 20px top padding
-                                    let formattedValue
-                                    if (useKFormat) {
-                                      formattedValue = value >= 1000 ? `${(value / 1000).toFixed(0)}K` : `${(value / 1000).toFixed(1)}K`
-                                    } else {
-                                      formattedValue = value.toString()
-                                    }
+                                    const value = Math.round(stepValue * (steps - i - 1));
+                                    const topPosition = 20 + labelSpacing * (i + 1);
+                                    const formattedValue = useKFormat
+                                      ? value >= 1000
+                                        ? `${(value / 1000).toFixed(0)}K -`
+                                        : `${(value / 1000).toFixed(1)}K -`
+                                      : value.toString() + " -";
+
                                     return (
                                       <div
                                         key={i}
-                                        className="absolute text-xs text-muted-foreground text-right right-1 w-full"
+                                        className="absolute text-xs text-muted-foreground text-right right-0 w-full"
                                         style={{ top: `${topPosition}px` }}
                                       >
-                                        {formattedValue + "  "}
+                                        {formattedValue}
                                       </div>
-                                    )
-                                  })
+                                    );
+                                  });
                                 })()}
                               </div>
+
 
                               {/* Scrollable Chart Area */}
                               <div ref={scrollContainerRef} className="flex-1 h-full overflow-x-auto scrollbar-hide" style={{
@@ -569,16 +592,17 @@ export default function MyAccountPage() {
                                   >
                                     <BarChart
                                       data={chartData}
-                                      margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
+                                      margin={{ top: 20, right: 20, left: 20, bottom: 5 }}
                                       barCategoryGap={chartData.length > 50 ? "10%" : chartData.length > 30 ? "5%" : "20%"}
                                     >
+
                                       <XAxis
                                         dataKey="reportDate"
                                         fontSize={11}
                                         tick={{ fontSize: 11, fill: "#666" }}
                                         axisLine={{ stroke: "#e5e7eb" }}
                                         tickLine={{ stroke: "#e5e7eb" }}
-                                        interval={chartData.length > 30 ? 4 : 1}
+                                        interval={chartData.length <10 ? 0 : chartData.length < 15 ? 1 : chartData.length < 30 ? 3 : 4}
                                         tickFormatter={(value) => {
                                           let values;
 
