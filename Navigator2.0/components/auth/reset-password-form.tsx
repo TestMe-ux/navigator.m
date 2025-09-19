@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { InputWithTooltip, ValidationHelpers } from "@/components/auth/field-tooltip"
+import { ResetPassword } from "@/lib/login"
 
 /**
  * Reset Password Form Component
@@ -144,12 +145,12 @@ export function ResetPasswordForm() {
   const renderFormattedMessage = (message: string) => {
     const emailPattern = /help@rategain\.com/g
     const parts = message.split(emailPattern)
-    
+
     if (parts.length === 1) {
       // No email found, return as is
       return message
     }
-    
+
     return (
       <>
         {parts.map((part, index) => (
@@ -173,7 +174,7 @@ export function ResetPasswordForm() {
       email: emailError,
       general: ""
     }
-    
+
     setErrors(newErrors)
     return !emailError
   }
@@ -184,26 +185,48 @@ export function ResetPasswordForm() {
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Validate form
     if (!validateForm()) {
       return
     }
-    
+
     setIsLoading(true)
-    
+
     try {
       // Simulate API call for password reset - fast response
-      await new Promise(resolve => setTimeout(resolve, 400))
-      
+      const response = await ResetPassword({ "uname": email })
+      if (response.status) {
+        setIsSubmitted(true)
+      }
+      else {
+        if (response.message == "User Not Exist!") {
+          setErrors(prev => ({
+            ...prev,
+            general: "Invalid User! Please try again with your registered email address."
+          }))
+        }
+        else if (response.message === "Unable to send mail, please contact support team.") {
+          setErrors(prev => ({
+            ...prev,
+            general: "Something Went Wrong! Please try after sometime!"
+          }))
+        }
+        else {
+          setErrors(prev => ({
+            ...prev,
+            general: "Something Went Wrong! Failed to send reset email. Please try again."
+          }))
+        }
+
+      }
       console.log('Password reset requested for:', email)
-      setIsSubmitted(true)
-      
+
     } catch (error) {
       console.error('Password reset error:', error)
-      setErrors(prev => ({ 
-        ...prev, 
-        general: "Failed to send reset email. Please try again." 
+      setErrors(prev => ({
+        ...prev,
+        general: "Failed to send reset email. Please try again."
       }))
     } finally {
       setIsLoading(false)
@@ -216,38 +239,44 @@ export function ResetPasswordForm() {
   const handleResend = async () => {
     setIsLoading(true)
     setResendMessage("") // Clear previous message
-    
+
     try {
       // Simulate resend API call - fast response
-      await new Promise(resolve => setTimeout(resolve, 300))
+      const response = await ResetPassword({ "uname": email })
       console.log('Password reset email resent to:', email)
-      
-      const newResendCount = resendCount + 1
-      setResendCount(newResendCount)
-      
-      if (newResendCount === 1) {
-        // First resend - show success message
-        setResendMessage("Password reset link sent successfully!")
-        setMessageType("success")
-      } else {
-        // Subsequent resends - show helpful info message
-        setResendMessage(
-          "We have already sent you a password reset link. Please check your email inbox and junk/spam folder. If you still haven't received the email after a few minutes, please contact our support team at help@rategain.com for assistance."
-        )
+      if (response.status) {
+        const newResendCount = resendCount + 1
+        setResendCount(newResendCount)
+
+        if (newResendCount === 1) {
+          // First resend - show success message
+          setResendMessage("Password reset link sent successfully!")
+          setMessageType("success")
+        } else {
+          // Subsequent resends - show helpful info message
+          setResendMessage(
+            "We have already sent you a password reset link. Please check your email inbox and junk/spam folder. If you still haven't received the email after a few minutes, please contact our support team at help@rategain.com for assistance."
+          )
+          setMessageType("info")
+        }
+
+        // Clear message after 8 seconds for success, 16 seconds for info
+        setTimeout(() => {
+          setResendMessage("")
+          setMessageType("")
+        }, newResendCount === 1 ? 8000 : 16000)
+      }
+      else {
+        setResendMessage("Failed to resend email. Please try again.")
         setMessageType("info")
       }
-      
-      // Clear message after 8 seconds for success, 16 seconds for info
-      setTimeout(() => {
-        setResendMessage("")
-        setMessageType("")
-      }, newResendCount === 1 ? 8000 : 16000)
-      
+
+
     } catch (error) {
       console.error('Resend error:', error)
       setResendMessage("Failed to resend email. Please try again.")
       setMessageType("info")
-      
+
       // Clear error message after 16 seconds
       setTimeout(() => {
         setResendMessage("")
@@ -294,15 +323,14 @@ export function ResetPasswordForm() {
                   {isLoading ? "Sending..." : "Click to resend"}
                 </button>
               </p>
-              
+
               {/* Resend Message Display */}
               {resendMessage && (
-                <div 
-                  className={`text-sm p-4 rounded-lg border animate-in fade-in-0 slide-in-from-top-2 duration-300 ${
-                    messageType === "success" 
-                      ? "bg-green-500/10 border-green-400/20 text-green-100" 
-                      : "bg-blue-500/10 border-blue-400/20 text-blue-100"
-                  }`}
+                <div
+                  className={`text-sm p-4 rounded-lg border animate-in fade-in-0 slide-in-from-top-2 duration-300 ${messageType === "success"
+                    ? "bg-green-500/10 border-green-400/20 text-green-100"
+                    : "bg-blue-500/10 border-blue-400/20 text-blue-100"
+                    }`}
                   role="alert"
                   aria-live="polite"
                 >
@@ -333,7 +361,7 @@ export function ResetPasswordForm() {
             <div className="h-[18px]"></div>
 
             <Button
-              onClick={() => window.location.href = '/login/create-password'}
+              onClick={() => window.location.href = '/login'}
               className="w-full h-12 text-base font-semibold bg-gradient-brand hover:opacity-90 text-white shadow-brand rounded-lg transition-all transform hover:scale-[1.02]"
             >
               Done
@@ -381,10 +409,9 @@ export function ResetPasswordForm() {
                     setEmail(e.target.value)
                     clearFieldError("email") // Clear error when user starts typing
                   }}
-                  className={`h-12 px-4 text-base bg-transparent focus:bg-transparent hover:bg-transparent active:bg-transparent border border-white/30 focus:border-white/60 focus:outline-none rounded-lg transition-all placeholder:font-normal placeholder:text-gray-300 text-white font-semibold hover:border-white/40 ${
-                    errors.email ? "border-red-400/70 focus:border-red-400" : ""
-                  }`}
-                  style={{ 
+                  className={`h-12 px-4 text-base bg-transparent focus:bg-transparent hover:bg-transparent active:bg-transparent border border-white/30 focus:border-white/60 focus:outline-none rounded-lg transition-all placeholder:font-normal placeholder:text-gray-300 text-white font-semibold hover:border-white/40 ${errors.email ? "border-red-400/70 focus:border-red-400" : ""
+                    }`}
+                  style={{
                     backgroundColor: 'transparent',
                     WebkitBoxShadow: 'inset 0 0 0 1000px transparent',
                     MozBoxShadow: 'inset 0 0 0 1000px transparent',

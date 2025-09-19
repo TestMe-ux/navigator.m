@@ -7,6 +7,9 @@ export class Constants {
     public static readonly API_GET_OTAChannels = "OTARank/GetOTAChannels";
     public static readonly ParityAPI_GET_Parity = "Parity/GetRateSummary";
     public static readonly API_GET_Mapping_GetSIDListforUser = "GeneralSettings/GetSIDListforUser";
+    public static readonly API_SET_Login = "UserRole/Login"; 
+    public static readonly API_SET_ResetPassword = "UserRole/ResetPassword"; 
+    public static readonly API_SET_PasswordRecovery = "UserRole/PasswordRecovery"; 
     public static readonly DemandAPI_GET_DemandAICountryAverage = "DemandAI/getOptimaDemandAverageInboundData";
     public static readonly DemandAPI_GET_DemandAI = "DemandAI/getOptimaDemandData";
     public static readonly API_GET_GetAllEvents = "Events/GetAllEvents";
@@ -22,4 +25,10 @@ export class Constants {
     public static readonly API_GetMasterActiveReviews = "OTARank/GetMasterActiveReviews";
     public static readonly API_GET_GetCurrencySymbolDetails = "GeneralSettings/GetCurrencySymbolDetails";
     public static readonly API_GET_OTARankTrends = "OTARank/GetOTARankTrends";
+    public static readonly API_GETALLREPORTS = "Report/GetReportDates";
+    public static readonly API_GETREPORTDATA = "Report/GetReportData";
+    public static readonly API_GETSCHEDULEDATA = "Report/GetScheduleReportData";
+    public static readonly API_GetSummaryData = "SelfServe/GetRRDSelfServe";
+    public static readonly API_GetChartData = "SelfServe/GetChartData";
+    public static readonly API_GetPackageDetails="SelfServe/GetPackageDetails";
 }

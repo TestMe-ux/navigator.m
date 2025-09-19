@@ -4,7 +4,14 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Info, RefreshCw, Plus } from "lucide-react"
 
-export function ReportsHeader({ handleRefresh, handleCreateOnDemand, reportsCount }: any) {
+interface ReportsHeaderProps {
+  handleRefresh: () => void
+  handleCreateOnDemand: () => void
+  reportsCount: number
+  hasInProgressReports?: boolean
+}
+
+export function ReportsHeader({ handleRefresh, handleCreateOnDemand, reportsCount, hasInProgressReports = false }: ReportsHeaderProps) {
   
   return (
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4">
@@ -34,15 +41,31 @@ export function ReportsHeader({ handleRefresh, handleCreateOnDemand, reportsCoun
         {/* Right Section - Actions */}
         <div className="flex items-center gap-2">
           {/* Create On-Demand Report Button */}
-          <Button 
-            variant="default" 
-            size="sm" 
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
-            onClick={handleCreateOnDemand}
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Create On-Demand Report
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="default" 
+                size="sm" 
+                className={`${hasInProgressReports 
+                  ? 'bg-gray-400 hover:bg-gray-400 text-gray-600 cursor-not-allowed' 
+                  : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                }`}
+                onClick={hasInProgressReports ? undefined : handleCreateOnDemand}
+                disabled={hasInProgressReports}
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Create On-Demand Report
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="bg-black text-white border-black">
+              <p>
+                {hasInProgressReports 
+                  ? 'Cannot create new report while other reports are in progress' 
+                  : 'Create a new on-demand report'
+                }
+              </p>
+            </TooltipContent>
+          </Tooltip>
           
           {/* Refresh Button */}
           <Tooltip>

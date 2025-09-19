@@ -50,6 +50,32 @@ export function ReportsDatePicker({ startDate, endDate, onChange, className }: R
   const [mode, setMode] = React.useState<DateMode>("last7days")
   const [isOpen, setIsOpen] = React.useState(false)
 
+  // Function to determine mode based on dates
+  const determineModeFromDates = (start: Date | undefined, end: Date | undefined): DateMode => {
+    if (!start || !end) return "last7days"
+    
+    const today = new Date()
+    const daysDiff = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    
+    // Check if it matches common patterns for "last" periods ending today
+    if (isSameDay(end, today)) {
+      if (daysDiff === 7 && isSameDay(start, subDays(today, 6))) {
+        return "last7days"
+      }
+      if (daysDiff === 14 && isSameDay(start, subDays(today, 13))) {
+        return "last14days"
+      }
+    }
+    
+    // Check if it's last month
+    const lastMonth = subMonths(today, 1)
+    if (isSameDay(start, startOfMonth(lastMonth)) && isSameDay(end, endOfMonth(lastMonth))) {
+      return "lastmonth"
+    }
+    
+    return "last7days" // Default fallback
+  }
+
   // Initialize with last 7 days if no dates provided
   React.useEffect(() => {
     if (!startDate && !endDate) {
@@ -65,6 +91,9 @@ export function ReportsDatePicker({ startDate, endDate, onChange, className }: R
     } else {
       setSelectedStartDate(startDate)
       setSelectedEndDate(endDate)
+      // Determine the correct mode based on the provided dates
+      const detectedMode = determineModeFromDates(startDate, endDate)
+      setMode(detectedMode)
       if (startDate) {
         setCurrentMonth(startDate)
       }

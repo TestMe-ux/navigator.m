@@ -16,28 +16,29 @@ import {
   addYears,
   isBefore,
   isAfter,
+  subYears,
 } from "date-fns"
 import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import localStorageService from "@/lib/localstorage"
+import { LocalStorageService } from "@/lib/localstorage"
 
-type DateMode = "next7days" | "next14days" | "next30days" | "customRange"
+type DateMode = "last15days" | "last30days" | "customRange"
 
-interface OtaRankDatePickerProps {
+interface OtaReviewDatePickerProps {
   startDate?: Date
   endDate?: Date
   onChange?: (startDate: Date | null, endDate: Date | null) => void
   className?: string
 }
 
-export function OtaRankDatePicker({ startDate, endDate, onChange, className }: OtaRankDatePickerProps) {
-  // Initialize with Next 30 Days by default
+export function OtaReviewDatePicker({ startDate, endDate, onChange, className }: OtaReviewDatePickerProps) {
+  // Initialize with Last 30 Days by default
   const getDefaultDates = () => {
     const today = new Date()
-    const thirtyDaysFromNow = addDays(today, 29)
-    return { start: today, end: thirtyDaysFromNow }
+    const thirtyDaysAgo = subDays(today, 29) // 30 days including today
+    return { start: thirtyDaysAgo, end: today }
   }
 
   const defaultDates = getDefaultDates()
@@ -48,25 +49,25 @@ export function OtaRankDatePicker({ startDate, endDate, onChange, className }: O
     endDate || defaultDates.end
   )
   const [currentMonth, setCurrentMonth] = React.useState<Date>(selectedStartDate || new Date())
-  const [mode, setMode] = React.useState<DateMode>("next30days")
-  const [previousMode, setPreviousMode] = React.useState<DateMode>("next30days")
+  const [mode, setMode] = React.useState<DateMode>("last30days")
+  const [previousMode, setPreviousMode] = React.useState<DateMode>("last30days")
   const [isOpen, setIsOpen] = React.useState(false)
 
-  // Initialize with next 7 days if no dates provided
+  // Initialize with last 30 days if no dates provided
   React.useEffect(() => {
     if (!startDate && !endDate) {
-      // Ensure Next 7 Days is selected and applied by default
+      // Ensure Last 30 Days is selected and applied by default
       const today = new Date()
-      const sevenDaysFromNow = addDays(today, 29)
-      setSelectedStartDate(today)
-      setSelectedEndDate(sevenDaysFromNow)
-      setMode("next30days") // Explicitly set mode to next7days
-      localStorageService.set("otaRankPreferredDateMode", "next30days")
-      setCurrentMonth(today)
+      const thirtyDaysAgo = subDays(today, 29)
+      setSelectedStartDate(thirtyDaysAgo)
+      setSelectedEndDate(today)
+      setMode("last30days") // Explicitly set mode to last30days
+      LocalStorageService.setItem("otaReviewPreferredDateMode", "last30days")
+      setCurrentMonth(thirtyDaysAgo)
       // Auto-apply the default selection
-      onChange?.(today, sevenDaysFromNow)
+      onChange?.(thirtyDaysAgo, today)
     } else {
-      setMode(localStorageService.get("otaRankPreferredDateMode") || "next30days")
+      setMode(LocalStorageService.getItem("otaReviewPreferredDateMode") || "last30days")
       setSelectedStartDate(startDate)
       setSelectedEndDate(endDate)
       if (startDate) {
@@ -79,8 +80,8 @@ export function OtaRankDatePicker({ startDate, endDate, onChange, className }: O
   React.useEffect(() => {
     if (!startDate && !endDate) {
       const today = new Date()
-      const sevenDaysFromNow = addDays(today, 29)
-      onChange?.(today, sevenDaysFromNow)
+      const thirtyDaysAgo = subDays(today, 29)
+      onChange?.(thirtyDaysAgo, today)
     }
   }, []) // Empty dependency - runs only once on mount
 
@@ -103,23 +104,19 @@ export function OtaRankDatePicker({ startDate, endDate, onChange, className }: O
     }
 
     setMode(newMode)
-    localStorageService.set("otaRankPreferredDateMode", newMode)
+    LocalStorageService.setItem("otaReviewPreferredDateMode", newMode)
     const today = new Date()
     let newStartDate: Date | undefined
     let newEndDate: Date | undefined
 
     switch (newMode) {
-      case "next7days":
-        newStartDate = today
-        newEndDate = addDays(today, 6) // 7 days including today
+      case "last15days":
+        newStartDate = subDays(today, 14) // 15 days including today
+        newEndDate = today
         break
-      case "next14days":
-        newStartDate = today
-        newEndDate = addDays(today, 13) // 14 days including today
-        break
-      case "next30days":
-        newStartDate = today
-        newEndDate = addDays(today, 29) // 30 days including today
+      case "last30days":
+        newStartDate = subDays(today, 29) // 30 days including today
+        newEndDate = today
         break
       case "customRange":
       default:
@@ -167,12 +164,10 @@ export function OtaRankDatePicker({ startDate, endDate, onChange, className }: O
     const today = new Date()
 
     switch (mode) {
-      case "next7days":
-        return formatDateRange(today, addDays(today, 6))
-      case "next14days":
-        return formatDateRange(today, addDays(today, 13))
-      case "next30days":
-        return formatDateRange(today, addDays(today, 29))
+      case "last15days":
+        return formatDateRange(subDays(today, 14), today)
+      case "last30days":
+        return formatDateRange(subDays(today, 29), today)
       case "customRange":
         // Never show dates under Custom Date Range option in dropdown
         // Keep it clean with just the label
@@ -183,13 +178,12 @@ export function OtaRankDatePicker({ startDate, endDate, onChange, className }: O
   }
 
   const quickDateOptions = [
-    { mode: "next7days" as DateMode, label: "Next 7 Days" },
-    { mode: "next14days" as DateMode, label: "Next 14 Days" },
-    { mode: "next30days" as DateMode, label: "Next 30 Days" },
+    { mode: "last15days" as DateMode, label: "Last 15 Days" },
+    { mode: "last30days" as DateMode, label: "Last 30 Days" },
     { mode: "customRange" as DateMode, label: "Custom Date Range" },
   ]
-  const minDate = new Date();
-  const maxDate = addYears(new Date(), 1);
+  const minDate = subYears(new Date(), 1);
+  const maxDate = new Date();
 
   const renderCalendarMonth = (monthDate: Date) => {
     const monthStart = startOfMonth(monthDate)
@@ -215,7 +209,7 @@ export function OtaRankDatePicker({ startDate, endDate, onChange, className }: O
     const maxSelectableAfterStart =
       selectedStartDate ? addDays(selectedStartDate, 89) : maxDate;
     const minSelectableAfterStart =
-      selectedStartDate ? subDays(selectedStartDate, 89) : maxDate;
+      selectedStartDate ? subDays(selectedStartDate, 89) : minDate;
     return (
       <div className="flex-1">
         <div className="flex items-center justify-between mb-4">
@@ -234,7 +228,7 @@ export function OtaRankDatePicker({ startDate, endDate, onChange, className }: O
             size="icon"
             className="h-8 w-8"
             onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-            disabled={isAfter(startOfMonth(addMonths(currentMonth, 1)), maxSelectableAfterStart) || isAfter(startOfMonth(addMonths(currentMonth, 1)), maxDate)}
+            disabled={isAfter(startOfMonth(addMonths(currentMonth, 1)), maxDate)}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -263,7 +257,7 @@ export function OtaRankDatePicker({ startDate, endDate, onChange, className }: O
             let rangeMin = minDate;
             let rangeMax = maxDate;
             if (selectedStartDate) {
-              const before = addDays(selectedStartDate, -89);
+              const before = subDays(selectedStartDate, 89);
               const after = addDays(selectedStartDate, 89);
               rangeMin = before < minDate ? minDate : before;
               rangeMax = after > maxDate ? maxDate : after;
@@ -307,10 +301,9 @@ export function OtaRankDatePicker({ startDate, endDate, onChange, className }: O
       const daysDiff = Math.round((selectedEndDate.getTime() - selectedStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
 
       // Check if it matches common patterns
-      if (isSameDay(selectedStartDate, today)) {
-        if (daysDiff === 7) return `Next 7 Days • ${dateRangeText}`
-        if (daysDiff === 14) return `Next 14 Days • ${dateRangeText}`
-        if (daysDiff === 30) return `Next 30 Days • ${dateRangeText}`
+      if (isSameDay(selectedEndDate, today) && mode !== "customRange") {
+        if (daysDiff === 15) return `Last 15 Days • ${dateRangeText}`
+        if (daysDiff === 30) return `Last 30 Days • ${dateRangeText}`
       }
 
       // Default to just the date range for custom selections

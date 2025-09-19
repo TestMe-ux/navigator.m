@@ -13,7 +13,7 @@ import {
 } from "lucide-react"
 import { cn, conevrtDateforApi, escapeCSVValue } from "@/lib/utils"
 import { GetDemandAIData } from "@/lib/demand"
-import localStorageService from "@/lib/localstorage"
+import {LocalStorageService} from "@/lib/localstorage"
 import { addDays, format } from "date-fns"
 
 
@@ -180,7 +180,7 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
   const [hiddenDemandLevels, setHiddenDemandLevels] = useState<Set<CalendarDay['demandLevel']>>(
     new Set([])
   )
-  const selectedProperty: any = localStorageService.get('SelectedProperty')
+  const selectedProperty: any = LocalStorageService.getItem('SelectedProperty')
   const fetchedSIDRef = useRef<number | null>(null)
   useImperativeHandle(csvRef, () => ({
     handleDownloadCSV,
@@ -497,7 +497,7 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
         const eventNames = matchingEvents.length > 0 ? matchingEvents.map((e: any) => e.eventName).join(', ') : '';
         console.log("eventNames", eventNames);
         return [
-          formatDate(demand.checkinDate),
+          format(demand.checkinDate,'MM/dd/yyyy'),
           //new Date(demand.checkinDate).toLocaleDateString('en-US'),
           new Date(demand.checkinDate).toLocaleDateString('en-US', { weekday: 'short' }),
           demand.demandIndex,
