@@ -217,6 +217,7 @@ export function LoginForm() {
       }
 
     } catch (error) {
+      setIsLoading(false)
       console.error('Login error:', error)
       const errorMessage = handleLoginError(error)
       setErrors(prev => ({
@@ -224,7 +225,7 @@ export function LoginForm() {
         general: errorMessage
       }))
     } finally {
-      setIsLoading(false)
+      
     }
   }
   function handleLoginError(error: any) {
@@ -304,6 +305,7 @@ export function LoginForm() {
           // getOTARankOnAllChannels(res.body);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
+        setIsLoading(false);
       })
       .catch((err) => console.error(err));
   }
@@ -338,7 +340,7 @@ export function LoginForm() {
                   type="email"
                   placeholder="Enter Username"
                   value={email}
-                  autoComplete="new-password"
+                  // autoComplete="new-password"
                   data-transparent-bg="true"
                   onChange={(e) => {
                     setEmail(e.target.value)
@@ -373,7 +375,7 @@ export function LoginForm() {
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter Password"
                     value={password}
-                    autoComplete="new-password"
+                    // autoComplete="new-password"
                     data-transparent-bg="true"
                     onChange={(e) => {
                       setPassword(e.target.value)
@@ -401,9 +403,9 @@ export function LoginForm() {
                     tabIndex={-1}
                   >
                     {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
                       <Eye className="h-4 w-4" />
+                    ) : (
+                      <EyeOff className="h-4 w-4" />
                     )}
                     <span className="sr-only">
                       {showPassword ? "Hide password" : "Show password"}
