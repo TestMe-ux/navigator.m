@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { UserCircle, Camera } from "lucide-react"
@@ -10,37 +10,61 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 const generateUsageData = (viewBy: string) => {
   switch (viewBy) {
     case "Daily":
-      return [
-        { date: "06 Aug", Scheduled: 45, OnDemand: 25, LightningRefresh: 15 },
-        { date: "07 Aug", Scheduled: 52, OnDemand: 18, LightningRefresh: 22 },
-        { date: "08 Aug", Scheduled: 38, OnDemand: 32, LightningRefresh: 12 },
-        { date: "09 Aug", Scheduled: 65, OnDemand: 28, LightningRefresh: 18 },
-        { date: "10 Aug", Scheduled: 42, OnDemand: 35, LightningRefresh: 25 },
-        { date: "11 Aug", Scheduled: 58, OnDemand: 22, LightningRefresh: 16 },
-        { date: "12 Aug", Scheduled: 72, OnDemand: 45, LightningRefresh: 28 },
-      ]
+      // Generate 90 days of data to test scroll functionality
+      const dailyData = []
+      for (let i = 0; i < 90; i++) {
+        const date = new Date()
+        date.setDate(date.getDate() - (89 - i))
+        const day = date.getDate().toString().padStart(2, '0')
+        const month = date.toLocaleDateString('en-US', { month: 'short' })
+        
+        dailyData.push({
+          date: `${day} ${month}`,
+          Scheduled: Math.floor(Math.random() * 50) + 20,
+          OnDemand: Math.floor(Math.random() * 30) + 10,
+          LightningRefresh: Math.floor(Math.random() * 20) + 5
+        })
+      }
+      return dailyData
     case "Weekly":
-      return [
-        { date: "Week 1", Scheduled: 285, OnDemand: 165, LightningRefresh: 95 },
-        { date: "Week 2", Scheduled: 320, OnDemand: 142, LightningRefresh: 118 },
-        { date: "Week 3", Scheduled: 298, OnDemand: 188, LightningRefresh: 86 },
-        { date: "Week 4", Scheduled: 365, OnDemand: 195, LightningRefresh: 125 },
-      ]
+      // Generate 90 weeks of data to test scroll functionality
+      const weeklyData = []
+      for (let i = 0; i < 90; i++) {
+        weeklyData.push({
+          date: `Week ${i + 1}`,
+          Scheduled: Math.floor(Math.random() * 200) + 200,
+          OnDemand: Math.floor(Math.random() * 150) + 100,
+          LightningRefresh: Math.floor(Math.random() * 100) + 50
+        })
+      }
+      return weeklyData
     case "Monthly":
-      return [
-        { date: "Jan", Scheduled: 1250, OnDemand: 680, LightningRefresh: 420 },
-        { date: "Feb", Scheduled: 1180, OnDemand: 720, LightningRefresh: 385 },
-        { date: "Mar", Scheduled: 1320, OnDemand: 650, LightningRefresh: 465 },
-        { date: "Apr", Scheduled: 1285, OnDemand: 695, LightningRefresh: 445 },
-        { date: "May", Scheduled: 1420, OnDemand: 785, LightningRefresh: 520 },
-        { date: "Jun", Scheduled: 1365, OnDemand: 742, LightningRefresh: 485 },
-      ]
+      // Generate 90 months of data to test scroll functionality
+      const monthlyData = []
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      for (let i = 0; i < 90; i++) {
+        const monthIndex = i % 12
+        const year = 2017 + Math.floor(i / 12)
+        monthlyData.push({
+          date: `${months[monthIndex]} ${year}`,
+          Scheduled: Math.floor(Math.random() * 1000) + 1000,
+          OnDemand: Math.floor(Math.random() * 500) + 500,
+          LightningRefresh: Math.floor(Math.random() * 300) + 200
+        })
+      }
+      return monthlyData
     case "Yearly":
-      return [
-        { date: "2022", Scheduled: 14500, OnDemand: 8200, LightningRefresh: 5100 },
-        { date: "2023", Scheduled: 16200, OnDemand: 9100, LightningRefresh: 5850 },
-        { date: "2024", Scheduled: 15800, OnDemand: 8750, LightningRefresh: 5420 },
-      ]
+      // Generate 90 years of data to test scroll functionality
+      const yearlyData = []
+      for (let i = 0; i < 90; i++) {
+        yearlyData.push({
+          date: `${1935 + i}`,
+          Scheduled: Math.floor(Math.random() * 10000) + 10000,
+          OnDemand: Math.floor(Math.random() * 5000) + 5000,
+          LightningRefresh: Math.floor(Math.random() * 3000) + 2000
+        })
+      }
+      return yearlyData
     default:
       return []
   }
@@ -52,6 +76,11 @@ export default function MyAccountPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [loadingCycle, setLoadingCycle] = useState(1)
+
+  // Memoize chart data to prevent unnecessary re-renders
+  const chartData = useMemo(() => generateUsageData(viewBy), [viewBy])
+  const maxValue = useMemo(() => Math.max(...chartData.flatMap(d => [d.Scheduled, d.OnDemand, d.LightningRefresh])), [chartData])
+  const useKFormat = useMemo(() => maxValue >= 1000, [maxValue])
 
   // Dummy girl image for testing
   const dummyGirlImage = "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face"
@@ -111,6 +140,7 @@ export default function MyAccountPage() {
       clearTimeout(loadingTimeout)
     }
   }, [])
+
 
   // Custom My Account Loading Skeleton
   const MyAccountLoadingSkeleton = () => (
@@ -383,7 +413,9 @@ export default function MyAccountPage() {
                   {/* Usage Trend */}
                   <div>
                     <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-lg font-semibold">Usage Trend</h3>
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-semibold">Usage Trend</h3>
+                      </div>
                       <div className="flex items-center">
                         <span className="text-sm text-muted-foreground mr-2">View By:</span>
                         <div className="flex border border-border rounded-md overflow-hidden">
@@ -403,142 +435,196 @@ export default function MyAccountPage() {
                         </div>
                       </div>
                     </div>
-                      <div className="h-72 w-full bg-white dark:bg-slate-900 rounded">
-                        <ResponsiveContainer width="100%" height="100%">
-                        <BarChart 
-                          data={generateUsageData(viewBy)} 
-                          margin={{ top: 20, right: 0, left: 0, bottom: 0 }}
-                          barCategoryGap="20%"
-                        >
-                          <XAxis 
-                            dataKey="date" 
-                            fontSize={11} 
-                            tick={{ fontSize: 11, fill: "#666" }} 
-                            axisLine={{ stroke: "#e5e7eb" }}
-                            tickLine={{ stroke: "#e5e7eb" }}
-                          />
-                          <YAxis 
-                            fontSize={11} 
-                            width={35}
-                            tick={{ fontSize: 11, fill: "#666" }}
-                            axisLine={{ stroke: "#e5e7eb" }}
-                            tickLine={{ stroke: "#e5e7eb" }}
-                            tickFormatter={(value) => {
-                              if (value >= 1000) {
-                                return `${(value / 1000).toFixed(0)}K`
+                    <div className="w-full bg-white dark:bg-slate-900 rounded overflow-hidden">
+                      {/* Chart Container with Fixed Y-Axis */}
+                      <div className="h-72 w-full flex">
+                        {/* Fixed Y-Axis */}
+                        <div className="flex-shrink-0 w-12 h-full bg-white dark:bg-slate-900 relative">
+                          <div className="absolute top-5 right-1 w-full">
+                            <div className="text-xs text-muted-foreground text-right">
+                              {useKFormat ? `${(maxValue / 1000).toFixed(0)}K` : maxValue.toString()}  
+                            </div>
+                          </div>
+                          <div className="absolute bottom-5 right-1 w-full">
+                            <div className="text-xs text-muted-foreground text-right">0  </div>
+                          </div>
+                          {(() => {
+                            const steps = 5
+                            const stepValue = maxValue / steps
+                            const chartHeight = 288 // h-72 = 288px
+                            const labelSpacing = (chartHeight - 40) / steps // 40px for top and bottom padding
+                            
+                            return Array.from({ length: steps - 1 }, (_, i) => {
+                              const value = Math.round(stepValue * (steps - i - 1))
+                              const topPosition = 20 + (labelSpacing * (i + 1)) // 20px top padding
+                              let formattedValue
+                              if (useKFormat) {
+                                formattedValue = value >= 1000 ? `${(value / 1000).toFixed(0)}K` : `${(value / 1000).toFixed(1)}K`
+                              } else {
+                                formattedValue = value.toString()
                               }
-                              return value.toString()
+                              return (
+                                <div 
+                                  key={i} 
+                                  className="absolute text-xs text-muted-foreground text-right right-1 w-full"
+                                  style={{ top: `${topPosition}px` }}
+                                >
+                                  {formattedValue + "  "}
+                                </div>
+                              )
+                            })
+                          })()}
+                        </div>
+                        
+                        {/* Scrollable Chart Area */}
+                        <div className="flex-1 h-full overflow-x-auto scrollbar-hide" style={{
+                          scrollbarWidth: 'none',
+                          msOverflowStyle: 'none',
+                          WebkitScrollbar: { display: 'none' },
+                          scrollBehavior: 'smooth'
+                        }}>
+                          <div 
+                            className="h-full"
+                            style={{
+                              width: chartData.length > 50 ? `${Math.max(100, (chartData.length / 50) * 100)}%` : '100%',
+                              minWidth: '100%'
                             }}
-                          />
-                          <Tooltip 
-                            contentStyle={{
-                              backgroundColor: 'white',
-                              border: '1px solid #e5e7eb',
-                              borderRadius: '6px',
-                              fontSize: '12px',
-                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                            }}
-                            content={({ active, payload, label }) => {
-                              if (active && payload && payload.length) {
-                                // Format date based on view type
-                                const formatDateParts = (dateStr: string, viewType: string) => {
-                                  if (viewType === 'Daily') {
-                                    // For daily view, convert "06 Aug" to separate date and weekday
-                                    const currentYear = new Date().getFullYear()
-                                    const date = new Date(`${dateStr} ${currentYear}`)
-                                    if (!isNaN(date.getTime())) {
-                                      const day = date.getDate().toString().padStart(2, '0')
-                                      const month = date.toLocaleDateString('en-US', { month: 'short' })
-                                      const weekday = date.toLocaleDateString('en-US', { weekday: 'short' })
+                          >
+                            <ResponsiveContainer 
+                              width="100%" 
+                              height="100%"
+                            >
+                             <BarChart 
+                               data={generateUsageData(viewBy)} 
+                               margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
+                               barCategoryGap={generateUsageData(viewBy).length > 50 ? "10%" : generateUsageData(viewBy).length > 30 ? "5%" : "20%"}
+                             >
+                            <XAxis 
+                              dataKey="date" 
+                              fontSize={11} 
+                              tick={{ fontSize: 11, fill: "#666" }} 
+                              axisLine={{ stroke: "#e5e7eb" }}
+                              tickLine={{ stroke: "#e5e7eb" }}
+                              interval={generateUsageData(viewBy).length > 30 ? 4 : 0}
+                            />
+                            <Tooltip 
+                              contentStyle={{
+                                backgroundColor: 'white',
+                                border: '1px solid #e5e7eb',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                              }}
+                              content={({ active, payload, label }) => {
+                                if (active && payload && payload.length) {
+                                  // Format date based on view type
+                                  const formatDateParts = (dateStr: string, viewType: string) => {
+                                    if (viewType === 'Daily') {
+                                      // For daily view, convert "06 Aug" to separate date and weekday
+                                      const currentYear = new Date().getFullYear()
+                                      const date = new Date(`${dateStr} ${currentYear}`)
+                                      if (!isNaN(date.getTime())) {
+                                        const day = date.getDate().toString().padStart(2, '0')
+                                        const month = date.toLocaleDateString('en-US', { month: 'short' })
+                                        const weekday = date.toLocaleDateString('en-US', { weekday: 'short' })
+                                        return {
+                                          main: `${day} ${month},`,
+                                          weekday: weekday
+                                        }
+                                      }
+                                    } else if (viewType === 'Weekly') {
+                                      // For weekly view, show "Week 1 (8 Aug - 14 Aug)"
+                                      const weekNumber = dateStr.split(' ')[1] // Extract number from "Week 1"
+                                      const currentYear = new Date().getFullYear()
+                                      const currentDate = new Date()
+                                      
+                                      // Calculate week start date (assuming Week 1 starts from current date going back)
+                                      const weekIndex = parseInt(weekNumber) - 1
+                                      const weekStartDate = new Date(currentDate)
+                                      weekStartDate.setDate(currentDate.getDate() - (3 - weekIndex) * 7) // Adjust based on week
+                                      
+                                      const weekEndDate = new Date(weekStartDate)
+                                      weekEndDate.setDate(weekStartDate.getDate() + 6)
+                                      
+                                      const formatDay = (date: Date) => {
+                                        const day = date.getDate()
+                                        const month = date.toLocaleDateString('en-US', { month: 'short' })
+                                        return `${day} ${month}`
+                                      }
+                                      
                                       return {
-                                        main: `${day} ${month},`,
-                                        weekday: weekday
+                                        main: `Week ${weekNumber} (${formatDay(weekStartDate)} - ${formatDay(weekEndDate)})`,
+                                        weekday: null
                                       }
                                     }
-                                  } else if (viewType === 'Weekly') {
-                                    // For weekly view, show "Week 1 (8 Aug - 14 Aug)"
-                                    const weekNumber = dateStr.split(' ')[1] // Extract number from "Week 1"
-                                    const currentYear = new Date().getFullYear()
-                                    const currentDate = new Date()
-                                    
-                                    // Calculate week start date (assuming Week 1 starts from current date going back)
-                                    const weekIndex = parseInt(weekNumber) - 1
-                                    const weekStartDate = new Date(currentDate)
-                                    weekStartDate.setDate(currentDate.getDate() - (3 - weekIndex) * 7) // Adjust based on week
-                                    
-                                    const weekEndDate = new Date(weekStartDate)
-                                    weekEndDate.setDate(weekStartDate.getDate() + 6)
-                                    
-                                    const formatDay = (date: Date) => {
-                                      const day = date.getDate()
-                                      const month = date.toLocaleDateString('en-US', { month: 'short' })
-                                      return `${day} ${month}`
-                                    }
-                                    
                                     return {
-                                      main: `Week ${weekNumber} (${formatDay(weekStartDate)} - ${formatDay(weekEndDate)})`,
+                                      main: dateStr,
                                       weekday: null
                                     }
                                   }
-                                  return {
-                                    main: dateStr,
-                                    weekday: null
-                                  }
-                                }
 
-                                const dateParts = formatDateParts(label, viewBy)
+                                  const dateParts = formatDateParts(label, viewBy)
 
-                                return (
-                                  <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 min-w-[200px]">
-                                    <div className="mb-2">
-                                      <div className="font-semibold text-gray-900 text-sm">
-                                        {dateParts.main}
-                                        {dateParts.weekday && (
-                                          <span className="text-xs text-gray-500 ml-1">
-                                            {dateParts.weekday}
-                                          </span>
-                                        )}
+                                  return (
+                                    <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 min-w-[200px]">
+                                      <div className="mb-2">
+                                        <div className="font-semibold text-gray-900 text-sm">
+                                          {dateParts.main}
+                                          {dateParts.weekday && (
+                                            <span className="text-xs text-gray-500 ml-1">
+                                              {dateParts.weekday}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="space-y-1">
+                                        {payload.map((entry: any, index: number) => (
+                                          <div key={index} className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                              <div 
+                                                className="w-3 h-3 rounded-sm"
+                                                style={{ backgroundColor: entry.color }}
+                                              />
+                                              <span className="text-sm text-gray-700">{entry.name}:</span>
+                                            </div>
+                                            <span className="text-sm font-semibold text-gray-900">
+                                              {entry.value.toLocaleString()}
+                                            </span>
+                                          </div>
+                                        ))}
                                       </div>
                                     </div>
-                                    <div className="space-y-1">
-                                      {payload.map((entry: any, index: number) => (
-                                        <div key={index} className="flex items-center justify-between">
-                                          <div className="flex items-center gap-2">
-                                            <div 
-                                              className="w-3 h-3 rounded-sm"
-                                              style={{ backgroundColor: entry.color }}
-                                            />
-                                            <span className="text-sm text-gray-700">{entry.name}:</span>
-                                          </div>
-                                          <span className="text-sm font-semibold text-gray-900">
-                                            {entry.value.toLocaleString()}
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )
-                              }
-                              return null
-                            }}
-                          />
-                            <Legend 
-                              verticalAlign="bottom" 
-                              height={20}
-                              wrapperStyle={{
-                                fontSize: '12px',
-                                paddingTop: '5px',
-                                marginTop: '5px',
-                                display: 'flex',
-                                justifyContent: 'center',
-                                gap: '48px'
+                                  )
+                                }
+                                return null
                               }}
                             />
-                          <Bar dataKey="Scheduled" stackId="usage" fill="#3b82f6" name="Scheduled" radius={[0, 0, 0, 0]} />
-                          <Bar dataKey="OnDemand" stackId="usage" fill="#10b981" name="On Demand" radius={[0, 0, 0, 0]} />
-                          <Bar dataKey="LightningRefresh" stackId="usage" fill="#8b5cf6" name="Lightning Refresh" radius={[2, 2, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
+                            <Bar dataKey="Scheduled" stackId="usage" fill="#3b82f6" name="Scheduled" radius={[0, 0, 0, 0]} />
+                            <Bar dataKey="OnDemand" stackId="usage" fill="#10b981" name="On Demand" radius={[0, 0, 0, 0]} />
+                            <Bar dataKey="LightningRefresh" stackId="usage" fill="#8b5cf6" name="Lightning Refresh" radius={[2, 2, 0, 0]} />
+                          </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Fixed Legend Container */}
+                      <div className="w-full px-5 pb-3 -mt-2.5 mt-2">
+                        <div className="flex justify-center items-center gap-8">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-sm bg-blue-500"></div>
+                            <span className="text-sm text-blue-500">Scheduled</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-sm bg-emerald-500"></div>
+                            <span className="text-sm text-emerald-500">On Demand</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-sm bg-purple-500"></div>
+                            <span className="text-sm text-purple-500">Lightning Refresh</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
