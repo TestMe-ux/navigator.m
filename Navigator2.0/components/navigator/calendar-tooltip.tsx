@@ -1,7 +1,7 @@
 "use client"
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Wifi } from "lucide-react"
+import { Wifi, Star } from "lucide-react"
 import React from "react"
 import { useTooltips } from "./tooltip-context"
 
@@ -55,7 +55,7 @@ export const CalendarTooltip = ({ day, children, getCompetitiveData, weekDays }:
         <TooltipTrigger asChild>
           {children}
         </TooltipTrigger>
-        <TooltipContent side={getTooltipSide()} className={`calendar-tooltip-content bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 w-[460px] z-[9001] ${calendarTooltipsEnabled ? '' : 'hidden'}`}>
+        <TooltipContent side={getTooltipSide()} className={`calendar-tooltip-content bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 pr-6 w-[528px] z-[9001] ${calendarTooltipsEnabled ? '' : 'hidden'}`}>
           <div>
             {/* Date Heading */}
             <div className="mb-2">
@@ -84,59 +84,94 @@ export const CalendarTooltip = ({ day, children, getCompetitiveData, weekDays }:
                   return null
                 })()}
               </div>
+              <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mt-1 mb-4 text-left">
+                Alhambra Hotel
+              </div>
             </div>
 
-            {/* Rate Information Grid */}
-            <div className="mb-3">
-              <div className="text-xs text-gray-700 dark:text-gray-300 mb-2 font-medium">Pricing Information</div>
+            <div className="space-y-3 mb-3">
+              <div className="grid gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                <div className="text-left">Lowest Rate</div>
+                <div className="text-left">Room</div>
+                <div className="text-left">Inclusion</div>
+                <div className="text-left">Channel</div>
+              </div>
               
-              <div className="grid gap-1 text-xs mt-2" style={{gridTemplateColumns: '90px 150px 90px 90px'}}>
-                <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+              <div className="grid gap-2 text-xs mt-2" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
                   $210
                 </div>
-                <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
-                  STD (Standard Room)
+                <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                  Standard King
                 </div>
-                <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
-                  <div className="flex items-center gap-1">
-                    <Wifi className="w-3 h-3 flex-shrink-0" />
-                    <span>WiFi</span>
+                <div className="font-semibold text-gray-900 dark:text-white text-left">
+                  <div className="flex items-start gap-1">
+                    <Wifi className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                    <div className="text-wrap">
+                      {(() => {
+                        const inclusionText = "Free Wifi and Airport Pickup - Drop";
+                        if (inclusionText.length <= 19) {
+                          return <span>{inclusionText}</span>;
+                        }
+                        
+                        const firstLine = inclusionText.substring(0, 19);
+                        const remaining = inclusionText.substring(19);
+                        const secondLine = remaining.length > 14 
+                          ? remaining.substring(0, 14) + "..."
+                          : remaining;
+                        
+                        return (
+                          <div>
+                            <div>{firstLine}</div>
+                            <div>{secondLine}</div>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
                 </div>
-                <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
-                  Booking.com
+                <div className="font-semibold text-gray-900 dark:text-white text-left">
+                  {(() => {
+                    const channelName = "Booking.com";
+                    return channelName.length > 14 
+                      ? channelName.substring(0, 14) + "..."
+                      : channelName;
+                  })()}
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-between items-center text-xs text-gray-600 dark:text-gray-400 mb-3">
-              <span>Avg. Compset: ${avgCompsetRate}</span>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                day.variance > 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 
-                day.variance < 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 
-                'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-              }`}>
-                {day.variance > 0 ? '+' : ''}{day.variance}%
-              </span>
+            <div className="mb-3">
+              <div className="flex items-start gap-6">
+                {/* Avg. Compset Section */}
+                <div className="text-xs text-black dark:text-gray-100">
+                  <div className="text-left whitespace-nowrap">
+                    <span className="font-bold">${avgCompsetRate}</span> <span className="font-medium">- Avg. Compset</span>
+                  </div>
+                </div>
+                
+                {/* Events Section with 24px margin */}
+                {day.hasEvent && (
+                  <div style={{ marginLeft: '24px' }}>
+                    <div className="flex items-center gap-2">
+                      <Star className="w-3 h-3 text-amber-500 fill-current" />
+                      <div className="text-xs text-gray-800 dark:text-gray-200">
+                        Music Festival
+                      </div>
+                      <div style={{ paddingLeft: '0px' }}>
+                        <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                          (+2 more)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Event Information - Only show if events exist */}
-            {day.hasEvent && (
-              <div className="mb-3">
-                <div className="text-xs text-gray-700 dark:text-gray-300 mb-2 font-medium">Event Information</div>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-lg">{day.eventIcon}</span>
-                  <span className="text-gray-600 dark:text-gray-400">
-                    {day.eventCount} event{day.eventCount > 1 ? 's' : ''} today
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Additional Information */}
-            <div className="pt-2 border-t border-gray-300 dark:border-gray-600">
-              <div className="text-xs text-gray-800 dark:text-gray-200 leading-relaxed">
-                Standard Room | Continental breakfast included. Breakfast rated 6. Non-refundable. If you cancel, modify the booking, or don't show up, the fee will be the total price of the reservation...
+            <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
+              <div className="text-xs text-gray-800 dark:text-gray-200 leading-relaxed text-left">
+                Standard King | Continental breakfast included. Breakfast rated 6. Non-refundable. If you cancel, modify the booking, or don't show up, the fee will be the total price of the reservation...
               </div>
             </div>
           </div>
