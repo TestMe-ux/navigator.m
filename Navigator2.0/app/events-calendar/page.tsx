@@ -1065,6 +1065,7 @@ export default function EventsCalendarPage() {
           const response = await setSubscribeUnsubscribeEvent(filtersValues);
           if (response?.status) {
             //console.log("filtersValues SubscribeUnsubscribe", filtersValues)
+            // fetchAllData();           
             setEvents(prev => prev.map(ev => ev.eventId === getevents.eventId ? response.body.eventId : ev));
             setFilteredEvents(prev => prev.map(ev => ev.eventId === getevents.eventId ? response.body.eventId : ev));
             setSelectedEvent(prev => prev?.eventId === getevents.eventId ? response.body.eventId : prev);
@@ -1160,6 +1161,10 @@ export default function EventsCalendarPage() {
           console.error("API Error:", err);
         }
       }
+
+      setIsSaveEvent(true);
+      setTimeout(() => setLoadingProgress(0), 300);
+
 
     } catch (error) {
       console.error("API error:", getevents);
@@ -2703,26 +2708,26 @@ export default function EventsCalendarPage() {
 
   // Get event background color and border based on type/status
   const getEventBgColor = (event: Event) => {
-  // Priority order: holiday + bookmarked > bookmarked > holiday > suggested > default
+    // Priority order: holiday + bookmarked > bookmarked > holiday > suggested > default
 
-  if (event.type === "holiday" && event.status === "bookmarked") {
-    return "bg-gradient-to-r from-purple-50 to-purple-25 text-purple-700 border border-purple-200 border-l-4 border-l-purple-500 shadow-sm dark:from-purple-900 dark:to-purple-800 dark:text-purple-300 dark:border-purple-600 dark:border-l-purple-400";
-  }
+    if (event.type === "holiday" && event.status === "bookmarked") {
+      return "bg-gradient-to-r from-purple-50 to-purple-25 text-purple-700 border border-purple-200 border-l-4 border-l-purple-500 shadow-sm dark:from-purple-900 dark:to-purple-800 dark:text-purple-300 dark:border-purple-600 dark:border-l-purple-400";
+    }
 
-  if (event.status === "bookmarked") {
-    return "bg-gradient-to-r from-green-50 to-green-25 text-green-700 border border-green-200 border-l-4 border-l-green-500 shadow-sm dark:from-green-900 dark:to-green-800 dark:text-green-300 dark:border-green-600 dark:border-l-green-400";
-  }
+    if (event.status === "bookmarked") {
+      return "bg-gradient-to-r from-green-50 to-green-25 text-green-700 border border-green-200 border-l-4 border-l-green-500 shadow-sm dark:from-green-900 dark:to-green-800 dark:text-green-300 dark:border-green-600 dark:border-l-green-400";
+    }
 
-  if (event.type === "holiday") {
-    return "bg-gradient-to-r from-yellow-50 to-yellow-25 text-yellow-700 border border-yellow-200 border-l-4 border-l-yellow-500 shadow-sm dark:from-yellow-900 dark:to-yellow-800 dark:text-yellow-300 dark:border-yellow-600 dark:border-l-yellow-400";
-  }
+    if (event.type === "holiday") {
+      return "bg-gradient-to-r from-yellow-50 to-yellow-25 text-yellow-700 border border-yellow-200 border-l-4 border-l-yellow-500 shadow-sm dark:from-yellow-900 dark:to-yellow-800 dark:text-yellow-300 dark:border-yellow-600 dark:border-l-yellow-400";
+    }
 
-  if (event.status === "suggested") {
-    return "bg-gradient-to-r from-blue-50 to-blue-25 text-blue-700 border border-blue-200 border-l-4 border-l-blue-500 shadow-sm dark:from-blue-900 dark:to-blue-800 dark:text-blue-300 dark:border-blue-600 dark:border-l-blue-400";
-  }
+    if (event.status === "suggested") {
+      return "bg-gradient-to-r from-blue-50 to-blue-25 text-blue-700 border border-blue-200 border-l-4 border-l-blue-500 shadow-sm dark:from-blue-900 dark:to-blue-800 dark:text-blue-300 dark:border-blue-600 dark:border-l-blue-400";
+    }
 
-  return "bg-gradient-to-r from-gray-50 to-gray-25 text-gray-700 border border-gray-200 border-l-4 border-l-gray-400 shadow-sm dark:from-gray-800 dark:to-gray-700 dark:text-gray-300 dark:border-gray-600 dark:border-l-gray-500";
-};
+    return "bg-gradient-to-r from-gray-50 to-gray-25 text-gray-700 border border-gray-200 border-l-4 border-l-gray-400 shadow-sm dark:from-gray-800 dark:to-gray-700 dark:text-gray-300 dark:border-gray-600 dark:border-l-gray-500";
+  };
 
   // const getEventBgColor = (event: Event) => {
   //   // Priority order: bookmarked > holiday > suggested > default
@@ -4101,6 +4106,31 @@ export default function EventsCalendarPage() {
                     </div>
                     {/* <Button onClick={() => bookMarkDialogClose()} className="px-4 py-2 text-sm">Done</Button> */}
                   </div>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => bookMarkDialogClose()}
+                      className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="lucide lucide-x h-4 w-4"
+                      >
+                        <path d="M18 6 6 18" />
+                        <path d="m6 6 12 12" />
+                      </svg>
+                      <span className="sr-only">Close</span>
+                    </button>
+                  </div>
+
                 </DialogContent>
               </Dialog>
 
