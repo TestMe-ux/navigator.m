@@ -1,0 +1,817 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
+import { Search, Plus, Trash2, History, User, MoreVertical, Edit, CheckCircle, X, Camera } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+
+// Mock user data
+const mockUsers = [
+  {
+    id: 1,
+    name: "Janhvi gmail",
+    email: "janhvi.2024it1073@kiet.edu",
+    userType: "Property User",
+    emailAccess: true,
+    interfaceAccess: true,
+    defaultLandingPage: "Demand",
+    avatar: "/placeholder.svg?height=32&width=32",
+  },
+  {
+    id: 2,
+    name: "Janvi G",
+    email: "gupta18janhvi@gmail.com",
+    userType: "Property User",
+    emailAccess: false,
+    interfaceAccess: false,
+    defaultLandingPage: "Demand",
+    avatar: "/placeholder.svg?height=32&width=32",
+  },
+  {
+    id: 3,
+    name: "Renu Gupta",
+    email: "re.gupta@gmail.com",
+    userType: "Admin",
+    emailAccess: true,
+    interfaceAccess: true,
+    defaultLandingPage: "Overview",
+    avatar: "/placeholder.svg?height=32&width=32",
+  },
+  {
+    id: 4,
+    name: "Renu Gupta",
+    email: "re.rategain@gmail.com",
+    userType: "Admin",
+    emailAccess: false,
+    interfaceAccess: true,
+    defaultLandingPage: "Overview",
+    avatar: "/placeholder.svg?height=32&width=32",
+  },
+  {
+    id: 5,
+    name: "Travonne Barnhill",
+    email: "Travonne@ToplineRM.Com",
+    userType: "Admin",
+    emailAccess: false,
+    interfaceAccess: true,
+    defaultLandingPage: "Overview",
+    avatar: "/placeholder.svg?height=32&width=32",
+  },
+  {
+    id: 6,
+    name: "Renu Gupta",
+    email: "renu.gupta@gmail.com",
+    userType: "Admin",
+    emailAccess: true,
+    interfaceAccess: true,
+    defaultLandingPage: "Rate Evolution",
+    avatar: "/placeholder.svg?height=32&width=32",
+  },
+  {
+    id: 7,
+    name: "Rohit Gupta",
+    email: "rohit.gupta@gmail.com",
+    userType: "Manager",
+    emailAccess: true,
+    interfaceAccess: true,
+    defaultLandingPage: "Business Intelligence",
+    avatar: "/placeholder.svg?height=32&width=32",
+  },
+]
+
+const userRoles = ["Admin", "Property User", "Manager", "Viewer"]
+const landingPages = ["Overview", "Demand", "Rate Evolution", "Business Intelligence", "Cluster", "Price Planner", "Reports", "Settings", "Analytics"]
+
+export default function UserManagementPage() {
+  const [users, setUsers] = useState(mockUsers)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [showAddUser, setShowAddUser] = useState(false)
+  const [showChangeHistory, setShowChangeHistory] = useState(false)
+  const [showSnackbar, setShowSnackbar] = useState(false)
+  const [showDeleteSnackbar, setShowDeleteSnackbar] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [userToDelete, setUserToDelete] = useState<number | null>(null)
+  const [profileImage, setProfileImage] = useState<string | null>(null)
+  const [showSearch, setShowSearch] = useState(false)
+  const [searchValue, setSearchValue] = useState("")
+
+  // Add User form state
+  const [newUser, setNewUser] = useState({
+    firstName: "",
+    lastName: "",
+    userRole: "",
+    emailId: "",
+    interfaceAccess: false,
+    emailAccess: false,
+    defaultLandingPage: "",
+  })
+
+  // Auto-hide snackbar after 5 seconds
+  useEffect(() => {
+    if (showSnackbar) {
+      const timer = setTimeout(() => {
+        setShowSnackbar(false)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [showSnackbar])
+
+  // Auto-hide delete snackbar after 5 seconds
+  useEffect(() => {
+    if (showDeleteSnackbar) {
+      const timer = setTimeout(() => {
+        setShowDeleteSnackbar(false)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [showDeleteSnackbar])
+
+  const filteredUsers = users.filter(
+    (user) =>
+      user.name.toLowerCase().includes((searchValue || searchTerm).toLowerCase()) ||
+      user.email.toLowerCase().includes((searchValue || searchTerm).toLowerCase()),
+  )
+
+  const toggleUserAccess = (userId: number, accessType: "emailAccess" | "interfaceAccess") => {
+    setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, [accessType]: !user[accessType] } : user)))
+  }
+
+  const handleAddUser = () => {
+    if (newUser.firstName && newUser.lastName && newUser.userRole && newUser.emailId && newUser.defaultLandingPage) {
+      const user = {
+        id: Math.max(...users.map(u => u.id)) + 1, // Get the highest ID and add 1
+        name: `${newUser.firstName} ${newUser.lastName}`,
+        email: newUser.emailId,
+        userType: newUser.userRole,
+        emailAccess: newUser.emailAccess,
+        interfaceAccess: newUser.interfaceAccess,
+        defaultLandingPage: newUser.defaultLandingPage,
+        avatar: "/placeholder.svg?height=32&width=32",
+      }
+      // Add user to the top of the table
+      setUsers((prev) => [user, ...prev])
+      setShowAddUser(false)
+      setShowSnackbar(true)
+      
+      // Reset form
+      setNewUser({
+        firstName: "",
+        lastName: "",
+        userRole: "",
+        emailId: "",
+        interfaceAccess: false,
+        emailAccess: false,
+        defaultLandingPage: "",
+      })
+    }
+  }
+
+  const handleCancelAddUser = () => {
+    setNewUser({
+      firstName: "",
+      lastName: "",
+      userRole: "",
+      emailId: "",
+      interfaceAccess: false,
+      emailAccess: false,
+      defaultLandingPage: "",
+    })
+    setShowAddUser(false)
+  }
+
+  const handleDeleteUser = (userId: number) => {
+    setUserToDelete(userId)
+    setShowDeleteConfirm(true)
+  }
+
+  const confirmDeleteUser = () => {
+    if (userToDelete) {
+      setUsers((prev) => prev.filter((user) => user.id !== userToDelete))
+      setShowDeleteConfirm(false)
+      setUserToDelete(null)
+      setShowDeleteSnackbar(true)
+    }
+  }
+
+  const cancelDeleteUser = () => {
+    setShowDeleteConfirm(false)
+    setUserToDelete(null)
+  }
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setProfileImage(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const triggerFileInput = () => {
+    const fileInput = document.getElementById('profile-image-upload') as HTMLInputElement
+    fileInput?.click()
+  }
+
+  const toggleSearch = () => {
+    setShowSearch(!showSearch)
+    if (showSearch) {
+      setSearchValue("")
+    }
+  }
+
+  const clearSearch = () => {
+    setSearchValue("")
+    setSearchTerm("")
+    setShowSearch(false)
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-8">
+          <div className="space-y-1">
+            <span className="text-xl font-semibold text-foreground">User Management</span>
+            <p className="text-sm text-muted-foreground">
+              Manage user accounts, permissions, and access controls for your organization
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Search Icon/Field */}
+          <div className="flex items-center gap-2">
+            {!showSearch ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      onClick={toggleSearch}
+                      className="flex items-center gap-2"
+                    >
+                      <Search className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Search By User Name</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <div className="relative">
+                <Input
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  placeholder="Search..."
+                  className="w-[120px] h-9 px-3 pr-8 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
+                  autoFocus
+                />
+                <Button
+                  variant="ghost"
+                  onClick={clearSearch}
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 p-1 h-6 w-6 hover:bg-gray-100"
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={() => setShowChangeHistory(true)}
+            className="flex items-center gap-2"
+          >
+            <History className="w-4 h-4" />
+            Change History
+          </Button>
+          <Button
+            onClick={() => setShowAddUser(true)}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add User
+          </Button>
+        </div>
+      </div>
+
+
+      {/* Users Table */}
+      <Card className="bg-gradient-to-br from-card to-card/50 border-gray-200 dark:border-slate-700">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-gray-700">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tl-lg">
+                    User Name
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider">
+                    Email ID
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider">
+                    User Type
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider">
+                    Email Access
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider">
+                    Interface Access
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider">
+                    Default Landing Page
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tr-lg">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-gray-700">
+                {filteredUsers.map((user, index) => {
+                  const isLastRow = index === filteredUsers.length - 1;
+                  return (
+                    <tr key={user.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800/50 ${index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-800'}`}>
+                      <td className={`px-4 py-2 whitespace-nowrap ${isLastRow ? 'rounded-bl-lg' : ''}`}>
+                        <div className="flex items-center">
+                          <div className="w-6 h-6 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mr-2">
+                            <User className="w-3 h-3 text-gray-500 dark:text-gray-400" />
+                          </div>
+                          <div className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 cursor-pointer">
+                            {user.name}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        {user.email}
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        {user.userType}
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-center">
+                        <Switch
+                          checked={user.emailAccess}
+                          onCheckedChange={() => toggleUserAccess(user.id, "emailAccess")}
+                          className="scale-75"
+                        />
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-center">
+                        <Switch
+                          checked={user.interfaceAccess}
+                          onCheckedChange={() => toggleUserAccess(user.id, "interfaceAccess")}
+                          className="scale-75"
+                        />
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        {user.defaultLandingPage}
+                      </td>
+                      <td className={`px-4 py-2 whitespace-nowrap text-center ${isLastRow ? 'rounded-br-lg' : ''}`}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 h-6 w-6 p-0"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Add User Modal */}
+      <Dialog open={showAddUser} onOpenChange={setShowAddUser}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-xl font-semibold text-black">Add User</DialogTitle>
+              
+              {/* Profile Image Upload */}
+              <div className="relative">
+                <input
+                  id="profile-image-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+                <button
+                  onClick={triggerFileInput}
+                  className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-gray-300 hover:border-gray-400 transition-colors group"
+                >
+                  {profileImage ? (
+                    <img
+                      src={profileImage}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                      <User className="w-6 h-6 text-gray-500" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity flex items-center justify-center">
+                    <Camera className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </button>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-6 mt-4">
+            {/* First Row: First Name and Last Name */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <Label className="block text-xs font-medium text-gray-700 mb-1">
+                  First Name<span className="text-red-500 ml-1">*</span>
+                </Label>
+                <Input
+                  value={newUser.firstName}
+                  onChange={(e) => setNewUser((prev) => ({ ...prev, firstName: e.target.value }))}
+                  placeholder="Enter first name"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
+                />
+              </div>
+              <div>
+                <Label className="block text-xs font-medium text-gray-700 mb-1">
+                  Last Name<span className="text-red-500 ml-1">*</span>
+                </Label>
+                <Input
+                  value={newUser.lastName}
+                  onChange={(e) => setNewUser((prev) => ({ ...prev, lastName: e.target.value }))}
+                  placeholder="Enter last name"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
+                />
+              </div>
+            </div>
+
+            {/* Second Row: User Role and Email ID */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <Label className="block text-xs font-medium text-gray-700 mb-1">
+                  User Role<span className="text-red-500 ml-1">*</span>
+                </Label>
+                <Select
+                  value={newUser.userRole}
+                  onValueChange={(value) => setNewUser((prev) => ({ ...prev, userRole: value }))}
+                >
+                  <SelectTrigger className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-0 focus:ring-offset-0">
+                    <SelectValue placeholder="Select user role" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60 overflow-y-auto [&>div]:max-h-60 [&>div]:overflow-y-auto">
+                    {userRoles.map((role) => (
+                      <SelectItem key={role} value={role} className="pl-3 [&>span:first-child]:hidden">
+                        {role}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="block text-xs font-medium text-gray-700 mb-1">
+                  Email ID<span className="text-red-500 ml-1">*</span>
+                </Label>
+                <Input
+                  type="email"
+                  value={newUser.emailId}
+                  onChange={(e) => setNewUser((prev) => ({ ...prev, emailId: e.target.value }))}
+                  placeholder="Enter email address"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
+                />
+              </div>
+            </div>
+
+            {/* Third Row: Default Landing Page */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <Label className="block text-xs font-medium text-gray-700 mb-1">
+                  Default Landing Page<span className="text-red-500 ml-1">*</span>
+                </Label>
+                <Select
+                  value={newUser.defaultLandingPage}
+                  onValueChange={(value) => setNewUser((prev) => ({ ...prev, defaultLandingPage: value }))}
+                >
+                  <SelectTrigger className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-0 focus:ring-offset-0">
+                    <SelectValue placeholder="Select landing page" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60 overflow-y-auto [&>div]:max-h-60 [&>div]:overflow-y-auto">
+                    {landingPages.map((page) => (
+                      <SelectItem key={page} value={page} className="pl-3 [&>span:first-child]:hidden">
+                        {page}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="block text-xs font-medium text-gray-700 mb-1">
+                  Access Options
+                </Label>
+                <div className="flex items-center space-x-6 mt-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="interface-access"
+                      checked={newUser.interfaceAccess}
+                      onCheckedChange={(checked) => setNewUser((prev) => ({ ...prev, interfaceAccess: !!checked }))}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                    />
+                    <Label htmlFor="interface-access" className="text-sm text-gray-700 cursor-pointer">
+                      Interface Access
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="email-access"
+                      checked={newUser.emailAccess}
+                      onCheckedChange={(checked) => setNewUser((prev) => ({ ...prev, emailAccess: !!checked }))}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                    />
+                    <Label htmlFor="email-access" className="text-sm text-gray-700 cursor-pointer">
+                      Email Access
+                    </Label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+            <Button
+              variant="outline"
+              onClick={handleCancelAddUser}
+              className="h-9 px-4 text-sm font-medium text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddUser}
+              disabled={
+                !newUser.firstName ||
+                !newUser.lastName ||
+                !newUser.userRole ||
+                !newUser.emailId ||
+                !newUser.defaultLandingPage
+              }
+              className="h-9 px-4 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            >
+              Save
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change History Modal */}
+      <Dialog open={showChangeHistory} onOpenChange={setShowChangeHistory}>
+        <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Change History</DialogTitle>
+            <DialogDescription>
+              Shows the history of all the changes
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-2 flex-1 overflow-hidden">
+            <div className="border border-gray-300 dark:border-gray-600 rounded-lg h-full">
+              <div className="h-[400px] overflow-y-auto border-b border-gray-200 dark:border-gray-700 mb-2.5">
+                <table className="w-full table-fixed">
+                <thead className="bg-gray-50 dark:bg-slate-800">
+                  <tr className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-800 align-top">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tl-lg border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-32">
+                      User Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-24">
+                      User Type
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-40">
+                      Email ID
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
+                      Email Access
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-24">
+                      Interface Access
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-32">
+                      Default Landing Page
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
+                      Date
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tr-lg border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-32">
+                      Created/Modified By
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-slate-900">
+                  {Array.from({ length: 50 }, (_, index) => {
+                    const baseData = [
+                      {
+                        name: "Janvi G",
+                        userType: "Property User",
+                        email: "gupta18janhvi@gmail...",
+                        emailAccess: false,
+                        interfaceAccess: false,
+                        defaultLandingPage: "Demand",
+                        date: "16 Sep'25",
+                        createdBy: "Janvi G"
+                      },
+                      {
+                        name: "sss sss",
+                        userType: "Admin",
+                        email: "asdsa@gmail.com",
+                        emailAccess: true,
+                        interfaceAccess: true,
+                        defaultLandingPage: "Demand",
+                        date: "09 Jul'25",
+                        createdBy: "Hans Reinmann"
+                      },
+                      {
+                        name: "Nitendra Gmail",
+                        userType: "Admin",
+                        email: "nitendra91@gmail.com",
+                        emailAccess: true,
+                        interfaceAccess: true,
+                        defaultLandingPage: "Rate Trend",
+                        date: "14 Feb'25",
+                        createdBy: "Nitendra Kumar"
+                      },
+                      {
+                        name: "Renu Gupta",
+                        userType: "Admin",
+                        email: "renugupta1248@gma...",
+                        emailAccess: true,
+                        interfaceAccess: true,
+                        defaultLandingPage: "Demand",
+                        date: "10 Oct'24",
+                        createdBy: "Renu Gupta"
+                      },
+                      {
+                        name: "Paradise Intermediat...",
+                        userType: "Admin",
+                        email: "paradise.int@gmail.c...",
+                        emailAccess: true,
+                        interfaceAccess: true,
+                        defaultLandingPage: "Rate Trend",
+                        date: "08 Aug'24",
+                        createdBy: "Paradise Intermediat..."
+                      }
+                    ];
+                    
+                    const change = baseData[index % baseData.length];
+                    const changeWithId = {
+                      ...change,
+                      id: index + 1,
+                      name: `${change.name} ${index + 1}`,
+                      email: change.email.replace('@', `${index + 1}@`),
+                      date: change.date,
+                      createdBy: `${change.createdBy} ${index + 1}`
+                    };
+                    
+                    const isLastRow = index === 49; // 50 items total, so last index is 49
+                    return (
+                      <tr key={changeWithId.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800/50 ${index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-800'}`}>
+                        <td className={`px-4 py-2 whitespace-nowrap border-b border-gray-200 dark:border-gray-700 ${isLastRow ? 'rounded-bl-lg' : ''} w-32`}>
+                          <div className="flex items-center">
+                            <div className="w-6 h-6 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mr-2 flex-shrink-0">
+                              <User className="w-3 h-3 text-gray-500 dark:text-gray-400" />
+                            </div>
+                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" title={changeWithId.name}>
+                              {changeWithId.name}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-24">
+                          <div className="truncate" title={changeWithId.userType}>
+                            {changeWithId.userType}
+                          </div>
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-40">
+                          <div className="truncate" title={changeWithId.email}>
+                            {changeWithId.email}
+                          </div>
+                        </td>
+                        <td className="px-4 py-2 text-center text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-20">
+                          {changeWithId.emailAccess ? "true" : "false"}
+                        </td>
+                        <td className="px-4 py-2 text-center text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-24">
+                          {changeWithId.interfaceAccess ? "true" : "false"}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-32">
+                          <div className="truncate" title={changeWithId.defaultLandingPage}>
+                            {changeWithId.defaultLandingPage}
+                          </div>
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-20">
+                          {changeWithId.date}
+                        </td>
+                        <td className={`px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 ${isLastRow ? 'rounded-br-lg' : ''} w-32`}>
+                          <div className="truncate" title={changeWithId.createdBy}>
+                            {changeWithId.createdBy}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {/* Add padding to ensure last row is visible */}
+                  <tr>
+                    <td colSpan={8} className="h-4"></td>
+                  </tr>
+                </tbody>
+                {/* Add blank space after table */}
+                <div className="h-2.5"></div>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-300 dark:border-gray-600 mt-6"></div>
+
+          <div className="flex items-center justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowChangeHistory(false)}
+              className="px-6"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-black">Delete User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this user? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-center justify-end gap-3 mt-6">
+            <Button
+              variant="outline"
+              onClick={cancelDeleteUser}
+              className="px-6"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmDeleteUser}
+              className="px-6 bg-red-600 hover:bg-red-700 text-white"
+            >
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Success Snackbar */}
+      {showSnackbar && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-4 h-4" />
+              </div>
+              <span className="text-sm font-medium">
+                User added successfully
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Success Snackbar */}
+      {showDeleteSnackbar && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                <Trash2 className="w-4 h-4" />
+              </div>
+              <span className="text-sm font-medium">
+                User deleted successfully
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -3,17 +3,19 @@ import React, { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { TrendingUp, BarChart3, Calendar, Activity, DollarSign, Percent, Grid3X3, RefreshCw, FileText, Download, ChevronLeft, ChevronRight, Eye, ChevronDown } from "lucide-react"
+import { TrendingUp, BarChart3, Calendar, Activity, DollarSign, Percent, Grid3X3, RefreshCw, FileText, Download, ChevronLeft, ChevronRight, Eye, ChevronDown, Zap } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { RateTrendCalendar } from "@/components/navigator/rate-trend-calendar"
+import { RateTrendCalendar, MonthNavigation } from "@/components/navigator/rate-trend-calendar"
 import { RateTrendsTable } from "@/components/navigator/rate-trends-table"
 import { RTRateTrendsChart } from "@/components/navigator/rt-rate-trends-chart"
 import { FilterBar } from "@/components/navigator/filter-bar"
 import { RateTrendHeader } from "@/components/navigator/rate-trend-header"
 import { FilterSidebar } from "@/components/filter-sidebar"
 import { LightningRefreshModal } from "@/components/navigator/generate-report-modal"
+import { Snackbar } from "@/components/ui/snackbar"
+import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
 import { useDateContext } from "@/components/date-context"
 import { ComparisonProvider } from "@/components/comparison-context"
 import { differenceInDays, format } from "date-fns"
@@ -98,38 +100,155 @@ export default function RateTrendPage() {
   const [losGuest, setLosGuest] = useState<{ "Los": any[], "Guest": any[] }>({ "Los": [], "Guest": [] });
   const [loadedKpiData, setLoadedKpiData] = useState<KPIData | null>(null)
   const [dataLoading, setDataLoading] = useState(false)
+  const [isPageLoading, setIsPageLoading] = useState(false)
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [loadingCycle, setLoadingCycle] = useState(1)
   
   // State for competitor scrolling (only for table view)
   const [competitorStartIndex, setCompetitorStartIndex] = useState(0)
-  const competitorsPerPage = 3 // Show 3 competitors at a time
+  const [competitorsPerPage, setCompetitorsPerPage] = useState(5) // Responsive competitor count
+  
+  // Calculate responsive competitor count based on screen size
+  useEffect(() => {
+    const calculateCompetitorsPerPage = () => {
+      const screenWidth = window.innerWidth
+      
+      // Always show 5 competitors initially for table view
+      return 5
+    }
+    
+    const updateCompetitorCount = () => {
+      setCompetitorsPerPage(calculateCompetitorsPerPage())
+    }
+    
+    // Set initial value
+    updateCompetitorCount()
+    
+    // Listen for resize events
+    window.addEventListener('resize', updateCompetitorCount)
+    
+    return () => {
+      window.removeEventListener('resize', updateCompetitorCount)
+    }
+  }, [])
   
   // State for Lightning Refresh Modal
   const [isLightningRefreshModalOpen, setIsLightningRefreshModalOpen] = useState(false)
+  
+  // State for Snackbar
+  const [isSnackbarOpen, setIsSnackbarOpen] = useState(false)
+  const [snackbarMessage, setSnackbarMessage] = useState("")
+  const [snackbarType, setSnackbarType] = useState<'info' | 'success'>('info')
+  
+  // State for Lightning Refresh progress
+  const [isLightningRefreshInProgress, setIsLightningRefreshInProgress] = useState(false)
+  
+  // Month navigation state
+  const [currentMonthIndex, setCurrentMonthIndex] = useState(0)
+  const [availableMonths, setAvailableMonths] = useState<{ month: number; year: number; monthName: string }[]>([])
+  const [shouldShowMonthNavigation, setShouldShowMonthNavigation] = useState(false)
   
   // Navigation functions for competitor scrolling
   const nextCompetitors = () => {
     setCompetitorStartIndex(prev => {
       const totalCompetitors = 9 // We have 9 competitors total
-      const maxStartIndex = Math.max(0, totalCompetitors - competitorsPerPage)
-      return Math.min(prev + competitorsPerPage, maxStartIndex)
+      // Always move by 5 positions, even if it goes beyond total competitors
+      return Math.min(prev + 5, totalCompetitors)
     })
   }
   
   const prevCompetitors = () => {
-    setCompetitorStartIndex(prev => Math.max(0, prev - competitorsPerPage))
+    setCompetitorStartIndex(prev => Math.max(0, prev - 5))
   }
   
   const canGoNext = () => {
     const totalCompetitors = 9
-    return competitorStartIndex + competitorsPerPage < totalCompetitors
+    // Allow going to next page if we can show at least 1 more competitor
+    return competitorStartIndex + 5 < totalCompetitors
   }
   
   const canGoPrev = () => {
     return competitorStartIndex > 0
   }
   
+  // Reset competitor start index when competitors per page changes
+  useEffect(() => {
+    setCompetitorStartIndex(0)
+  }, [competitorsPerPage])
+
   // Get date context for dynamic KPIs
   const { startDate, endDate, isLoading } = useDateContext()
+
+  // Month navigation functions
+  const nextMonth = () => {
+    setCurrentMonthIndex(prev => Math.min(prev + 1, availableMonths.length - 1))
+  }
+
+  const prevMonth = () => {
+    setCurrentMonthIndex(prev => Math.max(prev - 1, 0))
+  }
+
+  // Calculate available months for multi-month date ranges
+  const calculateAvailableMonths = useMemo(() => {
+    if (!startDate || !endDate) return []
+    
+    const months: { month: number; year: number; monthName: string }[] = []
+    const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
+    const end = new Date(endDate.getFullYear(), endDate.getMonth(), 1)
+    
+    while (current <= end) {
+      const monthNames = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ]
+      months.push({
+        month: current.getMonth(),
+        year: current.getFullYear(),
+        monthName: monthNames[current.getMonth()] + ' ' + current.getFullYear()
+      })
+      current.setMonth(current.getMonth() + 1)
+    }
+    
+    return months
+  }, [startDate, endDate])
+
+  // Update month navigation when date range changes
+  useEffect(() => {
+    const months = calculateAvailableMonths
+    setAvailableMonths(months)
+    setShouldShowMonthNavigation(months.length > 1)
+    setCurrentMonthIndex(0) // Reset to first month when date range changes
+  }, [calculateAvailableMonths])
+
+  // Handle lightning refresh
+  const handleLightningRefresh = (data: { channels: string; checkInStartDate: string; compSet: string; guests: string; los: string }) => {
+    const message = `⚡ Lightning Refresh ⚡ is in progress. Please wait while the data is being refreshed for ${data.channels}`
+    setSnackbarMessage(message)
+    setSnackbarType('info')
+    setIsSnackbarOpen(true)
+    setIsLightningRefreshInProgress(true)
+    
+    // Auto-close progress snackbar after 10 seconds
+    setTimeout(() => {
+      setIsSnackbarOpen(false)
+    }, 10000)
+    
+    // Show success snackbar and reset button state after 10 seconds
+    setTimeout(() => {
+      setIsLightningRefreshInProgress(false)
+      
+      // Show success snackbar
+      const successMessage = `Your 'Lightning Refresh' has been completed successfully for ${data.channels}, LOS ${data.los}, GUEST ${data.guests}, and the next 30 days`
+      setSnackbarMessage(successMessage)
+      setSnackbarType('success')
+      setIsSnackbarOpen(true)
+      
+      // Auto-close success snackbar after 10 seconds
+      setTimeout(() => {
+        setIsSnackbarOpen(false)
+      }, 10000)
+    }, 10000)
+  }
   
   /**
    * Ensure client-side hydration is complete before rendering date-dependent content
@@ -150,7 +269,25 @@ export default function RateTrendPage() {
     const loadKPIData = async () => {
       if (!isClient) return
       
+      setIsPageLoading(true)
       setDataLoading(true)
+      setLoadingProgress(0)
+      
+      // Progress interval
+      const progressInterval = setInterval(() => {
+        setLoadingProgress((prev) => {
+          const increment = Math.floor(Math.random() * 9) + 3; // 3-11% increment
+          const newProgress = prev + increment;
+
+          if (newProgress >= 100) {
+            setLoadingCycle(prevCycle => prevCycle + 1);
+            return 0;
+          }
+
+          return newProgress;
+        });
+      }, 80);
+      
       try {
         // Default to 7 days (Last Week) for now
         const data = await rateTrendsAPI.getKPIData(7)
@@ -161,12 +298,56 @@ export default function RateTrendPage() {
         // Fallback to static data
         setLoadedKpiData(getKPIData(7))
       } finally {
-        setDataLoading(false)
+        clearInterval(progressInterval);
+        setLoadingProgress(100); // finish instantly
+        setTimeout(() => {
+          setIsPageLoading(false);
+          setDataLoading(false);
+          setLoadingProgress(0); // reset for next load
+        }, 300); // brief delay so user sees 100%
       }
     }
 
     loadKPIData()
   }, [isClient])
+
+  // Trigger loading when date range changes
+  useEffect(() => {
+    if (!isClient || !startDate || !endDate) return
+    
+    setIsPageLoading(true)
+    setLoadingProgress(0)
+    
+    // Progress interval
+    const progressInterval = setInterval(() => {
+      setLoadingProgress((prev) => {
+        const increment = Math.floor(Math.random() * 9) + 3; // 3-11% increment
+        const newProgress = prev + increment;
+
+        if (newProgress >= 100) {
+          setLoadingCycle(prevCycle => prevCycle + 1);
+          return 0;
+        }
+
+        return newProgress;
+      });
+    }, 80);
+    
+    // Simulate data loading delay
+    const loadingTimeout = setTimeout(() => {
+      clearInterval(progressInterval);
+      setLoadingProgress(100);
+      setTimeout(() => {
+        setIsPageLoading(false);
+        setLoadingProgress(0);
+      }, 300);
+    }, 1500); // 1.5 second loading simulation
+    
+    return () => {
+      clearInterval(progressInterval);
+      clearTimeout(loadingTimeout);
+    }
+  }, [startDate, endDate, isClient])
 
   // Calculate dynamic KPIs based on selected date range with fallback
   const kpiData = useMemo(() => {
@@ -194,15 +375,15 @@ export default function RateTrendPage() {
     console.log("🔍 Opening filter sidebar")
   }
 
-  // Show loading state only during initial hydration
-  if (!isClient) {
+  // Show loading state during initial hydration or data loading
+  if (!isClient || isPageLoading) {
     return (
       <ComparisonProvider>
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-center space-y-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600 mx-auto"></div>
-              <p className="text-slate-600 dark:text-slate-400">Loading dashboard...</p>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
+          <GlobalProgressBar />
+          <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8 xl:py-10">
+            <div className="max-w-7xl xl:max-w-none mx-auto">
+              <LoadingSkeleton type="rate-trend" showCycleCounter={true} />
             </div>
           </div>
         </div>
@@ -240,18 +421,35 @@ export default function RateTrendPage() {
             <TooltipProvider>
               <div className="flex items-center gap-2">
                 {/* Lightning Refresh Button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-3 hover:bg-blue-500 hover:text-white hover:border-blue-500"
-                  onClick={() => {
-                    console.log('🔄 Lightning Refresh clicked');
-                    setIsLightningRefreshModalOpen(true);
-                  }}
-                >
-                  <RefreshCw className="h-4 w-4" style={{marginRight: '2px'}} />
-                  Lightning Refresh
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3 hover:bg-blue-500 hover:text-white hover:border-blue-500 group"
+                        onClick={() => {
+                          if (!isLightningRefreshInProgress) {
+                            console.log('🔄 Lightning Refresh clicked');
+                            setIsLightningRefreshModalOpen(true);
+                          }
+                        }}
+                        disabled={isLightningRefreshInProgress}
+                      >
+                        <Zap 
+                          className={`h-4 w-4 text-gray-600 group-hover:text-white ${isLightningRefreshInProgress ? 'animate-pulse' : ''}`} 
+                          style={{marginRight: '2px'}} 
+                        />
+                        {isLightningRefreshInProgress ? 'Refreshing...' : 'Lightning Refresh'}
+                      </Button>
+                    </TooltipTrigger>
+                    {isLightningRefreshInProgress && (
+                      <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                        <p className="text-xs">Lightning refresh under progress</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
 
                 {/* On Demand Report Button */}
                 <Button
@@ -311,6 +509,7 @@ export default function RateTrendPage() {
 
           </div>
         </div>
+
           {/* Main Rate Trend Content */}
           <div className="relative bg-white dark:bg-slate-900 shadow-xl border border-border/50 rounded-lg">
             {/* Table View Heading - Only visible when table view is active */}
@@ -327,6 +526,19 @@ export default function RateTrendPage() {
                   Rates Calendar
                                       <span className="text-xs font-medium text-gray-600 dark:text-gray-400 ml-2">(4 Sep - 10 Sep)</span>
                 </h3>
+              </div>
+            )}
+
+            {/* Month Navigation - Only visible when calendar view is active and multi-month range */}
+            {currentView === "calendar" && shouldShowMonthNavigation && (
+              <div className="absolute top-4 z-10 flex items-center justify-center" style={{ left: '50%', transform: 'translateX(-50%)' }}>
+                <MonthNavigation
+                  shouldShowMonthNavigation={shouldShowMonthNavigation}
+                  availableMonths={availableMonths}
+                  currentMonthIndex={currentMonthIndex}
+                  onPrevMonth={prevMonth}
+                  onNextMonth={nextMonth}
+                />
               </div>
             )}
             
@@ -394,6 +606,7 @@ export default function RateTrendPage() {
                 </div>
               </div>
             )}
+
 
             {/* View Toggle - Positioned consistently for all views */}
             <div className="absolute top-4 right-4 lg:right-6 z-10">
@@ -467,13 +680,18 @@ export default function RateTrendPage() {
               </div>
             ) : currentView === "chart" ? (
               <div className="pt-16">
-                <RTRateTrendsChart rateData={{}} />
+                <RTRateTrendsChart key="rate-trends-chart" rateData={{}} />
               </div>
             ) : (
               <RateTrendCalendar 
                 currentView={currentView} 
                 highlightToday={true}
                 showWeekNumbers={false}
+                shouldShowMonthNavigation={shouldShowMonthNavigation}
+                availableMonths={availableMonths}
+                currentMonthIndex={currentMonthIndex}
+                onPrevMonth={prevMonth}
+                onNextMonth={nextMonth}
                 onDateSelect={(date) => {
                   console.log('📅 Date selected:', date.toLocaleDateString())
                   // Add any additional date selection logic here
@@ -501,6 +719,15 @@ export default function RateTrendPage() {
       <LightningRefreshModal 
         isOpen={isLightningRefreshModalOpen}
         onClose={() => setIsLightningRefreshModalOpen(false)}
+        onRefresh={handleLightningRefresh}
+      />
+      
+      {/* Snackbar */}
+      <Snackbar
+        isOpen={isSnackbarOpen}
+        onClose={() => setIsSnackbarOpen(false)}
+        message={snackbarMessage}
+        type={snackbarType}
       />
     </div>
     </ComparisonProvider>

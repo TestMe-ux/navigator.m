@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
-import { TrendingUp, Filter, Download, ChevronDown, Eye, EyeOff, ArrowUp, ArrowDown, Minus, BarChart3, Star, Maximize2, Calendar, Wifi, Coffee, Utensils, Car } from "lucide-react"
+import { TrendingUp, Filter, Download, ChevronDown, Eye, EyeOff, ArrowUp, ArrowDown, Minus, BarChart3, Star, Maximize2, Calendar, Wifi, Coffee, Utensils, Car, Zap } from "lucide-react"
 import { useDateContext } from "@/components/date-context"
 import { format, eachDayOfInterval, differenceInDays } from "date-fns"
 import { Tooltip as RechartsTooltip } from "recharts"
@@ -62,8 +62,36 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
           </h3>
         </div>
 
+        {/* Event Information */}
+        {data?.hasEvent && (
+          <div className="flex items-center gap-2 p-2 mb-0.5">
+            <Star className="w-3 h-3 text-amber-500 fill-current" />
+            <span className="text-xs text-black dark:text-white font-medium">
+              {(() => {
+                // Generate event name based on date
+                const date = new Date(data.date)
+                const dayOfMonth = date.getDate()
+                const dayOfWeek = date.getDay()
+                
+                let eventName = ""
+                if (dayOfMonth === 5) eventName = "Music Festival"
+                else if (dayOfMonth === 15) eventName = "Business Conference"
+                else if (dayOfMonth === 25) eventName = "Sports Event"
+                else if (dayOfWeek === 0 && dayOfMonth % 7 === 0) eventName = "Weekend Special"
+                else if (dayOfMonth % 3 === 0) eventName = "Regular Event"
+                else eventName = "Special Event"
+                
+                // Limit to 32 characters and add ellipsis
+                const truncatedName = eventName.length > 32 ? eventName.substring(0, 32) + "..." : eventName
+                return `${truncatedName} (+2 more)`
+              })()}
+            </span>
+          </div>
+        )}
+
+
         {/* Column Headings */}
-        <div className="grid grid-cols-[1fr_80px_60px_50px] gap-0 px-2">
+        <div className="grid grid-cols-[1fr_120px_60px_50px] gap-0 px-2">
           <div className="px-2 pt-1 pb-0 text-left">
             <span className="text-xs font-medium text-gray-500 dark:text-slate-400">Property</span>
           </div>
@@ -122,7 +150,7 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
               }
 
               return (
-                <div key={index} className={`grid grid-cols-[1fr_80px_60px_50px] gap-0 items-center py-0.5 pl-2 pr-2 rounded-md ${
+                <div key={index} className={`grid grid-cols-[1fr_120px_60px_50px] gap-0 items-center py-0.5 pl-2 pr-2 rounded-md ${
                   isMyHotel ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700' : ''
                 }`}>
                   {/* Property Column */}
@@ -138,6 +166,16 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
                   <div className={`flex items-center justify-end px-2 py-1 ${
                     isMyHotel ? 'text-blue-900 dark:text-blue-200' : 'text-gray-900 dark:text-slate-100'
                   }`}>
+                    {/* Show bolt icon on 25th date only for specific competitors */}
+                    {(() => {
+                      const date = new Date(data.date)
+                      const dayOfMonth = date.getDate()
+                      // Show bolt icon only for specific competitors (index 0, 2, 4) on 25th date
+                      const shouldShowBolt = dayOfMonth === 25 && (index === 0 || index === 2 || index === 4)
+                      return shouldShowBolt ? (
+                        <Zap className="w-3 h-3 text-blue-500 fill-current mr-2" />
+                      ) : null
+                    })()}
                     <span className="text-sm font-bold">${rate}</span>
                     <div className="ml-1" style={{ paddingLeft: '4px' }}>
                       {getInclusionIcon(index) || (
@@ -181,6 +219,7 @@ interface RateData {
   timestamp: number
   direct: number
   avgCompset: number
+  hasRefresh?: boolean // For refresh icon display
   [key: string]: any // For dynamic competitor properties
 }
 
@@ -418,7 +457,8 @@ function CustomXAxisTick({ x, y, payload, data }: CustomXAxisTickProps) {
   if (!payload || !x || !y) return null
 
   const dateData = data?.find(d => d.date === payload.value)
-  const hasEvents = dateData?.events && dateData.events.length > 0
+  const hasEvents = dateData?.hasEvent || false
+  const hasRefresh = dateData?.hasRefresh || false
 
   return (
     <g transform={`translate(${x},${y})`}>
@@ -435,28 +475,29 @@ function CustomXAxisTick({ x, y, payload, data }: CustomXAxisTickProps) {
         {format(new Date(payload.value), 'MMM dd')}
       </text>
 
-      {/* Event icon */}
+      {/* Star icon - positioned below the date */}
       {hasEvents && (
-        <g transform="translate(-6, -8)">
-          <circle
-            cx={6}
-            cy={6}
-            r={4}
-            fill="#f59e0b"
-            stroke="#ffffff"
-            strokeWidth={1}
-          />
-          <text
-            x={6}
-            y={6}
-            dy={1}
-            textAnchor="middle"
-            fill="#ffffff"
-            fontSize={8}
-            fontWeight="bold"
-          >
-            !
-          </text>
+        <g transform="translate(0, 30)">
+          <circle cx="0" cy="0" r="8" fill="transparent" />
+          <foreignObject x="-6" y="-6" width="12" height="12">
+            <div className="flex items-center justify-center">
+              <Star className="w-3 h-3 text-amber-500 fill-current" />
+            </div>
+          </foreignObject>
+          <title>{(() => {
+            // Generate event name based on date
+            const date = new Date(payload.value)
+            const dayOfMonth = date.getDate()
+            const dayOfWeek = date.getDay()
+            
+            if (dayOfMonth === 5) return "Music Festival    +2"
+            if (dayOfMonth === 15) return "Business Conference    +2"
+            if (dayOfMonth === 25) return "Sports Event    +2"
+            if (dayOfWeek === 0 && dayOfMonth % 7 === 0) return "Weekend Special    +2"
+            if (dayOfMonth % 3 === 0) return "Regular Event    +2"
+            
+            return "Special Event    +2"
+          })()}</title>
         </g>
       )}
     </g>
@@ -532,14 +573,32 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
             <span className="text-base font-bold">{label ? format(new Date(label), 'dd MMM yyyy') : ''}</span>
             <span className="text-sm font-normal">{label ? `, ${format(new Date(label), 'EEE')}` : ''}</span>
           </h3>
+          {/* Blue divider below tooltip heading */}
+          <div className="w-full h-[30px] bg-blue-500 mt-2 mb-2"></div>
           {/* Event Information under date heading */}
-          {data?.events && data.events.length > 0 && (
-            <div className="mt-2 flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-900/30 rounded-md border border-amber-200 dark:border-amber-700/50">
-              <Calendar className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-              <span className="text-sm text-amber-700 dark:text-amber-200 font-medium">
-                {data.events.map((event: any) => event.eventName).join(', ')}
-              </span>
-            </div>
+          {data?.hasEvent && (
+            <>
+              <p className="text-sm font-medium text-foreground mt-2 mb-1">Events</p>
+              <div className="flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-900/30 rounded-md border border-amber-200 dark:border-amber-700/50">
+                <Star className="w-4 h-4 text-amber-600 dark:text-amber-400 fill-current" />
+                <span className="text-sm text-amber-700 dark:text-amber-200 font-medium">
+                  {(() => {
+                    // Generate event name based on date
+                    const date = new Date(data.date)
+                    const dayOfMonth = date.getDate()
+                    const dayOfWeek = date.getDay()
+                    
+                  if (dayOfMonth === 5) return "Music Festival&nbsp;&nbsp;&nbsp;&nbsp;+2"
+                  if (dayOfMonth === 15) return "Business Conference&nbsp;&nbsp;&nbsp;&nbsp;+2"
+                  if (dayOfMonth === 25) return "Sports Event&nbsp;&nbsp;&nbsp;&nbsp;+2"
+                  if (dayOfWeek === 0 && dayOfMonth % 7 === 0) return "Weekend Special&nbsp;&nbsp;&nbsp;&nbsp;+2"
+                  if (dayOfMonth % 3 === 0) return "Regular Event&nbsp;&nbsp;&nbsp;&nbsp;+2"
+                  
+                  return "Special Event&nbsp;&nbsp;&nbsp;&nbsp;+2"
+                  })()}
+                </span>
+              </div>
+            </>
           )}
         </div>
 
@@ -667,9 +726,9 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
  * @version 2.0.0
  */
 export function RTRateTrendsChart({ rateData }: any) {
-  const { startDate, endDate } = useDateContext()
+  const { startDate, endDate, isLoading } = useDateContext()
   const [selectedProperty, setSelectedProperty] = useState<any>(null)
-  
+
   // Safely get selectedProperty on client side only
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -937,7 +996,72 @@ export function RTRateTrendsChart({ rateData }: any) {
     setSelectedDateForModal(newDate)
   }, [selectedDateForModal])
 
-  // Generate sample data for demonstration
+  // Generate sample data dynamically based on date range
+  const generateSampleData = useCallback((startDate: Date, endDate: Date) => {
+    const data = []
+    const current = new Date(startDate)
+    const end = new Date(endDate)
+    
+    while (current <= end) {
+      const dateStr = current.toISOString().split('T')[0]
+      const dayOfMonth = current.getDate()
+      const dayOfWeek = current.getDay()
+      
+      // Generate base rates with some variation
+      const baseRate = 650 + (dayOfMonth % 7) * 20 + Math.sin(dayOfMonth * 0.2) * 50
+      const variation = Math.sin(dayOfMonth * 0.3) * 30
+      
+      // Check for events (example: specific dates or patterns)
+      const hasEvent = (dayOfMonth === 5 || dayOfMonth === 15 || dayOfMonth === 25) || 
+                      (dayOfWeek === 0 && dayOfMonth % 7 === 0) || // Sunday events every 7th day
+                      (dayOfMonth % 3 === 0) // Every 3rd day for more visible events
+      
+      data.push({
+        date: dateStr,
+        timestamp: current.getTime(),
+        direct: Math.round(baseRate + variation),
+        avgCompset: Math.round(baseRate + variation + 50 + Math.sin(dayOfMonth * 0.4) * 20),
+        competitor_101: Math.round(baseRate + variation + 40 + Math.sin(dayOfMonth * 0.5) * 25),
+        competitor_101_name: "Marriott Resort",
+        competitor_102: Math.round(baseRate + variation + 60 + Math.sin(dayOfMonth * 0.6) * 30),
+        competitor_102_name: "Hilton Paradise",
+        competitor_103: Math.round(baseRate + variation + 20 + Math.sin(dayOfMonth * 0.7) * 20),
+        competitor_103_name: "Hyatt Luxury",
+        competitor_104: Math.round(baseRate + variation + 80 + Math.sin(dayOfMonth * 0.8) * 35),
+        competitor_104_name: "Sheraton Beach",
+        competitor_105: Math.round(baseRate + variation + 30 + Math.sin(dayOfMonth * 0.9) * 25),
+        competitor_105_name: "Westin Resort",
+        competitor_106: Math.round(baseRate + variation + 70 + Math.sin(dayOfMonth * 1.0) * 30),
+        competitor_106_name: "InterContinental Grand",
+        competitor_107: Math.round(baseRate + variation + 10 + Math.sin(dayOfMonth * 1.1) * 20),
+        competitor_107_name: "Radisson Blu",
+        competitor_108: Math.round(baseRate + variation - 20 + Math.sin(dayOfMonth * 1.2) * 15),
+        competitor_108_name: "Holiday Inn Express",
+        competitor_109: Math.round(baseRate + variation - 30 + Math.sin(dayOfMonth * 1.3) * 15),
+        competitor_109_name: "Best Western Plus",
+        competitor_110: Math.round(baseRate + variation + 50 + Math.sin(dayOfMonth * 1.4) * 25),
+        competitor_110_name: "DoubleTree Hilton",
+        competitor_111: Math.round(baseRate + variation + 90 + Math.sin(dayOfMonth * 1.5) * 35),
+        competitor_111_name: "Renaissance Hotel",
+        competitor_112: Math.round(baseRate + variation + 25 + Math.sin(dayOfMonth * 1.6) * 20),
+        competitor_112_name: "Courtyard Marriott",
+        competitor_113: Math.round(baseRate + variation - 10 + Math.sin(dayOfMonth * 1.7) * 15),
+        competitor_113_name: "Comfort Hotel Central",
+        competitor_114: Math.round(baseRate + variation + 60 + Math.sin(dayOfMonth * 1.8) * 30),
+        competitor_114_name: "Hotel Alexander Plaza",
+        competitor_115: Math.round(baseRate + variation + 5 + Math.sin(dayOfMonth * 1.9) * 20),
+        competitor_115_name: "Acom Hotel Berlin",
+        hasRefresh: Math.random() > 0.7, // 30% chance of refresh icon
+        hasEvent: hasEvent // Set to true only when there are actual events
+      })
+      
+      current.setDate(current.getDate() + 1)
+    }
+    
+    return data
+  }, [])
+
+  // Generate sample data for demonstration (fallback for 7 days)
   const sampleData = useMemo(() => [
     {
       date: "2024-01-01",
@@ -973,7 +1097,9 @@ export function RTRateTrendsChart({ rateData }: any) {
       competitor_114: 770,
       competitor_114_name: "Hotel Alexander Plaza",
       competitor_115: 660,
-      competitor_115_name: "Acom Hotel Berlin"
+      competitor_115_name: "Acom Hotel Berlin",
+      hasRefresh: true, // Add refresh icon to this date
+      hasEvent: true // Add event icon to this date
     },
     {
       date: "2024-01-02",
@@ -1045,7 +1171,9 @@ export function RTRateTrendsChart({ rateData }: any) {
       competitor_114: 795,
       competitor_114_name: "Hotel Alexander Plaza",
       competitor_115: 685,
-      competitor_115_name: "Acom Hotel Berlin"
+      competitor_115_name: "Acom Hotel Berlin",
+      hasRefresh: true, // Add refresh icon to this date
+      hasEvent: true // Add event icon to this date
     },
     {
       date: "2024-01-04",
@@ -1081,7 +1209,8 @@ export function RTRateTrendsChart({ rateData }: any) {
       competitor_114: 810,
       competitor_114_name: "Hotel Alexander Plaza",
       competitor_115: 700,
-      competitor_115_name: "Acom Hotel Berlin"
+      competitor_115_name: "Acom Hotel Berlin",
+      hasEvent: true // Add event icon to this date
     },
     {
       date: "2024-01-05",
@@ -1153,7 +1282,8 @@ export function RTRateTrendsChart({ rateData }: any) {
       competitor_114: 840,
       competitor_114_name: "Hotel Alexander Plaza",
       competitor_115: 730,
-      competitor_115_name: "Acom Hotel Berlin"
+      competitor_115_name: "Acom Hotel Berlin",
+      hasRefresh: true // Add refresh icon to this date
     },
     {
       date: "2024-01-07",
@@ -1198,13 +1328,22 @@ export function RTRateTrendsChart({ rateData }: any) {
     // Transform actual rate data to chart format
     const transformedData = transformRateData(rateData)
 
-    // Use sample data if no real data available
-    if (transformedData.length === 0) {
-      return sampleData
+    // Use real data if available
+    if (transformedData.length > 0) {
+      return transformedData
     }
 
-    return transformedData
-  }, [rateData, sampleData])
+    // Generate dynamic sample data based on date range
+    if (startDate && endDate) {
+      return generateSampleData(startDate, endDate)
+    }
+
+    // For testing: Generate 30 days of sample data by default
+    const testStartDate = new Date()
+    const testEndDate = new Date()
+    testEndDate.setDate(testStartDate.getDate() + 29) // 30 days total
+    return generateSampleData(testStartDate, testEndDate)
+  }, [rateData, sampleData, startDate, endDate, generateSampleData])
 
   // Initialize visibility states when channel configs change
   useEffect(() => {
@@ -1435,6 +1574,18 @@ export function RTRateTrendsChart({ rateData }: any) {
 
   // Check if we have data
   const hasData = data.length > 0 && channelConfigs.length > 0
+
+  // Show loading state when date range is changing
+  if (isLoading) {
+    return (
+      <div className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 rounded-lg p-8">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+          <p className="text-slate-600 dark:text-slate-400">Loading chart data...</p>
+        </div>
+      </div>
+    )
+  }
 
   const cardRef = useRef<HTMLDivElement>(null);
   const handleDownloadImageRate = () => {
@@ -1692,17 +1843,9 @@ export function RTRateTrendsChart({ rateData }: any) {
                     className="text-xs"
                     interval="preserveStartEnd"
                     height={85}
-                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", dy: 10 }}
+                    tick={(props) => <CustomXAxisTick {...props} data={data} />}
                     axisLine={true}
                     tickLine={false}
-                    tickFormatter={(value: string) => {
-                      try {
-                        const date = new Date(value)
-                        return format(date, "MMM dd")
-                      } catch {
-                        return value
-                      }
-                    }}
                   />
                   <YAxis
                     className="text-xs"
