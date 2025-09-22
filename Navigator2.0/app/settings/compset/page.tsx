@@ -15,7 +15,7 @@ import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleto
 import { Switch } from "@/components/ui/switch"
 import { useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
 import { AddCompSet, getAllCompSet, getAllHistoryCompSet, getSearchHotelList, updateCompSet } from "@/lib/compset"
-import { format, set } from "date-fns"
+import { format, parseISO, set } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
 import { get } from "http"
 export default function CompsetSettingsPage() {
@@ -587,14 +587,14 @@ export default function CompsetSettingsPage() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider">
                       <div
                         className="flex items-center gap-1 cursor-pointer group"
-                        onClick={() => handleSort('date')}
+                        onClick={() => handleSort('createdDate')}
                       >
                         Created On
                         <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-                          {getHoverIcon('date')}
+                          {getHoverIcon('createdDate')}
                         </span>
                         <span className="opacity-100 mt-0.5">
-                          {getSortIcon('date')}
+                          {getSortIcon('createdDate')}
                         </span>
                       </div>
                     </th>
@@ -822,21 +822,21 @@ export default function CompsetSettingsPage() {
 
             <div className="mt-2 flex-1 overflow-hidden">
               <div className="border border-gray-300 dark:border-gray-600 rounded-lg h-full">
-                <div className="h-[400px] overflow-y-auto border-b border-gray-200 dark:border-gray-700 mb-2.5">
+                <div className="h-[300px] overflow-y-auto border-b border-gray-200 dark:border-gray-700 mb-2.5">
                   <table className="w-full table-fixed">
                     <thead className="bg-gray-50 dark:bg-slate-800">
                       <tr className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-800 align-top">
                         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tl-lg border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-56">
                           <div
                             className="flex items-center gap-1 cursor-pointer group"
-                            onClick={() => handleSort('competitorName')}
+                            onClick={() => handleSort('name')}
                           >
                             Competitor Name
                             <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-                              {getHoverIcon('competitorName')}
+                              {getHoverIcon('name')}
                             </span>
                             <span className="opacity-100 mt-0.5">
-                              {getSortIcon('competitorName')}
+                              {getSortIcon('name')}
                             </span>
                           </div>
                         </th>
@@ -846,14 +846,14 @@ export default function CompsetSettingsPage() {
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
                           <div
                             className="flex items-center gap-1 cursor-pointer group"
-                            onClick={() => handleSort('date')}
+                            onClick={() => handleSort('createdDate')}
                           >
                             Modified On
                             <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-                              {getHoverIcon('date')}
+                              {getHoverIcon('createdDate')}
                             </span>
                             <span className="opacity-100 mt-0.5">
-                              {getSortIcon('date')}
+                              {getSortIcon('createdDate')}
                             </span>
                           </div>
                         </th>
@@ -881,7 +881,35 @@ export default function CompsetSettingsPage() {
                     </thead>
                     <tbody className="bg-white dark:bg-slate-900">
                       {(() => {
-                        return compsetHistory.map((changeWithId, index) => {
+                        let allData = compsetHistory
+
+                        // Apply sorting if sortConfig is set
+                        if (sortConfig.key && sortConfig.direction) {
+                          allData.sort((a, b) => {
+                            debugger;
+                            let aValue = a[sortConfig.key as keyof typeof a];
+                            let bValue = b[sortConfig.key as keyof typeof b];
+
+                            // Handle different data types
+                            if (sortConfig.key === 'createdDate') {
+                              // Convert dates to comparable format (assuming format like "16 Sep'25")
+                              aValue = !!aValue ? parseISO(aValue as string) : "";
+                              bValue = !!aValue ? parseISO(bValue as string) : "";
+
+                              // const result = compareAsc(aDate, bDate);
+                            } else {
+                              // String comparison
+                              aValue = (aValue as string).toLowerCase();
+                              bValue = (bValue as string).toLowerCase();
+                            }
+
+                            if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+                            if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+                            return 0;
+                          });
+                        }
+
+                        return allData.map((changeWithId, index) => {
                           const isLastRow = index === compsetHistory.length - 1;
                           return (
                             <tr key={index} className={`hover:bg-gray-50 dark:hover:bg-slate-800/50 ${index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-800'}`}>
@@ -948,18 +976,18 @@ export default function CompsetSettingsPage() {
                         });
                       })()}
                       {/* Add padding to ensure last row is visible */}
-                      <tr>
+                      {/* <tr>
                         <td colSpan={6} className="h-4"></td>
-                      </tr>
+                      </tr> */}
                     </tbody>
                     {/* Add blank space after table */}
-                    <div className="h-2.5"></div>
+                    {/* <div className="h-2.5"></div> */}
                   </table>
                 </div>
               </div>
             </div>
 
-            <div className="border-t border-gray-300 dark:border-gray-600 mt-6"></div>
+            {/* <div className="border-t border-gray-300 dark:border-gray-600 mt-6"></div> */}
 
             <div className="flex items-center justify-end gap-3">
               <Button

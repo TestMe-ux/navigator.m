@@ -417,7 +417,7 @@ const { toast } = useToast();
 
           <div className="mt-2 flex-1 overflow-hidden">
             <div className="border border-gray-300 dark:border-gray-600 rounded-lg h-full">
-              <div className="h-[400px] overflow-y-auto border-b border-gray-200 dark:border-gray-700 mb-2.5">
+              <div className="h-[300px] overflow-y-auto border-b border-gray-200 dark:border-gray-700 mb-2.5">
                 <table className="w-full table-fixed">
                   <thead className="bg-gray-50 dark:bg-slate-800">
                     <tr className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-800 align-top">
@@ -479,18 +479,18 @@ const { toast } = useToast();
                       );
                     })}
                     {/* Add padding to ensure last row is visible */}
-                    <tr>
+                    {/* <tr>
                       <td colSpan={5} className="h-4"></td>
-                    </tr>
+                    </tr> */}
                   </tbody>
                   {/* Add blank space after table */}
-                  <div className="h-2.5"></div>
+                  {/* <div className="h-2.5"></div> */}
                 </table>
               </div>
             </div>
           </div>
 
-          <div className="border-t border-gray-300 dark:border-gray-600 mt-6"></div>
+          {/* <div className="border-t border-gray-300 dark:border-gray-600 mt-2"></div> */}
 
           <div className="flex items-center justify-end gap-3">
             <Button
