@@ -206,7 +206,7 @@ export default function MyAccountPage() {
       } else if (!sameMonth && sameYear) {
         return `${format(start, 'dd MMM')}-${format(end, 'dd MMM')}${yearSuffix}`;
       } else {
-        return `${format(start, "dd MMM'yy")}-${format(end, "dd MMM'yy")}`;
+        return `${format(start, "dd MMM''yy")}-${format(end, "dd MMM''yy")}`;
       }
     }
     else {

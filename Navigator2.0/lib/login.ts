@@ -51,3 +51,11 @@ export async function GetPackageDetails(filtersValue: any) {
     const { data } = await apiClient.get(`${Constants.API_GetPackageDetails}`, { params: filtersValue });
     return data;
 }
+export async function GetGeneralsettings(filtersValue: any) {
+    const { data } = await apiClient.get(`${Constants.API_GET_Generalsettings}`, { params: filtersValue });
+    return data;
+}
+export async function GetGeneralsettingsHistory(filtersValue: any) {
+    const { data } = await apiClient.get(`${Constants.API_GET_GeneralsettingsHistory}`, { params: filtersValue });
+    return data;
+}
