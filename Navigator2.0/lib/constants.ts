@@ -43,4 +43,6 @@ export class Constants {
     public static readonly API_GetPackageDetails="SelfServe/GetPackageDetails";
     public static readonly API_GET_Generalsettings = "GeneralSettings/GetGeneralsettings"; 
     public static readonly API_GET_GeneralsettingsHistory = "GeneralSettings/GetGeneralsettingsHistory"; 
+    public static readonly API_SET_UpdatePropertyData="GeneralSettings/UpdateGeneralsettings";
+    public static readonly API_SET_AddProfilePhoto = "GCSUploadOps/AddProfilePhoto"; 
 }

@@ -13,7 +13,7 @@ import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleto
 import { useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
 import { getChannels } from "@/lib/channels"
 import { AddBRGSettings, getBRGCalculationSetting, getBRGHistory } from "@/lib/parity"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
 
 const baselineSites = ["Booking.com", "BOOKING.COM", "Agoda", "Brand", "Expedia", "Hotels.com"]
@@ -326,7 +326,7 @@ export default function ParitySettingsPage() {
               <Button
                 variant="outline"
                 onClick={handleReset}
-                disabled={!hasChanges  || isSave}
+                disabled={!hasChanges || isSave}
               >
                 Reset
               </Button>
@@ -486,29 +486,52 @@ export default function ParitySettingsPage() {
 
             <div className="mt-2 flex-1 overflow-hidden">
               <div className="border border-gray-300 dark:border-gray-600 rounded-lg h-full">
-                <div className="h-[400px] overflow-y-auto border-b border-gray-200 dark:border-gray-700 mb-2.5">
+                <div className="h-[300px] overflow-y-auto border-b border-gray-200 dark:border-gray-700 mb-2.5">
                   <table className="w-full table-fixed">
                     <thead className="bg-gray-50 dark:bg-slate-800">
                       <tr className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-800 align-top">
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tl-lg border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-32">
                           <div
                             className="flex items-center gap-1 cursor-pointer group"
-                            onClick={() => handleSort('baselineSite')}
+                            onClick={() => handleSort('otaBenchName')}
                           >
                             Baseline Site
                             <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-                              {getHoverIcon('baselineSite')}
+                              {getHoverIcon('otaBenchName')}
                             </span>
                             <span className="opacity-100 mt-0.5">
-                              {getSortIcon('baselineSite')}
+                              {getSortIcon('otaBenchName')}
                             </span>
                           </div>
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-24">
-                          Restrictions
+                          <div
+                            className="flex items-center justify-center gap-1 cursor-pointer group"
+                            onClick={() => handleSort('restriction')}
+                          >
+                            Restrictions
+                            <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                              {getHoverIcon('restriction')}
+                            </span>
+                            <span className="opacity-100 mt-0.5">
+                              {getSortIcon('restriction')}
+                            </span>
+                          </div>
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
-                          Qualifications
+
+                          <div
+                            className="flex items-center justify-center gap-1 cursor-pointer group"
+                            onClick={() => handleSort('qualification')}
+                          >
+                            Qualifications
+                            <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                              {getHoverIcon('qualification')}
+                            </span>
+                            <span className="opacity-100 mt-0.5">
+                              {getSortIcon('qualification')}
+                            </span>
+                          </div>
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
                           <div
@@ -525,7 +548,19 @@ export default function ParitySettingsPage() {
                           </div>
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
-                          Tolerance
+
+                          <div
+                            className="flex items-center justify-center gap-1 cursor-pointer group"
+                            onClick={() => handleSort('tolerance')}
+                          >
+                            Tolerance
+                            <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                              {getHoverIcon('tolerance')}
+                            </span>
+                            <span className="opacity-100 mt-0.5">
+                              {getSortIcon('tolerance')}
+                            </span>
+                          </div>
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
                           Activity
@@ -533,14 +568,14 @@ export default function ParitySettingsPage() {
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
                           <div
                             className="flex items-center gap-1 cursor-pointer group"
-                            onClick={() => handleSort('date')}
+                            onClick={() => handleSort('createdOn')}
                           >
                             Action Date
                             <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-                              {getHoverIcon('date')}
+                              {getHoverIcon('createdOn')}
                             </span>
                             <span className="opacity-100 mt-0.5">
-                              {getSortIcon('date')}
+                              {getSortIcon('createdOn')}
                             </span>
                           </div>
                         </th>
@@ -573,23 +608,20 @@ export default function ParitySettingsPage() {
                             let bValue = b[sortConfig.key as keyof typeof b];
 
                             // Handle different data types
-                            if (sortConfig.key === 'date') {
+                            if (sortConfig.key === 'createdOn') {
                               // Convert dates to comparable format (assuming format like "16 Sep'25")
-                              const parseDate = (dateStr: string) => {
-                                const [day, monthYear] = dateStr.split(' ');
-                                const [month, year] = monthYear.split("'");
-                                const monthMap: { [key: string]: number } = {
-                                  'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
-                                  'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
-                                };
-                                return new Date(2000 + parseInt(year), monthMap[month] - 1, parseInt(day));
-                              };
-                              aValue = parseDate(aValue as string);
-                              bValue = parseDate(bValue as string);
+                              aValue = !!aValue ? parseISO(aValue as string) : "";
+                              bValue = !!aValue ? parseISO(bValue as string) : "";
+
+                              // const result = compareAsc(aDate, bDate);
                             } else if (sortConfig.key === 'tolerance') {
                               // Convert to numbers for proper sorting
-                              aValue = parseInt((aValue as string).replace('%', ''));
-                              bValue = parseInt((bValue as string).replace('%', ''));
+                              aValue = parseInt((aValue as string));
+                              bValue = parseInt((bValue as string));
+                            } else if (sortConfig.key === 'restriction' || sortConfig.key === 'promotion') {
+                              // Convert to numbers for proper sorting
+                              aValue = parseInt((aValue as string));
+                              bValue = parseInt((bValue as string));
                             } else {
                               // String comparison
                               aValue = (aValue as string).toLowerCase();
@@ -603,7 +635,7 @@ export default function ParitySettingsPage() {
                         }
 
                         return allData.map((changeWithId, index) => {
-                          const isLastRow = index === 49; // 50 items total, so last index is 49
+                          const isLastRow = allData.length === index - 1;// 50 items total, so last index is 49
                           return (
                             <tr key={changeWithId.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800/50 ${index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-800'}`}>
                               <td className={`px-4 py-2 whitespace-nowrap border-b border-gray-200 dark:border-gray-700 ${isLastRow ? 'rounded-bl-lg' : ''} w-32`}>
@@ -643,7 +675,7 @@ export default function ParitySettingsPage() {
                                   content={changeWithId.tolerance}
                                   className="truncate"
                                 >
-                                  {changeWithId.tolerance}
+                                  {changeWithId.tolerance} %
                                 </TruncatedTooltip>
                               </td>
                               <td className="px-4 py-2 text-center text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-20">
@@ -659,10 +691,10 @@ export default function ParitySettingsPage() {
                               </td>
                               <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-20">
                                 <TruncatedTooltip
-                                  content={!!changeWithId.date ? format(changeWithId.date, "dd MMM''yy") : ""}
+                                  content={!!changeWithId.createdOn ? format(changeWithId.createdOn, "dd MMM''yy") : ""}
                                   className="truncate"
                                 >
-                                  {!!changeWithId.date ? format(changeWithId.date, "dd MMM''yy") : ""}
+                                  {!!changeWithId.createdOn ? format(changeWithId.createdOn, "dd MMM''yy") : ""}
                                 </TruncatedTooltip>
                               </td>
                               <td className={`px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 ${isLastRow ? 'rounded-br-lg' : ''} w-32`}>
@@ -678,16 +710,16 @@ export default function ParitySettingsPage() {
                         });
                       })()}
                       {/* Add padding to ensure last row is visible */}
-                      <tr>
-                        <td colSpan={8} className="h-4"></td>
-                      </tr>
+                      {/* <tr>
+                        <td colSpan={8} className="h-12"></td>
+                      </tr> */}
                     </tbody>
                   </table>
                 </div>
               </div>
             </div>
 
-            <div className="border-t border-gray-300 dark:border-gray-600 mt-6"></div>
+            {/* <div className="border-t border-gray-300 dark:border-gray-600 mt-6"></div> */}
 
             <div className="flex items-center justify-end gap-3">
               <Button

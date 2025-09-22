@@ -701,7 +701,7 @@ export default function MyAccountPage() {
                                         }}
                                       />
                                       <Bar dataKey="scheduledConsumedShops" stackId="usage" fill="#3b82f6" name="Scheduled" radius={[0, 0, 0, 0]} />
-                                      <Bar dataKey="scheduledConsumedShops" stackId="usage" fill="#10b981" name="On Demand" radius={[0, 0, 0, 0]} />
+                                      <Bar dataKey="onDemandConsumedShops" stackId="usage" fill="#10b981" name="On Demand" radius={[0, 0, 0, 0]} />
                                       <Bar dataKey="lightningRefreshConsumedShops" stackId="usage" fill="#8b5cf6" name="Lightning Refresh" radius={[2, 2, 0, 0]} />
                                     </BarChart>
                                   </ResponsiveContainer>
