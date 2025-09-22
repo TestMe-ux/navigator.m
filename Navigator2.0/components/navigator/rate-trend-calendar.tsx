@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Activity, Calendar, DollarSign, Star, Percent, ArrowUp, ArrowDown, Download, Wifi, Utensils, Coffee, Car, Dumbbell, BarChart3 } from "lucide-react"
+import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Activity, Calendar, DollarSign, Star, Percent, ArrowUp, ArrowDown, Download, Wifi, Utensils, Coffee, Car, Dumbbell, BarChart3, Zap } from "lucide-react"
 import { RateTrendGraph } from "./rate-trend-graph"
 import { RTRateTrendsChart } from "./rt-rate-trends-chart"
 import { RateDetailModal } from "./rate-detail-modal"
@@ -43,6 +43,7 @@ interface CalendarDay {
   hasIndicator?: boolean
   indicatorColor?: string
   indicatorType?: 'circle' | 'square'
+  hasLightningRefresh?: boolean
 }
 
 interface CompetitorRate {
@@ -311,7 +312,8 @@ const generateCalendarData = (startDateRange: Date, endDateRange: Date): Calenda
         flagCountry: Math.random() > 0.8 ? '🇺🇸' : undefined,
         hasIndicator: Math.random() > 0.7,
         indicatorColor: Math.random() > 0.7 ? (Math.random() > 0.5 ? 'bg-red-500' : 'bg-green-500') : undefined,
-        indicatorType: Math.random() > 0.8 ? 'square' : 'circle'
+        indicatorType: Math.random() > 0.8 ? 'square' : 'circle',
+        hasLightningRefresh: Math.random() > 0.75 // Show lightning refresh icon on ~25% of dates
       }
       
 
@@ -358,13 +360,23 @@ interface RateTrendCalendarProps {
   onDateSelect?: (date: Date) => void
   highlightToday?: boolean
   showWeekNumbers?: boolean
+  shouldShowMonthNavigation?: boolean
+  availableMonths?: { month: number; year: number; monthName: string }[]
+  currentMonthIndex?: number
+  onPrevMonth?: () => void
+  onNextMonth?: () => void
 }
 
 function RateTrendCalendarInner({ 
   currentView, 
   onDateSelect,
   highlightToday = true,
-  showWeekNumbers = false 
+  showWeekNumbers = false,
+  shouldShowMonthNavigation: propShouldShowMonthNavigation,
+  availableMonths: propAvailableMonths,
+  currentMonthIndex: propCurrentMonthIndex,
+  onPrevMonth: propOnPrevMonth,
+  onNextMonth: propOnNextMonth
 }: RateTrendCalendarProps) {
   const { startDate, endDate, isLoading } = useDateContext()
   const [currentWeekIndex, setCurrentWeekIndex] = useState(0)
@@ -372,6 +384,15 @@ function RateTrendCalendarInner({
   const [selectedDateForModal, setSelectedDateForModal] = useState<Date | null>(null)
   const [expandedWeekIndex, setExpandedWeekIndex] = useState<number | null>(null)
   const [selectedWeekForCompetitors, setSelectedWeekForCompetitors] = useState<CalendarDay[] | null>(null)
+  
+  // Month navigation state - use props if available, otherwise use internal state
+  const [internalCurrentMonthIndex, setInternalCurrentMonthIndex] = useState(0)
+  const [internalAvailableMonths, setInternalAvailableMonths] = useState<{ month: number; year: number; monthName: string }[]>([])
+  
+  // Use props if available, otherwise use internal state
+  const currentMonthIndex = propCurrentMonthIndex ?? internalCurrentMonthIndex
+  const availableMonths = propAvailableMonths ?? internalAvailableMonths
+  const shouldShowMonthNavigation = propShouldShowMonthNavigation ?? (availableMonths.length > 1)
   
   // Helper function to determine if we should show limited days
   const daySelectionInfo = useMemo(() => {
@@ -389,6 +410,43 @@ function RateTrendCalendarInner({
       return { type: 'custom', totalDays } // Show custom date range
     }
   }, [startDate, endDate])
+
+  // Calculate available months for multi-month date ranges
+  const calculateAvailableMonths = useMemo(() => {
+    if (!startDate || !endDate) return []
+    
+    const months: { month: number; year: number; monthName: string }[] = []
+    const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
+    const end = new Date(endDate.getFullYear(), endDate.getMonth(), 1)
+    
+    while (current <= end) {
+      months.push({
+        month: current.getMonth(),
+        year: current.getFullYear(),
+        monthName: getMonthName(current.getMonth()) + ' ' + current.getFullYear()
+      })
+      current.setMonth(current.getMonth() + 1)
+    }
+    
+    return months
+  }, [startDate, endDate])
+
+  // Update available months when date range changes (only if using internal state)
+  useEffect(() => {
+    if (!propAvailableMonths) {
+      setInternalAvailableMonths(calculateAvailableMonths)
+      setInternalCurrentMonthIndex(0) // Reset to first month when date range changes
+    }
+  }, [calculateAvailableMonths, propAvailableMonths])
+
+  // Month navigation functions - use props if available, otherwise use internal state
+  const nextMonth = propOnNextMonth ?? (() => {
+    setInternalCurrentMonthIndex(prev => Math.min(prev + 1, availableMonths.length - 1))
+  })
+
+  const prevMonth = propOnPrevMonth ?? (() => {
+    setInternalCurrentMonthIndex(prev => Math.max(prev - 1, 0))
+  })
   
   // Helper function to check if a date should be rendered
   const shouldRenderDate = useCallback((day: CalendarDay) => {
@@ -397,6 +455,14 @@ function RateTrendCalendarInner({
     const dayDate = new Date(day.year, day.month, day.date)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
+    
+    // Check if we're in month navigation mode and if the day belongs to current month
+    if (shouldShowMonthNavigation && availableMonths.length > 0) {
+      const currentMonth = availableMonths[currentMonthIndex]
+      if (currentMonth && (day.month !== currentMonth.month || day.year !== currentMonth.year)) {
+        return false
+      }
+    }
     
     if (daySelectionInfo.type === '7days') {
       // For 7-day selection: show today + next 7 days (8 days total)
@@ -422,7 +488,7 @@ function RateTrendCalendarInner({
     }
     
     return true
-  }, [daySelectionInfo, startDate, endDate])
+  }, [daySelectionInfo, startDate, endDate, shouldShowMonthNavigation, availableMonths, currentMonthIndex])
   
   // Generate calendar data based on selected date range
   const calendarData = useMemo(() => {
@@ -998,6 +1064,12 @@ function RateTrendCalendarInner({
                         }`}>
                           {day.date}
             </div>
+                        {/* Lightning refresh icon next to date */}
+                        {day.hasLightningRefresh && (
+                          <div className="ml-1">
+                            <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                          </div>
+                        )}
                         {/* Event icon after specific margin */}
                         <div className="ml-2 text-xs text-gray-500 dark:text-gray-400">
                           {day.hasEvent ? day.eventIcon : ''}
@@ -1186,8 +1258,6 @@ function RateTrendCalendarInner({
 
         {/* Desktop View - Full Calendar Grid */}
         <div className="hidden lg:block p-6 pt-16">
-
-          
           {/* Header */}
           <div className="grid grid-cols-8 gap-2 mb-3">
             {/* Week Column Header */}
@@ -1278,6 +1348,12 @@ function RateTrendCalendarInner({
                         }`}>
                           {day.date}
             </div>
+                        {/* Lightning refresh icon next to date */}
+                        {day.hasLightningRefresh && (
+                          <div className="ml-1">
+                            <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                          </div>
+                        )}
               </div>
                       {/* Colored dot on top right - competitive rate indicator */}
                       {(() => {
@@ -1484,11 +1560,16 @@ function RateTrendCalendarInner({
                                       <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
                                         ${avgRate}
                                       </span>
-                                      <span className={`text-xs font-medium ${
-                                        avgDiff.startsWith('+') ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'
-                                      }`}>
-                                        {avgDiff}
-                                      </span>
+                                      <div className="flex items-center gap-2">
+                                        <span className={`text-xs font-medium ${
+                                          avgDiff.startsWith('+') ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'
+                                        }`}>
+                                          {avgDiff}
+                                        </span>
+                                        {Math.random() > 0.5 && (
+                                          <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                        )}
+                                      </div>
                                     </>
                                   ) : null}
                                 </div>
@@ -1544,11 +1625,16 @@ function RateTrendCalendarInner({
                                    }`} />
                                                 )}
                                               </div>
-                                              <span className={`text-xs font-medium ${
-                                                competitor?.difference.startsWith('+') ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'
-                                              }`}>
-                                                {competitor?.difference}
-                                              </span>
+                                              <div className="flex items-center gap-2">
+                                                <span className={`text-xs font-medium ${
+                                                  competitor?.difference.startsWith('+') ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'
+                                                }`}>
+                                                  {competitor?.difference}
+                                                </span>
+                                                {Math.random() > 0.6 && (
+                                                  <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                                )}
+                                              </div>
                                             </div>
                                           </div>
                                         </TooltipTrigger>
@@ -1716,4 +1802,71 @@ function RateTrendCalendarInner({
 // Export the main component directly
 export function RateTrendCalendar(props: RateTrendCalendarProps) {
   return <RateTrendCalendarInner {...props} />
+}
+
+// Export month navigation component for use in parent
+export function MonthNavigation({ 
+  shouldShowMonthNavigation, 
+  availableMonths, 
+  currentMonthIndex, 
+  onPrevMonth, 
+  onNextMonth 
+}: {
+  shouldShowMonthNavigation: boolean
+  availableMonths: { month: number; year: number; monthName: string }[]
+  currentMonthIndex: number
+  onPrevMonth: () => void
+  onNextMonth: () => void
+}) {
+  if (!shouldShowMonthNavigation || availableMonths.length === 0) {
+    return null
+  }
+
+  const currentMonth = availableMonths[currentMonthIndex]
+  const canGoPrev = currentMonthIndex > 0
+  const canGoNext = currentMonthIndex < availableMonths.length - 1
+
+  return (
+    <TooltipProvider delayDuration={500} skipDelayDuration={100}>
+      <div className="flex items-center gap-0.5">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onPrevMonth}
+              disabled={!canGoPrev}
+              className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="bg-black text-white text-xs px-3 py-2" sideOffset={5}>
+            Previous Month
+          </TooltipContent>
+        </Tooltip>
+        
+        <span className="text-base font-semibold text-black dark:text-white px-0.5" style={{ marginLeft: '8px', marginRight: '8px' }}>
+          {currentMonth?.monthName || 'Loading...'}
+        </span>
+        
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onNextMonth}
+              disabled={!canGoNext}
+              className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="bg-black text-white text-xs px-3 py-2" sideOffset={5}>
+            Next Month
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    </TooltipProvider>
+  )
 }
