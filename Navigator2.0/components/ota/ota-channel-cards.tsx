@@ -169,7 +169,7 @@ function OTAChannelCards({
                                       <TooltipContent
                                         side={index == 0 ? "right" : "top"}
                                         align="center"
-                                        className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[99999]"
+                                        className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[99999] w-[200px]"
                                         sideOffset={5}
                                         avoidCollisions={true}
                                         collisionPadding={10}
@@ -184,7 +184,7 @@ function OTAChannelCards({
                                       <TooltipContent
                                         side={index == 0 ? "right" : "top"}
                                         align="center"
-                                        className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[99999]"
+                                        className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[99999] w-[200px]"
                                         sideOffset={5}
                                         avoidCollisions={true}
                                         collisionPadding={10}
@@ -250,7 +250,7 @@ function OTAChannelCards({
                                       <TooltipContent
                                         side={index == 1 ? "left" : "top"}
                                         align="center"
-                                        className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[99999]"
+                                        className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[99999] w-[200px]"
                                         sideOffset={5}
                                         avoidCollisions={true}
                                         collisionPadding={10}
@@ -265,7 +265,7 @@ function OTAChannelCards({
                                       <TooltipContent
                                         side={index == 1 ? "left" : "top"}
                                         align="center"
-                                        className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[99999]"
+                                        className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[99999] w-[200px]"
                                         sideOffset={5}
                                         avoidCollisions={true}
                                         collisionPadding={10}

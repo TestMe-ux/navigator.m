@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, use } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,173 +12,145 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Search, History, Edit, Trash2, X, CheckCircle } from "lucide-react"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-
-// Mock channel data matching the image structure
-const mockChannels = [
-  {
-    id: 1,
-    name: "BookingFE",
-    status: "Requested",
-    createdOn: "02 Dec'24",
-    createdBy: "Renu Gupta",
-    canDelete: true,
-  },
-  {
-    id: 2,
-    name: "Test Channel",
-    status: "Requested",
-    createdOn: "10 May'24",
-    createdBy: "Sahil Saluja",
-    canDelete: true,
-  },
-  {
-    id: 3,
-    name: "googlehotel",
-    status: "Requested",
-    createdOn: "20 Apr'24",
-    createdBy: "Sahil Saluja",
-    canDelete: true,
-  },
-  {
-    id: 4,
-    name: "YahooHotel",
-    status: "Requested",
-    createdOn: "20 Apr'24",
-    createdBy: "Nitendra Kumar",
-    canDelete: true,
-  },
-  {
-    id: 5,
-    name: "YahooHotel",
-    status: "Requested",
-    createdOn: "20 Apr'24",
-    createdBy: "Nitendra Kumar",
-    canDelete: true,
-  },
-  {
-    id: 6,
-    name: "YahooHotel",
-    status: "Requested",
-    createdOn: "20 Apr'24",
-    createdBy: "Nitendra Kumar",
-    canDelete: true,
-  },
-  {
-    id: 7,
-    name: "Agoda",
-    status: "Active",
-    createdOn: "26 Sep'23",
-    createdBy: "RateGain",
-    canDelete: false, // Disabled - RateGain created
-  },
-  {
-    id: 8,
-    name: "BOOKING.COM",
-    status: "Active",
-    createdOn: "26 Sep'23",
-    createdBy: "RateGain",
-    canDelete: false, // Disabled - RateGain created
-  },
-  {
-    id: 9,
-    name: "BookingMobApp",
-    status: "Active",
-    createdOn: "26 Sep'23",
-    createdBy: "RateGain",
-    canDelete: false, // Disabled - RateGain created
-  },
-  {
-    id: 10,
-    name: "Brand",
-    status: "Active",
-    createdOn: "29 Nov'24",
-    createdBy: "RateGain",
-    canDelete: false, // Disabled - RateGain created
-  },
-  {
-    id: 11,
-    name: "Expedia",
-    status: "Active",
-    createdOn: "26 Sep'23",
-    createdBy: "RateGain",
-    canDelete: false, // Disabled - RateGain created
-  },
-  {
-    id: 12,
-    name: "GoogleHotelFinder",
-    status: "Active",
-    createdOn: "29 Nov'24",
-    createdBy: "RateGain",
-    canDelete: false, // Disabled - RateGain created
-  },
-  {
-    id: 13,
-    name: "Tripadvisor",
-    status: "Active",
-    createdOn: "29 Nov'24",
-    createdBy: "RateGain",
-    canDelete: false, // Disabled - RateGain created
-  },
-]
+import { deleteChannel, getAllChannelList, getChannelHistory } from "@/lib/channels"
+import { useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
+import { format } from "date-fns"
+import { useToast } from "@/hooks/use-toast"
 
 export default function ChannelSettingsPage() {
-  const [channels, setChannels] = useState(mockChannels)
+  const [channels, setChannels] = useState<any>([])
+  const [channelHistory, setChannelHistory] = useState<any>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [showChangeHistory, setShowChangeHistory] = useState(false)
-  const [showSnackbar, setShowSnackbar] = useState(false)
-  const [showDeleteSnackbar, setShowDeleteSnackbar] = useState(false)
+  // const [showSnackbar, setShowSnackbar] = useState(false)
+  // const [showDeleteSnackbar, setShowDeleteSnackbar] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [channelToDelete, setChannelToDelete] = useState<number | null>(null)
+  const [channelToDelete, setChannelToDelete] = useState<any>(null)
   const [showSearch, setShowSearch] = useState(false)
   const [searchValue, setSearchValue] = useState("")
   const [isLoading, setIsLoading] = useState(true)
-
+  const [selectedProperty] = useSelectedProperty();
+  const [userDetails] = useUserDetail();
+const { toast } = useToast();
   // Auto-hide snackbar after 5 seconds
-  useEffect(() => {
-    if (showSnackbar) {
-      const timer = setTimeout(() => {
-        setShowSnackbar(false)
-      }, 5000)
-      return () => clearTimeout(timer)
-    }
-  }, [showSnackbar])
+  // useEffect(() => {
+  //   if (showSnackbar) {
+  //     const timer = setTimeout(() => {
+  //       setShowSnackbar(false)
+  //     }, 5000)
+  //     return () => clearTimeout(timer)
+  //   }
+  // }, [showSnackbar])
 
   // Auto-hide delete snackbar after 5 seconds
-  useEffect(() => {
-    if (showDeleteSnackbar) {
-      const timer = setTimeout(() => {
-        setShowDeleteSnackbar(false)
-      }, 5000)
-      return () => clearTimeout(timer)
-    }
-  }, [showDeleteSnackbar])
+  // useEffect(() => {
+  //   if (showDeleteSnackbar) {
+  //     const timer = setTimeout(() => {
+  //       setShowDeleteSnackbar(false)
+  //     }, 5000)
+  //     return () => clearTimeout(timer)
+  //   }
+  // }, [showDeleteSnackbar])
 
   // Simulate loading effect on component mount
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 3000) // Show loading for 3 seconds
+    if (!selectedProperty?.sid) return;
 
-    return () => clearTimeout(timer)
-  }, [])
+    const fetchChannels = async () => {
+      try {
+        const response: any = await getAllChannelList({
+          SID: selectedProperty.sid,
+          isMetaSite: true,
+          bForceFresh: false,
+        });
 
-  const filteredChannels = channels.filter(
-    (channel) =>
-      channel.name.toLowerCase().includes((searchValue || searchTerm).toLowerCase()) ||
-      channel.createdBy.toLowerCase().includes((searchValue || searchTerm).toLowerCase()),
-  )
+        if (response?.status) {
+          setChannels(response.body || []);
+        }
+      } catch (error) {
+        console.error("Error fetching channels:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const handleDeleteChannel = (channelId: number) => {
-    setChannelToDelete(channelId)
+    setIsLoading(true); // Start loading before fetch
+    fetchChannels();
+
+  }, [selectedProperty?.sid]);
+  useEffect(() => {
+    if (!selectedProperty?.sid || !showChangeHistory) return;
+
+    const fetchChannelHistory = async () => {
+      try {
+        const response: any = await getChannelHistory({
+          SID: selectedProperty.sid
+        });
+
+        if (response?.status) {
+          setChannelHistory(response.body || []);
+        }
+      } catch (error) {
+        console.error("Error fetching channels:", error);
+      } finally {
+        // setIsLoading(false);
+      }
+    };
+
+    fetchChannelHistory();
+
+  }, [showChangeHistory]);
+
+
+  const filteredChannels = useMemo(() => {
+    if (channels.length === 0) return [];
+    const search = (searchValue || searchTerm || '').toLowerCase();
+
+    return channels.filter(
+      (channel: any) =>
+        channel.name.toLowerCase().includes(search) ||
+        channel.createdBy.toLowerCase().includes(search)
+    );
+  }, [channels, searchValue, searchTerm]);
+
+  const handleDeleteChannel = (channel: any) => {
+    setChannelToDelete(channel)
     setShowDeleteConfirm(true)
   }
 
   const confirmDeleteChannel = () => {
-    if (channelToDelete) {
-      setChannels((prev) => prev.filter((channel) => channel.id !== channelToDelete))
-      setShowDeleteConfirm(false)
-      setChannelToDelete(null)
-      setShowDeleteSnackbar(true)
+    debugger
+    if (!!channelToDelete) {
+      setChannels((prev: any) => prev.filter((channel: any) => channel.cid !== channelToDelete.cid))
+      const filtersValue = {
+        channelId: channelToDelete.cid,
+        channelName: channelToDelete.name,
+        SID: selectedProperty?.sid,
+        isNew: channelToDelete.isNew,
+        createdBy: userDetails?.userId
+      }
+      deleteChannel(filtersValue).then((response) => {
+        if (response?.status) {
+          toast({
+            description: "Parity settings have been successfully updated.",
+            variant: "success",
+            duration: 3000,
+          })
+        }
+        else {
+          toast({
+            title: "Error",
+            description: "Something went wrong. Please try again!",
+            variant: "error",
+            duration: 5000,
+          });
+          // setShowDeleteSnackbar(true)
+        }
+      }).finally(() => {
+        setShowDeleteConfirm(false)
+        setChannelToDelete(null)
+      });
+
     }
   }
 
@@ -270,7 +242,7 @@ export default function ChannelSettingsPage() {
                       <div className="h-4 w-16 bg-gray-300 animate-pulse rounded"></div>
                     </div>
                   </div>
-                  
+
                   {/* Table Rows */}
                   {Array.from({ length: 6 }).map((_, i) => (
                     <div key={i} className="px-4 py-4 border-b last:border-b-0">
@@ -377,24 +349,24 @@ export default function ChannelSettingsPage() {
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredChannels.map((channel, index) => {
+                {filteredChannels.map((channel: any, index: any) => {
                   const isLastRow = index === filteredChannels.length - 1;
                   return (
-                    <tr key={channel.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800/50 ${index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-800'}`}>
+                    <tr key={channel.cid} className={`hover:bg-gray-50 dark:hover:bg-slate-800/50 ${index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-800'}`}>
                       <td className={`px-4 py-2 whitespace-nowrap ${isLastRow ? 'rounded-bl-lg' : ''}`}>
                         <div className="flex items-center">
                           <div className="text-sm font-medium text-black dark:text-white">
                             {channel.name}
                           </div>
-                          {channel.status === "Requested" && (
+                          {channel.isActive === false && (
                             <div className="ml-2">
-                              {getStatusBadge(channel.status)}
+                              {getStatusBadge("Requested")}
                             </div>
                           )}
                         </div>
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                        {channel.createdOn}
+                        {format(channel.createdDate, "dd MMM''yy")}
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         {channel.createdBy}
@@ -407,19 +379,18 @@ export default function ChannelSettingsPage() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => channel.canDelete && handleDeleteChannel(channel.id)}
-                                  disabled={!channel.canDelete}
-                                  className={`h-6 w-6 p-0 ${
-                                    channel.canDelete 
-                                      ? "text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" 
-                                      : "text-gray-500 cursor-not-allowed"
-                                  }`}
+                                  onClick={() => channel.isActive && handleDeleteChannel(channel)}
+                                  disabled={!channel.isActive}
+                                  className={`h-6 w-6 p-0 ${channel.isActive
+                                    ? "text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                    : "text-gray-500 cursor-not-allowed"
+                                    }`}
                                 >
                                   <Trash2 className="w-3 h-3" />
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent className="bg-black text-white">
-                                <p>{channel.canDelete ? "Delete Channel" : "Disabled"}</p>
+                                <p>{channel.isActive ? "Delete Channel" : "Disabled"}</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -438,7 +409,7 @@ export default function ChannelSettingsPage() {
       <Dialog open={showChangeHistory} onOpenChange={setShowChangeHistory}>
         <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col">
           <DialogHeader>
-              <DialogTitle className="text-2xl font-bold">Channel Change History</DialogTitle>
+            <DialogTitle className="text-2xl font-bold">Channel Change History</DialogTitle>
             <DialogDescription>
               Shows the history of all the changes made to channel settings
             </DialogDescription>
@@ -448,120 +419,72 @@ export default function ChannelSettingsPage() {
             <div className="border border-gray-300 dark:border-gray-600 rounded-lg h-full">
               <div className="h-[400px] overflow-y-auto border-b border-gray-200 dark:border-gray-700 mb-2.5">
                 <table className="w-full table-fixed">
-                <thead className="bg-gray-50 dark:bg-slate-800">
-                  <tr className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-800 align-top">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tl-lg border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-28">
-                      Channel
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
-                      Action Date
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-28">
-                      Created/Modified By
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-48">
-                      Email
-                    </th>
+                  <thead className="bg-gray-50 dark:bg-slate-800">
+                    <tr className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-800 align-top">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tl-lg border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-28">
+                        Channel
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
+                        Action Date
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-28">
+                        Created/Modified By
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-48">
+                        Email
+                      </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tr-lg border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
                         Activity
                       </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-slate-900">
-                  {Array.from({ length: 50 }, (_, index) => {
-                    const baseData = [
-                      {
-                        channel: "BookingFE",
-                        actionDate: "02 Dec'24",
-                        createdBy: "Renu Gupta",
-                        email: "renu.gupta@company.com",
-                        activity: "Created"
-                      },
-                      {
-                        channel: "Test Channel",
-                        actionDate: "10 May'24",
-                        createdBy: "Sahil Saluja",
-                        email: "sahil.saluja@company.com",
-                        activity: "Created"
-                      },
-                      {
-                        channel: "Agoda",
-                        actionDate: "26 Sep'23",
-                        createdBy: "RateGain",
-                        email: "admin@rategain.com",
-                        activity: "Activated"
-                      },
-                      {
-                        channel: "BOOKING.COM",
-                        actionDate: "26 Sep'23",
-                        createdBy: "RateGain",
-                        email: "admin@rategain.com",
-                        activity: "Activated"
-                      },
-                      {
-                        channel: "Expedia",
-                        actionDate: "26 Sep'23",
-                        createdBy: "RateGain",
-                        email: "admin@rategain.com",
-                        activity: "Modified"
-                      }
-                    ];
-                    
-                    const change = baseData[index % baseData.length];
-                    const changeWithId = {
-                      ...change,
-                      id: index + 1,
-                      channel: `${change.channel} ${index + 1}`,
-                      actionDate: change.actionDate,
-                      createdBy: `${change.createdBy} ${index + 1}`,
-                      email: change.email,
-                      activity: change.activity
-                    };
-                    
-                    const isLastRow = index === 49; // 50 items total, so last index is 49
-                    return (
-                      <tr key={changeWithId.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800/50 ${index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-800'}`}>
-                        <td className={`px-4 py-2 whitespace-nowrap border-b border-gray-200 dark:border-gray-700 ${isLastRow ? 'rounded-bl-lg' : ''} w-28`}>
-                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                            {changeWithId.channel}
-                          </div>
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-20">
-                          {changeWithId.actionDate}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-28">
-                          <div className="truncate">
-                            {changeWithId.createdBy}
-                          </div>
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-48">
-                          <div className="truncate">
-                            {changeWithId.email}
-                          </div>
-                        </td>
-                        <td className={`px-4 py-2 whitespace-nowrap text-sm border-b border-gray-200 dark:border-gray-700 ${isLastRow ? 'rounded-br-lg' : ''} w-20`}>
-                          <div className="flex justify-center">
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                              changeWithId.activity === 'Modified' || changeWithId.activity === 'Updated'
-                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400' 
-                                : changeWithId.activity === 'Created' || changeWithId.activity === 'Activated' || changeWithId.activity === 'Added'
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                                : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
-                            }`}>
-                              {changeWithId.activity}
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {/* Add padding to ensure last row is visible */}
-                  <tr>
-                    <td colSpan={5} className="h-4"></td>
-                  </tr>
-                </tbody>
-                {/* Add blank space after table */}
-                <div className="h-2.5"></div>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-slate-900">
+                    {channelHistory.map((changeWithId: any, index: any) => {
+                      const isLastRow = index === channelHistory.length - 1;
+                      return (
+                        <tr key={changeWithId.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800/50 ${index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-800'}`}>
+                          <td className={`px-4 py-2 whitespace-nowrap border-b border-gray-200 dark:border-gray-700 ${isLastRow ? 'rounded-bl-lg' : ''} w-28`}>
+                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                              {changeWithId.channelName}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-20">
+                            {format(changeWithId.createdDate, "dd MMM''yy")}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-28">
+                            <div className="truncate">
+                              {changeWithId.createdByName}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-48">
+                            <div className="truncate">
+                              {changeWithId.createdByEmail}
+                            </div>
+                          </td>
+                          <td className={`px-4 py-2 whitespace-nowrap text-sm border-b border-gray-200 dark:border-gray-700 ${isLastRow ? 'rounded-br-lg' : ''} w-20`}>
+                            <div className="flex justify-center">
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium 
+                              ${changeWithId.activity === 'Modified' || changeWithId.activity === 'Updated'
+                                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
+                                  : changeWithId.activity === 'Created' || changeWithId.activity === 'Activated' || changeWithId.activity === 'Added'
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                                    : changeWithId.activity === 'Deleted' ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                                      : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+                                }`}>
+                                {changeWithId.activity}
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {/* Add padding to ensure last row is visible */}
+                    <tr>
+                      <td colSpan={5} className="h-4"></td>
+                    </tr>
+                  </tbody>
+                  {/* Add blank space after table */}
+                  <div className="h-2.5"></div>
                 </table>
               </div>
             </div>
@@ -610,7 +533,7 @@ export default function ChannelSettingsPage() {
       </Dialog>
 
       {/* Success Snackbar */}
-      {showSnackbar && (
+      {/* {showSnackbar && (
         <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
           <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4">
             <div className="flex items-center gap-3">
@@ -623,10 +546,10 @@ export default function ChannelSettingsPage() {
             </div>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Delete Success Snackbar */}
-      {showDeleteSnackbar && (
+      {/* {showDeleteSnackbar && (
         <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
           <div className="bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4">
             <div className="flex items-center gap-3">
@@ -639,7 +562,7 @@ export default function ChannelSettingsPage() {
             </div>
           </div>
         </div>
-      )}
+      )} */}
     </div>
   )
 }
