@@ -175,7 +175,6 @@ export function CompactParityView({ className, parityDataMain }: CompactParityVi
   }
   
   const benchmarkChannel = parityData.length > 0 ? getBenchmarkChannel() : null
-  const BENCHMARK_CHANNEL_NAME = benchmarkChannel?.channelName || "MakeMyTrip"
 
   // Load parity data from parityDataMain prop
   React.useEffect(() => {
