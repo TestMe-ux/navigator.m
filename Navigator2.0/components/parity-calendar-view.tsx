@@ -842,7 +842,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                       if (isBlankColumn) return ''
                                       
                                       // Extract parity score from channel data (first channel)
-                                      debugger;
+                                     // debugger;
                                       const parityScore = parityData[index]?.dateWisewinMeetLoss?.parityScore || 0
                                     
                                       return `${parityScore}%`
