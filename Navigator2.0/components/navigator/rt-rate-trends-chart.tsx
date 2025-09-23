@@ -9,11 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
-import { TrendingUp, Filter, Download, ChevronDown, Eye, EyeOff, ArrowUp, ArrowDown, Minus, BarChart3, Star, Maximize2, Calendar, Wifi, Coffee, Utensils, Car, Zap } from "lucide-react"
-import { useDateContext } from "@/components/date-context"
+import { TrendingUp, Filter, Download, ChevronDown, Eye, EyeOff, ArrowUp, ArrowDown, Minus, BarChart3, Star, Maximize2, Calendar, Wifi, Coffee, Utensils, Car, Zap, Check } from "lucide-react"
+// import { useDateContext } from "@/components/date-context" // Hidden for static data
 import { format, eachDayOfInterval, differenceInDays } from "date-fns"
 import { Tooltip as RechartsTooltip } from "recharts"
-import localStorageService from "@/lib/localstorage"
+// import { LocalStorageService } from "@/lib/localstorage" // Removed - using static data only
 import { toPng } from "html-to-image";
 import { escapeCSVValue } from "@/lib/utils"
 import { RateDetailModal } from "./rate-detail-modal"
@@ -21,7 +21,25 @@ import { RateDetailModal } from "./rate-detail-modal"
 /**
  * Custom Tooltip Component for RT Rate Trends (independent from Overview)
  */
-const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
+const RTRateTrendsTooltip = ({ active, payload, label, coordinate, digitCount = 4 }: any) => {
+  // Debug log to check digitCount
+  console.log('🔍 Tooltip digitCount:', digitCount)
+  
+  // Utility function to format numbers with commas based on digit count
+  const formatRateValue = (value: number) => {
+    console.log('🔍 Formatting value:', value, 'with digitCount:', digitCount)
+    if (digitCount === 4) {
+      // For 4-digit: show values like 1,234
+      return value.toLocaleString()
+    } else if (digitCount === 6) {
+      // For 6-digit: show values like 123,456
+      return value.toLocaleString()
+    } else if (digitCount === 8) {
+      // For 8-digit: show values like 12,345,678
+      return value.toLocaleString()
+    }
+    return value.toLocaleString() // Default fallback
+  }
   if (active && payload && payload.length) {
     const data = payload[0]?.payload
 
@@ -44,10 +62,27 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
       marginLeft: '10px'
     }
 
-    // Dynamic width classes based on rate size
-    const widthClasses = hasLargeRates 
-      ? "min-w-[410px] max-w-[466px]" // Additional 20% increase reduced by 5% (432px * 0.95 = 410px, 490px * 0.95 = 466px)
-      : "min-w-[342px] max-w-[388px]"  // Standard 20% increase reduced by 5% (360px * 0.95 = 342px, 408px * 0.95 = 388px)
+     // Dynamic width classes based on date and rate size
+     const date = new Date(data.date)
+     const dayOfMonth = date.getDate()
+     
+     let widthClasses
+     if (dayOfMonth === 2) {
+       // Jan 2: Width for 4-digit values (Rate: +8px, Variance: +8px = +16px total)
+       widthClasses = hasLargeRates 
+         ? "min-w-[426px] max-w-[482px]" // Increased by 16px
+         : "min-w-[358px] max-w-[404px]"  // Increased by 16px
+     } else if (dayOfMonth === 3) {
+       // Jan 3: Reduced width for 6-digit values (Rate: -30px, Variance: -30px = -60px total)
+       widthClasses = hasLargeRates 
+         ? "min-w-[446px] max-w-[502px]" // Reduced by 60px from Jan 4+ width
+         : "min-w-[378px] max-w-[424px]"  // Reduced by 60px from Jan 4+ width
+     } else {
+       // Jan 4 and others: Increased width (Rate: +8px, Variance: +8px = +16px total)
+       widthClasses = hasLargeRates 
+         ? "min-w-[506px] max-w-[562px]" // Increased by 16px
+         : "min-w-[438px] max-w-[484px]"  // Increased by 16px
+     }
 
     return (
       <div 
@@ -90,14 +125,20 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
         )}
 
 
-        {/* Column Headings */}
-        <div className="grid grid-cols-[1fr_120px_60px_50px] gap-0 px-2">
+         {/* Column Headings */}
+         <div className={`grid gap-0 px-2 ${
+           dayOfMonth === 2 
+             ? "grid-cols-[1fr_108px_70px_50px]" // Jan 2: Rate +8px (100->108), Variance +8px (62->70)
+             : dayOfMonth === 3
+             ? "grid-cols-[1fr_118px_80px_50px]" // Jan 3: Rate -30px (148->118), Variance -30px (110->80)
+             : "grid-cols-[1fr_148px_110px_50px]" // Jan 4+: Rate +8px (140->148), Variance +8px (102->110)
+         }`}>
           <div className="px-2 pt-1 pb-0 text-left">
             <span className="text-xs font-medium text-gray-500 dark:text-slate-400">Property</span>
           </div>
-          <div className="px-2 pt-1 pb-0 text-right">
-            <span className="text-xs font-medium text-gray-500 dark:text-slate-400" style={{ paddingRight: '20px' }}>Rate</span>
-          </div>
+                   <div className="px-2 pt-1 pb-0 text-right">
+                     <span className="text-xs font-medium text-gray-500 dark:text-slate-400" style={{ paddingRight: '20px' }}>Rate (USD)</span>
+                   </div>
           <div className="px-2 pt-1 pb-0 text-right">
             <span className="text-xs font-medium text-gray-500 dark:text-slate-400">Variance</span>
           </div>
@@ -120,10 +161,63 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
               const rate = entry.value
               const isMyHotel = entry.dataKey === 'direct'
               
-              // Calculate variance (difference from My Hotel rate)
-              const variance = rate - myHotelRate
-              const varianceFormatted = variance === 0 ? '-' : 
-                variance > 0 ? `+${variance}` : `-${Math.abs(variance)}`
+                       // Calculate variance based on date - different digit counts for different dates
+                       const date = new Date(data.date)
+                       const dayOfMonth = date.getDate()
+                       
+                       let baseRate, sampleRates, sampleMyHotelRate
+                       
+                       if (dayOfMonth === 2) {
+                         // Jan 2: 4-digit values
+                         sampleMyHotelRate = 4343
+                         sampleRates = [
+                           4343, // My Hotel (index 0) - no variance
+                           5343, // Avg. Compset (index 1) - +1000
+                           3343, // Marriott Resort (index 2) - -1000 (green)
+                           6343, // Hilton Paradise (index 3) - +2000
+                           2343, // Hyatt Luxury (index 4) - -2000 (green)
+                           7343, // Sheraton Beach (index 5) - +3000
+                           1343, // Westin Resort (index 6) - -3000 (green)
+                           8343, // InterContinental (index 7) - +4000
+                           3343, // Radisson Blu (index 8) - -1000 (green)
+                           9343  // Holiday Inn (index 9) - +5000
+                         ]
+                       } else if (dayOfMonth === 3) {
+                         // Jan 3: 6-digit values
+                         sampleMyHotelRate = 344343
+                         sampleRates = [
+                           344343, // My Hotel (index 0) - no variance
+                           354343, // Avg. Compset (index 1) - +10000
+                           334343, // Marriott Resort (index 2) - -10000 (green)
+                           364343, // Hilton Paradise (index 3) - +20000
+                           324343, // Hyatt Luxury (index 4) - -20000 (green)
+                           374343, // Sheraton Beach (index 5) - +30000
+                           314343, // Westin Resort (index 6) - -30000 (green)
+                           384343, // InterContinental (index 7) - +40000
+                           334343, // Radisson Blu (index 8) - -10000 (green)
+                           394343  // Holiday Inn (index 9) - +50000
+                         ]
+                       } else {
+                         // Jan 4 and others: 8-digit values (current implementation)
+                         sampleMyHotelRate = 44225588
+                         sampleRates = [
+                           44225588, // My Hotel (index 0) - no variance
+                           45225588, // Avg. Compset (index 1) - +1M
+                           43225588, // Marriott Resort (index 2) - -1M (green)
+                           46225588, // Hilton Paradise (index 3) - +2M
+                           42225588, // Hyatt Luxury (index 4) - -2M (green)
+                           47225588, // Sheraton Beach (index 5) - +3M
+                           41225588, // Westin Resort (index 6) - -3M (green)
+                           48225588, // InterContinental (index 7) - +4M
+                           40225588, // Radisson Blu (index 8) - -4M (green)
+                           49225588  // Holiday Inn (index 9) - +5M
+                         ]
+                       }
+                       
+                       const sampleRate = sampleRates[index] || sampleMyHotelRate
+                       const variance = sampleRate - sampleMyHotelRate
+                       const varianceFormatted = variance === 0 ? '-' :
+                         variance > 0 ? `+${Math.abs(variance).toLocaleString()}` : `-${Math.abs(variance).toLocaleString()}`
               
               // Get property name
               let propertyName = entry.name || 'Unknown Property'
@@ -150,9 +244,15 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
               }
 
               return (
-                <div key={index} className={`grid grid-cols-[1fr_120px_60px_50px] gap-0 items-center py-0.5 pl-2 pr-2 rounded-md ${
-                  isMyHotel ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700' : ''
-                }`}>
+                 <div key={index} className={`grid gap-0 items-center py-0.5 pl-2 pr-2 rounded-md ${
+                   dayOfMonth === 2 
+                     ? "grid-cols-[1fr_108px_70px_50px]" // Jan 2: Rate +8px (100->108), Variance +8px (62->70)
+                     : dayOfMonth === 3
+                     ? "grid-cols-[1fr_118px_80px_50px]" // Jan 3: Rate -30px (148->118), Variance -30px (110->80)
+                     : "grid-cols-[1fr_148px_110px_50px]" // Jan 4+: Rate +8px (140->148), Variance +8px (102->110)
+                 } ${
+                   isMyHotel ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700' : ''
+                 }`}>
                   {/* Property Column */}
                   <div className="flex items-center min-w-0 px-2 py-1 text-left">
                     <div className={`text-xs font-medium whitespace-nowrap ${
@@ -166,17 +266,29 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
                   <div className={`flex items-center justify-end px-2 py-1 ${
                     isMyHotel ? 'text-blue-900 dark:text-blue-200' : 'text-gray-900 dark:text-slate-100'
                   }`}>
-                    {/* Show bolt icon on 25th date only for specific competitors */}
-                    {(() => {
-                      const date = new Date(data.date)
-                      const dayOfMonth = date.getDate()
-                      // Show bolt icon only for specific competitors (index 0, 2, 4) on 25th date
-                      const shouldShowBolt = dayOfMonth === 25 && (index === 0 || index === 2 || index === 4)
-                      return shouldShowBolt ? (
-                        <Zap className="w-3 h-3 text-blue-500 fill-current mr-2" />
-                      ) : null
-                    })()}
-                    <span className="text-sm font-bold">${rate}</span>
+                       {/* Show different icons based on date for specific competitors */}
+                       {(() => {
+                         const date = new Date(data.date)
+                         const dayOfMonth = date.getDate()
+                         const month = date.getMonth() + 1 // getMonth() returns 0-11, so add 1
+                         // Show icons only for specific competitors (index 0, 2, 4) on Jan 2, 3 and 4
+                         const shouldShowIcon = month === 1 && (dayOfMonth === 2 || dayOfMonth === 3 || dayOfMonth === 4) && (index === 0 || index === 2 || index === 4)
+                         
+                         if (!shouldShowIcon) return null
+                         
+                         if (dayOfMonth === 2) {
+                           // Jan 2: Green tick icon with white checkmark
+                           return (
+                             <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center mr-2">
+                               <Check className="w-2 h-2 text-white stroke-4" />
+                             </div>
+                           )
+                         } else {
+                           // Jan 3, 4: Blue bolt icon
+                           return <Zap className="w-3 h-3 text-blue-500 fill-current mr-2" />
+                         }
+                       })()}
+                             <span className="text-sm font-bold">{sampleRate.toLocaleString()}</span>
                     <div className="ml-1" style={{ paddingLeft: '4px' }}>
                       {getInclusionIcon(index) || (
                         <div className="w-3 h-3 opacity-0">
@@ -725,15 +837,26 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
  * @component
  * @version 2.0.0
  */
-export function RTRateTrendsChart({ rateData }: any) {
-  const { startDate, endDate, isLoading } = useDateContext()
+export function RTRateTrendsChart({ rateData, digitCount = 4 }: any) {
+  // Debug log to check digitCount
+  console.log('🔍 Chart digitCount:', digitCount)
+  
+  // Static date range - no useDateContext needed
+  const startDate = new Date()
+  const endDate = new Date(Date.now() + 6 * 24 * 60 * 60 * 1000) // Next 7 days
+  const isLoading = false // Always false for static data
   const [selectedProperty, setSelectedProperty] = useState<any>(null)
 
-  // Safely get selectedProperty on client side only
+  // Use static property data - no localStorage dependency
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const property = localStorageService.get('SelectedProperty')
-      setSelectedProperty(property)
+      // Use static property data instead of localStorage
+      const staticProperty = {
+        sid: 12345,
+        name: "Sample Hotel",
+        hmid: 67890
+      }
+      setSelectedProperty(staticProperty)
     }
   }, [])
 
@@ -1246,7 +1369,9 @@ export function RTRateTrendsChart({ rateData }: any) {
       competitor_114: 825,
       competitor_114_name: "Hotel Alexander Plaza",
       competitor_115: 715,
-      competitor_115_name: "Acom Hotel Berlin"
+      competitor_115_name: "Acom Hotel Berlin",
+      hasRefresh: false,
+      hasEvent: false
     },
     {
       date: "2024-01-06",
@@ -1319,11 +1444,13 @@ export function RTRateTrendsChart({ rateData }: any) {
       competitor_114: 855,
       competitor_114_name: "Hotel Alexander Plaza",
       competitor_115: 745,
-      competitor_115_name: "Acom Hotel Berlin"
+      competitor_115_name: "Acom Hotel Berlin",
+      hasRefresh: false,
+      hasEvent: false
     }
   ], [])
 
-  // Generate data - with fallback dates if context dates are null
+  // Use static data only - similar to table and calendar views
   const data = useMemo(() => {
     // Transform actual rate data to chart format
     const transformedData = transformRateData(rateData)
@@ -1333,17 +1460,9 @@ export function RTRateTrendsChart({ rateData }: any) {
       return transformedData
     }
 
-    // Generate dynamic sample data based on date range
-    if (startDate && endDate) {
-      return generateSampleData(startDate, endDate)
-    }
-
-    // For testing: Generate 30 days of sample data by default
-    const testStartDate = new Date()
-    const testEndDate = new Date()
-    testEndDate.setDate(testStartDate.getDate() + 29) // 30 days total
-    return generateSampleData(testStartDate, testEndDate)
-  }, [rateData, sampleData, startDate, endDate, generateSampleData])
+    // Use static sample data only - no dynamic generation
+    return sampleData
+  }, [rateData, sampleData])
 
   // Initialize visibility states when channel configs change
   useEffect(() => {
@@ -1589,12 +1708,12 @@ export function RTRateTrendsChart({ rateData }: any) {
 
   const cardRef = useRef<HTMLDivElement>(null);
   const handleDownloadImageRate = () => {
-    console.log("upgrading the a Sum Insured", data);
+    console.log("Downloading chart image with static data", data);
     if (cardRef.current) {
       toPng(cardRef.current, { cacheBust: true })
         .then((dataUrl) => {
           const link = document.createElement("a");
-          link.download = 'RateShopping_Rate_' + selectedProperty?.sid + '_' + new Date().getTime() + ".png"; // File name
+          link.download = 'RateTrends_Chart_' + (selectedProperty?.sid || 'static') + '_' + new Date().getTime() + ".png";
           link.href = dataUrl;
           link.click();
         })
@@ -1634,8 +1753,8 @@ export function RTRateTrendsChart({ rateData }: any) {
       // Extra "direct" row
       competitorRows.push([
         dateStr,
-        selectedProperty?.hmid,
-        selectedProperty?.name,
+        selectedProperty?.hmid || 12345,
+        selectedProperty?.name || "Sample Hotel",
         escapeCSVValue(entry.direct),
       ]);
 
@@ -1659,7 +1778,7 @@ export function RTRateTrendsChart({ rateData }: any) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", 'RateShopping_Rate_' + selectedProperty?.sid + '_' + new Date().getTime()+".csv");
+    link.setAttribute("download", 'RateTrends_Data_' + (selectedProperty?.sid || 'static') + '_' + new Date().getTime()+".csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1860,12 +1979,13 @@ export function RTRateTrendsChart({ rateData }: any) {
                       style: { textAnchor: 'middle' } 
                     }}
                     tickFormatter={(value: number) => {
-                      return `$${value}`
+                      console.log('🔍 Y-axis formatting value:', value, 'with digitCount:', digitCount)
+                      return value.toLocaleString()
                     }}
                     width={50}
                   />
                   <RechartsTooltip
-                    content={RTRateTrendsTooltip}
+                    content={(props) => <RTRateTrendsTooltip {...props} digitCount={digitCount} />}
                     allowEscapeViewBox={{ x: true, y: true }}
                     offset={0}
                     isAnimationActive={false}

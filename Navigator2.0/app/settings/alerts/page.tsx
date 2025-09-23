@@ -10,8 +10,27 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Search, Plus, History, MoreVertical, Trash2, Edit, CheckCircle, X, ArrowUp, ArrowDown, ArrowUpDown, ChevronDown } from "lucide-react"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
+
+// Mock compset data
+const compsetHotelsData = [
+  'All Compset Hotels', 'Marriott Executive Apartments Mayfair', 'Chaidee Mansion',
+  'Sukhumvit 12 Bangkok Hotel', 'Holiday Inn Bangkok Silom', 'Marriott Executive Apartments Sukhumvit Park',
+  'Grand Palace Hotel', 'Bangkok Marriott Hotel Sukhumvit', 'The Peninsula Bangkok',
+  'Mandarin Oriental Bangkok', 'Shangri-La Hotel Bangkok'
+]
+
+// Mock competition data
+const competitionHotelsData = [
+  'All Competition Hotels', 'Anantara Siam Bangkok Hotel', 'The St. Regis Bangkok',
+  'Four Seasons Hotel Bangkok', 'InterContinental Bangkok', 'Hilton Bangkok',
+  'Hyatt Regency Bangkok', 'Novotel Bangkok Sukhumvit', 'Pullman Bangkok King Power',
+  'Centara Grand at CentralWorld', 'Amari Watergate Bangkok'
+]
 
 // Mock alerts data
 const mockAlerts = [
@@ -103,16 +122,42 @@ export default function AlertsSettingsPage() {
   const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' | null }>({ key: null, direction: null })
   const [alertTypeFilter, setAlertTypeFilter] = useState("All")
   const [isLoading, setIsLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState("ADR")
+  const [isCompsetDropdownOpen, setIsCompsetDropdownOpen] = useState(false)
+  const [selectedCompsetHotels, setSelectedCompsetHotels] = useState<string[]>([])
+  const [compsetSearchTerm, setCompsetSearchTerm] = useState("")
+  const compsetDropdownRef = useRef<HTMLDivElement>(null)
+  
+  const [isCompetitionDropdownOpen, setIsCompetitionDropdownOpen] = useState(false)
+  const [selectedCompetitionHotels, setSelectedCompetitionHotels] = useState<string[]>([])
+  const [competitionSearchTerm, setCompetitionSearchTerm] = useState("")
+  const competitionDropdownRef = useRef<HTMLDivElement>(null)
   const [newAlert, setNewAlert] = useState({
-    alertTab: "ADR",
+    // ADR Tab
     alertMeWhen: "Subscriber ADR",
     competitorADR: "",
     has: "Increased",
     by: "Absolute",
     value: "1",
-    currency: "£",
+    currency: "€",
     withRespectTo: "Subscriber ADR",
     selectCompetition: "",
+    // Parity Tab
+    parityOption: "option1",
+    parityWinsMeetsLoses: "Wins",
+    parityChannels: "All",
+    parityScoreChange: "Increases",
+    parityScoreBy: "Absolute",
+    parityScoreValue: "",
+    parityScoreThreshold: "Falls Below",
+    parityScorePercentage: "",
+    // Rank Tab
+    rankAlertMeWhen: "Subscriber OTA Ranking",
+    competitorRank: "",
+    rankHas: "Increased",
+    rankBy: "1",
+    rankChannel: "Booking.com",
+    // Common
     sendForEventsHolidays: false,
   })
 
@@ -145,6 +190,99 @@ export default function AlertsSettingsPage() {
     return () => clearTimeout(timer)
   }, [])
 
+  // Handle click outside to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (compsetDropdownRef.current && !compsetDropdownRef.current.contains(event.target as Node)) {
+        setIsCompsetDropdownOpen(false)
+      }
+      if (competitionDropdownRef.current && !competitionDropdownRef.current.contains(event.target as Node)) {
+        setIsCompetitionDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
+  // Filter compset hotels based on search term
+  const filteredCompsetHotels = compsetHotelsData.filter(hotel =>
+    hotel.toLowerCase().includes(compsetSearchTerm.toLowerCase())
+  )
+
+  // Filter competition hotels based on search term
+  const filteredCompetitionHotels = competitionHotelsData.filter(hotel =>
+    hotel.toLowerCase().includes(competitionSearchTerm.toLowerCase())
+  )
+
+  // Handle compset hotel selection
+  const handleCompsetHotelToggle = (hotel: string) => {
+    setSelectedCompsetHotels(prev => {
+      let newHotels = [...prev]
+      
+      if (hotel === 'All Compset Hotels') {
+        if (newHotels.includes('All Compset Hotels')) {
+          newHotels = []
+        } else {
+          newHotels = [...compsetHotelsData]
+        }
+      } else {
+        if (newHotels.includes(hotel)) {
+          newHotels = newHotels.filter(h => h !== hotel)
+          newHotels = newHotels.filter(h => h !== 'All Compset Hotels')
+        } else {
+          newHotels.push(hotel)
+          
+          const individualHotels = compsetHotelsData.filter(h => h !== 'All Compset Hotels')
+          const selectedIndividualHotels = newHotels.filter(h => h !== 'All Compset Hotels')
+          
+          if (selectedIndividualHotels.length === individualHotels.length) {
+            if (!newHotels.includes('All Compset Hotels')) {
+              newHotels.push('All Compset Hotels')
+            }
+          }
+        }
+      }
+      
+      return newHotels
+    })
+  }
+
+  // Handle competition hotel selection
+  const handleCompetitionHotelToggle = (hotel: string) => {
+    setSelectedCompetitionHotels(prev => {
+      let newHotels = [...prev]
+      
+      if (hotel === 'All Competition Hotels') {
+        if (newHotels.includes('All Competition Hotels')) {
+          newHotels = []
+        } else {
+          newHotels = [...competitionHotelsData]
+        }
+      } else {
+        if (newHotels.includes(hotel)) {
+          newHotels = newHotels.filter(h => h !== hotel)
+          newHotels = newHotels.filter(h => h !== 'All Competition Hotels')
+        } else {
+          newHotels.push(hotel)
+          
+          const individualHotels = competitionHotelsData.filter(h => h !== 'All Competition Hotels')
+          const selectedIndividualHotels = newHotels.filter(h => h !== 'All Competition Hotels')
+          
+          if (selectedIndividualHotels.length === individualHotels.length) {
+            if (!newHotels.includes('All Competition Hotels')) {
+              newHotels.push('All Competition Hotels')
+            }
+          }
+        }
+      }
+      
+      return newHotels
+    })
+  }
+
   const filteredAlerts = alerts.filter(
     (alert) => {
       const matchesSearch = alert.rule.toLowerCase().includes((searchValue || searchTerm).toLowerCase()) ||
@@ -161,28 +299,71 @@ export default function AlertsSettingsPage() {
   }
 
   const handleAddAlert = () => {
+    let alertType = "ADR"
+    let rule = ""
+    
+    if (activeTab === "ADR") {
     if (newAlert.alertMeWhen && newAlert.has && newAlert.by && newAlert.value) {
+        alertType = "ADR"
+        rule = `${newAlert.alertMeWhen} ${newAlert.has} ${newAlert.by} ${newAlert.value}`
+      }
+    } else if (activeTab === "Parity") {
+      if (newAlert.parityOption === "option1") {
+        alertType = "Parity"
+        rule = `Subscriber Hotel ${newAlert.parityWinsMeetsLoses} on ${newAlert.parityChannels}`
+      } else if (newAlert.parityOption === "option2") {
+        alertType = "Parity"
+        rule = `Parity Score ${newAlert.parityScoreChange} by ${newAlert.parityScoreBy} ${newAlert.parityScoreValue}`
+      } else if (newAlert.parityOption === "option3") {
+        alertType = "Parity"
+        rule = `Parity Score ${newAlert.parityScoreThreshold} ${newAlert.parityScorePercentage}%`
+      }
+    } else if (activeTab === "Rank") {
+      if (newAlert.rankAlertMeWhen && newAlert.rankHas && newAlert.rankBy) {
+        alertType = "OTA Ranking"
+        rule = `${newAlert.rankAlertMeWhen} ${newAlert.rankHas} by ${newAlert.rankBy} on ${newAlert.rankChannel}`
+      }
+    }
+
+    if (rule) {
       const alert = {
         id: alerts.length + 1,
-        alertType: newAlert.alertTab,
-        rule: `${newAlert.alertMeWhen} ${newAlert.has} ${newAlert.by} ${newAlert.value}`,
+        alertType: alertType,
+        rule: rule,
         createdOn: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }),
         createdBy: "Current User",
         status: true,
       }
       setAlerts((prev) => [...prev, alert])
       setNewAlert({
-        alertTab: "ADR",
+        // ADR Tab
         alertMeWhen: "Subscriber ADR",
         competitorADR: "",
         has: "Increased",
         by: "Absolute",
         value: "1",
-        currency: "£",
+        currency: "€",
         withRespectTo: "Subscriber ADR",
         selectCompetition: "",
+        // Parity Tab
+        parityOption: "option1",
+        parityWinsMeetsLoses: "Wins",
+        parityChannels: "All",
+        parityScoreChange: "Increases",
+        parityScoreBy: "Absolute",
+        parityScoreValue: "",
+        parityScoreThreshold: "Falls Below",
+        parityScorePercentage: "",
+        // Rank Tab
+        rankAlertMeWhen: "Subscriber OTA Ranking",
+        competitorRank: "",
+        rankHas: "Increased",
+        rankBy: "1",
+        rankChannel: "Booking.com",
+        // Common
         sendForEventsHolidays: false,
       })
+      setActiveTab("ADR")
       setShowAddAlert(false)
       setShowSnackbar(true)
     }
@@ -190,17 +371,34 @@ export default function AlertsSettingsPage() {
 
   const handleCancelAddAlert = () => {
     setNewAlert({
-      alertTab: "ADR",
+      // ADR Tab
       alertMeWhen: "Subscriber ADR",
       competitorADR: "",
       has: "Increased",
       by: "Absolute",
       value: "1",
-      currency: "£",
+      currency: "€",
       withRespectTo: "Subscriber ADR",
       selectCompetition: "",
+      // Parity Tab
+      parityOption: "option1",
+      parityWinsMeetsLoses: "Wins",
+      parityChannels: "All",
+      parityScoreChange: "Increases",
+      parityScoreBy: "Absolute",
+      parityScoreValue: "",
+      parityScoreThreshold: "Falls Below",
+      parityScorePercentage: "",
+      // Rank Tab
+      rankAlertMeWhen: "Subscriber OTA Ranking",
+      competitorRank: "",
+      rankHas: "Increased",
+      rankBy: "1",
+      rankChannel: "Booking.com",
+      // Common
       sendForEventsHolidays: false,
     })
+    setActiveTab("ADR")
     setShowAddAlert(false)
   }
 
@@ -480,10 +678,10 @@ export default function AlertsSettingsPage() {
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                         <SelectContent className="text-left">
-                          <SelectItem value="All" className="[&>span:first-child]:hidden text-left">All</SelectItem>
-                          <SelectItem value="ADR" className="[&>span:first-child]:hidden text-left">ADR</SelectItem>
-                          <SelectItem value="Parity" className="[&>span:first-child]:hidden text-left">Parity</SelectItem>
-                          <SelectItem value="OTA Ranking" className="[&>span:first-child]:hidden text-left">OTA Ranking</SelectItem>
+                          <SelectItem value="All" className="text-left [&>span:first-child]:hidden pl-3">All</SelectItem>
+                          <SelectItem value="ADR" className="text-left [&>span:first-child]:hidden pl-3">ADR</SelectItem>
+                          <SelectItem value="Parity" className="text-left [&>span:first-child]:hidden pl-3">Parity</SelectItem>
+                          <SelectItem value="OTA Ranking" className="text-left [&>span:first-child]:hidden pl-3">OTA Ranking</SelectItem>
                         </SelectContent>
                       </Select>
                       <div className="absolute inset-0 flex items-center justify-between px-2 pointer-events-none">
@@ -603,123 +801,459 @@ export default function AlertsSettingsPage() {
 
       {/* Add Alert Modal */}
       <Dialog open={showAddAlert} onOpenChange={setShowAddAlert}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-black">Add Alert</DialogTitle>
+            <DialogTitle className="text-xl font-semibold text-black">Alert Settings</DialogTitle>
             <DialogDescription>
-              Create a new alert rule to monitor rate changes and competitive activity.
+              Configure alerts for ADR, Parity, and Ranking monitoring.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 mt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="mt-4">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="ADR">ADR</TabsTrigger>
+                <TabsTrigger value="Parity">Parity</TabsTrigger>
+                <TabsTrigger value="Rank">Rank</TabsTrigger>
+              </TabsList>
+
+              {/* ADR Tab */}
+              <TabsContent value="ADR" className="space-y-6 mt-6">
+                <div className="space-y-6">
+                  {/* Alert me when */}
               <div>
-                <Label className="block text-xs font-medium text-gray-700 mb-1">
-                  Alert Me When<span className="text-red-500 ml-1">*</span>
-                </Label>
-                <Select
+                    <Label className="block text-sm font-medium text-gray-700 mb-3">Alert me when</Label>
+                    <RadioGroup
                   value={newAlert.alertMeWhen}
                   onValueChange={(value) => setNewAlert((prev) => ({ ...prev, alertMeWhen: value }))}
-                >
-                  <SelectTrigger className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-0 focus:ring-offset-0">
-                    <SelectValue placeholder="Select alert type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Subscriber ADR" className="pl-3 [&>span:first-child]:hidden">Subscriber ADR</SelectItem>
-                    <SelectItem value="Competitor ADR" className="pl-3 [&>span:first-child]:hidden">Competitor ADR</SelectItem>
-                    <SelectItem value="Avg. Compset ADR" className="pl-3 [&>span:first-child]:hidden">Avg. Compset ADR</SelectItem>
-                  </SelectContent>
-                </Select>
+                      className="flex gap-6"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Subscriber ADR" id="subscriber-adr" />
+                        <Label htmlFor="subscriber-adr" className="text-sm font-normal">Subscriber ADR</Label>
               </div>
+                      <div className="flex items-center space-x-2 relative" ref={compsetDropdownRef}>
+                        <RadioGroupItem value="Competitor ADR" id="competitor-adr" />
+                        <Label
+                          htmlFor="competitor-adr"
+                          className="flex items-center space-x-2 text-sm font-normal cursor-pointer"
+                          onClick={() => setIsCompsetDropdownOpen(!isCompsetDropdownOpen)}
+                        >
+                          <span>Competitor ADR</span>
+                          <ChevronDown className="w-5 h-5 text-gray-600" />
+                        </Label>
 
+                        {/* Competitor Hotels Dropdown */}
+                        {isCompsetDropdownOpen && (
+                          <div className="absolute z-50 top-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-hidden min-w-80">
+                            {/* Search Input */}
+                            <div className="p-3 border-b border-gray-200">
+                              <div className="relative">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                <Input
+                                  placeholder="Search hotels..."
+                                  value={compsetSearchTerm}
+                                  onChange={(e) => setCompsetSearchTerm(e.target.value)}
+                                  className="pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
+                                />
+                              </div>
+                            </div>
+                            
+                            {/* Hotels List */}
+                            <div className="max-h-40 overflow-y-auto">
+                              {filteredCompsetHotels.map((hotel) => (
+                                <label
+                                  key={hotel}
+                                  className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedCompsetHotels.includes('All Compset Hotels') || selectedCompsetHotels.includes(hotel)}
+                                    onChange={() => handleCompsetHotelToggle(hotel)}
+                                    className="w-4 h-4 mr-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                  />
+                                  <span className="text-sm text-gray-900 truncate" title={hotel}>
+                                    {hotel.length > 32 ? `${hotel.substring(0, 32)}...` : hotel}
+                                  </span>
+                                </label>
+                              ))}
+                              {filteredCompsetHotels.length === 0 && (
+                                <div className="px-3 py-2 text-sm text-gray-500">
+                                  No hotels found
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Avg. Compset ADR" id="avg-compset-adr" />
+                        <Label htmlFor="avg-compset-adr" className="text-sm font-normal">Avg. Compset ADR</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {/* Has */}
               <div>
-                <Label className="block text-xs font-medium text-gray-700 mb-1">
-                  Has<span className="text-red-500 ml-1">*</span>
-                </Label>
-                <Select
+                    <Label className="block text-sm font-medium text-gray-700 mb-3">Has</Label>
+                    <RadioGroup
                   value={newAlert.has}
                   onValueChange={(value) => setNewAlert((prev) => ({ ...prev, has: value }))}
-                >
-                  <SelectTrigger className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-0 focus:ring-offset-0">
-                    <SelectValue placeholder="Select condition" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Increased" className="pl-3 [&>span:first-child]:hidden">Increased</SelectItem>
-                    <SelectItem value="Decreased" className="pl-3 [&>span:first-child]:hidden">Decreased</SelectItem>
-                    <SelectItem value="Changed" className="pl-3 [&>span:first-child]:hidden">Changed</SelectItem>
-                  </SelectContent>
-                </Select>
+                      className="flex gap-6"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Increased" id="increased" />
+                        <Label htmlFor="increased" className="text-sm font-normal">Increased</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Decreased" id="decreased" />
+                        <Label htmlFor="decreased" className="text-sm font-normal">Decreased</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Crossed" id="crossed" />
+                        <Label htmlFor="crossed" className="text-sm font-normal">Crossed</Label>
+                      </div>
+                    </RadioGroup>
               </div>
 
+                  {/* By */}
               <div>
-                <Label className="block text-xs font-medium text-gray-700 mb-1">
-                  By<span className="text-red-500 ml-1">*</span>
-                </Label>
-                <Select
+                    <Label className="block text-sm font-medium text-gray-700 mb-3">By</Label>
+                    <div className="space-y-4">
+                      <RadioGroup
                   value={newAlert.by}
                   onValueChange={(value) => setNewAlert((prev) => ({ ...prev, by: value }))}
-                >
-                  <SelectTrigger className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-0 focus:ring-offset-0">
-                    <SelectValue placeholder="Select measurement" />
+                        className="flex gap-6"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Absolute" id="absolute" />
+                          <Label htmlFor="absolute" className="text-sm font-normal">Absolute</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Percentage" id="percentage" />
+                          <Label htmlFor="percentage" className="text-sm font-normal">Percentage</Label>
+                        </div>
+                      </RadioGroup>
+                      
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          value={newAlert.value}
+                          onChange={(e) => setNewAlert((prev) => ({ ...prev, value: e.target.value }))}
+                          className="w-20 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
+                          placeholder="1"
+                        />
+                        <span className="text-sm text-gray-600">€</span>
+                        <span className="text-sm text-gray-600">With respect to</span>
+                        
+                      <RadioGroup
+                        value={newAlert.withRespectTo}
+                        onValueChange={(value) => setNewAlert((prev) => ({ ...prev, withRespectTo: value }))}
+                        className="flex gap-4 ml-4"
+                      >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="Subscriber ADR" id="subscriber-adr-ref" />
+                            <Label htmlFor="subscriber-adr-ref" className="text-sm font-normal">Subscriber ADR</Label>
+                          </div>
+                          <div className="flex items-center space-x-2 relative" ref={competitionDropdownRef}>
+                            <RadioGroupItem value="Select Competition" id="select-competition" />
+                            <Label
+                              htmlFor="select-competition"
+                              className="flex items-center space-x-2 text-sm font-normal cursor-pointer"
+                              onClick={() => setIsCompetitionDropdownOpen(!isCompetitionDropdownOpen)}
+                            >
+                              <span>Select Competition</span>
+                              <ChevronDown className="w-5 h-5 text-gray-600" />
+                            </Label>
+
+                            {/* Competition Hotels Dropdown */}
+                            {isCompetitionDropdownOpen && (
+                              <div className="absolute z-50 bottom-full mb-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-hidden min-w-80">
+                                {/* Search Input */}
+                                <div className="p-3 border-b border-gray-200">
+                                  <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                    <Input
+                                      placeholder="Search hotels..."
+                                      value={competitionSearchTerm}
+                                      onChange={(e) => setCompetitionSearchTerm(e.target.value)}
+                                      className="pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
+                                    />
+                                  </div>
+                                </div>
+                                
+                                {/* Hotels List */}
+                                <div className="max-h-40 overflow-y-auto">
+                                  {filteredCompetitionHotels.map((hotel) => (
+                                    <label
+                                      key={hotel}
+                                      className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedCompetitionHotels.includes('All Competition Hotels') || selectedCompetitionHotels.includes(hotel)}
+                                        onChange={() => handleCompetitionHotelToggle(hotel)}
+                                        className="w-4 h-4 mr-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                      />
+                                      <span className="text-sm text-gray-900 truncate" title={hotel}>
+                                        {hotel.length > 32 ? `${hotel.substring(0, 32)}...` : hotel}
+                                      </span>
+                                    </label>
+                                  ))}
+                                  {filteredCompetitionHotels.length === 0 && (
+                                    <div className="px-3 py-2 text-sm text-gray-500">
+                                      No hotels found
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="Avg. Compset ADR" id="avg-compset-adr-ref" />
+                            <Label htmlFor="avg-compset-adr-ref" className="text-sm font-normal">Avg. Compset ADR</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Parity Tab */}
+              <TabsContent value="Parity" className="space-y-6 mt-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Option 1 */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="option1" id="option1" />
+                      <Label htmlFor="option1" className="text-sm font-medium">Option 1</Label>
+                    </div>
+                    <div className="pl-6 space-y-3">
+                      <p className="text-sm text-gray-600">Alert me when Subscriber Hotel</p>
+                      <RadioGroup
+                        value={newAlert.parityWinsMeetsLoses}
+                        onValueChange={(value) => setNewAlert((prev) => ({ ...prev, parityWinsMeetsLoses: value }))}
+                        className="space-y-2"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Wins" id="wins" />
+                          <Label htmlFor="wins" className="text-sm font-normal">Wins</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Meets" id="meets" />
+                          <Label htmlFor="meets" className="text-sm font-normal">Meets</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Loses" id="loses" />
+                          <Label htmlFor="loses" className="text-sm font-normal">Loses</Label>
+                        </div>
+                      </RadioGroup>
+                      <p className="text-sm text-gray-600">On Channels</p>
+                      <Select
+                        value={newAlert.parityChannels}
+                        onValueChange={(value) => setNewAlert((prev) => ({ ...prev, parityChannels: value }))}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Absolute" className="pl-3 [&>span:first-child]:hidden">Absolute</SelectItem>
-                    <SelectItem value="Percentage" className="pl-3 [&>span:first-child]:hidden">Percentage</SelectItem>
+                          <SelectItem value="All">All</SelectItem>
+                          <SelectItem value="Booking.com">Booking.com</SelectItem>
+                          <SelectItem value="Expedia">Expedia</SelectItem>
                   </SelectContent>
                 </Select>
+                    </div>
               </div>
 
+                  {/* Option 2 */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="option2" id="option2" />
+                      <Label htmlFor="option2" className="text-sm font-medium">Option 2</Label>
+                    </div>
+                    <div className="pl-6 space-y-3">
+                      <p className="text-sm text-gray-600">Alert me when Parity Score</p>
+                      <RadioGroup
+                        value={newAlert.parityScoreChange}
+                        onValueChange={(value) => setNewAlert((prev) => ({ ...prev, parityScoreChange: value }))}
+                        className="space-y-2"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Increases" id="increases" />
+                          <Label htmlFor="increases" className="text-sm font-normal">Increases</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Decreases" id="decreases" />
+                          <Label htmlFor="decreases" className="text-sm font-normal">Decreases</Label>
+                        </div>
+                      </RadioGroup>
+                      <p className="text-sm text-gray-600">By (applicable for all channels)</p>
+                      <RadioGroup
+                        value={newAlert.parityScoreBy}
+                        onValueChange={(value) => setNewAlert((prev) => ({ ...prev, parityScoreBy: value }))}
+                        className="space-y-2"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Absolute" id="parity-absolute" />
+                          <Label htmlFor="parity-absolute" className="text-sm font-normal">Absolute</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Percentage" id="parity-percentage" />
+                          <Label htmlFor="parity-percentage" className="text-sm font-normal">Percentage</Label>
+                        </div>
+                      </RadioGroup>
+                      <Input
+                        type="number"
+                        value={newAlert.parityScoreValue}
+                        onChange={(e) => setNewAlert((prev) => ({ ...prev, parityScoreValue: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
+                        placeholder="parity Score"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Option 3 */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="option3" id="option3" />
+                      <Label htmlFor="option3" className="text-sm font-medium">Option 3</Label>
+                    </div>
+                    <div className="pl-6 space-y-3">
+                      <p className="text-sm text-gray-600">Alert me when Parity Score</p>
+                      <RadioGroup
+                        value={newAlert.parityScoreThreshold}
+                        onValueChange={(value) => setNewAlert((prev) => ({ ...prev, parityScoreThreshold: value }))}
+                        className="space-y-2"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Falls Below" id="falls-below" />
+                          <Label htmlFor="falls-below" className="text-sm font-normal">Falls Below</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Rises Above" id="rises-above" />
+                          <Label htmlFor="rises-above" className="text-sm font-normal">Rises Above</Label>
+                        </div>
+                      </RadioGroup>
+                      <p className="text-sm text-gray-600">By (applicable for all channels)</p>
+                      <Input
+                        type="number"
+                        value={newAlert.parityScorePercentage}
+                        onChange={(e) => setNewAlert((prev) => ({ ...prev, parityScorePercentage: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
+                        placeholder="%"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Rank Tab */}
+              <TabsContent value="Rank" className="space-y-6 mt-6">
+                <div className="space-y-6">
+                  {/* Alert me when */}
               <div>
-                <Label className="block text-xs font-medium text-gray-700 mb-1">
-                  Value<span className="text-red-500 ml-1">*</span>
-                </Label>
-                <div className="flex items-center gap-2">
+                    <Label className="block text-sm font-medium text-gray-700 mb-3">Alert me when</Label>
+                    <RadioGroup
+                      value={newAlert.rankAlertMeWhen}
+                      onValueChange={(value) => setNewAlert((prev) => ({ ...prev, rankAlertMeWhen: value }))}
+                      className="space-y-3"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Subscriber OTA Ranking" id="subscriber-rank" />
+                        <Label htmlFor="subscriber-rank" className="text-sm font-normal">Subscriber OTA Ranking</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Competitor OTA Ranking" id="competitor-rank" />
+                        <Label htmlFor="competitor-rank" className="text-sm font-normal">Competitor OTA Ranking</Label>
+                        <ChevronDown className="w-5 h-5 text-gray-600" />
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {/* Has */}
+                  <div>
+                    <Label className="block text-sm font-medium text-gray-700 mb-3">Has</Label>
+                    <RadioGroup
+                      value={newAlert.rankHas}
+                      onValueChange={(value) => setNewAlert((prev) => ({ ...prev, rankHas: value }))}
+                      className="space-y-3"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Increased" id="rank-increased" />
+                        <Label htmlFor="rank-increased" className="text-sm font-normal">Increased</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Decreased" id="rank-decreased" />
+                        <Label htmlFor="rank-decreased" className="text-sm font-normal">Decreased</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {/* By */}
+                  <div>
+                    <Label className="block text-sm font-medium text-gray-700 mb-3">By</Label>
                   <Input
-                    id="value"
                     type="number"
-                    value={newAlert.value}
-                    onChange={(e) => setNewAlert((prev) => ({ ...prev, value: e.target.value }))}
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
-                    placeholder="Enter value"
-                  />
+                      value={newAlert.rankBy}
+                      onChange={(e) => setNewAlert((prev) => ({ ...prev, rankBy: e.target.value }))}
+                      className="w-20 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
+                      placeholder="1"
+                    />
+                  </div>
+
+                  {/* On Channel */}
+                  <div>
+                    <Label className="block text-sm font-medium text-gray-700 mb-3">On Channel</Label>
                   <Select
-                    value={newAlert.currency}
-                    onValueChange={(value) => setNewAlert((prev) => ({ ...prev, currency: value }))}
+                      value={newAlert.rankChannel}
+                      onValueChange={(value) => setNewAlert((prev) => ({ ...prev, rankChannel: value }))}
                   >
-                    <SelectTrigger className="w-20 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-0 focus:ring-offset-0">
+                      <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="£" className="pl-3 [&>span:first-child]:hidden">£</SelectItem>
-                      <SelectItem value="$" className="pl-3 [&>span:first-child]:hidden">$</SelectItem>
-                      <SelectItem value="€" className="pl-3 [&>span:first-child]:hidden">€</SelectItem>
+                        <SelectItem value="Booking.com">Booking.com</SelectItem>
+                        <SelectItem value="Expedia">Expedia</SelectItem>
+                        <SelectItem value="All Channels">All Channels</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-            </div>
+              </TabsContent>
+            </Tabs>
+
+            {/* Common Footer */}
+            <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
+              <div className="flex items-center justify-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="events-holidays"
+                  checked={newAlert.sendForEventsHolidays}
+                  onChange={(e) => setNewAlert((prev) => ({ ...prev, sendForEventsHolidays: e.target.checked }))}
+                  className="w-4 h-4 mr-1 text-blue-600 bg-white border-gray-400 rounded focus:ring-blue-500 focus:ring-2"
+                />
+                <Label htmlFor="events-holidays" className="text-sm font-normal">
+                  Send this alert only for events/holidays
+                </Label>
           </div>
 
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+              <div className="flex gap-3">
             <Button
               variant="outline"
               onClick={handleCancelAddAlert}
-              className="h-9 px-4 text-sm font-medium text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                  className="px-6"
             >
               Cancel
             </Button>
             <Button
               onClick={handleAddAlert}
-              disabled={
-                !newAlert.alertMeWhen ||
-                !newAlert.has ||
-                !newAlert.by ||
-                !newAlert.value
-              }
-              className="h-9 px-4 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-            >
-              Add Alert
+                  className="px-6 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Save
             </Button>
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
