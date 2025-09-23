@@ -380,7 +380,7 @@ export default function ParitySettingsPage() {
                   </Label>
                   <Select
                     value={parityData.restriction.toString()}
-                    onValueChange={(value) => setParityData((prev: any) => ({ ...prev, restriction: value }))}
+                    onValueChange={(value) => setParityData((prev: any) => ({ ...prev, restriction:  parseInt(value) }))}
                   >
                     <SelectTrigger className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-0 focus:ring-offset-0">
                       <SelectValue placeholder="Select restrictions" />
@@ -425,7 +425,7 @@ export default function ParitySettingsPage() {
                   </Label>
                   <Select
                     value={parityData.promotion.toString()}
-                    onValueChange={(value) => setParityData((prev: any) => ({ ...prev, promotion: value }))}
+                    onValueChange={(value) => setParityData((prev: any) => ({ ...prev, promotion:  parseInt(value) }))}
                   >
                     <SelectTrigger className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-0 focus:ring-offset-0">
                       <SelectValue placeholder="Select promotion" />
