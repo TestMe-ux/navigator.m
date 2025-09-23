@@ -819,7 +819,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                       isSticky && "sticky left-96 bg-muted/50 z-10"
                     )}></th>
                     {Array.from({ length: needsPagination ? optimalColumns : dateRange.length }, (_, index) => {
-                      const date = dateRange[index]
+                       const date = dateRange[index] || undefined
                       // When on Next page (currentPage > 0), hide last 3 columns for blank state demo
                       const isBlankColumn = currentPage > 0 && index >= dateRange.length - 3
                       const hasDate = date && index < dateRange.length && !isBlankColumn

@@ -964,7 +964,6 @@ function ParityMonitoringContent() {
           <div className="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200 relative overflow-hidden">
             {/* {isLoadingData && <WidgetProgress />} */}
             <ParityOverviewFilterBar 
-              benchmarkChannel={benchmarkChannel}
               onChannelSelectionChange={handleChannelSelectionChange}
             />
           </div>
@@ -1123,8 +1122,8 @@ function ParityMonitoringContent() {
                           {/* Header with Icon and Name */}
                           <div className="flex items-center gap-3 mb-6">
                           <div
-                            className={`w-7 h-7 rounded-md flex items-center justify-center text-white font-bold text-xs bg-${channel.color} shadow-sm`}
-                          >
+  className={`w-7 h-7 rounded-md flex items-center justify-center text-white font-bold text-xs bg-${channel.color} shadow-sm`}
+>
                             {/* Check if channelIcon is a URL (starts with http) */}
                             {channel.channelIcon && channel.channelIcon.startsWith('http') ? (
                               <img 
@@ -1151,7 +1150,7 @@ function ParityMonitoringContent() {
                                 }
                               </span>
                             </div>
-                          </div>
+</div>
                             <div className="flex-1 flex items-center justify-between">
                               <h3 className={cn(
                                 "text-base font-semibold",
