@@ -1278,10 +1278,9 @@ function ParityMonitoringContent() {
             
           {/* Parity Calendar View */}
           <Card className="shadow-lg relative overflow-hidden">
-            {isLoadingData? <WidgetProgress />:
+            {isLoadingData && <WidgetProgress />}
             <ParityCalendarView  parityDataMain={apiParityData} 
             onDataUpdate={handleChildData} />
-            }
           </Card>
 
             </div>
