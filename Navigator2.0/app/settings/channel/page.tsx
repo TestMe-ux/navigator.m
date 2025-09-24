@@ -438,7 +438,7 @@ export default function ChannelSettingsPage() {
       <Dialog open={showChangeHistory} onOpenChange={setShowChangeHistory}>
         <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col">
           <DialogHeader>
-              <DialogTitle className="text-2xl font-bold">Channel Change History</DialogTitle>
+              <DialogTitle className="text-xl font-bold">Channel Change History</DialogTitle>
             <DialogDescription>
               Shows the history of all the changes made to channel settings
             </DialogDescription>
