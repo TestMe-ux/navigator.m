@@ -40,4 +40,6 @@ export class Constants {
     public static readonly API_AddProfilePhoto = "GCSUploadOps/AddProfilePhoto"; 
     
     
+    public static readonly API_SET_UpdatePropertyData="GeneralSettings/UpdateGeneralsettings";
+    public static readonly API_SET_AddProfilePhoto = "GCSUploadOps/AddProfilePhoto"; 
 }

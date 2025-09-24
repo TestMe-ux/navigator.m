@@ -1,6 +1,6 @@
 "use client"
 import React, { useMemo, useState } from "react"
-import { BarChart3, Calendar, Star, Wifi, Coffee, Utensils, Car, Dumbbell, ChevronLeft, ChevronRight } from "lucide-react"
+import { BarChart3, Calendar, Star, Wifi, Coffee, Utensils, Car, Dumbbell, ChevronLeft, ChevronRight, Zap } from "lucide-react"
 import { useDateContext } from "@/components/date-context"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { EnhancedTableTooltip } from "./enhanced-table-tooltip"
@@ -33,6 +33,7 @@ interface CalendarDay {
   hasIndicator?: boolean
   indicatorColor?: string
   indicatorType?: 'circle' | 'square'
+  hasLightningRefresh?: boolean
 }
 
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -96,7 +97,8 @@ const generateCalendarData = (startDateRange: Date, endDateRange: Date): Calenda
         flagCountry: Math.random() > 0.8 ? '🇺🇸' : undefined,
         hasIndicator: Math.random() > 0.7,
         indicatorColor: Math.random() > 0.7 ? (Math.random() > 0.5 ? 'bg-red-500' : 'bg-green-500') : undefined,
-        indicatorType: Math.random() > 0.8 ? 'square' : 'circle'
+        indicatorType: Math.random() > 0.8 ? 'square' : 'circle',
+        hasLightningRefresh: Math.random() > 0.75 // Show lightning refresh icon on ~25% of dates
       }
       
       if (month === 5 && date >= 18 && date <= 25) {
@@ -132,9 +134,9 @@ interface RateTrendsTableProps {
 export function RateTrendsTable({
   className,
   competitorStartIndex = 0,
-  competitorsPerPage = 4
+  competitorsPerPage = 5 // Default to show 5 competitors initially
 }: RateTrendsTableProps) {
-  const { startDate, endDate } = useDateContext()
+  const { startDate, endDate, isLoading } = useDateContext()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   
@@ -180,7 +182,8 @@ export function RateTrendsTable({
         flagCountry: day.flagCountry,
         isWeekend: date.getDay() === 5 || date.getDay() === 6,
         eventInfluence: undefined,
-        confidence: undefined
+        confidence: undefined,
+        hasLightningRefresh: day.hasLightningRefresh
       }
     })
   }, [calendarData])
@@ -236,6 +239,18 @@ export function RateTrendsTable({
     }
   }
 
+  // Show loading state when date range is changing
+  if (isLoading) {
+    return (
+      <div className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 rounded-lg p-8">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+          <p className="text-slate-600 dark:text-slate-400">Loading table data...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={`w-full shadow-xl border border-border/50 bg-white dark:bg-slate-900 ${className || ''}`}>
       
@@ -245,37 +260,47 @@ export function RateTrendsTable({
           <thead className="bg-gray-50">
             {/* First Header Row - Main Column Groups */}
             <tr className="border-b border-gray-200">
-              {/* Date Column - Further reduced for space efficiency */}
-              <th rowSpan={2} className="bg-gray-50 text-left py-1.5 pl-3 pr-1 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '50px'}}>
+              {/* Date Column */}
+              <th rowSpan={2} className="bg-gray-50 text-left py-1.5 pl-3 pr-1 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '85px'}}>
                 Date
               </th>
               
-              {/* Demand Column (merged) - reduced width */}
-              <th rowSpan={2} colSpan={2} className="bg-gray-50 text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '30px', paddingLeft: '1px', paddingRight: '1px'}}>
+              {/* Demand Column (merged) */}
+              <th rowSpan={2} colSpan={2} className="bg-gray-50 text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '60px', paddingLeft: '1px', paddingRight: '1px'}}>
                 Demand
               </th>
               
-              {/* Avg. Compset Column Group - further reduced */}
-              <th rowSpan={2} className="bg-gray-50 text-left py-1.5 pl-2 pr-2 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '33px'}}>
+              {/* Avg. Compset Column Group */}
+              <th rowSpan={2} className="bg-gray-50 text-left py-1.5 pl-2 pr-2 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '60px'}}>
                 <div className="flex flex-col">
                   <span>Avg.</span>
                   <span>Compset</span>
                 </div>
               </th>
               
-              {/* Subscriber Column Group - reduced colspan width */}
-              <th colSpan={2} className="bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '64px'}}>
+              {/* Subscriber Column Group - updated to 3 columns */}
+              <th colSpan={3} className="bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '80px'}}>
                 Subscriber
               </th>
               
               {/* Dynamic Competitor Hotels */}
               {(() => {
                 const competitorNames = ['Holiday Inn Express & Suites Downtown Business Center', 'acom Hotel', 'InterCity Hotel', 'Hilton Garden', 'Marriott Suites', 'Sheraton Plaza', 'Holiday Inn', 'Crowne Plaza', 'Four Seasons'];
-                const visibleCompetitors = competitorNames.slice(competitorStartIndex, competitorStartIndex + competitorsPerPage);
+                const visibleCompetitors = competitorNames.slice(competitorStartIndex, competitorStartIndex + 5);
                 
-                return visibleCompetitors.map((name, index) => (
-                  <th key={index} colSpan={2} className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '64px'}}>
-                    {name.length > 15 ? `${name.substring(0, 12)}...` : name}
+                // Always show exactly 5 columns, fill with placeholders if needed
+                const columnsToShow = [];
+                for (let i = 0; i < 5; i++) {
+                  if (i < visibleCompetitors.length) {
+                    columnsToShow.push(visibleCompetitors[i]);
+                  } else {
+                    columnsToShow.push(null); // Placeholder
+                  }
+                }
+                
+                return columnsToShow.map((name, index) => (
+                  <th key={index} colSpan={3} className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '80px'}}>
+                    {name ? (name.length > 15 ? `${name.substring(0, 12)}...` : name) : ''}
                   </th>
                 ));
               })()}
@@ -288,24 +313,45 @@ export function RateTrendsTable({
               {/* Avg. Compset is merged with rowSpan, no sub-columns needed */}
               
               {/* Subscriber Sub-columns */}
-              <th className="bg-blue-50 text-left py-1.5 pl-2 font-semibold text-xs text-muted-foreground border-r border-gray-200">
+              <th className="bg-blue-50 text-left py-1.5 pl-2 font-semibold text-xs text-muted-foreground">
                 Rate
               </th>
-              <th className="bg-blue-50 text-center py-1.5 px-0.5 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '24px'}}>
+              <th className="bg-blue-50 text-left py-1.5 pl-3 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '50px'}}>
+                
+              </th>
+              <th className="bg-blue-50 text-center py-1.5 px-0.5 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '30px'}}>
                 Rank
               </th>
               
               {/* Dynamic Competitor Sub-columns */}
-              {Array.from({ length: competitorsPerPage }, (_, compIndex) => (
-                <React.Fragment key={compIndex}>
-                  <th className="text-left py-1.5 pl-2 font-semibold text-xs text-muted-foreground border-r border-gray-200">
-                    Rate
-                  </th>
-                  <th className="text-center py-1.5 px-0.5 font-semibold text-xs text-muted-foreground border-r border-gray-200" style={{width: '24px'}}>
-                    Rank
-                  </th>
-                </React.Fragment>
-              ))}
+              {(() => {
+                const competitorNames = ['Holiday Inn Express & Suites Downtown Business Center', 'acom Hotel', 'InterCity Hotel', 'Hilton Garden', 'Marriott Suites', 'Sheraton Plaza', 'Holiday Inn', 'Crowne Plaza', 'Four Seasons'];
+                const visibleCompetitors = competitorNames.slice(competitorStartIndex, competitorStartIndex + 5);
+                
+                // Always show exactly 5 columns, fill with placeholders if needed
+                const columnsToShow = [];
+                for (let i = 0; i < 5; i++) {
+                  if (i < visibleCompetitors.length) {
+                    columnsToShow.push(visibleCompetitors[i]);
+                  } else {
+                    columnsToShow.push(null); // Placeholder
+                  }
+                }
+                
+                return columnsToShow.map((name, compIndex) => (
+                  <React.Fragment key={compIndex}>
+                    <th className="text-left py-1.5 pl-2 font-semibold text-xs text-muted-foreground">
+                      {name ? 'Rate' : ''}
+                    </th>
+                    <th className={`text-left py-1.5 pl-3 font-semibold text-xs text-muted-foreground ${name ? 'border-r border-gray-200' : ''}`} style={{width: '50px'}}>
+                      
+                    </th>
+                    <th className={`text-center py-1.5 px-0.5 font-semibold text-xs text-muted-foreground ${name ? 'border-r border-gray-200' : ''}`} style={{width: '30px'}}>
+                      {name ? 'Rank' : ''}
+                    </th>
+                  </React.Fragment>
+                ));
+              })()}
             </tr>
           </thead>
                 
@@ -348,8 +394,8 @@ export function RateTrendsTable({
                   key={row.id} 
                   className={`${isLastRow ? 'rounded-b-lg' : 'border-b border-gray-200'} group hover:bg-gray-50`}
                 >
-                  {/* Date Column - REDUCED WIDTH FROM 121px TO 105px */}
-                    <td className="bg-white group-hover:bg-gray-50 py-2 pl-3 pr-1 font-medium text-foreground text-sm border-r border-gray-200 align-top" style={{width: '50px'}}>
+                  {/* Date Column */}
+                    <td className="bg-white group-hover:bg-gray-50 py-2 pl-3 pr-1 font-medium text-foreground text-sm border-r border-gray-200 align-top" style={{width: '85px'}}>
                     <div className="flex flex-col">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1">
@@ -370,14 +416,14 @@ export function RateTrendsTable({
                           <span className="text-foreground" style={{marginLeft: '10px'}}>
                             {row.date.getDate()} {row.date.toLocaleDateString('en', {month: 'short'})},
                           </span>
-                          <span className="text-gray-500">{row.dayName}</span>
+                          <span className="text-gray-500 text-xs font-normal">{row.dayName}</span>
                         </div>
                       </div>
                     </div>
                   </td>
 
                   {/* Demand Value Column */}
-                  <td className="bg-white group-hover:bg-gray-50 py-2 text-center text-sm border-r border-gray-200 align-top" style={{width: '20px', paddingLeft: '1px', paddingRight: '1px'}}>
+                  <td className="bg-white group-hover:bg-gray-50 py-2 text-center text-sm border-r border-gray-200 align-top" style={{width: '40px', paddingLeft: '1px', paddingRight: '1px'}}>
                     {(() => {
                       const demandValue = Math.floor(seededRandom(seedValue, 40) * 60) + 40;
                       const getDemandColor = (value: number) => {
@@ -391,7 +437,7 @@ export function RateTrendsTable({
                   </td>
 
                   {/* Demand Event Icon Column */}
-                  <td className="bg-white group-hover:bg-gray-50 py-2 text-center text-sm border-r border-gray-200 align-top" style={{width: '10px', paddingLeft: '1px', paddingRight: '1px'}}>
+                  <td className="bg-white group-hover:bg-gray-50 py-2 text-center text-sm border-r border-gray-200 align-top" style={{width: '20px', paddingLeft: '1px', paddingRight: '1px'}}>
                     <div className="flex items-center justify-center">
                       {seededRandom(seedValue, 51) > 0.7 && (
                         <TooltipProvider delayDuration={0}>
@@ -440,7 +486,7 @@ export function RateTrendsTable({
                   </td>
 
                   {/* Avg. Compset - Merged */}
-                  <td className="bg-white group-hover:bg-gray-50 py-2 pl-2 pr-2 text-left text-sm border-r border-gray-200" style={{width: '33px'}}>
+                  <td className="bg-white group-hover:bg-gray-50 py-2 pl-2 pr-2 text-left text-sm border-r border-gray-200" style={{width: '60px'}}>
                     <div className="flex flex-col items-start">
                       <span className="font-semibold">${avgCompsetRate}</span>
                       <span className={`text-xs font-medium ${avgCompsetVariance > 0 ? 'text-red-600' : avgCompsetVariance < 0 ? 'text-green-600' : 'text-gray-500'}`}>
@@ -450,54 +496,19 @@ export function RateTrendsTable({
                   </td>
 
                   {/* Subscriber - Rate */}
-                  <td className="bg-blue-50 group-hover:bg-blue-100 py-2 pl-2 pr-2 text-center text-sm border-r border-b border-gray-200" style={{width: subscriberRateWidth, minWidth: '52px'}}>
+                  <td className="bg-blue-50 group-hover:bg-blue-100 py-2 pl-2 text-left text-sm">
                     <TooltipProvider delayDuration={0} skipDelayDuration={0}>
                       <Tooltip delayDuration={0} disableHoverableContent>
                         <TooltipTrigger asChild>
-                          <div className="flex items-center justify-start w-full" style={{gap: '10px'}}>
-                               {/* Column 1: Rates & Variance */}
-                               <div className="flex flex-col items-start justify-center">
-                                 <div className="text-left">
-                                   <span className="font-semibold cursor-pointer">{hotelLowestRate === 0 ? 'Sold Out' : `$${hotelLowestRate}`}</span>
-                                 </div>
-                                 <div className="text-left">
-                                   <span className={`text-xs font-medium ${hotelVariance > 0 ? 'text-red-600' : hotelVariance < 0 ? 'text-green-600' : 'text-gray-500'}`}>
-                                     {hotelVariance > 0 ? '+' : ''}{hotelVariance !== 0 ? hotelVariance : 'NA'}
-                                   </span>
-                                 </div>
-                               </div>
-                               
-                               {/* Column 2: Dots & Inclusion Icons */}
-                               <div className="flex flex-col items-center justify-center" style={{minWidth: '20px'}}>
-                                 <div className="flex items-center justify-center" style={{minHeight: '20px'}}>
-                                   {(() => {
-                                     // Get visible competitors for comparison
-                                     const visibleCompetitors = competitors.slice(competitorStartIndex, competitorStartIndex + competitorsPerPage);
-                                     const allRates = [hotelLowestRate, ...visibleCompetitors.map(c => c.rate)].filter(rate => rate > 0);
-                                     
-                                     if (allRates.length > 1 && hotelLowestRate > 0) {
-                                       const minRate = Math.min(...allRates);
-                                       const maxRate = Math.max(...allRates);
-                                       
-                                       if (hotelLowestRate === minRate && hotelLowestRate !== maxRate) {
-                                         return <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>;
-                                       } else if (hotelLowestRate === maxRate && hotelLowestRate !== minRate) {
-                                         return <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>;
-                                       }
-                                     }
-                                     return null;
-                                   })()}
-                                 </div>
-                                 <div className="flex items-center justify-center" style={{minHeight: '20px'}}>
-                                   {(() => {
-                                     const inclusionType = Math.floor(seededRandom(seedValue, 41) * 4);
-                                     if (inclusionType === 0) return <Wifi className="w-3 h-3 text-gray-600" />;
-                                     if (inclusionType === 1) return <Coffee className="w-3 h-3 text-gray-600" />;
-                                     if (inclusionType === 2) return <Utensils className="w-3 h-3 text-gray-600" />;
-                                     return <Car className="w-3 h-3 text-gray-600" />;
-                                   })()}
-                                 </div>
-                               </div>
+                          <div className="flex flex-col items-start justify-center">
+                            <div className="text-left">
+                              <span className="font-semibold cursor-pointer">{hotelLowestRate === 0 ? 'Sold Out' : `$${hotelLowestRate}`}</span>
+                            </div>
+                            <div className="text-left">
+                              <span className={`text-xs font-medium ${hotelVariance > 0 ? 'text-red-600' : hotelVariance < 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                                {hotelVariance > 0 ? '+' : ''}{hotelVariance !== 0 ? hotelVariance : 'NA'}
+                              </span>
+                            </div>
                           </div>
                         </TooltipTrigger>
                         <EnhancedTableTooltip
@@ -533,64 +544,93 @@ export function RateTrendsTable({
                     </TooltipProvider>
                   </td>
 
+                  {/* Subscriber - Inc */}
+                  <td className="bg-blue-50 group-hover:bg-blue-100 py-2 pl-3 text-left text-sm border-r border-gray-200" style={{width: '50px'}}>
+                    <div className="flex flex-col items-start justify-center">
+                      <div className="flex items-center justify-start" style={{minHeight: '20px'}}>
+                        {(() => {
+                          // Get visible competitors for comparison
+                          const visibleCompetitors = competitors.slice(competitorStartIndex, competitorStartIndex + competitorsPerPage);
+                          const allRates = [hotelLowestRate, ...visibleCompetitors.map(c => c.rate)].filter(rate => rate > 0);
+                          
+                          if (allRates.length > 1 && hotelLowestRate > 0) {
+                            const minRate = Math.min(...allRates);
+                            const maxRate = Math.max(...allRates);
+                            
+                            if (hotelLowestRate === minRate && hotelLowestRate !== maxRate) {
+                              return (
+                                <div className="flex items-center" style={{gap: '8px'}}>
+                                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full" style={{marginLeft: '2px'}}></div>
+                                  {row.hasLightningRefresh && (
+                                    <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                  )}
+                                </div>
+                              );
+                            } else if (hotelLowestRate === maxRate && hotelLowestRate !== minRate) {
+                              return (
+                                <div className="flex items-center" style={{gap: '8px'}}>
+                                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full" style={{marginLeft: '2px'}}></div>
+                                  {row.hasLightningRefresh && (
+                                    <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                  )}
+                                </div>
+                              );
+                            }
+                          }
+                          return row.hasLightningRefresh ? (
+                            <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                          ) : null;
+                        })()}
+                      </div>
+                      <div className="flex items-center justify-start" style={{minHeight: '20px'}}>
+                        {(() => {
+                          const inclusionType = Math.floor(seededRandom(seedValue, 41) * 4);
+                          if (inclusionType === 0) return <Wifi className="w-3 h-3 text-gray-600" />;
+                          if (inclusionType === 1) return <Coffee className="w-3 h-3 text-gray-600" />;
+                          if (inclusionType === 2) return <Utensils className="w-3 h-3 text-gray-600" />;
+                          return <Car className="w-3 h-3 text-gray-600" />;
+                        })()}
+                      </div>
+                    </div>
+                  </td>
+
 
                   {/* Subscriber - Rank */}
-                  <td className="bg-blue-50 group-hover:bg-blue-100 py-2 px-0.5 text-center text-sm border-r border-b border-gray-200 align-top" style={{width: '24px'}}>
+                  <td className="bg-blue-50 group-hover:bg-blue-100 py-2 px-0.5 text-center text-sm border-r border-b border-gray-200 align-top" style={{width: '30px'}}>
                     {subscriberRank}
                   </td>
 
                   {/* Dynamic Competitor Hotels Data */}
-                  {competitors.slice(competitorStartIndex, competitorStartIndex + competitorsPerPage).map((competitor, compIndex) => (
+                  {(() => {
+                    const visibleCompetitors = competitors.slice(competitorStartIndex, competitorStartIndex + 5);
+                    
+                    // Always show exactly 5 columns, fill with placeholders if needed
+                    const columnsToShow = [];
+                    for (let i = 0; i < 5; i++) {
+                      if (i < visibleCompetitors.length) {
+                        columnsToShow.push(visibleCompetitors[i]);
+                      } else {
+                        columnsToShow.push(null); // Placeholder
+                      }
+                    }
+                    
+                    return columnsToShow.map((competitor, compIndex) => (
                     <React.Fragment key={compIndex}>
                       {/* Rate */}
-                      <td className="py-2 pl-2 pr-2 text-center text-sm border-r border-gray-200 group-hover:bg-gray-50" style={{width: calculateRateColumnWidth(competitor.rate), minWidth: '52px'}}>
+                      <td className="py-2 pl-2 text-left text-sm group-hover:bg-gray-50">
+                        {competitor ? (
                         <TooltipProvider delayDuration={0} skipDelayDuration={0}>
                           <Tooltip delayDuration={0} disableHoverableContent>
                             <TooltipTrigger asChild>
-                              <div className="flex items-center justify-start w-full" style={{gap: '10px'}}>
-                                   {/* Column 1: Rates & Variance */}
-                                   <div className="flex flex-col items-start justify-center">
-                                     <div className="text-left">
-                                       <span className="font-semibold cursor-pointer">{competitor.rate === 0 ? 'Sold Out' : `$${competitor.rate}`}</span>
-                                     </div>
-                                     <div className="text-left">
-                                       <span className={`text-xs font-medium ${competitor.variance > 0 ? 'text-red-600' : competitor.variance < 0 ? 'text-green-600' : 'text-gray-500'}`}>
-                                         {competitor.variance > 0 ? '+' : ''}{competitor.variance !== 0 ? competitor.variance : 'NA'}
-                                       </span>
-                                     </div>
-                                   </div>
-                                   
-                                   {/* Column 2: Dots & Inclusion Icons */}
-                                   <div className="flex flex-col items-center justify-center" style={{minWidth: '20px'}}>
-                                     <div className="flex items-center justify-center" style={{minHeight: '20px'}}>
-                                       {(() => {
-                                         // Get visible competitors for comparison
-                                         const visibleCompetitors = competitors.slice(competitorStartIndex, competitorStartIndex + competitorsPerPage);
-                                         const allRates = [hotelLowestRate, ...visibleCompetitors.map(c => c.rate)].filter(rate => rate > 0);
-                                         
-                                         if (allRates.length > 1 && competitor.rate > 0) {
-                                           const minRate = Math.min(...allRates);
-                                           const maxRate = Math.max(...allRates);
-                                           
-                                           if (competitor.rate === minRate && competitor.rate !== maxRate) {
-                                             return <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>;
-                                           } else if (competitor.rate === maxRate && competitor.rate !== minRate) {
-                                             return <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>;
-                                           }
-                                         }
-                                         return null;
-                                       })()}
-                                     </div>
-                                     <div className="flex items-center justify-center" style={{minHeight: '20px'}}>
-                                       {(() => {
-                                         const inclusionType = Math.floor(seededRandom(seedValue, 42 + compIndex) * 4);
-                                         if (inclusionType === 0) return <Wifi className="w-3 h-3 text-gray-600" />;
-                                         if (inclusionType === 1) return <Coffee className="w-3 h-3 text-gray-600" />;
-                                         if (inclusionType === 2) return <Utensils className="w-3 h-3 text-gray-600" />;
-                                         return <Dumbbell className="w-3 h-3 text-gray-600" />;
-                                       })()}
-                                     </div>
-                                   </div>
+                              <div className="flex flex-col items-start justify-center">
+                                <div className="text-left">
+                                  <span className="font-semibold cursor-pointer">{competitor.rate === 0 ? 'Sold Out' : `$${competitor.rate}`}</span>
+                                </div>
+                                <div className="text-left">
+                                  <span className={`text-xs font-medium ${competitor.variance > 0 ? 'text-red-600' : competitor.variance < 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                                    {competitor.variance > 0 ? '+' : ''}{competitor.variance !== 0 ? competitor.variance : 'NA'}
+                                  </span>
+                                </div>
                               </div>
                             </TooltipTrigger>
                             <EnhancedTableTooltip
@@ -602,7 +642,7 @@ export function RateTrendsTable({
                                eventNames={seededRandom(seedValue, 51) > 0.7 ? ['Music Festival', 'Food & Wine Expo'] : []}
                                hotelName={competitor.name}
                                isLowestRate={(() => {
-                                 const visibleCompetitors = competitors.slice(competitorStartIndex, competitorStartIndex + competitorsPerPage);
+                                 const visibleCompetitors = competitors.slice(competitorStartIndex, competitorStartIndex + 5);
                                  const allRates = [hotelLowestRate, ...visibleCompetitors.map(c => c.rate)].filter(rate => rate > 0);
                                  if (allRates.length > 1 && competitor.rate > 0) {
                                    const minRate = Math.min(...allRates);
@@ -612,7 +652,7 @@ export function RateTrendsTable({
                                  return false;
                                })()}
                                isHighestRate={(() => {
-                                 const visibleCompetitors = competitors.slice(competitorStartIndex, competitorStartIndex + competitorsPerPage);
+                                 const visibleCompetitors = competitors.slice(competitorStartIndex, competitorStartIndex + 5);
                                  const allRates = [hotelLowestRate, ...visibleCompetitors.map(c => c.rate)].filter(rate => rate > 0);
                                  if (allRates.length > 1 && competitor.rate > 0) {
                                    const minRate = Math.min(...allRates);
@@ -625,14 +665,86 @@ export function RateTrendsTable({
                              />
                           </Tooltip>
                         </TooltipProvider>
+                        ) : (
+                          <div className="flex flex-col items-start justify-center">
+                            <div className="text-left">
+                              <span className="font-semibold text-gray-300"></span>
+                            </div>
+                            <div className="text-left">
+                              <span className="text-xs font-medium text-gray-300"></span>
+                            </div>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Inc */}
+                      <td className={`py-2 pl-3 text-left text-sm group-hover:bg-gray-50 ${competitor ? 'border-r border-gray-200' : ''}`} style={{width: '50px'}}>
+                        {competitor ? (
+                        <div className="flex flex-col items-start justify-center">
+                          <div className="flex items-center justify-start" style={{minHeight: '20px'}}>
+                            {(() => {
+                              // Get visible competitors for comparison
+                              const visibleCompetitors = competitors.slice(competitorStartIndex, competitorStartIndex + 5);
+                              const allRates = [hotelLowestRate, ...visibleCompetitors.map(c => c.rate)].filter(rate => rate > 0);
+                              
+                              if (allRates.length > 1 && competitor.rate > 0) {
+                                const minRate = Math.min(...allRates);
+                                const maxRate = Math.max(...allRates);
+                                
+                                if (competitor.rate === minRate && competitor.rate !== maxRate) {
+                                  return (
+                                    <div className="flex items-center" style={{gap: '8px'}}>
+                                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full" style={{marginLeft: '2px'}}></div>
+                                      {row.hasLightningRefresh && (
+                                        <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                      )}
+                                    </div>
+                                  );
+                                } else if (competitor.rate === maxRate && competitor.rate !== minRate) {
+                                  return (
+                                    <div className="flex items-center" style={{gap: '8px'}}>
+                                      <div className="w-1.5 h-1.5 bg-red-500 rounded-full" style={{marginLeft: '2px'}}></div>
+                                      {row.hasLightningRefresh && (
+                                        <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                      )}
+                                    </div>
+                                  );
+                                }
+                              }
+                              return row.hasLightningRefresh ? (
+                                <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                              ) : null;
+                            })()}
+                          </div>
+                          <div className="flex items-center justify-start" style={{minHeight: '20px'}}>
+                            {(() => {
+                              const inclusionType = Math.floor(seededRandom(seedValue, 42 + compIndex) * 4);
+                              if (inclusionType === 0) return <Wifi className="w-3 h-3 text-gray-600" />;
+                              if (inclusionType === 1) return <Coffee className="w-3 h-3 text-gray-600" />;
+                              if (inclusionType === 2) return <Utensils className="w-3 h-3 text-gray-600" />;
+                              return <Dumbbell className="w-3 h-3 text-gray-600" />;
+                            })()}
+                          </div>
+                        </div>
+                        ) : (
+                          <div className="flex flex-col items-start justify-center">
+                            <div className="flex items-center justify-start" style={{minHeight: '20px'}}>
+                              {/* Empty placeholder */}
+                            </div>
+                            <div className="flex items-center justify-start" style={{minHeight: '20px'}}>
+                              {/* Empty placeholder */}
+                            </div>
+                          </div>
+                        )}
                       </td>
 
                       {/* Rank */}
-                      <td className="py-2 px-0.5 text-center text-sm border-r border-gray-200 group-hover:bg-gray-50 align-top" style={{width: '24px'}}>
-                        {competitor.rank}
+                      <td className={`py-2 px-0.5 text-center text-sm group-hover:bg-gray-50 align-top ${competitor ? 'border-r border-gray-200' : ''}`} style={{width: '40px'}}>
+                        {competitor ? competitor.rank : ''}
                       </td>
                     </React.Fragment>
-                  ))}
+                    ));
+                  })()}
                 </tr>
               );
             })}

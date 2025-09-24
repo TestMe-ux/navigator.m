@@ -14,9 +14,10 @@ import { CustomDatePicker } from "./custom-date-picker"
 interface LightningRefreshModalProps {
   isOpen: boolean
   onClose: () => void
+  onRefresh?: (data: { channels: string; checkInStartDate: string; compSet: string; guests: string; los: string }) => void
 }
 
-export function LightningRefreshModal({ isOpen, onClose }: LightningRefreshModalProps) {
+export function LightningRefreshModal({ isOpen, onClose, onRefresh }: LightningRefreshModalProps) {
   const [channels, setChannels] = useState("Booking.com")
   const [checkInStartDate, setCheckInStartDate] = useState("")
   const [compSet, setCompSet] = useState("primary")
@@ -185,13 +186,20 @@ export function LightningRefreshModal({ isOpen, onClose }: LightningRefreshModal
           </Button>
           <Button
             onClick={() => {
-              console.log('Lightning Refresh clicked', {
+              const refreshData = {
                 channels,
                 checkInStartDate,
                 compSet,
                 guests,
                 los
-              })
+              }
+              console.log('Lightning Refresh clicked', refreshData)
+              
+              // Call the onRefresh callback if provided
+              if (onRefresh) {
+                onRefresh(refreshData)
+              }
+              
               onClose()
             }}
             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white"

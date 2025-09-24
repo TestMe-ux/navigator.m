@@ -10,25 +10,27 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { History, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
-import { GetGeneralsettings, GetGeneralsettingsHistory } from "@/lib/login"
+import { GetGeneralsettings, GetGeneralsettingsHistory, UpdateProperty, uploadImageData } from "@/lib/login"
 import { useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
+import { useToast } from "@/hooks/use-toast"
 
 export default function PropertySettingsPage() {
   const [showChangeHistory, setShowChangeHistory] = useState(false)
-  const [showSnackbar, setShowSnackbar] = useState(false)
+  const [isRefresh, setIsRefresh] = useState(false)
   const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' | null }>({ key: null, direction: null })
   const [isLoading, setIsLoading] = useState(true)
   const [selectedProperty] = useSelectedProperty();
   const [userDetails] = useUserDetail();
+  const { toast } = useToast()
   // Simulate loading effect on component mount
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 3000) // Show loading for 3 seconds
+  // useEffect(() => {
+  //   const timer = setTimeout(() => {
+  //     setIsLoading(false)
+  //   }, 3000) // Show loading for 3 seconds
 
-    return () => clearTimeout(timer)
-  }, [])
+  //   return () => clearTimeout(timer)
+  // }, [])
 
   const [propertyData, setPropertyData] = useState<any>({})
 
@@ -45,7 +47,6 @@ export default function PropertySettingsPage() {
     { key: 4, value: "4 Star" },
     { key: 5, value: "5 Star" },
   ];
-  const currencies = ["USD", "EUR", "GBP", "JPY", "AUD", "CAD", "CHF", "CNY", "INR"]
   useEffect(() => {
     if (!selectedProperty?.sid) return;
 
@@ -74,7 +75,7 @@ export default function PropertySettingsPage() {
   useEffect(() => {
     if (!selectedProperty?.sid || !showChangeHistory) return;
 
-    const fetchParityHistory = async () => {
+    const fetchPropertyHistory = async () => {
       try {
         const response: any = await GetGeneralsettingsHistory({
           SID: selectedProperty.sid,
@@ -91,31 +92,47 @@ export default function PropertySettingsPage() {
       }
     };
 
-    fetchParityHistory();
+    fetchPropertyHistory();
   }, [showChangeHistory]);
-  const handleSave = () => {
-    console.log("Property saved:", propertyData)
-    setOriginalData(propertyData)
-    setShowSnackbar(true)
-
-    // Auto-hide snackbar after 4 seconds
-    setTimeout(() => {
-      setShowSnackbar(false)
-    }, 4000)
+  const handleSave = async () => {
+    const dataToSave = { ...propertyData, sid: selectedProperty?.sid, createdBy: userDetails?.userId.toString() };
+    console.log("Property saved:", dataToSave)
+    // setOriginalData(propertyData)
+    // setShowSnackbar(true)
+    const resUpdate = await UpdateProperty(dataToSave);
+    if (resUpdate?.status) {
+      setOriginalData(propertyData)
+      toast({
+        description: "Property update successfully!!",
+        variant: "success",
+        duration: 3000,
+      })
+    }
   }
 
   const handleReset = () => {
     setPropertyData(originalData)
   }
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    debugger
     const file = event.target.files?.[0]
     if (file) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setPropertyData((prev: any) => ({ ...prev, propertyImage: e.target?.result as string }))
+      // const reader = new FileReader()
+      var form_data = new FormData();
+      form_data.append('flag', "2");
+      form_data.append('profileimage', file);
+      const resImage = await uploadImageData(form_data)
+      if (resImage?.status) {
+        setPropertyData((prev: any) => ({ ...prev, imagePath: resImage.body[0] }));
       }
-      reader.readAsDataURL(file)
+      else{
+        toast({
+          description: "Image upload failed!!",
+          variant: "error",
+          duration: 3000,
+        });
+      }
     }
   }
 
@@ -360,6 +377,7 @@ export default function PropertySettingsPage() {
                     <Input
                       id="hotelName"
                       value={propertyData?.hotelName}
+                      disabled={true}
                       onChange={(e) => setPropertyData((prev: any) => ({ ...prev, hotelName: e.target.value }))}
                       placeholder="Enter property name"
                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
@@ -377,6 +395,7 @@ export default function PropertySettingsPage() {
                         value={propertyData.location}
                         onChange={(e) => setPropertyData((prev: any) => ({ ...prev, location: e.target.value }))}
                         placeholder="Enter location"
+                        disabled={true}
                         className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
                       />
                     </div>
@@ -516,7 +535,7 @@ export default function PropertySettingsPage() {
 
             <div className="mt-2 flex-1 overflow-hidden">
               <div className="border border-gray-300 dark:border-gray-600 rounded-lg h-full">
-                <div className="h-[400px] overflow-y-auto border-b border-gray-200 dark:border-gray-700 mb-2.5">
+                <div className="h-[300px] overflow-y-auto border-b border-gray-200 dark:border-gray-700 mb-2.5">
                   <table className="w-full table-fixed">
                     <thead className="bg-gray-50 dark:bg-slate-800">
                       <tr className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-800 align-top">
@@ -555,7 +574,19 @@ export default function PropertySettingsPage() {
                           </div>
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
-                          Rooms
+
+                          <div
+                            className="flex items-center gap-1 cursor-pointer group"
+                            onClick={() => handleSort('numberOfRoom')}
+                          >
+                            Rooms
+                            <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                              {getHoverIcon('numberOfRoom')}
+                            </span>
+                            <span className="opacity-100 mt-0.5">
+                              {getSortIcon('numberOfRoom')}
+                            </span>
+                          </div>
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
                           Activity
@@ -563,14 +594,14 @@ export default function PropertySettingsPage() {
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
                           <div
                             className="flex items-center gap-1 cursor-pointer group"
-                            onClick={() => handleSort('date')}
+                            onClick={() => handleSort('createdOn')}
                           >
                             Action Date
                             <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-                              {getHoverIcon('date')}
+                              {getHoverIcon('createdOn')}
                             </span>
                             <span className="opacity-100 mt-0.5">
-                              {getSortIcon('date')}
+                              {getSortIcon('createdOn')}
                             </span>
                           </div>
                         </th>
@@ -605,19 +636,10 @@ export default function PropertySettingsPage() {
                             let bValue = b[sortConfig.key as keyof typeof b];
 
                             // Handle different data types
-                            if (sortConfig.key === 'date') {
+                            if (sortConfig.key === 'createdOn') {
                               // Convert dates to comparable format (assuming format like "16 Sep'25")
-                              const parseDate = (dateStr: string) => {
-                                const [day, monthYear] = dateStr.split(' ');
-                                const [month, year] = monthYear.split("'");
-                                const monthMap: { [key: string]: number } = {
-                                  'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
-                                  'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
-                                };
-                                return new Date(2000 + parseInt(year), monthMap[month] - 1, parseInt(day));
-                              };
-                              aValue = parseDate(aValue as string);
-                              bValue = parseDate(bValue as string);
+                              aValue = !!aValue ? parseISO(aValue as string) : "";
+                              bValue = !!aValue ? parseISO(bValue as string) : "";
                             } else if (sortConfig.key === 'numberOfRoom' || sortConfig.key === 'starRating') {
                               // Convert to numbers for proper sorting
                               aValue = parseInt(aValue as string);
@@ -709,19 +731,13 @@ export default function PropertySettingsPage() {
                           );
                         });
                       })()}
-                      {/* Add padding to ensure last row is visible */}
-                      <tr>
-                        <td colSpan={8} className="h-4"></td>
-                      </tr>
                     </tbody>
-                    {/* Add blank space after table */}
-                    <div className="h-2.5"></div>
                   </table>
                 </div>
               </div>
             </div>
 
-            <div className="border-t border-gray-300 dark:border-gray-600 mt-6"></div>
+            {/* <div className="border-t border-gray-300 dark:border-gray-600 mt-6"></div> */}
 
             <div className="flex items-center justify-end gap-3">
               <Button
@@ -736,7 +752,7 @@ export default function PropertySettingsPage() {
         </Dialog>
 
         {/* Snackbar Notification */}
-        {showSnackbar && (
+        {/* {showSnackbar && (
           <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
             <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4">
               <div className="flex items-center gap-3">
@@ -749,7 +765,7 @@ export default function PropertySettingsPage() {
               </div>
             </div>
           </div>
-        )}
+        )} */}
       </div>
     </TooltipProvider>
   )
