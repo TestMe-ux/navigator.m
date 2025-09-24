@@ -66,7 +66,7 @@ interface CompetitorData {
 }
 
 // Generate competitor rates data for a week with competitive comparison logic
-const generateCompetitorData = (week: CalendarDay[]): CompetitorData[] => {
+const generateCompetitorData = (week: CalendarDay[], digitCount: number = 4): CompetitorData[] => {
   const competitors = [
     'Acom Hotel Berlin',
     'Comfort Hotel Central',
@@ -79,11 +79,11 @@ const generateCompetitorData = (week: CalendarDay[]): CompetitorData[] => {
   
   return week.map(day => {
     // Generate competitor rates
-    const competitorRates = competitors.map(hotelName => {
-      const rateValue = Math.floor(Math.random() * 400 + 100)
+    const competitorRates = competitors.map((hotelName, index) => {
+      const rateValue = generateRandomRate(digitCount, day.date + day.month + day.year + index + 10)
       return {
         hotelName,
-        rate: `$${rateValue}`,
+        rate: `${rateValue.toLocaleString('en-US')}`,
         rateValue,
         difference: `${Math.random() > 0.5 ? '+' : '-'}${Math.floor(Math.random() * 50 + 5)}`,
         isLowest: false,
@@ -94,7 +94,7 @@ const generateCompetitorData = (week: CalendarDay[]): CompetitorData[] => {
     // Add my hotel rate to comparison
     const allRates = [...competitorRates, {
       hotelName: 'My Hotel',
-      rate: `$${day.hotelLowestRate}`,
+      rate: `${day.hotelLowestRate.toLocaleString('en-US')}`,
       rateValue: day.hotelLowestRate,
       difference: day.rateDifference,
       isLowest: false,
@@ -244,7 +244,7 @@ const getPricingRecommendation = (date: number, month: number, year: number) => 
 
 
 // Enhanced calendar data with future dates and recommendations
-const generateCalendarData = (startDateRange: Date, endDateRange: Date): CalendarDay[][] => {
+const generateCalendarData = (startDateRange: Date, endDateRange: Date, digitCount: number = 4): CalendarDay[][] => {
   const today = new Date()
   // Set today to current date for proper comparison
   today.setHours(0, 0, 0, 0)
@@ -280,10 +280,9 @@ const generateCalendarData = (startDateRange: Date, endDateRange: Date): Calenda
       // Check if this date is within the selected range
       const isInSelectedRange = dayWithoutTime >= startDateRange && dayWithoutTime <= endDateRange
       
-      // Base current prices (simulated current RM rates)
-      const basePrices = ['$680', '$750', '$810', '$920', '$1100', '$1350', '$1500']
-      const priceIndex = (date + month + year) % basePrices.length // More consistent pricing
-      const currentPrice = basePrices[priceIndex]
+      // Generate price based on digit count
+      const randomRate = generateRandomRate(digitCount, date + month + year)
+      const currentPrice = `${randomRate.toLocaleString('en-US')}`
       
       let dayData: CalendarDay = {
         date,
@@ -294,8 +293,8 @@ const generateCalendarData = (startDateRange: Date, endDateRange: Date): Calenda
         isFuture,
         dayOfWeek: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][currentDate.getDay()],
         // New fields for the image layout
-        subscriberRate: `$${Math.floor(Math.random() * 900 + 100)}`,
-        hotelLowestRate: Math.floor(Math.random() * 400 + 150),
+        subscriberRate: `${generateRandomRate(digitCount, date + month + year + 1).toLocaleString('en-US')} USD`,
+        hotelLowestRate: generateRandomRate(digitCount, date + month + year + 2),
         rateDifference: `${Math.random() > 0.5 ? '+' : '-'}${Math.floor(Math.random() * 90 + 10)}`,
         roomType: "STD",
         hasInclusion: true,
@@ -355,6 +354,29 @@ const getMonthName = (month: number): string => {
   return monthNames[month] || ''
 }
 
+// Generate random rate based on digit count
+const generateRandomRate = (digitCount: number, seed: number = Math.random()): number => {
+  const seededRandom = (seed: number) => {
+    const x = Math.sin(seed) * 10000
+    return x - Math.floor(x)
+  }
+  
+  switch (digitCount) {
+    case 4:
+      // 4 digits: 1000-9999
+      return Math.floor(seededRandom(seed) * 9000) + 1000
+    case 6:
+      // 6 digits: 100000-999999
+      return Math.floor(seededRandom(seed) * 900000) + 100000
+    case 8:
+      // 8 digits: 10000000-99999999
+      return Math.floor(seededRandom(seed) * 90000000) + 10000000
+    default:
+      // Default to 4 digits
+      return Math.floor(seededRandom(seed) * 9000) + 1000
+  }
+}
+
 interface RateTrendCalendarProps {
   currentView: "calendar" | "chart" | "table"
   onDateSelect?: (date: Date) => void
@@ -365,6 +387,9 @@ interface RateTrendCalendarProps {
   currentMonthIndex?: number
   onPrevMonth?: () => void
   onNextMonth?: () => void
+  digitCount?: number
+  startDate?: Date
+  endDate?: Date
 }
 
 function RateTrendCalendarInner({ 
@@ -376,9 +401,28 @@ function RateTrendCalendarInner({
   availableMonths: propAvailableMonths,
   currentMonthIndex: propCurrentMonthIndex,
   onPrevMonth: propOnPrevMonth,
-  onNextMonth: propOnNextMonth
+  onNextMonth: propOnNextMonth,
+  digitCount = 4,
+  startDate: propStartDate,
+  endDate: propEndDate
 }: RateTrendCalendarProps) {
-  const { startDate, endDate, isLoading } = useDateContext()
+  // Use props if available, otherwise fall back to date context
+  const dateContext = useDateContext()
+  const startDate = propStartDate || dateContext.startDate
+  const endDate = propEndDate || dateContext.endDate
+  const isLoading = dateContext.isLoading
+  
+  // Handle loading state and ensure dates are available
+  if (isLoading || !startDate || !endDate) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-sm text-gray-600">Loading calendar data...</p>
+        </div>
+      </div>
+    )
+  }
   const [currentWeekIndex, setCurrentWeekIndex] = useState(0)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedDateForModal, setSelectedDateForModal] = useState<Date | null>(null)
@@ -512,7 +556,7 @@ function RateTrendCalendarInner({
         const endOfRange = new Date(monday)
         endOfRange.setDate(monday.getDate() + (weeksNeeded * 7) - 1) // Go to Sunday of last week
         
-        return generateCalendarData(monday, endOfRange)
+        return generateCalendarData(monday, endOfRange, digitCount)
       } else {
         // For custom date ranges, show full weeks but only display data for selected dates
         const startOfWeek = new Date(startDate)
@@ -526,7 +570,7 @@ function RateTrendCalendarInner({
         const endOfRange = new Date(monday)
         endOfRange.setDate(monday.getDate() + (weeksNeeded * 7) - 1) // Go to Sunday of last week
         
-        return generateCalendarData(monday, endOfRange)
+        return generateCalendarData(monday, endOfRange, digitCount)
       }
     } else {
       // For default case, also start from Monday of current week
@@ -537,9 +581,9 @@ function RateTrendCalendarInner({
       
       const defaultEnd = new Date(monday)
       defaultEnd.setDate(monday.getDate() + 6) // Default to next 6 days from Monday (full week)
-      return generateCalendarData(monday, defaultEnd)
+      return generateCalendarData(monday, defaultEnd, digitCount)
     }
-  }, [startDate, endDate])
+  }, [startDate, endDate, digitCount])
 
   // Filter weeks that have at least one visible day for mobile navigation
   const visibleWeeks = useMemo(() => {
@@ -556,14 +600,14 @@ function RateTrendCalendarInner({
   // Memoize competitor data to prevent refresh
   const memoizedCompetitorData = useMemo(() => {
     if (!selectedWeekForCompetitors) return []
-    return generateCompetitorData(selectedWeekForCompetitors)
-  }, [selectedWeekForCompetitors])
+    return generateCompetitorData(selectedWeekForCompetitors, digitCount)
+  }, [selectedWeekForCompetitors, digitCount])
 
   // Memoize all competitive data for the entire calendar to prevent constant reloading
   const memoizedAllCompetitiveData = useMemo(() => {
     const competitiveMap = new Map()
     calendarData.flat().forEach(day => {
-      const competitiveInfo = generateCompetitorData([day])[0]
+      const competitiveInfo = generateCompetitorData([day], digitCount)[0]
       const key = `${day.date}-${day.month}-${day.year}`
       competitiveMap.set(key, {
         isMyRateLowest: competitiveInfo?.isMyRateLowest || false,
@@ -693,7 +737,7 @@ function RateTrendCalendarInner({
         confidence: undefined
       }
     })
-  }, [calendarData])
+  }, [calendarData, digitCount])
 
   if (currentView === "chart") {
     return <RTRateTrendsChart rateData={{}} />
@@ -890,7 +934,7 @@ function RateTrendCalendarInner({
 
                           {/* Sticky Avg. Compset - Rate */}
                           <td className="sticky left-56 z-10 bg-white group-hover:bg-gray-50 py-2 text-center text-sm border-r border-gray-200">
-                            <span className="font-semibold">${avgCompsetRate}</span>
+                            <span className="font-semibold">{avgCompsetRate} USD</span>
                   </td>
 
                           {/* Sticky Avg. Compset - Variance */}
@@ -902,7 +946,7 @@ function RateTrendCalendarInner({
 
                           {/* Sticky Subscriber - Rate */}
                           <td className="sticky left-84 z-10 bg-blue-50 group-hover:bg-blue-100 py-2 text-center text-sm border-r border-b border-gray-200" style={{width: '64px'}}>
-                            <span className="font-semibold">{hotelLowestRate === 0 ? 'Sold Out' : `$${hotelLowestRate}`}</span>
+                            <span className="font-semibold">{hotelLowestRate === 0 ? 'Sold Out' : `${hotelLowestRate} USD`}</span>
                   </td>
 
                           {/* Sticky Subscriber - Variance */}
@@ -933,7 +977,7 @@ function RateTrendCalendarInner({
                             <div key={compIndex}>
                               {/* Rate */}
                               <td className="py-2 text-center text-sm border-r border-gray-200 group-hover:bg-gray-50">
-                                <span className="font-semibold">{competitor.rate === 0 ? 'Sold Out' : `$${competitor.rate}`}</span>
+                                <span className="font-semibold">{competitor.rate === 0 ? 'Sold Out' : `${competitor.rate} USD`}</span>
                   </td>
                               
                               {/* Variance */}
@@ -1089,7 +1133,7 @@ function RateTrendCalendarInner({
                     {/* Center Section: Hotel Lowest Rate (center aligned) */}
                     <div className="text-center mb-1">
                       <div className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                        ${day.hotelLowestRate}
+{day.hotelLowestRate.toLocaleString('en-US')}
         </div>
       </div>
                       
@@ -1128,7 +1172,7 @@ function RateTrendCalendarInner({
                   </div>
                 </Card>
                     </TooltipTrigger>
-                    <TooltipContent side="top" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 pr-6 w-[528px] z-[10001]">
+                    <TooltipContent side="top" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 pr-6 w-[548px] z-[10001]">
                       <div>
                         <div className="mb-2">
                           <div className="flex justify-between items-center">
@@ -1167,16 +1211,16 @@ function RateTrendCalendarInner({
                       </div>
                       
                         <div className="space-y-3 mb-3">
-                          <div className="grid gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                          <div className="grid gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '115px 135px 135px 120px'}}>
                             <div className="text-left">Lowest Rate</div>
                             <div className="text-left">Room</div>
                             <div className="text-left">Inclusion</div>
                             <div className="text-left">Channel</div>
                       </div>
                       
-                          <div className="grid gap-2 text-xs mt-2" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                          <div className="grid gap-2 text-xs mt-2" style={{gridTemplateColumns: '115px 135px 135px 120px'}}>
                             <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
-                              $210
+USD {day.hotelLowestRate.toLocaleString('en-US')}
                         </div>
                             <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
                               Standard King
@@ -1218,7 +1262,7 @@ function RateTrendCalendarInner({
                             {/* Avg. Compset Section */}
                             <div className="text-xs text-black dark:text-gray-100">
                               <div className="text-left whitespace-nowrap">
-                                <span className="font-bold">$210</span> <span className="font-medium">- Avg. Compset</span>
+                                <span className="font-bold">USD {day.hotelLowestRate.toLocaleString('en-US')}</span> <span className="font-medium">- Avg. Compset</span>
                               </div>
                             </div>
                             
@@ -1368,7 +1412,7 @@ function RateTrendCalendarInner({
                                         {/* Row 2: Hotel Lowest Rate */}
                     <div className="text-center rounded">
                       <div className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                        ${day.hotelLowestRate}
+{day.hotelLowestRate.toLocaleString('en-US')}
           </div>
         </div>
                     {/* Row 3: Difference vs Last Period */}
@@ -1399,7 +1443,7 @@ function RateTrendCalendarInner({
                     </div>
                   </Card>
                     </TooltipTrigger>
-                    <TooltipContent side="top" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 pr-6 w-[528px] z-[10001]">
+                    <TooltipContent side="top" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 pr-6 w-[548px] z-[10001]">
                       <div>
                         <div className="mb-2">
                           <div className="flex justify-between items-center">
@@ -1438,16 +1482,16 @@ function RateTrendCalendarInner({
                   </div>
                   
                         <div className="space-y-3 mb-3">
-                          <div className="grid gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                          <div className="grid gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '115px 135px 135px 120px'}}>
                             <div className="text-left">Lowest Rate</div>
                             <div className="text-left">Room</div>
                             <div className="text-left">Inclusion</div>
                             <div className="text-left">Channel</div>
                   </div>
                   
-                          <div className="grid gap-2 text-xs mt-2" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                          <div className="grid gap-2 text-xs mt-2" style={{gridTemplateColumns: '115px 135px 135px 120px'}}>
                             <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
-                              $210
+USD {day.hotelLowestRate.toLocaleString('en-US')}
                             </div>
                             <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
                               Standard King
@@ -1489,7 +1533,7 @@ function RateTrendCalendarInner({
                             {/* Avg. Compset Section */}
                             <div className="text-xs text-black dark:text-gray-100">
                               <div className="text-left whitespace-nowrap">
-                                <span className="font-bold">$210</span> <span className="font-medium">- Avg. Compset</span>
+                                <span className="font-bold">USD {day.hotelLowestRate.toLocaleString('en-US')}</span> <span className="font-medium">- Avg. Compset</span>
                               </div>
                             </div>
                             
@@ -1558,7 +1602,7 @@ function RateTrendCalendarInner({
                                   {isVisible ? (
                                     <>
                                       <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                                        ${avgRate}
+                                        {avgRate.toLocaleString('en-US')}
                                       </span>
                                       <div className="flex items-center gap-2">
                                         <span className={`text-xs font-medium ${
@@ -1638,7 +1682,7 @@ function RateTrendCalendarInner({
                                             </div>
                                           </div>
                                         </TooltipTrigger>
-                                    <TooltipContent side="top" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 pr-6 w-[528px] z-[10001]">
+                                    <TooltipContent side="top" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 pr-6 w-[548px] z-[10001]">
                                       <div>
                                         <div className="mb-2">
                                           <div className="flex justify-between items-center">
@@ -1677,16 +1721,16 @@ function RateTrendCalendarInner({
                                         </div>
                                         
                                         <div className="space-y-3 mb-3">
-                                          <div className="grid gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                                          <div className="grid gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '115px 135px 135px 120px'}}>
                                             <div className="text-left">Lowest Rate</div>
                                             <div className="text-left">Room</div>
                                             <div className="text-left">Inclusion</div>
                                             <div className="text-left">Channel</div>
                                           </div>
                                           
-                                          <div className="grid gap-2 text-xs mt-2" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                                          <div className="grid gap-2 text-xs mt-2" style={{gridTemplateColumns: '115px 135px 135px 120px'}}>
                                             <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
-                                              {competitor?.rate || '$210'}
+                                              USD {competitor?.rate || `${day.hotelLowestRate.toLocaleString('en-US')}`}
                                             </div>
                                             <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
                                               Standard King
@@ -1733,7 +1777,7 @@ function RateTrendCalendarInner({
                                             {/* Avg. Compset Section */}
                                             <div className="text-xs text-black dark:text-gray-100">
                                               <div className="text-left whitespace-nowrap">
-                                                <span className="font-bold">$210</span> <span className="font-medium">- Avg. Compset</span>
+                                                <span className="font-bold">USD {day.hotelLowestRate.toLocaleString('en-US')}</span> <span className="font-medium">- Avg. Compset</span>
                                               </div>
                                             </div>
                                             

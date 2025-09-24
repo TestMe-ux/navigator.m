@@ -16,12 +16,13 @@ import { FilterSidebar } from "@/components/filter-sidebar"
 import { LightningRefreshModal } from "@/components/navigator/generate-report-modal"
 import { Snackbar } from "@/components/ui/snackbar"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
-import { useDateContext } from "@/components/date-context"
+import { DateProvider } from "@/components/date-context"
 import { ComparisonProvider } from "@/components/comparison-context"
-import { differenceInDays, format } from "date-fns"
-import { rateTrendsAPI, getKPIData, type KPIData } from "@/lib/rate-trends-data"
-import localStorageService from "@/lib/localstorage"
+import { format } from "date-fns"
+import { getKPIData } from "@/lib/rate-trends-data"
+// import { LocalStorageService } from "@/lib/localstorage" // Removed - using static data only
 import { useLocalStorage } from "@/hooks/use-local-storage"
+import { useScreenSize } from "@/hooks/use-screen-size"
 
 /**
  * Utility function to format dates consistently across server and client
@@ -57,28 +58,9 @@ const formatDateConsistently = (date: Date | null): string => {
  * @returns Object containing all KPI metrics and metadata
  */
 // Use sample data from our comprehensive database
-const generateKPIData = (startDate: Date, endDate: Date) => {
-  console.log('📊 Using sample KPI data for range:', {
-    start: formatDateConsistently(startDate),
-    end: formatDateConsistently(endDate),
-    timestamp: Date.now()
-  })
-
-  const daysDifference = differenceInDays(endDate, startDate) + 1
-  console.log(`📅 Period analysis: ${daysDifference} days`)
-  
-  // Map to our standard comparison periods
-  let comparisonPeriod = 7 // Default to weekly
-  if (daysDifference <= 7) {
-    comparisonPeriod = 7
-  } else if (daysDifference <= 30) {
-    comparisonPeriod = 30  
-  } else {
-    comparisonPeriod = 91
-  }
-  
-  console.log('✅ Using sample data with period:', comparisonPeriod)
-  return getKPIData(comparisonPeriod)
+const generateKPIData = () => {
+  // Using static KPI data for consistent performance - always 7 days
+  return getKPIData(7)
 }
 
 /**
@@ -94,43 +76,42 @@ const generateKPIData = (startDate: Date, endDate: Date) => {
  * @returns React component for rate trends analysis
  */
 export default function RateTrendPage() {
-  const [currentView, setCurrentView] = useLocalStorage<"calendar" | "chart" | "table">("rate-trend-view", "calendar")
+  const [currentView, setCurrentView] = useLocalStorage<"calendar" | "chart" | "table">("rate-trend-view", "table")
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false)
-  const [isClient, setIsClient] = useState(false)
+  // No isClient state needed for static data
   const [losGuest, setLosGuest] = useState<{ "Los": any[], "Guest": any[] }>({ "Los": [], "Guest": [] });
-  const [loadedKpiData, setLoadedKpiData] = useState<KPIData | null>(null)
   const [dataLoading, setDataLoading] = useState(false)
-  const [isPageLoading, setIsPageLoading] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [loadingCycle, setLoadingCycle] = useState(1)
+  const [selectedValue, setSelectedValue] = useState("4,444 (4 digit)")
+  const [selectedDigitCount, setSelectedDigitCount] = useState(4)
+  
+  // Screen size detection for responsive competitor count
+  const screenSize = useScreenSize()
   
   // State for competitor scrolling (only for table view)
   const [competitorStartIndex, setCompetitorStartIndex] = useState(0)
-  const [competitorsPerPage, setCompetitorsPerPage] = useState(5) // Responsive competitor count
   
-  // Calculate responsive competitor count based on screen size
-  useEffect(() => {
-    const calculateCompetitorsPerPage = () => {
-      const screenWidth = window.innerWidth
-      
-      // Always show 5 competitors initially for table view
-      return 5
+  // Dynamic competitor count based on digitCount and screen resolution
+  const getCompetitorsPerPage = () => {
+    const { isSmall, isMedium, isLarge } = screenSize
+    
+    if (isSmall) {
+      // Resolution from 1352px to 1500px
+      return selectedDigitCount === 4 ? 4 : selectedDigitCount === 6 ? 3 : 2
+    } else if (isMedium) {
+      // Resolution from 1501px to 1800px
+      return selectedDigitCount === 4 ? 5 : selectedDigitCount === 6 ? 4 : 4
+    } else if (isLarge) {
+      // Resolution above 1800px
+      return selectedDigitCount === 4 ? 8 : selectedDigitCount === 6 ? 6 : 5
+    } else {
+      // Default fallback (for screens < 1352px)
+      return selectedDigitCount === 4 ? 4 : selectedDigitCount === 6 ? 3 : 2
     }
-    
-    const updateCompetitorCount = () => {
-      setCompetitorsPerPage(calculateCompetitorsPerPage())
-    }
-    
-    // Set initial value
-    updateCompetitorCount()
-    
-    // Listen for resize events
-    window.addEventListener('resize', updateCompetitorCount)
-    
-    return () => {
-      window.removeEventListener('resize', updateCompetitorCount)
-    }
-  }, [])
+  }
+  
+  const competitorsPerPage = getCompetitorsPerPage()
   
   // State for Lightning Refresh Modal
   const [isLightningRefreshModalOpen, setIsLightningRefreshModalOpen] = useState(false)
@@ -142,11 +123,6 @@ export default function RateTrendPage() {
   
   // State for Lightning Refresh progress
   const [isLightningRefreshInProgress, setIsLightningRefreshInProgress] = useState(false)
-  
-  // Month navigation state
-  const [currentMonthIndex, setCurrentMonthIndex] = useState(0)
-  const [availableMonths, setAvailableMonths] = useState<{ month: number; year: number; monthName: string }[]>([])
-  const [shouldShowMonthNavigation, setShouldShowMonthNavigation] = useState(false)
   
   // Navigation functions for competitor scrolling
   const nextCompetitors = () => {
@@ -171,13 +147,14 @@ export default function RateTrendPage() {
     return competitorStartIndex > 0
   }
   
-  // Reset competitor start index when competitors per page changes
-  useEffect(() => {
-    setCompetitorStartIndex(0)
-  }, [competitorsPerPage])
 
-  // Get date context for dynamic KPIs
-  const { startDate, endDate, isLoading } = useDateContext()
+  // Static date range - spanning multiple months to show month navigation
+  const startDate = new Date()
+  const endDate = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000) // Next 45 days (spans multiple months)
+  const isLoading = false // Always false for static data
+  
+  // Month navigation state
+  const [currentMonthIndex, setCurrentMonthIndex] = useState(0)
 
   // Month navigation functions
   const nextMonth = () => {
@@ -188,23 +165,25 @@ export default function RateTrendPage() {
     setCurrentMonthIndex(prev => Math.max(prev - 1, 0))
   }
 
-  // Calculate available months for multi-month date ranges
+  // Calculate available months based on date range
   const calculateAvailableMonths = useMemo(() => {
     if (!startDate || !endDate) return []
-    
+
     const months: { month: number; year: number; monthName: string }[] = []
-    const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
-    const end = new Date(endDate.getFullYear(), endDate.getMonth(), 1)
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     
-    while (current <= end) {
-      const monthNames = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ]
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    
+    // Add months between start and end dates
+    const current = new Date(start.getFullYear(), start.getMonth(), 1)
+    const endMonth = new Date(end.getFullYear(), end.getMonth(), 1)
+    
+    while (current <= endMonth) {
       months.push({
         month: current.getMonth(),
         year: current.getFullYear(),
-        monthName: monthNames[current.getMonth()] + ' ' + current.getFullYear()
+        monthName: `${monthNames[current.getMonth()]} ${current.getFullYear()}`
       })
       current.setMonth(current.getMonth() + 1)
     }
@@ -212,13 +191,9 @@ export default function RateTrendPage() {
     return months
   }, [startDate, endDate])
 
-  // Update month navigation when date range changes
-  useEffect(() => {
-    const months = calculateAvailableMonths
-    setAvailableMonths(months)
-    setShouldShowMonthNavigation(months.length > 1)
-    setCurrentMonthIndex(0) // Reset to first month when date range changes
-  }, [calculateAvailableMonths])
+  // Use calculated values directly
+  const availableMonths = calculateAvailableMonths
+  const shouldShowMonthNavigation = availableMonths.length > 1
 
   // Handle lightning refresh
   const handleLightningRefresh = (data: { channels: string; checkInStartDate: string; compSet: string; guests: string; los: string }) => {
@@ -250,122 +225,13 @@ export default function RateTrendPage() {
     }, 10000)
   }
   
-  /**
-   * Ensure client-side hydration is complete before rendering date-dependent content
-   * Prevents hydration mismatches by deferring client-specific rendering
-   */
-  useEffect(() => {
-    // Set client to true immediately to prevent loading state issues
-    const timer = setTimeout(() => {
-      setIsClient(true)
-      console.log('🔄 Client hydration completed - React imported')
-    }, 0)
-    
-    return () => clearTimeout(timer)
-  }, [])
+  // No client hydration needed for static data
   
-  // Load KPI data when component mounts
-  useEffect(() => {
-    const loadKPIData = async () => {
-      if (!isClient) return
-      
-      setIsPageLoading(true)
-      setDataLoading(true)
-      setLoadingProgress(0)
-      
-      // Progress interval
-      const progressInterval = setInterval(() => {
-        setLoadingProgress((prev) => {
-          const increment = Math.floor(Math.random() * 9) + 3; // 3-11% increment
-          const newProgress = prev + increment;
 
-          if (newProgress >= 100) {
-            setLoadingCycle(prevCycle => prevCycle + 1);
-            return 0;
-          }
+  // No date range change handling needed for static data
 
-          return newProgress;
-        });
-      }, 80);
-      
-      try {
-        // Default to 7 days (Last Week) for now
-        const data = await rateTrendsAPI.getKPIData(7)
-        setLoadedKpiData(data)
-        console.log('📊 KPI data loaded successfully')
-      } catch (error) {
-        console.error('Error loading KPI data:', error)
-        // Fallback to static data
-        setLoadedKpiData(getKPIData(7))
-      } finally {
-        clearInterval(progressInterval);
-        setLoadingProgress(100); // finish instantly
-        setTimeout(() => {
-          setIsPageLoading(false);
-          setDataLoading(false);
-          setLoadingProgress(0); // reset for next load
-        }, 300); // brief delay so user sees 100%
-      }
-    }
-
-    loadKPIData()
-  }, [isClient])
-
-  // Trigger loading when date range changes
-  useEffect(() => {
-    if (!isClient || !startDate || !endDate) return
-    
-    setIsPageLoading(true)
-    setLoadingProgress(0)
-    
-    // Progress interval
-    const progressInterval = setInterval(() => {
-      setLoadingProgress((prev) => {
-        const increment = Math.floor(Math.random() * 9) + 3; // 3-11% increment
-        const newProgress = prev + increment;
-
-        if (newProgress >= 100) {
-          setLoadingCycle(prevCycle => prevCycle + 1);
-          return 0;
-        }
-
-        return newProgress;
-      });
-    }, 80);
-    
-    // Simulate data loading delay
-    const loadingTimeout = setTimeout(() => {
-      clearInterval(progressInterval);
-      setLoadingProgress(100);
-      setTimeout(() => {
-        setIsPageLoading(false);
-        setLoadingProgress(0);
-      }, 300);
-    }, 1500); // 1.5 second loading simulation
-    
-    return () => {
-      clearInterval(progressInterval);
-      clearTimeout(loadingTimeout);
-    }
-  }, [startDate, endDate, isClient])
-
-  // Calculate dynamic KPIs based on selected date range with fallback
-  const kpiData = useMemo(() => {
-    if (loadedKpiData) {
-      return loadedKpiData
-    }
-    
-    if (!isClient) {
-      console.log('⏳ Waiting for client hydration...')
-      return getKPIData(7) // Return default data during hydration
-    }
-    // Ensure dates are not null before calling generateKPIData
-    if (!startDate || !endDate) {
-      console.log('⏳ Using default KPI data while dates initialize...')
-      return getKPIData(7) // Return default data while dates load
-    }
-    return generateKPIData(startDate, endDate)
-  }, [loadedKpiData, startDate, endDate, isClient])
+  // Calculate static KPIs - no dependencies needed since dates are fixed
+  const kpiData = generateKPIData()
 
   /**
    * Handle filter sidebar toggle with debugging
@@ -375,23 +241,10 @@ export default function RateTrendPage() {
     console.log("🔍 Opening filter sidebar")
   }
 
-  // Show loading state during initial hydration or data loading
-  if (!isClient || isPageLoading) {
-    return (
-      <ComparisonProvider>
-        <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
-          <GlobalProgressBar />
-          <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8 xl:py-10">
-            <div className="max-w-7xl xl:max-w-none mx-auto">
-              <LoadingSkeleton type="rate-trend" showCycleCounter={true} />
-            </div>
-          </div>
-        </div>
-      </ComparisonProvider>
-    )
-  }
+  // No loading state needed for static data
 
   return (
+    <DateProvider>
     <ComparisonProvider>
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       
@@ -409,9 +262,40 @@ export default function RateTrendPage() {
         {/* Dashboard Header with Enhanced Typography - Matching OTA Rankings */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold text-foreground">
-              Rate Trends
-            </h1>
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl font-bold text-foreground">
+                Rate Trends
+              </h1>
+              {/* Sample Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 px-3">
+                    {selectedValue}
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={() => {
+                    setSelectedValue("4,444 (4 digit)")
+                    setSelectedDigitCount(4)
+                  }}>
+                    4,444 (4 digit)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    setSelectedValue("444,400 (6 digit)")
+                    setSelectedDigitCount(6)
+                  }}>
+                    444,400 (6 digit)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    setSelectedValue("44,225,588 (8 digit)")
+                    setSelectedDigitCount(8)
+                  }}>
+                    44,225,588 (8 digit)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
             <p className="text-sm text-muted-foreground">
               Track rate movements and competitive positioning across time periods
             </p>
@@ -524,7 +408,7 @@ export default function RateTrendPage() {
               <div className="absolute left-4 lg:left-6 z-10 flex items-center" style={{ top: 'calc(1rem + 2px)' }}>
                 <h3 className="text-base font-semibold text-gray-900 dark:text-white">
                   Rates Calendar
-                                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400 ml-2">(4 Sep - 10 Sep)</span>
+                                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400 ml-2">(in USD from 4 Sep to 10 Sep)</span>
                 </h3>
               </div>
             )}
@@ -562,6 +446,9 @@ export default function RateTrendPage() {
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-600 dark:text-gray-400">
                     Competitors {competitorStartIndex + 1}-{Math.min(competitorStartIndex + competitorsPerPage, 9)} of 9
+                  </span>
+                  <span className="text-xs text-blue-500 bg-blue-50 px-2 py-1 rounded">
+                    {screenSize.width}px ({screenSize.isSmall ? 'Small' : screenSize.isMedium ? 'Medium' : screenSize.isLarge ? 'Large' : 'Default'}) - {competitorsPerPage} cols
                   </span>
                   <button
                     onClick={prevCompetitors}
@@ -675,12 +562,12 @@ export default function RateTrendPage() {
               <div className="pt-16">
                 <RateTrendsTable 
                   competitorStartIndex={competitorStartIndex}
-                  competitorsPerPage={competitorsPerPage}
+                  digitCount={selectedDigitCount}
                 />
               </div>
             ) : currentView === "chart" ? (
               <div className="pt-16">
-                <RTRateTrendsChart key="rate-trends-chart" rateData={{}} />
+                <RTRateTrendsChart key="rate-trends-chart" rateData={{}} digitCount={selectedDigitCount} />
               </div>
             ) : (
               <RateTrendCalendar 
@@ -692,6 +579,9 @@ export default function RateTrendPage() {
                 currentMonthIndex={currentMonthIndex}
                 onPrevMonth={prevMonth}
                 onNextMonth={nextMonth}
+                digitCount={selectedDigitCount}
+                startDate={startDate}
+                endDate={endDate}
                 onDateSelect={(date) => {
                   console.log('📅 Date selected:', date.toLocaleDateString())
                   // Add any additional date selection logic here
@@ -731,5 +621,6 @@ export default function RateTrendPage() {
       />
     </div>
     </ComparisonProvider>
+    </DateProvider>
   )
 }
