@@ -146,32 +146,14 @@ export default function AlertsSettingsPage() {
   const rankCompetitorDropdownRef = useRef<HTMLDivElement>(null)
   const [newAlert, setNewAlert] = useState({
     // ADR Tab
-    // ADR Tab
     alertMeWhen: "Subscriber ADR",
     competitorADR: "",
     has: "Increased",
     by: "Absolute",
     value: "1",
     currency: "€",
-    currency: "€",
     withRespectTo: "Subscriber ADR",
     selectCompetition: "",
-    // Parity Tab
-    parityOption: "option1",
-    parityWinsMeetsLoses: "Wins",
-    parityChannels: "All",
-    parityScoreChange: "Increases",
-    parityScoreBy: "Absolute",
-    parityScoreValue: "",
-    parityScoreThreshold: "Falls Below",
-    parityScorePercentage: "",
-    // Rank Tab
-    rankAlertMeWhen: "Subscriber OTA Ranking",
-    competitorRank: "",
-    rankHas: "Increased",
-    rankBy: "1",
-    rankChannel: "Booking.com",
-    // Common
     // Parity Tab
     parityOption: "option1",
     parityWinsMeetsLoses: "Wins",
@@ -383,33 +365,7 @@ export default function AlertsSettingsPage() {
     let rule = ""
     
     if (activeTab === "ADR") {
-    let alertType = "ADR"
-    let rule = ""
-    
-    if (activeTab === "ADR") {
     if (newAlert.alertMeWhen && newAlert.has && newAlert.by && newAlert.value) {
-        alertType = "ADR"
-        rule = `${newAlert.alertMeWhen} ${newAlert.has} ${newAlert.by} ${newAlert.value}`
-      }
-    } else if (activeTab === "Parity") {
-      if (newAlert.parityOption === "option1") {
-        alertType = "Parity"
-        rule = `Subscriber Hotel ${newAlert.parityWinsMeetsLoses} on ${newAlert.parityChannels}`
-      } else if (newAlert.parityOption === "option2") {
-        alertType = "Parity"
-        rule = `Parity Score ${newAlert.parityScoreChange} by ${newAlert.parityScoreBy} ${newAlert.parityScoreValue}`
-      } else if (newAlert.parityOption === "option3") {
-        alertType = "Parity"
-        rule = `Parity Score ${newAlert.parityScoreThreshold} ${newAlert.parityScorePercentage}%`
-      }
-    } else if (activeTab === "Rank") {
-      if (newAlert.rankAlertMeWhen && newAlert.rankHas && newAlert.rankBy) {
-        alertType = "OTA Ranking"
-        rule = `${newAlert.rankAlertMeWhen} ${newAlert.rankHas} by ${newAlert.rankBy} on ${newAlert.rankChannel}`
-      }
-    }
-
-    if (rule) {
         alertType = "ADR"
         rule = `${newAlert.alertMeWhen} ${newAlert.has} ${newAlert.by} ${newAlert.value}`
       }
@@ -436,8 +392,6 @@ export default function AlertsSettingsPage() {
         id: alerts.length + 1,
         alertType: alertType,
         rule: rule,
-        alertType: alertType,
-        rule: rule,
         createdOn: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }),
         createdBy: "Current User",
         status: true,
@@ -445,13 +399,11 @@ export default function AlertsSettingsPage() {
       setAlerts((prev) => [...prev, alert])
       setNewAlert({
         // ADR Tab
-        // ADR Tab
         alertMeWhen: "Subscriber ADR",
         competitorADR: "",
         has: "Increased",
         by: "Absolute",
         value: "1",
-        currency: "€",
         currency: "€",
         withRespectTo: "Subscriber ADR",
         selectCompetition: "",
@@ -471,25 +423,8 @@ export default function AlertsSettingsPage() {
         rankBy: "1",
         rankChannel: "Booking.com",
         // Common
-        // Parity Tab
-        parityOption: "option1",
-        parityWinsMeetsLoses: "Wins",
-        parityChannels: "All",
-        parityScoreChange: "Increases",
-        parityScoreBy: "Absolute",
-        parityScoreValue: "",
-        parityScoreThreshold: "Falls Below",
-        parityScorePercentage: "",
-        // Rank Tab
-        rankAlertMeWhen: "Subscriber OTA Ranking",
-        competitorRank: "",
-        rankHas: "Increased",
-        rankBy: "1",
-        rankChannel: "Booking.com",
-        // Common
         sendForEventsHolidays: false,
       })
-      setActiveTab("ADR")
       setActiveTab("ADR")
       setShowAddAlert(false)
       setShowSnackbar(true)
@@ -499,13 +434,11 @@ export default function AlertsSettingsPage() {
   const handleCancelAddAlert = () => {
     setNewAlert({
       // ADR Tab
-      // ADR Tab
       alertMeWhen: "Subscriber ADR",
       competitorADR: "",
       has: "Increased",
       by: "Absolute",
       value: "1",
-      currency: "€",
       currency: "€",
       withRespectTo: "Subscriber ADR",
       selectCompetition: "",
@@ -525,25 +458,8 @@ export default function AlertsSettingsPage() {
       rankBy: "1",
       rankChannel: "Booking.com",
       // Common
-      // Parity Tab
-      parityOption: "option1",
-      parityWinsMeetsLoses: "Wins",
-      parityChannels: "All",
-      parityScoreChange: "Increases",
-      parityScoreBy: "Absolute",
-      parityScoreValue: "",
-      parityScoreThreshold: "Falls Below",
-      parityScorePercentage: "",
-      // Rank Tab
-      rankAlertMeWhen: "Subscriber OTA Ranking",
-      competitorRank: "",
-      rankHas: "Increased",
-      rankBy: "1",
-      rankChannel: "Booking.com",
-      // Common
       sendForEventsHolidays: false,
     })
-    setActiveTab("ADR")
     setActiveTab("ADR")
     setShowAddAlert(false)
   }
@@ -828,10 +744,6 @@ export default function AlertsSettingsPage() {
                           <SelectItem value="ADR" className="text-left [&>span:first-child]:hidden pl-3">ADR</SelectItem>
                           <SelectItem value="Parity" className="text-left [&>span:first-child]:hidden pl-3">Parity</SelectItem>
                           <SelectItem value="OTA Ranking" className="text-left [&>span:first-child]:hidden pl-3">OTA Ranking</SelectItem>
-                          <SelectItem value="All" className="text-left [&>span:first-child]:hidden pl-3">All</SelectItem>
-                          <SelectItem value="ADR" className="text-left [&>span:first-child]:hidden pl-3">ADR</SelectItem>
-                          <SelectItem value="Parity" className="text-left [&>span:first-child]:hidden pl-3">Parity</SelectItem>
-                          <SelectItem value="OTA Ranking" className="text-left [&>span:first-child]:hidden pl-3">OTA Ranking</SelectItem>
                         </SelectContent>
                       </Select>
                       <div className="absolute inset-0 flex items-center justify-between px-2 pointer-events-none">
@@ -952,12 +864,9 @@ export default function AlertsSettingsPage() {
       {/* Add Alert Modal */}
       <Dialog open={showAddAlert} onOpenChange={setShowAddAlert}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-black">Alert Settings</DialogTitle>
-            <DialogTitle className="text-xl font-semibold text-black">Alert Settings</DialogTitle>
             <DialogDescription>
-              Configure alerts for ADR, Parity, and Ranking monitoring.
               Configure alerts for ADR, Parity, and Ranking monitoring.
             </DialogDescription>
           </DialogHeader>
@@ -992,15 +901,8 @@ export default function AlertsSettingsPage() {
               <div>
                     <Label className="block text-sm font-medium text-gray-700 mb-3">Alert me when</Label>
                     <RadioGroup
-                    <Label className="block text-sm font-medium text-gray-700 mb-3">Alert me when</Label>
-                    <RadioGroup
                   value={newAlert.alertMeWhen}
                   onValueChange={(value) => setNewAlert((prev) => ({ ...prev, alertMeWhen: value }))}
-                      className="flex gap-6"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Subscriber ADR" id="subscriber-adr" />
-                        <Label htmlFor="subscriber-adr" className="text-sm font-normal">Subscriber ADR</Label>
                       className="flex gap-6"
                     >
                       <div className="flex items-center space-x-2">
@@ -1089,29 +991,10 @@ export default function AlertsSettingsPage() {
                         <Label htmlFor="crossed" className="text-sm font-normal">Crossed</Label>
                       </div>
                     </RadioGroup>
-                      className="flex gap-6"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Increased" id="increased" />
-                        <Label htmlFor="increased" className="text-sm font-normal">Increased</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Decreased" id="decreased" />
-                        <Label htmlFor="decreased" className="text-sm font-normal">Decreased</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Crossed" id="crossed" />
-                        <Label htmlFor="crossed" className="text-sm font-normal">Crossed</Label>
-                      </div>
-                    </RadioGroup>
               </div>
 
                   {/* By */}
-                  {/* By */}
               <div>
-                    <Label className="block text-sm font-medium text-gray-700 mb-3">By</Label>
-                    <div className="space-y-4">
-                      <RadioGroup
                     <Label className="block text-sm font-medium text-gray-700 mb-3">By</Label>
                     <div className="space-y-4">
                       <RadioGroup
@@ -1259,12 +1142,8 @@ export default function AlertsSettingsPage() {
                           <SelectItem value="All">All</SelectItem>
                           <SelectItem value="Booking.com">Booking.com</SelectItem>
                           <SelectItem value="Expedia">Expedia</SelectItem>
-                          <SelectItem value="All">All</SelectItem>
-                          <SelectItem value="Booking.com">Booking.com</SelectItem>
-                          <SelectItem value="Expedia">Expedia</SelectItem>
                   </SelectContent>
                 </Select>
-                    </div>
                     </div>
               </div>
 
@@ -1499,11 +1378,9 @@ export default function AlertsSettingsPage() {
           </div>
 
               <div className="flex gap-3">
-              <div className="flex gap-3">
             <Button
               variant="outline"
               onClick={handleCancelAddAlert}
-                  className="px-6"
                   className="px-6"
             >
               Cancel
@@ -1513,12 +1390,7 @@ export default function AlertsSettingsPage() {
                   className="px-6 bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   Save
-                  className="px-6 bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  Save
             </Button>
-              </div>
-            </div>
               </div>
             </div>
           </div>
