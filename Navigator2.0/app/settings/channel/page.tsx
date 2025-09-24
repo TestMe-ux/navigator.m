@@ -31,7 +31,7 @@ export default function ChannelSettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedProperty] = useSelectedProperty();
   const [userDetails] = useUserDetail();
-const { toast } = useToast();
+  const { toast } = useToast();
   // Auto-hide snackbar after 5 seconds
   // useEffect(() => {
   //   if (showSnackbar) {
@@ -65,7 +65,7 @@ const { toast } = useToast();
         });
 
         if (response?.status) {
-          setChannels(response.body || []);
+          setChannels(response.body.filter((x:any) => x.isActive === true) || []);
         }
       } catch (error) {
         console.error("Error fetching channels:", error);
@@ -132,7 +132,7 @@ const { toast } = useToast();
       deleteChannel(filtersValue).then((response) => {
         if (response?.status) {
           toast({
-            description: "Parity settings have been successfully updated.",
+            description: "Channel Deleted!!",
             variant: "success",
             duration: 3000,
           })

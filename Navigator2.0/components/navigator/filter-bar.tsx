@@ -85,7 +85,7 @@ interface FilterBarProps {
  * @component
  * @version 3.0.0
  */
-export function FilterBar({ onMoreFiltersClick,setSelectedChannel }: FilterBarProps) {
+export function FilterBar({ onMoreFiltersClick, setSelectedChannel }: FilterBarProps) {
   const [selectedProperty] = useSelectedProperty()
 
 
@@ -143,8 +143,8 @@ export function FilterBar({ onMoreFiltersClick,setSelectedChannel }: FilterBarPr
 
         // Set data
         setChannelData(channelList);
-
-        setSelectedChannel(channelList);
+        if (!!setSelectedChannel)
+          setSelectedChannel(channelList);
         // Set selected channels as array of cids
         setSelectedChannels(channelList.map(c => c.cid));
         setChannelFilter({ channelId: channelList.map(c => c.cid), channelName: channelList.map(c => c.name) })
@@ -244,7 +244,6 @@ export function FilterBar({ onMoreFiltersClick,setSelectedChannel }: FilterBarPr
     if (!open) {
       // Reset channel filter when dropdown closes
       setChannelFilter({ channelId: selectedChannels, channelName: [] })
-      // console.log(`🔄 Channel filter reset to: ${selectedChannels.join(", ")}`)
     }
   }
   /**
@@ -395,7 +394,7 @@ export function FilterBar({ onMoreFiltersClick,setSelectedChannel }: FilterBarPr
                     <div className="flex">
                       <div className="w-56 p-4">
                         <h4 className="font-semibold text-sm text-gray-700 mb-3">Channels</h4>
-                          <ScrollArea className={cn(
+                        <ScrollArea className={cn(
                           "max-h-68 overflow-hidden ",
                           channelData.length > 8 ? "h-64" : "h-auto"
                         )}>

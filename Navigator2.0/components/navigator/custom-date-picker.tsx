@@ -19,6 +19,10 @@ export function CustomDatePicker({ value, onChange, placeholder = "Select start 
   const today = new Date()
   const selectedDate = value ? new Date(value) : null
   
+  // Calculate maximum date (1 year from today)
+  const maxDate = new Date(today)
+  maxDate.setFullYear(today.getFullYear() + 1)
+  
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
@@ -50,17 +54,26 @@ export function CustomDatePicker({ value, onChange, placeholder = "Select start 
   }
   
   const handleDateSelect = (date: Date) => {
-    const dateString = date.toISOString().split('T')[0]
+    debugger;
+    const dateString = format(date, 'yyyy-MM-dd')
     onChange(dateString)
     setIsOpen(false)
   }
   
   const handlePreviousMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))
+    const previousMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1)
+    // Don't allow navigation to months before current month
+    if (previousMonth >= new Date(today.getFullYear(), today.getMonth())) {
+      setCurrentMonth(previousMonth)
+    }
   }
   
   const handleNextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))
+    const nextMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1)
+    // Don't allow navigation beyond the month containing the max date
+    if (nextMonth <= new Date(maxDate.getFullYear(), maxDate.getMonth())) {
+      setCurrentMonth(nextMonth)
+    }
   }
   
   const isSelected = (date: Date) => {
@@ -80,6 +93,16 @@ export function CustomDatePicker({ value, onChange, placeholder = "Select start 
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
     const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate())
     return dateStart < todayStart
+  }
+  
+  const isFutureDate = (date: Date) => {
+    const maxDateStart = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate())
+    const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    return dateStart >= maxDateStart
+  }
+  
+  const isDateDisabled = (date: Date) => {
+    return isPastDate(date) || isFutureDate(date)
   }
   
   const days = getDaysInMonth(currentMonth)
@@ -111,7 +134,13 @@ export function CustomDatePicker({ value, onChange, placeholder = "Select start 
           <div className="flex items-center justify-between mb-4">
             <button
               onClick={handlePreviousMonth}
-              className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+              disabled={currentMonth <= new Date(today.getFullYear(), today.getMonth())}
+              className={cn(
+                "p-1 rounded transition-colors",
+                currentMonth <= new Date(today.getFullYear(), today.getMonth())
+                  ? "cursor-not-allowed opacity-50"
+                  : "hover:bg-gray-100 dark:hover:bg-gray-800"
+              )}
             >
               <ChevronLeft className="h-4 w-4 text-gray-600 dark:text-gray-400" />
             </button>
@@ -122,7 +151,13 @@ export function CustomDatePicker({ value, onChange, placeholder = "Select start 
             
             <button
               onClick={handleNextMonth}
-              className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+              disabled={currentMonth >= new Date(maxDate.getFullYear(), maxDate.getMonth())}
+              className={cn(
+                "p-1 rounded transition-colors",
+                currentMonth >= new Date(maxDate.getFullYear(), maxDate.getMonth())
+                  ? "cursor-not-allowed opacity-50"
+                  : "hover:bg-gray-100 dark:hover:bg-gray-800"
+              )}
             >
               <ChevronRight className="h-4 w-4 text-gray-600 dark:text-gray-400" />
             </button>
@@ -147,14 +182,14 @@ export function CustomDatePicker({ value, onChange, placeholder = "Select start 
               return (
                 <button
                   key={index}
-                  onClick={() => !isPastDate(date) && handleDateSelect(date)}
-                  disabled={isPastDate(date)}
+                  onClick={() => !isDateDisabled(date) && handleDateSelect(date)}
+                  disabled={isDateDisabled(date)}
                   className={cn(
                     "h-8 w-8 text-sm rounded-md flex items-center justify-center transition-colors",
                     isSelected(date) && "bg-blue-600 text-white font-medium",
-                    !isSelected(date) && !isPastDate(date) && "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300",
-                    isPastDate(date) && "text-gray-400 dark:text-gray-600 cursor-not-allowed",
-                    isToday(date) && !isSelected(date) && !isPastDate(date) && "font-semibold text-blue-600 dark:text-blue-400"
+                    !isSelected(date) && !isDateDisabled(date) && "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300",
+                    isDateDisabled(date) && "text-gray-400 dark:text-gray-600 cursor-not-allowed",
+                    isToday(date) && !isSelected(date) && !isDateDisabled(date) && "font-semibold text-blue-600 dark:text-blue-400"
                   )}
                 >
                   {date.getDate()}

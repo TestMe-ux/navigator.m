@@ -22,3 +22,11 @@ export async function getUsageTrendChartData(filtersValue:any) {
     const { data } = await apiClient.get(`${Constants.API_GetChartData}`, { params: filtersValue });
     return data;
 }
+export async function getRTRRChannel(filtersValue:any) {
+    const { data } = await apiClient.get(`${Constants.API_RTRRCHANNEL}`, { params: filtersValue });
+    return data;
+}
+export async function getRTRRValidation(filtersValue:any) {
+    const { data } = await apiClient.get(`${Constants.API_RRTRVALIDATION}`, { params: filtersValue });
+    return data;
+}
