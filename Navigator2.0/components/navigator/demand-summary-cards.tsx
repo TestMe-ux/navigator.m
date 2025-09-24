@@ -5,7 +5,7 @@ import React, { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { TrendingUp, TrendingDown, Users, BarChart3, DollarSign, Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import localStorageService from "@/lib/localstorage"
+import {LocalStorageService} from "@/lib/localstorage"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 
 
@@ -106,7 +106,7 @@ function SummaryCard({
 }
 
 export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverageData, demandCurrencySymbol, demandData }: any) {
-  const selectedProperty: any = localStorageService.get('SelectedProperty')
+  const selectedProperty: any = LocalStorageService.getItem('SelectedProperty')
   const [trendValue, setTrendValue] = useState(0);
   const [demandTrendValue, setDemandTrendValue] = useState(0);
   const [mounted, setMounted] = useState(false);
@@ -171,7 +171,7 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
     },
     {
       title: "Market RevPAR",
-      value: `\u200E${demandCurrencySymbol?.currencySymbol ?? '$'} ${((avgDemand?.AvrageRevPAR ?? 0) * (demandCurrencySymbol?.conversionRate ?? 1)).toFixed(2)}`,
+      value: `\u200E${demandCurrencySymbol?.currencySymbol ?? '$'}\u200E ${((avgDemand?.AvrageRevPAR ?? 0) * (demandCurrencySymbol?.conversionRate ?? 1)).toFixed(2)}`,
       trend: "0%",
       trendDirection: "up",
       icon: TrendingUp,

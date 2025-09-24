@@ -1,0 +1,13 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+✅ MANDATORY BEFORE COMPLETION:
+- Verify CSS loads properly (test responsive + dark/light modes)
+- Create independent page-specific components (copy/adapt, don't modify shared ones)
+- Use consistent design patterns from existing pages (same Tailwind tokens, spacing, shadows, hover states)
+- Follow naming: [PageName][ComponentType].tsx for page-specific components
+
+🔧 QUICK CHECKS: No console errors, responsive works, styling matches app patterns

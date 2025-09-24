@@ -8,7 +8,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent } from "@/components/ui/card"
 import { Eye, EyeOff, Activity, Loader2 } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { InputWithTooltip, ValidationHelpers } from "@/components/auth/field-tooltip"
+import { LocalStorageService, LoginResponse } from "@/lib/localstorage"
+import { GetSIDListforUser } from "@/lib/login"
 
 /**
  * Login Form Component
@@ -26,12 +29,16 @@ import { InputWithTooltip, ValidationHelpers } from "@/components/auth/field-too
  * @version 1.0.0
  */
 export function LoginForm() {
+  const router = useRouter()
+
   // State management for form fields and UI
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [stayLoggedIn, setStayLoggedIn] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedHotel, setSelectedHotel] = useState<any>(null)
+  const [hotelOptions, setHotelOptions] = useState<any>([])
   const [errors, setErrors] = useState({
     email: "",
     password: "",
@@ -157,9 +164,9 @@ export function LoginForm() {
       password: ValidationHelpers.password(password),
       general: ""
     }
-    
+
     setErrors(newErrors)
-    
+
     // Return true if no errors
     return !newErrors.email && !newErrors.password
   }
@@ -170,45 +177,138 @@ export function LoginForm() {
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Validate all fields
     if (!validateForm()) {
       return
     }
 
     setIsLoading(true)
-    
+
     try {
-      // Simulate API call - fast response
-      await new Promise(resolve => setTimeout(resolve, 300))
-      
-      console.log('Login attempt:', {
-        email,
-        stayLoggedIn,
-        timestamp: new Date().toISOString()
-      })
-      
-      // In real implementation, redirect to dashboard on success
-      window.location.href = '/'
-      
+      // Import login functions dynamically to avoid SSR issues
+      const { Login } = await import('@/lib/login')
+
+      // Prepare login data
+      const loginData = {
+        username: email,
+        password: password,
+        checkedStayLoggedIn: stayLoggedIn
+      }
+
+
+      // Make API call with encrypted password
+      const response = await Login(loginData)
+
+      // Handle successful login
+      const loginSuccess = handleSuccessfulLogin(response, stayLoggedIn)
+
+      if (loginSuccess) {
+        // Get SID list for user
+        getSIDListforUser();
+
+        // Redirect to dashboard on success
+
+      } else {
+        setErrors(prev => ({
+          ...prev,
+          general: response?.message || "Login failed. Please check your credentials and try again."
+        }))
+      }
+
     } catch (error) {
+      setIsLoading(false)
       console.error('Login error:', error)
-      setErrors(prev => ({ 
-        ...prev, 
-        general: "Login failed. Please try again." 
+      const errorMessage = handleLoginError(error)
+      setErrors(prev => ({
+        ...prev,
+        general: errorMessage
       }))
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
+  function handleLoginError(error: any) {
+    console.error('Login error:', error);
+    LocalStorageService.setLoginStatus(false);
 
+    // Return user-friendly error message
+    if (error.response?.status === 401) {
+      return "Invalid username or password. Please try again.";
+    } else if (error.response?.status === 400) {
+      return "Invalid request. Please check your input.";
+    } else if (error.response?.status >= 500) {
+      return "Server error. Please try again later.";
+    } else {
+      return "Login failed. Please try again.";
+    }
+  }
   /**
    * Toggle password visibility
    */
+  function handleSuccessfulLogin(response: LoginResponse, stayLoggedIn: boolean = false) {
+    if (response.status) {
+      // Clear existing localStorage
+      LocalStorageService.clear();
+
+      // Store user details
+      LocalStorageService.setUserDetails(response.body.userDetails);
+
+      // Store user token
+      LocalStorageService.setUserToken(LocalStorageService.getAccessToken() || '');
+
+      // Calculate and store refresh time
+      const refreshTime = new Date(response.body.expiration);
+      LocalStorageService.setRefreshTime(refreshTime.getTime());
+
+      // Store access token
+      LocalStorageService.setAccessToken(response.body.token);
+
+      // Set login status
+      LocalStorageService.setLoginStatus(true);
+
+      // Get SID list for user
+      // GetSIDListforUser(response.body).catch(error => {
+      //     console.error('Error getting SID list:', error);
+      // });
+
+      return true;
+    } else {
+      // Set login status to false on failure
+      LocalStorageService.setLoginStatus(false);
+      return false;
+    }
+  }
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword)
   }
+  const getSIDListforUser = () => {
+    debugger;
+    const userdetail = LocalStorageService.getUserDetails();
+    GetSIDListforUser({ UserID: userdetail?.userId })
+      .then((res) => {
+        if (res.status) {
+          debugger
+          LocalStorageService.setItem('Properties', res.body);
 
+          // Find Alhambra Hotel in the properties list, fallback to first property if not found
+          const alhambraHotel = res.body.find((property: any) =>
+            property.name && property.name.toLowerCase().includes('alhambra')
+          );
+          const defaultProperty = res.body[0];
+
+          LocalStorageService.setItem('SelectedProperty', defaultProperty);
+          setSelectedHotel(defaultProperty);
+          setHotelOptions(res.body);
+          router.push('/')
+          // setotachannel(res.body);
+          // getOTARankOnAllChannels(res.body);
+          // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
+        }
+        setIsLoading(false);
+      })
+      .catch((err) => console.error(err));
+  }
   return (
     <div className="w-full space-y-6">
       {/* Login Form Card */}
@@ -240,16 +340,15 @@ export function LoginForm() {
                   type="email"
                   placeholder="Enter Username"
                   value={email}
-                  autoComplete="new-password"
+                  // autoComplete="new-password"
                   data-transparent-bg="true"
                   onChange={(e) => {
                     setEmail(e.target.value)
                     clearFieldError("email") // Clear error when user starts typing
                   }}
-                  className={`h-12 px-4 text-base bg-transparent focus:bg-transparent hover:bg-transparent active:bg-transparent border border-white/30 focus:border-white/60 focus:outline-none rounded-lg transition-all placeholder:font-normal placeholder:text-gray-300 text-white font-semibold hover:border-white/40 ${
-                    errors.email ? "border-red-400/70 focus:border-red-400" : ""
-                  }`}
-                  style={{ 
+                  className={`h-12 px-4 text-base bg-transparent focus:bg-transparent hover:bg-transparent active:bg-transparent border border-white/30 focus:border-white/60 focus:outline-none rounded-lg transition-all placeholder:font-normal placeholder:text-gray-300 text-white font-semibold hover:border-white/40 ${errors.email ? "border-red-400/70 focus:border-red-400" : ""
+                    }`}
+                  style={{
                     backgroundColor: 'transparent',
                     WebkitBoxShadow: 'inset 0 0 0 1000px transparent',
                     MozBoxShadow: 'inset 0 0 0 1000px transparent',
@@ -276,16 +375,15 @@ export function LoginForm() {
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter Password"
                     value={password}
-                    autoComplete="new-password"
+                    // autoComplete="new-password"
                     data-transparent-bg="true"
                     onChange={(e) => {
                       setPassword(e.target.value)
                       clearFieldError("password") // Clear error when user starts typing
                     }}
-                    className={`h-12 px-4 pr-12 text-base bg-transparent focus:bg-transparent hover:bg-transparent active:bg-transparent border border-white/30 focus:border-white/60 focus:outline-none rounded-lg transition-all placeholder:font-normal placeholder:text-gray-300 text-white font-semibold hover:border-white/40 ${
-                      errors.password ? "border-red-400/70 focus:border-red-400" : ""
-                    }`}
-                    style={{ 
+                    className={`h-12 px-4 pr-12 text-base bg-transparent focus:bg-transparent hover:bg-transparent active:bg-transparent border border-white/30 focus:border-white/60 focus:outline-none rounded-lg transition-all placeholder:font-normal placeholder:text-gray-300 text-white font-semibold hover:border-white/40 ${errors.password ? "border-red-400/70 focus:border-red-400" : ""
+                      }`}
+                    style={{
                       backgroundColor: 'transparent',
                       WebkitBoxShadow: 'inset 0 0 0 1000px transparent',
                       MozBoxShadow: 'inset 0 0 0 1000px transparent',
@@ -305,9 +403,9 @@ export function LoginForm() {
                     tabIndex={-1}
                   >
                     {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
                       <Eye className="h-4 w-4" />
+                    ) : (
+                      <EyeOff className="h-4 w-4" />
                     )}
                     <span className="sr-only">
                       {showPassword ? "Hide password" : "Show password"}

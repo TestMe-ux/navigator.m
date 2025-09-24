@@ -8,6 +8,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Eye, EyeOff, ArrowLeft, Loader2, Check, X } from "lucide-react"
 import Link from "next/link"
 import { InputWithTooltip, ValidationHelpers } from "@/components/auth/field-tooltip"
+import { PasswordRecovery } from "@/lib/login"
+import { CryptoUtils } from "@/lib/crypto"
 
 /**
  * Create New Password Form Component
@@ -23,12 +25,18 @@ import { InputWithTooltip, ValidationHelpers } from "@/components/auth/field-too
  * @component
  * @version 1.0.0
  */
-export function CreatePasswordForm() {
+interface CreatePasswordFormProps {
+  userId: string;
+  token: string;
+}
+
+export function CreatePasswordForm({ userId, token }: CreatePasswordFormProps) {
   // State management
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordFocused, setPasswordFocused] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [errors, setErrors] = useState({
@@ -144,30 +152,30 @@ export function CreatePasswordForm() {
    * Password validation rules
    */
   const passwordRules = [
-    { 
-      id: 'length', 
-      label: 'At least 8-12 characters', 
-      test: (pwd: string) => pwd.length >= 8 && pwd.length <= 12 
+    {
+      id: 'length',
+      label: 'At least 8-12 characters',
+      test: (pwd: string) => pwd.length >= 8 && pwd.length <= 12
     },
-    { 
-      id: 'uppercase', 
-      label: '1 uppercase letter (A-Z)', 
-      test: (pwd: string) => /[A-Z]/.test(pwd) 
+    {
+      id: 'uppercase',
+      label: '1 uppercase letter (A-Z)',
+      test: (pwd: string) => /[A-Z]/.test(pwd)
     },
-    { 
-      id: 'lowercase', 
-      label: '1 lowercase letter (a-z)', 
-      test: (pwd: string) => /[a-z]/.test(pwd) 
+    {
+      id: 'lowercase',
+      label: '1 lowercase letter (a-z)',
+      test: (pwd: string) => /[a-z]/.test(pwd)
     },
-    { 
-      id: 'number', 
-      label: '1 number (0-9)', 
-      test: (pwd: string) => /[0-9]/.test(pwd) 
+    {
+      id: 'number',
+      label: '1 number (0-9)',
+      test: (pwd: string) => /[0-9]/.test(pwd)
     },
-    { 
-      id: 'special', 
-      label: '1 special char. (!@#$%^&*)', 
-      test: (pwd: string) => /[!@#$%^&*(),.?":{}|<>]/.test(pwd) 
+    {
+      id: 'special',
+      label: '1 special char. (!@#$%^&*)',
+      test: (pwd: string) => /[!@#$%^&*(),.?":{}|<>]/.test(pwd)
     }
   ]
 
@@ -176,10 +184,10 @@ export function CreatePasswordForm() {
    */
   const getPasswordStrength = (pwd: string): { score: number; label: string; color: string } => {
     if (pwd.length === 0) return { score: 0, label: '', color: '' }
-    
+
     const passedRules = passwordRules.filter(rule => rule.test(pwd)).length
     const score = (passedRules / passwordRules.length) * 100
-    
+
     if (score <= 40) return { score, label: 'Weak', color: 'bg-red-500' }
     if (score <= 80) return { score, label: 'Good', color: 'bg-yellow-500' }
     return { score, label: 'Strong', color: 'bg-green-500' }
@@ -190,12 +198,12 @@ export function CreatePasswordForm() {
    */
   const validatePassword = (pwd: string): string => {
     if (!pwd.trim()) return "Please create a password"
-    
+
     const failedRules = passwordRules.filter(rule => !rule.test(pwd))
     if (failedRules.length > 0) {
       return "Password must meet all requirements shown below"
     }
-    
+
     return ""
   }
 
@@ -225,25 +233,81 @@ export function CreatePasswordForm() {
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
 
     setIsLoading(true)
-    
+
     try {
-      // Simulate API call for password creation - fast response
-      await new Promise(resolve => setTimeout(resolve, 400))
-      
+      const passwordEncrypted = CryptoUtils.encryptString(password);
+      // API call for password creation using validated userId and token
+      const response = await PasswordRecovery({ uid: userId, token: token, pwd: passwordEncrypted })
+
+      if (response.status) {
+
+        if (response.message === "Success") {
+          console.log('Password created successfully')
+          setIsSubmitted(true)
+          // if (this.Identifier == 1) {
+          //   this.router.navigate(['welcome'], { queryParams: { userid: this.UserId, token: response.body } });
+          // }
+        }
+        else {
+          setErrors(prev => ({
+            ...prev,
+            general: "Somthing Went Worng Please Try Again!"
+          }))
+        }
+
+      }
+      else {
+
+        if (response.message === "User Already Deleted!") {
+          setErrors(prev => ({
+            ...prev,
+            general: "User is already deleted so cant change their Password!"
+          }))
+        }
+        else if (response.message === "Invalid Auth Token!" || response.message === "Token is Expired!!") {
+          setErrors(prev => ({
+            ...prev,
+            general: "Token Expired! Please Request Again for new Password Change!"
+          }))
+        }
+        else if (response.message === "One of the last two passwords") {
+          setErrors(prev => ({
+            ...prev,
+            general: "Current Password matches with the previous Ones Please try with another One!"
+          }))
+        }
+        else if (response.message === "Unable to send mail, please contact support team.") {
+          setErrors(prev => ({
+            ...prev,
+            general: "Current Password matches with the previous Ones Please try with another One!"
+          }))
+        }
+        else if (password === "empty") {
+          if (response.message === "User Verified") {
+
+          }
+          else if (response.message != "User Verified") {
+            setErrors(prev => ({
+              ...prev,
+              general: "Please check for Link and Try Again!"
+            }))
+          }
+        }
+      }
       console.log('Password created successfully')
-      setIsSubmitted(true)
-      
+      // setIsSubmitted(true)
+
     } catch (error) {
       console.error('Password creation error:', error)
-      setErrors(prev => ({ 
-        ...prev, 
-        general: "Failed to create password. Please try again." 
+      setErrors(prev => ({
+        ...prev,
+        general: "Failed to create password. Please try again."
       }))
     } finally {
       setIsLoading(false)
@@ -288,9 +352,9 @@ export function CreatePasswordForm() {
                 Your password has been successfully updated!
               </p>
             </div>
-            
+
             <div className="h-[18px]"></div> {/* Spacer */}
-            
+
             <Button
               onClick={() => window.location.href = '/login'}
               className="w-full h-12 text-base font-semibold bg-gradient-brand hover:opacity-90 text-white shadow-brand rounded-lg transition-all transform hover:scale-[1.02]"
@@ -326,7 +390,7 @@ export function CreatePasswordForm() {
               <Label htmlFor="password" className="text-sm font-medium text-white">
                 New Password *
               </Label>
-              
+
               <InputWithTooltip error={errors.password} tooltipPosition="bottom">
                 <div className="relative">
                   <Input
@@ -343,10 +407,9 @@ export function CreatePasswordForm() {
                       setPassword(e.target.value)
                       clearFieldError("password")
                     }}
-                    className={`h-12 px-4 pr-12 text-base bg-transparent focus:bg-transparent hover:bg-transparent active:bg-transparent border border-white/30 focus:border-white/60 focus:outline-none rounded-lg transition-all placeholder:font-normal placeholder:text-gray-300 text-white font-semibold hover:border-white/40 ${
-                      errors.password ? "border-red-400/70 focus:border-red-400" : ""
-                    }`}
-                    style={{ 
+                    className={`h-12 px-4 pr-12 text-base bg-transparent focus:bg-transparent hover:bg-transparent active:bg-transparent border border-white/30 focus:border-white/60 focus:outline-none rounded-lg transition-all placeholder:font-normal placeholder:text-gray-300 text-white font-semibold hover:border-white/40 ${errors.password ? "border-red-400/70 focus:border-red-400" : ""
+                      }`}
+                    style={{
                       backgroundColor: 'transparent',
                       WebkitBoxShadow: 'inset 0 0 0 1000px transparent',
                       MozBoxShadow: 'inset 0 0 0 1000px transparent',
@@ -366,9 +429,9 @@ export function CreatePasswordForm() {
                     tabIndex={-1}
                   >
                     {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
                       <Eye className="h-4 w-4" />
+                    ) : (
+                      <EyeOff className="h-4 w-4" />
                     )}
                     <span className="sr-only">
                       {showPassword ? "Hide password" : "Show password"}
@@ -383,18 +446,17 @@ export function CreatePasswordForm() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-white/90">Password Strength:</span>
-                  <span className={`text-sm font-medium ${
-                    getPasswordStrength(password).label === 'Strong' 
-                      ? 'text-green-300' 
-                      : getPasswordStrength(password).label === 'Good' 
-                        ? 'text-yellow-300' 
-                        : 'text-red-300'
-                  }`}>
+                  <span className={`text-sm font-medium ${getPasswordStrength(password).label === 'Strong'
+                    ? 'text-green-300'
+                    : getPasswordStrength(password).label === 'Good'
+                      ? 'text-yellow-300'
+                      : 'text-red-300'
+                    }`}>
                     {getPasswordStrength(password).label}
                   </span>
                 </div>
                 <div className="w-full bg-gray-600 rounded-full h-2">
-                  <div 
+                  <div
                     className={`h-2 rounded-full transition-all duration-300 ${getPasswordStrength(password).color}`}
                     style={{ width: `${getPasswordStrength(password).score}%` }}
                   />
@@ -411,17 +473,16 @@ export function CreatePasswordForm() {
                 {passwordRules.map((rule, index) => {
                   const isValid = rule.test(password)
                   const hasValue = password.length > 0
-                  
+
                   return (
-                    <div 
-                      key={rule.id} 
-                      className={`flex items-center space-x-2 text-xs leading-tight transition-all duration-200 ${
-                        hasValue 
-                          ? isValid 
-                            ? "opacity-100" 
-                            : "opacity-100" 
-                          : "opacity-70"
-                      }`}
+                    <div
+                      key={rule.id}
+                      className={`flex items-center space-x-2 text-xs leading-tight transition-all duration-200 ${hasValue
+                        ? isValid
+                          ? "opacity-100"
+                          : "opacity-100"
+                        : "opacity-70"
+                        }`}
                     >
                       <div className="flex-shrink-0">
                         {isValid ? (
@@ -432,12 +493,12 @@ export function CreatePasswordForm() {
                           </div>
                         )}
                       </div>
-                      <span 
+                      <span
                         className={
-                          isValid 
-                            ? "text-green-300 font-medium" 
-                            : hasValue 
-                              ? "text-white/60" 
+                          isValid
+                            ? "text-green-300 font-medium"
+                            : hasValue
+                              ? "text-white/60"
                               : "text-gray-400"
                         }
                       >
@@ -447,7 +508,7 @@ export function CreatePasswordForm() {
                   )
                 })}
               </div>
-              
+
             </div>
 
             {/* Confirm Password Field */}
@@ -469,10 +530,9 @@ export function CreatePasswordForm() {
                       setConfirmPassword(e.target.value)
                       clearFieldError("confirmPassword")
                     }}
-                    className={`h-12 px-4 pr-12 text-base bg-transparent focus:bg-transparent hover:bg-transparent active:bg-transparent border border-white/30 focus:border-white/60 focus:outline-none rounded-lg transition-all placeholder:font-normal placeholder:text-gray-300 text-white font-semibold hover:border-white/40 ${
-                      errors.confirmPassword ? "border-red-400/70 focus:border-red-400" : ""
-                    }`}
-                    style={{ 
+                    className={`h-12 px-4 pr-12 text-base bg-transparent focus:bg-transparent hover:bg-transparent active:bg-transparent border border-white/30 focus:border-white/60 focus:outline-none rounded-lg transition-all placeholder:font-normal placeholder:text-gray-300 text-white font-semibold hover:border-white/40 ${errors.confirmPassword ? "border-red-400/70 focus:border-red-400" : ""
+                      }`}
+                    style={{
                       backgroundColor: 'transparent',
                       WebkitBoxShadow: 'inset 0 0 0 1000px transparent',
                       MozBoxShadow: 'inset 0 0 0 1000px transparent',
@@ -492,9 +552,9 @@ export function CreatePasswordForm() {
                     tabIndex={-1}
                   >
                     {showConfirmPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
                       <Eye className="h-4 w-4" />
+                    ) : (
+                      <EyeOff className="h-4 w-4" />
                     )}
                     <span className="sr-only">
                       {showConfirmPassword ? "Hide password" : "Show password"}
@@ -502,7 +562,7 @@ export function CreatePasswordForm() {
                   </Button>
                 </div>
               </InputWithTooltip>
-              
+
               {/* Password Match Indicator */}
               {confirmPassword.length > 0 && (
                 <div className="flex items-center space-x-2 text-sm">

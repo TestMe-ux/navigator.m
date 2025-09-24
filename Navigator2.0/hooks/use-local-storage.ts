@@ -40,7 +40,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T)
       // Allow value to be a function so we have the same API as useState
       const valueToStore = value instanceof Function ? value(storedValue) : value
       setStoredValue(valueToStore)
-      
+
       // Save to localStorage on client side
       if (typeof window !== 'undefined') {
         try {
@@ -61,13 +61,54 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T)
 
 // Define the property type
 type SelectedProperty = {
-  sid?: string | number
-  hmid?: string | number
-  name?: string
-  city?: string
-  country?: string
-  currencySymbol?: string
-  demandCity?: string
+  activeMenus?: string;
+  address1?: string;
+  address2?: string | null;
+  brandID?: number;
+  brandName?: string;
+  city?: string;
+  cityCode?: string | null;
+  country?: string;
+  countryCode?: string;
+  currencyCode?: string;
+  currencySymbol?: string;
+  defaultLandingPage?: string;
+  demandCity?: string;
+  enableLightingRefreshPrimium?: boolean;
+  enableOTARank?: boolean;
+  enablePropertyWiseReport?: boolean;
+  hmid?: number;
+  imagePath?: string;
+  isAutoMapping?: boolean;
+  isOptimaUpgraded?: boolean;
+  isRTL?: boolean;
+  isUnreadAlert?: boolean;
+  lat?: number | null;
+  long?: number | null;
+  name?: string;
+  odRestrictionDays?: number;
+  optimaTrialStatus?: number;
+  pghEndDate?: string| Date; // ISO date string
+  pghStartDate?: string; // ISO date string
+  roleID?: number;
+  sid?: number;
+  state?: string | null;
+  stateCode?: string | null;
+  userID?: number;
+  zipCode?: string | null;
+} | null
+
+type UserDetails = {
+  accessToken: string
+  email: string
+  firstName: string
+  imagePath: string
+  isFirtTimeUser: boolean
+  isNewOptimaDelete: boolean
+  lastName: string
+  loginName: string
+  userId: number
+  userRoletext: string
 } | null
 
 /**
@@ -75,5 +116,9 @@ type SelectedProperty = {
  */
 export function useSelectedProperty(): [SelectedProperty, (value: SelectedProperty) => void] {
   return useLocalStorage<SelectedProperty>('SelectedProperty', null)
+}
+
+export function useUserDetail(): [UserDetails, (value: UserDetails) => void] {
+  return useLocalStorage<UserDetails>('UserDetails', null)
 }
 
