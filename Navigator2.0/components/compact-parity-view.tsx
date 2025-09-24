@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 interface ChannelData {
   id: string
   name: string
+  channelIcon?: string
   winPercent: number
   meetPercent: number
   lossPercent: number
@@ -21,6 +22,12 @@ interface ChannelData {
   trend?: "up" | "down" | "stable"
   trendValue?: number
   gradientClass?: string
+  isBrand?: boolean
+}
+
+interface CompactParityViewProps {
+  className?: string;
+  parityDataMain?: any;
 }
 
 interface HotelData {
@@ -37,6 +44,7 @@ const mockChannelData: ChannelData[] = [
   {
     id: "booking",
     name: "Booking.com",
+    channelIcon: "https://storage.googleapis.com/rgdatalake/rg_optimanew/ChannelIcon/Booking.com.svg",
     winPercent: 15,
     meetPercent: 20,
     lossPercent: 65,
@@ -50,6 +58,7 @@ const mockChannelData: ChannelData[] = [
   {
     id: "trivago",
     name: "Trivago",
+    channelIcon: "https://storage.googleapis.com/rgdatalake/rg_optimanew/ChannelIcon/Trivago.svg",
     winPercent: 35,
     meetPercent: 45,
     lossPercent: 20,
@@ -101,6 +110,7 @@ const mockChannelData: ChannelData[] = [
   {
     id: "expedia",
     name: "Expedia",
+    channelIcon: "https://storage.googleapis.com/rgdatalake/rg_optimanew/ChannelIcon/Expedia.svg",
     winPercent: 20,
     meetPercent: 40,
     lossPercent: 40,
@@ -114,6 +124,7 @@ const mockChannelData: ChannelData[] = [
   {
     id: "agoda",
     name: "Agoda",
+    channelIcon: "https://storage.googleapis.com/rgdatalake/rg_optimanew/ChannelIcon/Agoda.svg",
     winPercent: 15,
     meetPercent: 25,
     lossPercent: 60,
@@ -127,6 +138,7 @@ const mockChannelData: ChannelData[] = [
   {
     id: "makemytrip",
     name: "MakeMyTrip",
+    channelIcon: "https://storage.googleapis.com/rgdatalake/rg_optimanew/ChannelIcon/MakeMyTrip.svg",
     winPercent: 10,
     meetPercent: 20,
     lossPercent: 70,
@@ -152,9 +164,48 @@ const mockChannelData: ChannelData[] = [
   },
 ]
 
-export function CompactParityView() {
+export function CompactParityView({ className, parityDataMain }: CompactParityViewProps) {
   const [channels, setChannels] = React.useState<ChannelData[]>(mockChannelData)
   const [highlightThreshold, setHighlightThreshold] = React.useState("40")
+  const [parityData, setParityData] = React.useState<any[]>([])
+
+  // Get benchmark channel from API response where isBrand is true
+  const getBenchmarkChannel = () => {
+    return parityData.find((channel: any) => channel.isBrand === true)
+  }
+  
+  const benchmarkChannel = parityData.length > 0 ? getBenchmarkChannel() : null
+
+  // Load parity data from parityDataMain prop
+  React.useEffect(() => {
+    if (!parityDataMain) return
+    
+    try {
+      const channels = parityDataMain?.otaViolationChannelRate?.violationChannelRatesCollection || []
+      setParityData(channels)
+      
+      // Transform API data to ChannelData format
+      const transformedChannels = channels.map((channel: any, index: number) => ({
+        id: channel.channelId || `channel-${index}`,
+        name: channel.channelName || `Channel ${index + 1}`,
+        channelIcon: channel.channelIcon,
+        winPercent: channel.channelWisewinMeetLoss?.winPercent || 0,
+        meetPercent: channel.channelWisewinMeetLoss?.meetPercent || 0,
+        lossPercent: channel.channelWisewinMeetLoss?.lossPercent || 0,
+        parityScore: channel.channelWisewinMeetLoss?.parityScore || 0,
+        dailyScores: channel.checkInDateWiseRates?.map((rate: any) => rate.parityScore || 0) || [],
+        isBrand: channel.isBrand || false,
+        expanded: false,
+        trend: "stable" as const,
+        trendValue: 0,
+        gradientClass: "bg-gradient-to-r from-blue-500 to-teal-500",
+      }))
+      
+      setChannels(transformedChannels)
+    } catch (error) {
+      console.error('Error loading parity data:', error)
+    }
+  }, [parityDataMain])
 
   const dates = Array.from({ length: 15 }, (_, i) => {
     const date = new Date(2024, 3, i + 1) // April 2024
@@ -242,10 +293,28 @@ export function CompactParityView() {
                 </thead>
 
                 <tbody>
-                  {channels.map((channel) => (
+                  {(() => {
+                    // Sort channels: benchmark first, then alphabetical order
+                    const sortedChannels = [...channels].sort((a, b) => {
+                      // Benchmark channel (isBrand: true) comes first
+                      if (a.isBrand && !b.isBrand) return -1
+                      if (!a.isBrand && b.isBrand) return 1
+                      
+                      // For non-benchmark channels, sort alphabetically by channel name
+                      return a.name?.localeCompare(b.name || '') || 0
+                    })
+                    
+                    return sortedChannels.map((channel) => {
+                    const isBenchmark = channel.isBrand === true
+                    return (
                     <React.Fragment key={channel.id}>
                       {/* Main Channel Row */}
-                      <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                      <tr className={cn(
+                        "border-b border-gray-100 transition-colors",
+                        isBenchmark 
+                          ? "bg-blue-50 dark:bg-blue-950/30 cursor-default" 
+                          : "hover:bg-gray-50"
+                      )}>
                         <td className="py-2 px-3">
                           <div className="flex items-center gap-2">
                             {channel.hotels && (
@@ -260,7 +329,14 @@ export function CompactParityView() {
                             )}
                             <div className="flex items-center gap-1.5">
                               <div className={cn("w-2 h-2 rounded-full", channel.gradientClass)}></div>
-                              <span className="text-xs font-medium text-gray-900">{channel.name}</span>
+                              <span className={cn("text-xs font-medium", isBenchmark ? "text-blue-900" : "text-gray-900")}>
+                                {channel.name}
+                              </span>
+                              {isBenchmark && (
+                                <span className="bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 rounded font-medium">
+                                  Benchmark
+                                </span>
+                              )}
                             </div>
                             {channel.trend && (
                               <div className="flex items-center">
@@ -460,7 +536,9 @@ export function CompactParityView() {
                         </>
                       )}
                     </React.Fragment>
-                  ))}
+                    )
+                    })
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -496,16 +574,54 @@ export function CompactParityView() {
           </CardHeader>
           <CardContent className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {channels.slice(0, 6).map((channel) => (
+              {channels.slice(0, 6).map((channel) => {
+                const isBenchmark = channel.isBrand === true
+                return (
                 <div
                   key={channel.id}
-                  className="p-3 border border-gray-200 rounded hover:shadow-md transition-all duration-200 bg-white hover:border-gray-300 overflow-hidden relative"
+                  className={cn(
+                    "p-3 border rounded transition-all duration-200 overflow-hidden relative",
+                    isBenchmark 
+                      ? "border-blue-300 bg-blue-50 hover:bg-blue-100 cursor-default" 
+                      : "border-gray-200 bg-white hover:shadow-md hover:border-gray-300"
+                  )}
                 >
                   {/* Gradient accent bar */}
                   <div className={cn("absolute top-0 left-0 right-0 h-0.5", channel.gradientClass)}></div>
 
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-xs font-semibold text-gray-900">{channel.name}</h4>
+                    <div className="flex items-center gap-2">
+                      {/* Channel Icon with Fallback */}
+                      {channel.channelIcon ? (
+                        <img
+                          src={channel.channelIcon}
+                          alt={channel.name}
+                          className="w-4 h-4 rounded"
+                          onError={(e) => {
+                            // Hide the image and show fallback on error
+                            e.currentTarget.style.display = 'none'
+                            e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                          }}
+                        />
+                      ) : null}
+                      {/* Fallback: First letter of channel name */}
+                      <div className={cn(
+                        "w-4 h-4 rounded flex items-center justify-center text-xs font-bold text-white bg-blue-600",
+                        channel.channelIcon ? "hidden" : "block"
+                      )}>
+                        {channel.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <h4 className={cn("text-xs font-semibold", isBenchmark ? "text-blue-900" : "text-gray-900")}>
+                          {channel.name}
+                        </h4>
+                        {isBenchmark && (
+                          <span className="bg-blue-100 text-blue-800 text-[8px] px-1 py-0.5 rounded font-medium">
+                            Benchmark
+                          </span>
+                        )}
+                      </div>
+                    </div>
                     <div className="flex items-center gap-1">
                       {channel.trend === "up" ? (
                         <TrendingUp className="h-3 w-3 text-green-600" />
@@ -534,7 +650,9 @@ export function CompactParityView() {
                     <div
                       className={cn(
                         "text-lg font-bold",
-                        channel.parityScore >= 70
+                        isBenchmark 
+                          ? "text-blue-900"
+                          : channel.parityScore >= 70
                           ? "text-green-600"
                           : channel.parityScore >= 50
                             ? "text-orange-600"
@@ -543,7 +661,9 @@ export function CompactParityView() {
                     >
                       {channel.parityScore}%
                     </div>
-                    <div className="text-[10px] text-gray-500 font-medium">Parity Score</div>
+                    <div className={cn("text-[10px] font-medium", isBenchmark ? "text-blue-700" : "text-gray-500")}>
+                      Parity Score
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -559,7 +679,8 @@ export function CompactParityView() {
                     </div>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </CardContent>
         </Card>

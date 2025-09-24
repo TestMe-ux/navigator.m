@@ -6,6 +6,7 @@ export class Constants {
     public static readonly API_GET_OTARankOnAllChannel = "OTARank/GetOTARankOnAllChannel";
     public static readonly API_GET_OTAChannels = "OTARank/GetOTAChannels";
     public static readonly ParityAPI_GET_Parity = "Parity/GetRateSummary";
+    public static readonly API_GET_BRGCalculationSetting = "BRG/GetBRGCalculationSetting";
     public static readonly API_GET_Mapping_GetSIDListforUser = "GeneralSettings/GetSIDListforUser";
     public static readonly API_SET_Login = "UserRole/Login";
     public static readonly API_SET_ResetPassword = "UserRole/ResetPassword";
