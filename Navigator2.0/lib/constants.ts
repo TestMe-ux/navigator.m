@@ -45,4 +45,6 @@ export class Constants {
     public static readonly API_GET_GeneralsettingsHistory = "GeneralSettings/GetGeneralsettingsHistory"; 
     public static readonly API_SET_UpdatePropertyData="GeneralSettings/UpdateGeneralsettings";
     public static readonly API_SET_AddProfilePhoto = "GCSUploadOps/AddProfilePhoto"; 
+    public static readonly API_RTRRCHANNEL= "RTRR/GetRTRRChannel";
+    public static readonly API_RRTRVALIDATION= "RTRR/GetRTRRValidation";
 }
