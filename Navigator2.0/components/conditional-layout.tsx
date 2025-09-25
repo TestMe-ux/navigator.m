@@ -24,6 +24,19 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   // Define routes that should not have header/navigation
   const authRoutes = ['/login', '/login/reset-password', '/login/create-password', '/signup', '/forgot-password']
   const isAuthRoute = authRoutes.some(route => pathname?.startsWith(route))
+  
+  // For rate-trend page in static mode, show header but skip auth guard
+  const isRateTrendStatic = pathname === '/rate-trend'
+
+  // For rate-trend static mode, bypass auth guard
+  if (isRateTrendStatic) {
+    return (
+      <>
+        <Header />
+        <LayoutContent>{children}</LayoutContent>
+      </>
+    )
+  }
 
   // Wrap everything with authentication guard
   return (

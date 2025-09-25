@@ -487,15 +487,15 @@ export default function ParitySettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Change History Modal */}
-        <Dialog open={showChangeHistory} onOpenChange={setShowChangeHistory}>
-          <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold">Parity Change History</DialogTitle>
-              <DialogDescription>
-                Shows the history of all the changes
-              </DialogDescription>
-            </DialogHeader>
+      {/* Change History Modal */}
+      <Dialog open={showChangeHistory} onOpenChange={setShowChangeHistory}>
+        <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Parity Change History</DialogTitle>
+            <DialogDescription>
+              Shows the history of all the changes
+            </DialogDescription>
+          </DialogHeader>
 
             <div className="mt-2 flex-1 overflow-hidden">
               <div className="border border-gray-300 dark:border-gray-600 rounded-lg h-full">
