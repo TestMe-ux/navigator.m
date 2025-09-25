@@ -8,7 +8,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { useUserDetail, useSelectedProperty } from "@/hooks/use-local-storage"
 import { differenceInDays, format, isSameMonth, isSameYear, parseISO } from "date-fns"
 import { get } from "http"
-import { getRateShopsData, getUsageTrendChartData } from "@/lib/reports"
+import { getRateShopsData, getRTRRValidation, getUsageTrendChartData } from "@/lib/reports"
 import { GetPackageDetails } from "@/lib/login"
 
 // Mock data for the usage trend chart - different datasets for each view
@@ -64,6 +64,7 @@ export default function MyAccountPage() {
   const [rateShops, setRateShops] = useState<any>({});
   const [packageDetail, setPackageDetail] = useState<any>({});
   const [chartData, setChartData] = useState<any[]>([]);
+  const [isRtrrEnabled, setIsRtrrEnabled] = useState<boolean>(false);
 
   // Dummy girl image for testing
   const dummyGirlImage = "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face"
@@ -116,15 +117,22 @@ export default function MyAccountPage() {
       }, 80);
 
       try {
-        const filtersValue = { sid: selectedProperty.sid };
-        Promise.all([await getRateShopsData(filtersValue), await GetPackageDetails(filtersValue)]).then(([rateShopsResponse, packageResponse]) => {
-          if (!isCancelled && rateShopsResponse?.status) {
-            setRateShops(rateShopsResponse.body);
-          }
-          if (!isCancelled && packageResponse?.status) {
-            setPackageDetail(packageResponse.body);
-          }
-        });
+        const filtersValue = { sid: selectedProperty.sid, UserID: userDetail?.userId };
+        Promise.all([
+          await getRateShopsData(filtersValue),
+          await GetPackageDetails(filtersValue),
+          await getRTRRValidation(filtersValue)])
+          .then(([rateShopsResponse, packageResponse, rtrValidationResponse]) => {
+            if (!isCancelled && rateShopsResponse?.status) {
+              setRateShops(rateShopsResponse.body);
+            }
+            if (!isCancelled && packageResponse?.status) {
+              setPackageDetail(packageResponse.body);
+            }
+            if (!isCancelled && rtrValidationResponse?.status) {
+              setIsRtrrEnabled(true);
+            }
+          });
         // const response = await getRateShopsData(filtersValue);
         // const responsePackage = await GetPackageDetails(filtersValue);
 
@@ -443,8 +451,8 @@ export default function MyAccountPage() {
 
                         {/* Custom Section */}
                         <div className="space-y-1">
-                          <h3 className="text-sm font-semibold text-foreground capitalize tracking-wide">{packageDetail?.displayName||'Custom'}:</h3>
-                          <p className="text-sm text-foreground">{packageDetail?.packageName||'NA'}</p>
+                          <h3 className="text-sm font-semibold text-foreground capitalize tracking-wide">{packageDetail?.displayName || 'Custom'}:</h3>
+                          <p className="text-sm text-foreground">{packageDetail?.packageName || 'NA'}</p>
                         </div>
                       </div>
                     </div>
@@ -476,10 +484,12 @@ export default function MyAccountPage() {
                             <span className="text-sm text-muted-foreground">On Demand</span>
                             <span className="text-sm font-semibold">{rateShops?.consumedShopsOnDemand}</span>
                           </div>
-                          <div className="flex justify-between items-center py-2">
-                            <span className="text-sm text-muted-foreground">Lightning Refresh</span>
-                            <span className="text-sm font-semibold">{rateShops?.consumedShopsRTRR}</span>
-                          </div>
+                          {isRtrrEnabled &&
+                            <div className="flex justify-between items-center py-2">
+                              <span className="text-sm text-muted-foreground">Lightning Refresh</span>
+                              <span className="text-sm font-semibold">{rateShops?.consumedShopsRTRR}</span>
+                            </div>
+                          }
                         </div>
                       </div>
 
@@ -602,7 +612,7 @@ export default function MyAccountPage() {
                                         tick={{ fontSize: 11, fill: "#666" }}
                                         axisLine={{ stroke: "#e5e7eb" }}
                                         tickLine={{ stroke: "#e5e7eb" }}
-                                        interval={chartData.length <10 ? 0 : chartData.length < 15 ? 1 : chartData.length < 30 ? 3 : 4}
+                                        interval={chartData.length < 10 ? 0 : chartData.length < 15 ? 1 : chartData.length < 30 ? 3 : 4}
                                         tickFormatter={(value) => {
                                           let values;
 
@@ -702,7 +712,9 @@ export default function MyAccountPage() {
                                       />
                                       <Bar dataKey="scheduledConsumedShops" stackId="usage" fill="#3b82f6" name="Scheduled" radius={[0, 0, 0, 0]} />
                                       <Bar dataKey="onDemandConsumedShops" stackId="usage" fill="#10b981" name="On Demand" radius={[0, 0, 0, 0]} />
-                                      <Bar dataKey="lightningRefreshConsumedShops" stackId="usage" fill="#8b5cf6" name="Lightning Refresh" radius={[2, 2, 0, 0]} />
+                                      {isRtrrEnabled &&
+                                        <Bar dataKey="lightningRefreshConsumedShops" stackId="usage" fill="#8b5cf6" name="Lightning Refresh" radius={[2, 2, 0, 0]} />
+                                      }
                                     </BarChart>
                                   </ResponsiveContainer>
                                 </div>
@@ -719,10 +731,12 @@ export default function MyAccountPage() {
                                 <div className="w-3 h-3 rounded-sm bg-emerald-500"></div>
                                 <span className="text-sm text-emerald-500">On Demand</span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-sm bg-purple-500"></div>
-                                <span className="text-sm text-purple-500">Lightning Refresh</span>
-                              </div>
+                              {isRtrrEnabled &&
+                                <div className="flex items-center gap-2">
+                                  <div className="w-3 h-3 rounded-sm bg-purple-500"></div>
+                                  <span className="text-sm text-purple-500">Lightning Refresh</span>
+                                </div>
+                              }
                             </div>
                           </div>
                         </div>
