@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast"
 import { get } from "http"
 export default function CompsetSettingsPage() {
   const [competitors, setCompetitors] = useState<any[]>([])
+  const [maxCompetitors, setMaxCompetitors] = useState<number>(0)
   const [compsetHistory, setCompsetHistory] = useState<any[]>([])
   const [updateCompetitor, setUpdateCompetitor] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("")
@@ -93,6 +94,10 @@ export default function CompsetSettingsPage() {
 
         if (response?.status) {
           setCompetitors(response.body || []);
+          const maxComp = response.body?.[0].maxNumberOfCompetitors
+          if (maxComp) {
+            setMaxCompetitors(maxComp);
+          }
         }
       } catch (error) {
         console.error("Error fetching channels:", error);
@@ -145,29 +150,57 @@ export default function CompsetSettingsPage() {
         "propertyID": newCompetitor.hotelMasterId,
         "name": newCompetitor.hotelName,
       }
-      const response = await AddCompSet(competitor);
-      if (response.status) {
-        handleCancelAddCompetitor();
-        toast({
-          description: response.message || "Competitor has been added successfully",
-          variant: "success",
-          duration: 3000,
-        })
-        setShowSnackbar(true)
+      const compLength = competitors.length
+      if (compLength < maxCompetitors) {
+        setIsSearchApi(true);
+        const response = await AddCompSet(competitor);
+        if (response.status) {
+          handleCancelAddCompetitor();
+          toast({
+            description: response.message || "Competitor has been added successfully",
+            variant: "success",
+            duration: 3000,
+          })
+          setShowSnackbar(true)
+        }
+        else {
+          toast({
+            title: "Error",
+            description: response.message || "Something went wrong. Please try again!",
+            variant: "error",
+            duration: 5000,
+          })
+        }
       }
       else {
         toast({
           title: "Error",
-          description: response.message || "Something went wrong. Please try again!",
+          description: "You have exceed max no of competitor and max number: " + maxCompetitors,
           variant: "error",
           duration: 5000,
         })
       }
+      setIsSearchApi(false)
       // setCompetitors((prev) => [...prev, competitor])
       // setNewCompetitor({ hotelName: "", competitorType: "Primary", hotelMasterId: 0 })
 
     }
   }
+  const handleAddPopCompetitor = () => {
+    const compLength = competitors.length
+    if (compLength < maxCompetitors) {
+      setShowAddCompetitor(true);
+    }
+    else {
+      toast({
+        title: "Error",
+        description: "You have exceed max no of competitor and max number: " + maxCompetitors,
+        variant: "error",
+        duration: 5000,
+      })
+    }
+  }
+
 
   const handleCancelAddCompetitor = () => {
     setNewCompetitor({ hotelName: "", competitorType: "Primary", hotelMasterId: 0 })
@@ -300,7 +333,7 @@ export default function CompsetSettingsPage() {
   ) => {
     debugger;
     const isActive = event === true;
-
+    setIsSearchApi(true);
     try {
       const response: any = await updateCompSet({
         compsetid: compsetID,
@@ -373,6 +406,7 @@ export default function CompsetSettingsPage() {
       });
     } finally {
       setUpdateCompetitor(null);
+      setIsSearchApi(false);
     }
   };
 
@@ -551,7 +585,7 @@ export default function CompsetSettingsPage() {
               Change History
             </Button>
             <Button
-              onClick={() => setShowAddCompetitor(true)}
+              onClick={() => handleAddPopCompetitor()}
               className="flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
@@ -730,7 +764,7 @@ export default function CompsetSettingsPage() {
                     onChange={handleSearchInputChange}
                     onFocus={handleSearchInputFocus}
                     onBlur={handleSearchInputBlur}
-                    disabled={isSearchApi}
+                    // disabled={isSearchApi}
                     placeholder="Search and select hotel name"
                     className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
                   />
@@ -1016,14 +1050,23 @@ export default function CompsetSettingsPage() {
                 variant="outline"
                 onClick={cancelDeleteCompetitor}
                 className="px-6"
+                disabled={isSearchApi}
               >
                 Cancel
               </Button>
               <Button
                 onClick={confirmDeleteCompetitor}
                 className="px-6 bg-red-600 hover:bg-red-700 text-white"
+                disabled={isSearchApi}
               >
-                Delete
+                {isSearchApi ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Deleting ...</span>
+                  </div>
+                ) : (
+                  "Delete"
+                )}
               </Button>
             </div>
           </DialogContent>
