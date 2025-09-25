@@ -8,6 +8,9 @@ import { reactPlugin } from '@datadog/browser-rum-react';
  * This module provides comprehensive Real User Monitoring (RUM) setup for Navigator 2.0
  * including performance tracking, error monitoring, and user session analytics.
  * 
+ * IMPORTANT: This module includes robust initialization checks to prevent multiple
+ * Datadog RUM initializations, which can cause errors and performance issues.
+ * 
  * @version 2.0.0
  * @author Navigator Team
  */
@@ -20,7 +23,18 @@ const isProduction = process.env.NODE_ENV === 'production'
  * Check if RUM is available and initialized
  */
 function isRumAvailable(): boolean {
-  return typeof window !== 'undefined' && datadogRum && typeof datadogRum.addAction === 'function'
+  if (typeof window === 'undefined') return false
+  
+  // Check if datadogRum object exists
+  if (!datadogRum || typeof datadogRum.addAction !== 'function') return false
+  
+  // Check if RUM is actually initialized
+  try {
+    datadogRum.getInternalContext()
+    return true
+  } catch {
+    return false
+  }
 }
 
 // Datadog RUM Configuration
@@ -56,17 +70,29 @@ export function initializeDatadogRum() {
     console.warn('Datadog RUM: Missing required configuration. Please set NEXT_PUBLIC_DATADOG_APPLICATION_ID and NEXT_PUBLIC_DATADOG_CLIENT_TOKEN')
     return false
   }
+
+  // Check if already initialized using multiple methods
   if ((window as any).DD_RUM_INITIALIZED) {
+    console.log('Datadog RUM: Already initialized (global flag)')
     return true
   }
-  // Check if already initialized
-  // try {
-  //   datadogRum.getInternalContext()
-  //   console.log('Datadog RUM: Already initialized')
-  //   return true
-  // } catch {
-  //   // Not initialized yet, continue with initialization
-  // }
+
+  // Check if RUM is already initialized by trying to access internal context
+  try {
+    datadogRum.getInternalContext()
+    console.log('Datadog RUM: Already initialized (internal context check)')
+    ; (window as any).DD_RUM_INITIALIZED = true
+    return true
+  } catch {
+    // Not initialized yet, continue with initialization
+  }
+
+  // Check if datadogRum.init has already been called
+  if ((datadogRum as any)._isInitialized) {
+    console.log('Datadog RUM: Already initialized (internal flag)')
+    ; (window as any).DD_RUM_INITIALIZED = true
+    return true
+  }
 
   try {
     console.log('Initializing Datadog RUM with config:', datadogConfig)
@@ -78,12 +104,22 @@ export function initializeDatadogRum() {
     datadogRum.setGlobalContextProperty('environment', datadogConfig.env)
 
     console.log('Datadog RUM initialized successfully')
-      ; (window as any).DD_RUM_INITIALIZED = true
+    ; (window as any).DD_RUM_INITIALIZED = true
     return true
   } catch (error) {
     console.error('Failed to initialize Datadog RUM:', error)
+    // Don't set the flag if initialization failed
     return false
   }
+}
+
+/**
+ * Safely check if RUM is initialized and available
+ */
+function isRumInitialized(): boolean {
+  if (typeof window === 'undefined') return false
+  if (!(window as any).DD_RUM_INITIALIZED) return false
+  return isRumAvailable()
 }
 
 /**
@@ -98,7 +134,10 @@ export function setUserContext(user: {
   organization?: string
   [key: string]: any
 }) {
-  if (typeof window === 'undefined') return
+  if (!isRumInitialized()) {
+    console.warn('Datadog RUM: Cannot set user context - RUM not initialized')
+    return
+  }
 
   try {
     datadogRum.setUser(user)
@@ -112,7 +151,10 @@ export function setUserContext(user: {
  * Clear user context (for logout)
  */
 export function clearUserContext() {
-  if (typeof window === 'undefined') return
+  if (!isRumInitialized()) {
+    console.warn('Datadog RUM: Cannot clear user context - RUM not initialized')
+    return
+  }
 
   try {
     datadogRum.clearUser()
@@ -128,7 +170,10 @@ export function clearUserContext() {
  * @param context - Additional context data
  */
 export function trackEvent(eventName: string, context?: Record<string, any>) {
-  if (!isRumAvailable()) return
+  if (!isRumInitialized()) {
+    console.warn('Datadog RUM: Cannot track event - RUM not initialized')
+    return
+  }
 
   try {
     datadogRum.addAction(eventName, {
@@ -148,6 +193,11 @@ export function trackEvent(eventName: string, context?: Record<string, any>) {
  * @param context - Additional context data
  */
 export function trackPageView(pageName: string, context?: Record<string, any>) {
+  if (!isRumInitialized()) {
+    console.warn('Datadog RUM: Cannot track page view - RUM not initialized')
+    return
+  }
+
   try {
     datadogRum.addAction('page_view', {
       page: pageName,
@@ -168,6 +218,11 @@ export function trackPageView(pageName: string, context?: Record<string, any>) {
  * @param unit - Unit of measurement
  */
 export function trackPerformance(metricName: string, value: number, unit: string = 'ms') {
+  if (!isRumInitialized()) {
+    console.warn('Datadog RUM: Cannot track performance metric - RUM not initialized')
+    return
+  }
+
   try {
     datadogRum.addAction('performance_metric', {
       metric: metricName,
@@ -189,6 +244,11 @@ export function trackPerformance(metricName: string, value: number, unit: string
  * @param context - Additional context
  */
 export function trackBusinessMetric(metricName: string, value: number, context?: Record<string, any>) {
+  if (!isRumInitialized()) {
+    console.warn('Datadog RUM: Cannot track business metric - RUM not initialized')
+    return
+  }
+
   try {
     datadogRum.addAction('business_metric', {
       metric: metricName,
@@ -209,7 +269,10 @@ export function trackBusinessMetric(metricName: string, value: number, context?:
  * @param context - Additional context data
  */
 export function trackError(error: Error | string, context?: Record<string, any>) {
-  if (!isRumAvailable()) return
+  if (!isRumInitialized()) {
+    console.warn('Datadog RUM: Cannot track error - RUM not initialized')
+    return
+  }
 
   try {
     const errorMessage = error instanceof Error ? error.message : error
@@ -243,6 +306,11 @@ export function trackApiCall(
   duration: number,
   context?: Record<string, any>
 ) {
+  if (!isRumInitialized()) {
+    console.warn('Datadog RUM: Cannot track API call - RUM not initialized')
+    return
+  }
+
   try {
     datadogRum.addAction('api_call', {
       method,
@@ -266,6 +334,11 @@ export function trackApiCall(
  * @param context - Additional context
  */
 export function trackFeatureUsage(feature: string, action: string, context?: Record<string, any>) {
+  if (!isRumInitialized()) {
+    console.warn('Datadog RUM: Cannot track feature usage - RUM not initialized')
+    return
+  }
+
   try {
     datadogRum.addAction('feature_usage', {
       feature,
@@ -312,6 +385,11 @@ function getUserType(): string {
  * @param context - Additional context
  */
 export function startAction(name: string, context?: Record<string, any>) {
+  if (!isRumInitialized()) {
+    console.warn('Datadog RUM: Cannot start action - RUM not initialized')
+    return
+  }
+
   try {
     // Note: startAction/stopAction are not available in the current RUM API
     // Using addAction instead for custom timing
@@ -328,6 +406,11 @@ export function startAction(name: string, context?: Record<string, any>) {
  * @param context - Additional context
  */
 export function stopAction(name: string, context?: Record<string, any>) {
+  if (!isRumInitialized()) {
+    console.warn('Datadog RUM: Cannot stop action - RUM not initialized')
+    return
+  }
+
   try {
     // Note: startAction/stopAction are not available in the current RUM API
     // Using addAction instead for custom timing
@@ -344,6 +427,11 @@ export function stopAction(name: string, context?: Record<string, any>) {
  * @param value - Property value
  */
 export function setGlobalContext(key: string, value: any) {
+  if (!isRumInitialized()) {
+    console.warn('Datadog RUM: Cannot set global context - RUM not initialized')
+    return
+  }
+
   try {
     datadogRum.setGlobalContextProperty(key, value)
     console.log('Datadog RUM: Global context set', key, value)
@@ -360,10 +448,19 @@ export function getRumInstance() {
 }
 export function DatadogProvider() {
   useEffect(() => {
-    initializeDatadogRum();
+    // Only initialize on client side and if not already initialized
+    if (typeof window !== 'undefined' && !(window as any).DD_RUM_INITIALIZED) {
+      const success = initializeDatadogRum();
+      if (success) {
+        console.log('DatadogProvider: RUM initialized successfully');
+      } else {
+        console.warn('DatadogProvider: RUM initialization failed or skipped');
+      }
+    }
   }, []);
 
   return null;
 }
 // Export the datadogRum instance for direct access if needed
 export { datadogRum }
+

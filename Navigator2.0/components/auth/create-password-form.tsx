@@ -301,7 +301,7 @@ export function CreatePasswordForm({ userId, token }: CreatePasswordFormProps) {
         }
       }
       console.log('Password created successfully')
-      setIsSubmitted(true)
+      // setIsSubmitted(true)
 
     } catch (error) {
       console.error('Password creation error:', error)
