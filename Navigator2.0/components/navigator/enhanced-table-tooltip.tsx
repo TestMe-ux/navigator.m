@@ -2,7 +2,9 @@
 
 import React from "react"
 import { TooltipContent } from "@/components/ui/tooltip"
-import { Star, Wifi } from "lucide-react"
+import { Star } from "lucide-react"
+import { useSelectedProperty } from "@/hooks/use-local-storage"
+import { getInclusionIcon } from "@/lib/inclusion-icons"
 
 interface EnhancedTableTooltipProps {
   date: Date
@@ -32,7 +34,7 @@ export function EnhancedTableTooltip({
   rateEntry,
 
 }: EnhancedTableTooltipProps) {
-debugger;
+  debugger;
   // Format the date properly
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -41,14 +43,14 @@ debugger;
   const tooltipSide = (rowIndex !== undefined && rowIndex < 4) ? "bottom" : "top";
   const sideOffset = 12;
   const tooltipAlign = "center";
-
+  const [selectedProperty] = useSelectedProperty()
   return (
-    <TooltipContent 
-      side={tooltipSide} 
-      className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 pr-6 w-[548px] z-[50]" 
-      sideOffset={sideOffset} 
-      avoidCollisions={true} 
-      collisionPadding={20} 
+    <TooltipContent
+      side={tooltipSide}
+      className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 pr-6 w-[548px] z-[50]"
+      sideOffset={sideOffset}
+      avoidCollisions={true}
+      collisionPadding={20}
       align={tooltipAlign}
     >
       <div>
@@ -77,26 +79,28 @@ debugger;
         </div>
 
         <div className="space-y-3 mb-3">
-          <div className="grid gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '115px 135px 135px 120px'}}>
+          <div className="grid gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{ gridTemplateColumns: '115px 135px 135px 120px' }}>
             <div className="text-left">Lowest Rate</div>
             <div className="text-left">Room</div>
             <div className="text-left">Inclusion</div>
             <div className="text-left">Channel</div>
           </div>
-          
-          <div className="grid gap-2 text-xs mt-2" style={{gridTemplateColumns: '115px 135px 135px 120px'}}>
-            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
-              USD {rate.toLocaleString('en-US')}
+
+          <div className="grid gap-2 text-xs mt-2" style={{ gridTemplateColumns: '115px 135px 135px 120px' }}>
+            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+              {`\u200E ${selectedProperty?.currencySymbol ?? "$"}\u200E` + " " + rate.toLocaleString('en-US')}
             </div>
             <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
               {rateEntry?.productName} {rateEntry?.abbreviation ? "(" + rateEntry?.abbreviation + ")" : ""}
             </div>
             <div className="font-semibold text-gray-900 dark:text-white text-left">
               <div className="flex items-start gap-1">
-                <Wifi className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                {getInclusionIcon(rateEntry?.inclusion || '') || (
+                  <div className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                )}
                 <div className="text-wrap">
                   {(() => {
-                    const inclusionText = rateEntry?.inclusion.toString() || '';
+                    const inclusionText = rateEntry?.inclusion?.toString() || '';
                     if (inclusionText.length <= 19) {
                       return <span>{inclusionText}</span>;
                     }
@@ -134,7 +138,7 @@ debugger;
             {/* Avg. Compset Section */}
             <div className="text-xs text-black dark:text-gray-100">
               <div className="text-left whitespace-nowrap">
-                <span className="font-bold">USD {Math.floor(rate * 0.95).toLocaleString('en-US')}</span> <span className="font-medium">- Avg. Compset</span>
+                <span className="font-bold">{`\u200E ${selectedProperty?.currencySymbol ?? "$"}\u200E` + " " + Math.floor(rate * 0.95).toLocaleString('en-US')}</span> <span className="font-medium">- Avg. Compset</span>
               </div>
             </div>
 

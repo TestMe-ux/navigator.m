@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { TrendingUp, BarChart3, Calendar, Activity, DollarSign, Percent, Grid3X3, RefreshCw, FileText, Download, ChevronLeft, ChevronRight, Eye, ChevronDown, Zap } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, conevrtDateforApi } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { RateTrendCalendar, MonthNavigation } from "@/components/navigator/rate-trend-calendar"
@@ -16,13 +16,15 @@ import { FilterSidebar } from "@/components/filter-sidebar"
 import { LightningRefreshModal } from "@/components/navigator/generate-report-modal"
 import { Snackbar } from "@/components/ui/snackbar"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
-import { DateProvider } from "@/components/date-context"
-import { ComparisonProvider } from "@/components/comparison-context"
+import { DateProvider, useDateContext } from "@/components/date-context"
+import { ComparisonProvider, useComparison } from "@/components/comparison-context"
 import { format } from "date-fns"
 import { getKPIData } from "@/lib/rate-trends-data"
 // import { LocalStorageService } from "@/lib/localstorage" // Removed - using static data only
-import { useLocalStorage } from "@/hooks/use-local-storage"
+import { useLocalStorage, useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
 import { useScreenSize } from "@/hooks/use-screen-size"
+import { getRateTrends } from "@/lib/rate"
+import { getRTRRValidation } from "@/lib/reports"
 
 /**
  * Utility function to format dates consistently across server and client
@@ -76,6 +78,7 @@ const generateKPIData = () => {
  * @returns React component for rate trends analysis
  */
 export default function RateTrendPage() {
+  const { selectedComparison, channelFilter, compsetFilter, setSideFilter, sideFilter } = useComparison()
   const [currentView, setCurrentView] = useLocalStorage<"calendar" | "chart" | "table">("rate-trend-view", "table")
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false)
   // No isClient state needed for static data
@@ -85,17 +88,22 @@ export default function RateTrendPage() {
   const [loadingCycle, setLoadingCycle] = useState(1)
   const [selectedValue, setSelectedValue] = useState("4,444 (4 digit)")
   const [selectedDigitCount, setSelectedDigitCount] = useState(4)
-  
+  const { startDate, endDate, isLoading } = useDateContext()
   // Screen size detection for responsive competitor count
   const screenSize = useScreenSize()
-  
+
   // State for competitor scrolling (only for table view)
   const [competitorStartIndex, setCompetitorStartIndex] = useState(0)
-  
+  const [selectedProperty] = useSelectedProperty();
+  const [userDetails] = useUserDetail();
+  const [rateData, setRateData] = useState(Object);
+  const [rateCompData, setRateCompData] = useState(Object);
+  const [competitorCount, setCompetitorCount] = useState(0)
+
   // Dynamic competitor count based on digitCount and screen resolution
   const getCompetitorsPerPage = () => {
     const { isSmall, isMedium, isLarge } = screenSize
-    
+
     if (isSmall) {
       // Resolution from 1352px to 1500px
       return selectedDigitCount === 4 ? 4 : selectedDigitCount === 6 ? 3 : 2
@@ -110,49 +118,48 @@ export default function RateTrendPage() {
       return selectedDigitCount === 4 ? 4 : selectedDigitCount === 6 ? 3 : 2
     }
   }
-  
+
   const competitorsPerPage = getCompetitorsPerPage()
-  
+
   // State for Lightning Refresh Modal
   const [isLightningRefreshModalOpen, setIsLightningRefreshModalOpen] = useState(false)
-  
+
   // State for Snackbar
   const [isSnackbarOpen, setIsSnackbarOpen] = useState(false)
   const [snackbarMessage, setSnackbarMessage] = useState("")
   const [snackbarType, setSnackbarType] = useState<'info' | 'success'>('info')
-  
+
   // State for Lightning Refresh progress
   const [isLightningRefreshInProgress, setIsLightningRefreshInProgress] = useState(false)
-  
+  const [isLightningRefreshEnable, setIsLightningRefreshEnable] = useState(false)
   // Navigation functions for competitor scrolling
   const nextCompetitors = () => {
     setCompetitorStartIndex(prev => {
-      const totalCompetitors = 9 // We have 9 competitors total
+      debugger
       // Always move by 5 positions, even if it goes beyond total competitors
-      return Math.min(prev + 5, totalCompetitors)
+      return Math.min(prev + 4, competitorCount)
     })
   }
-  
+
   const prevCompetitors = () => {
-    setCompetitorStartIndex(prev => Math.max(0, prev - 5))
+    setCompetitorStartIndex(prev => Math.max(0, prev - 4))
   }
-  
+
   const canGoNext = () => {
-    const totalCompetitors = 9
     // Allow going to next page if we can show at least 1 more competitor
-    return competitorStartIndex + 5 < totalCompetitors
+    return competitorStartIndex + 4 < competitorCount
   }
-  
+
   const canGoPrev = () => {
     return competitorStartIndex > 0
   }
-  
 
-  // Static date range - spanning multiple months to show month navigation
-  const startDate = new Date()
-  const endDate = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000) // Next 45 days (spans multiple months)
-  const isLoading = false // Always false for static data
-  
+
+  // // Static date range - spanning multiple months to show month navigation
+  // const startDate = new Date()
+  // const endDate = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000) // Next 45 days (spans multiple months)
+  // const isLoading = false // Always false for static data
+
   // Month navigation state
   const [currentMonthIndex, setCurrentMonthIndex] = useState(0)
 
@@ -171,14 +178,14 @@ export default function RateTrendPage() {
 
     const months: { month: number; year: number; monthName: string }[] = []
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    
+
     const start = new Date(startDate)
     const end = new Date(endDate)
-    
+
     // Add months between start and end dates
     const current = new Date(start.getFullYear(), start.getMonth(), 1)
     const endMonth = new Date(end.getFullYear(), end.getMonth(), 1)
-    
+
     while (current <= endMonth) {
       months.push({
         month: current.getMonth(),
@@ -187,7 +194,7 @@ export default function RateTrendPage() {
       })
       current.setMonth(current.getMonth() + 1)
     }
-    
+
     return months
   }, [startDate, endDate])
 
@@ -202,31 +209,31 @@ export default function RateTrendPage() {
     setSnackbarType('info')
     setIsSnackbarOpen(true)
     setIsLightningRefreshInProgress(true)
-    
+
     // Auto-close progress snackbar after 10 seconds
     setTimeout(() => {
       setIsSnackbarOpen(false)
     }, 10000)
-    
+
     // Show success snackbar and reset button state after 10 seconds
     setTimeout(() => {
       setIsLightningRefreshInProgress(false)
-      
+
       // Show success snackbar
       const successMessage = `Your 'Lightning Refresh' has been completed successfully for ${data.channels}, LOS ${data.los}, GUEST ${data.guests}, and the next 30 days`
       setSnackbarMessage(successMessage)
       setSnackbarType('success')
       setIsSnackbarOpen(true)
-      
+
       // Auto-close success snackbar after 10 seconds
       setTimeout(() => {
         setIsSnackbarOpen(false)
       }, 10000)
     }, 10000)
   }
-  
+
   // No client hydration needed for static data
-  
+
 
   // No date range change handling needed for static data
 
@@ -240,19 +247,218 @@ export default function RateTrendPage() {
     setIsFilterSidebarOpen(true)
     console.log("🔍 Opening filter sidebar")
   }
+  useEffect(() => {
 
+
+    const channelIds = channelFilter?.channelId ?? [];
+    if (
+      !startDate ||
+      !endDate ||
+      !selectedProperty?.sid ||
+      !(channelIds.length > 0)
+    ) return;
+    // setIsPageLoading(true);
+    setLoadingProgress(0);
+
+    const progressInterval = setInterval(() => {
+      setLoadingProgress((prev) => {
+        const increment = Math.floor(Math.random() * 9) + 3;
+        const newProgress = prev + increment;
+        if (newProgress >= 100) {
+          setLoadingCycle(prevCycle => prevCycle + 1);
+          return 0;
+        }
+        return newProgress;
+      });
+    }, 80);
+
+    Promise.all([
+      getRateDate(),
+      getCompRateData()
+    ]).finally(() => {
+      clearInterval(progressInterval);
+      setLoadingProgress(100);
+      setTimeout(() => {
+        // setIsPageLoading(false);
+        setLoadingProgress(0);
+      }, 300);
+    });
+
+  }, [
+    startDate,
+    endDate,
+    selectedProperty?.sid,
+    channelFilter?.channelId?.join(','),
+    sideFilter,
+    compsetFilter
+  ]);
+
+  useEffect(() => {
+    if (!startDate ||
+      !endDate ||
+      !selectedProperty?.sid) return;
+    Promise.all([
+      getCompRateData()
+    ]);
+  }, [selectedComparison])
+  useEffect(() => {
+    if (!selectedProperty?.sid) return;
+    const fetchRTRRChannel = async () => {
+      const response: any = await getRTRRValidation({
+        SID: selectedProperty.sid,
+        UserID: userDetails?.userId,
+      });
+      if (response?.status) {
+        setIsLightningRefreshEnable(response.body.messageCode == 'M-001' ? false : true);
+        setIsLightningRefreshInProgress(response.body.messageCode == 'M-002' || response.body.messageCode == 'M-003' ? true : false);
+      }
+    }
+    fetchRTRRChannel();
+  }, [selectedProperty?.sid]);
+  const getRateDate = () => {
+    setRateData({});
+    const filtersValue = {
+      "SID": selectedProperty?.sid,
+      "channels": (channelFilter?.channelId?.length ?? 0) > 0 ? channelFilter.channelId : [-1],
+      "channelsText": (channelFilter?.channelName?.length ?? 0) > 0 ? channelFilter.channelName : ["All Channel"],
+      "checkInStartDate": conevrtDateforApi(startDate?.toString()),
+      "checkInEndDate": conevrtDateforApi(endDate?.toString()),
+      "LOS": sideFilter?.lengthOfStay?.toString() || null,
+      "guest": sideFilter?.guest?.toString() || null,
+      "productTypeID": sideFilter?.roomTypes || null,
+      "productTypeIDText": sideFilter?.roomTypes || "All",
+      "inclusionID": sideFilter?.inclusions || [],
+      "inclusionIDText": sideFilter?.inclusions?.length ? sideFilter.inclusions : ["All"],
+      "properties": [],
+      "restriction": sideFilter?.rateViewBy?.Restriction,
+      "qualification": sideFilter?.rateViewBy?.Qualification,
+      "promotion": sideFilter?.rateViewBy?.Promotion,
+      "restrictionText": sideFilter?.rateViewBy?.RestrictionText || "All",
+      "promotionText": sideFilter?.rateViewBy?.PromotionText || "All",
+      "qualificationText": sideFilter?.rateViewBy?.QualificationText || "All",
+      "subscriberPropertyID": selectedProperty?.hmid,
+      "subscriberName": selectedProperty?.name,
+      "mSIRequired": false,
+      "benchmarkRequired": true,
+      "compsetRatesRequired": true,
+      "propertiesText": [],
+      "isSecondary": compsetFilter,
+    }
+    getRateTrends(filtersValue)
+      .then((res) => {
+        if (res.status) {
+          let digitCount = 4;
+          const CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
+            const rates = x.subscriberPropertyRate || [];
+
+            const [avgRate, avgStatus] = (() => {
+              const valid = rates.filter((r: any) => parseInt(r.rate) > 0 && r.status === "O").map((r: any) => parseInt(r.rate));
+              if (valid.length) return [valid.reduce((a: any, b: any) => a + b, 0) / valid.length, "O"];
+
+              const statuses = new Set(rates.map((r: any) => r.status));
+              if (statuses.has("C")) return [0, "C"];
+              if (statuses.has("ND")) return [0, "ND"];
+              return [0, "ND"];
+            })();
+            if (Math.round(avgRate).toString().length > digitCount) {
+              digitCount = Math.round(avgRate).toString().length;
+            }
+            return {
+              ...x,
+              AvgData: avgRate,
+              AvgStatus: avgStatus
+            };
+          });
+          setSelectedDigitCount(digitCount);
+          res.body.pricePositioningEntites = CalulatedData;
+          setCompetitorCount(res.body.pricePositioningEntites.filter((x: any) => x.propertyType === 1).length)
+          // console.log('Rate trends data:', res.body);
+          setRateData(res.body);
+          setLosGuest({ "Los": res.body?.losList, "Guest": res.body?.guestList });
+          // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
+        }
+      })
+      .catch((err) => console.error(err));
+  }
+  const getCompRateData = () => {
+    setRateCompData({});
+    const startDateComp = startDate
+      ? new Date(startDate.getTime() + (-selectedComparison * 24 * 60 * 60 * 1000))
+      : new Date();
+    const endDateComp = endDate
+      ? new Date(endDate.getTime() + (-selectedComparison * 24 * 60 * 60 * 1000))
+      : new Date();
+    const filtersValue = {
+      "SID": selectedProperty?.sid,
+      "channels": channelFilter.channelId,
+      "channelsText": channelFilter.channelName,
+      "checkInStartDate": conevrtDateforApi(startDateComp.toString()),
+      "checkInEndDate": conevrtDateforApi(endDateComp.toString()),
+      "LOS": sideFilter?.lengthOfStay?.toString() || null,
+      "guest": sideFilter?.guest?.toString() || null,
+      "productTypeID": sideFilter?.roomTypes || null,
+      "productTypeIDText": sideFilter?.roomTypes || "All",
+      "inclusionID": sideFilter?.inclusions || [],
+      "inclusionIDText": sideFilter?.inclusions?.length ? sideFilter.inclusions : ["All"],
+      "properties": [],
+      "restriction": sideFilter?.rateViewBy?.Restriction,
+      "qualification": sideFilter?.rateViewBy?.Qualification,
+      "promotion": sideFilter?.rateViewBy?.Promotion,
+      "restrictionText": sideFilter?.rateViewBy?.RestrictionText || "All",
+      "promotionText": sideFilter?.rateViewBy?.PromotionText || "All",
+      "qualificationText": sideFilter?.rateViewBy?.QualificationText || "All",
+      "subscriberPropertyID": selectedProperty?.hmid,
+      "subscriberName": selectedProperty?.name,
+      "mSIRequired": false,
+      "benchmarkRequired": true,
+      "compsetRatesRequired": true,
+      "propertiesText": [],
+      "isSecondary": compsetFilter,
+    }
+    getRateTrends(filtersValue)
+      .then((res) => {
+        if (res.status) {
+          debugger
+          const CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
+            const rates = x.subscriberPropertyRate || [];
+
+            const [avgRate, avgStatus] = (() => {
+              const valid = rates.filter((r: any) => parseInt(r.rate) > 0 && r.status === "O").map((r: any) => parseInt(r.rate));
+              if (valid.length) return [valid.reduce((a: any, b: any) => a + b, 0) / valid.length, "O"];
+
+              const statuses = new Set(rates.map((r: any) => r.status));
+              if (statuses.has("C")) return [0, "C"];
+              if (statuses.has("ND")) return [0, "ND"];
+              return [0, "ND"];
+            })();
+
+            return {
+              ...x,
+              AvgData: avgRate,
+              AvgStatus: avgStatus
+            };
+          });
+          res.body.pricePositioningEntites = CalulatedData;
+          // console.log('Rate trends data:', res.body);
+          setRateCompData(res.body);
+          // setLosGuest({ "Los": res.body?.losList, "Guest": res.body?.guestList });
+          // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
+        }
+      })
+      .catch((err) => console.error(err));
+  }
   // No loading state needed for static data
 
   return (
-    <DateProvider>
-    <ComparisonProvider>
+
+
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      
+
       {/* Enhanced Filter Bar with Sticky Positioning */}
       <div className="sticky top-0 z-50 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md transition-all duration-200 min-h-[80px]">
         <FilterBar onMoreFiltersClick={handleMoreFiltersClick} />
       </div>
-      
+
 
 
 
@@ -305,35 +511,36 @@ export default function RateTrendPage() {
             <TooltipProvider>
               <div className="flex items-center gap-2">
                 {/* Lightning Refresh Button */}
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 px-3 hover:bg-blue-500 hover:text-white hover:border-blue-500 group"
-                        onClick={() => {
-                          if (!isLightningRefreshInProgress) {
-                            console.log('🔄 Lightning Refresh clicked');
-                            setIsLightningRefreshModalOpen(true);
-                          }
-                        }}
-                        disabled={isLightningRefreshInProgress}
-                      >
-                        <Zap 
-                          className={`h-4 w-4 text-gray-600 group-hover:text-white ${isLightningRefreshInProgress ? 'animate-pulse' : ''}`} 
-                          style={{marginRight: '2px'}} 
-                        />
-                        {isLightningRefreshInProgress ? 'Refreshing...' : 'Lightning Refresh'}
-                      </Button>
-                    </TooltipTrigger>
-                    {isLightningRefreshInProgress && (
-                      <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
-                        <p className="text-xs">Lightning refresh under progress</p>
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                </TooltipProvider>
+                {isLightningRefreshEnable && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 hover:bg-blue-500 hover:text-white hover:border-blue-500 group"
+                          onClick={() => {
+                            if (!isLightningRefreshInProgress) {
+                              console.log('🔄 Lightning Refresh clicked');
+                              setIsLightningRefreshModalOpen(true);
+                            }
+                          }}
+                          disabled={isLightningRefreshInProgress}
+                        >
+                          <Zap
+                            className={`h-4 w-4 text-gray-600 group-hover:text-white ${isLightningRefreshInProgress ? 'animate-pulse' : ''}`}
+                            style={{ marginRight: '2px' }}
+                          />
+                          {isLightningRefreshInProgress ? 'Refreshing...' : 'Lightning Refresh'}
+                        </Button>
+                      </TooltipTrigger>
+                      {isLightningRefreshInProgress && (
+                        <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                          <p className="text-xs">Lightning refresh under progress</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>)}
 
                 {/* On Demand Report Button */}
                 <Button
@@ -345,7 +552,7 @@ export default function RateTrendPage() {
                     // Add report logic here
                   }}
                 >
-                  <FileText className="h-4 w-4" style={{marginRight: '2px'}} />
+                  <FileText className="h-4 w-4" style={{ marginRight: '2px' }} />
                   On Demand Report
                 </Button>
 
@@ -394,211 +601,215 @@ export default function RateTrendPage() {
           </div>
         </div>
 
-          {/* Main Rate Trend Content */}
-          <div className="relative bg-white dark:bg-slate-900 shadow-xl border border-border/50 rounded-lg">
-            {/* Table View Heading - Only visible when table view is active */}
-            {currentView === "table" && (
-              <div className="absolute left-4 lg:left-6 z-10 flex items-center" style={{ top: 'calc(1rem + 2px)' }}>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">Detailed Analysis</h3>
-              </div>
-            )}
-            
-            {/* Calendar View Heading - Only visible when calendar view is active */}
-            {currentView === "calendar" && (
-              <div className="absolute left-4 lg:left-6 z-10 flex items-center" style={{ top: 'calc(1rem + 2px)' }}>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                  Rates Calendar
-                                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400 ml-2">(in USD from 4 Sep to 10 Sep)</span>
-                </h3>
-              </div>
-            )}
-
-            {/* Month Navigation - Only visible when calendar view is active and multi-month range */}
-            {currentView === "calendar" && shouldShowMonthNavigation && (
-              <div className="absolute top-4 z-10 flex items-center justify-center" style={{ left: '50%', transform: 'translateX(-50%)' }}>
-                <MonthNavigation
-                  shouldShowMonthNavigation={shouldShowMonthNavigation}
-                  availableMonths={availableMonths}
-                  currentMonthIndex={currentMonthIndex}
-                  onPrevMonth={prevMonth}
-                  onNextMonth={nextMonth}
-                />
-              </div>
-            )}
-            
-            
-            {/* Rate Legends & Competitor Navigation - Only visible when table view is active */}
-            {currentView === "table" && (
-              <div className="absolute right-48 z-10 flex items-center gap-8" style={{ top: 'calc(1rem + 4px)' }}>
-                {/* Rate Legends */}
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                    <span className="text-xs text-gray-600 dark:text-gray-400">Highest Rate</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                    <span className="text-xs text-gray-600 dark:text-gray-400">Lowest Rate</span>
-                  </div>
-                </div>
-                
-                {/* Competitor Navigation */}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-600 dark:text-gray-400">
-                    Competitors {competitorStartIndex + 1}-{Math.min(competitorStartIndex + competitorsPerPage, 9)} of 9
-                  </span>
-                  <span className="text-xs text-blue-500 bg-blue-50 px-2 py-1 rounded">
-                    {screenSize.width}px ({screenSize.isSmall ? 'Small' : screenSize.isMedium ? 'Medium' : screenSize.isLarge ? 'Large' : 'Default'}) - {competitorsPerPage} cols
-                  </span>
-                  <button
-                    onClick={prevCompetitors}
-                    disabled={!canGoPrev()}
-                    className={`p-1 rounded-md border ${
-                      canGoPrev() 
-                        ? 'border-gray-300 hover:bg-gray-50 text-gray-700' 
-                        : 'border-gray-200 text-gray-400 cursor-not-allowed'
-                    }`}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={nextCompetitors}
-                    disabled={!canGoNext()}
-                    className={`p-1 rounded-md border ${
-                      canGoNext() 
-                        ? 'border-gray-300 hover:bg-gray-50 text-gray-700' 
-                        : 'border-gray-200 text-gray-400 cursor-not-allowed'
-                    }`}
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-            
-
-            {/* Rate Legends - Only visible when calendar view is active */}
-            {currentView === "calendar" && (
-              <div className="absolute top-4 z-10 flex items-center gap-2 hidden md:flex m-2" style={{ right: '11rem' }}>
-                {/* Rate Legends */}
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                    <span className="text-xs text-gray-600 dark:text-gray-400">Highest Rate</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                    <span className="text-xs text-gray-600 dark:text-gray-400">Lowest Rate</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-
-            {/* View Toggle - Positioned consistently for all views */}
-            <div className="absolute top-4 right-4 lg:right-6 z-10">
-              <TooltipProvider>
-                <div className="flex items-center border border-border rounded-lg overflow-hidden bg-white dark:bg-slate-800 shadow-sm">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={currentView === "calendar" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setCurrentView("calendar")}
-                        className={cn(
-                          "h-8 px-3 rounded-none border-r-0 border-b-0",
-                          currentView === "calendar" ? "border-r-0 border-b-0" : "border-r-0 border-b-0 hover:border-r-0 hover:border-b-0"
-                        )}
-                      >
-                        <Calendar className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
-                      <p className="text-xs">Calendar View</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={currentView === "chart" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setCurrentView("chart")}
-                        className={cn(
-                          "h-8 px-3 rounded-none border-l-0 border-r-0 border-t-0 border-b-0",
-                          currentView === "chart" ? "border-l-0 border-r-0 border-t-0 border-b-0" : "border-l-0 border-r-0 border-t-0 border-b-0 hover:border-l-0 hover:border-r-0 hover:border-t-0 hover:border-b-0"
-                        )}
-                      >
-                        <TrendingUp className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
-                      <p className="text-xs">Chart View</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={currentView === "table" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setCurrentView("table")}
-                        className={cn(
-                          "h-8 px-3 rounded-none border-l-0 border-t-0",
-                          currentView === "table" ? "border-l-0 border-t-0" : "border-l-0 border-t-0 hover:border-l-0 hover:border-t-0"
-                        )}
-                      >
-                        <Grid3X3 className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
-                      <p className="text-xs">Table View</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-              </TooltipProvider>
+        {/* Main Rate Trend Content */}
+        <div className="relative bg-white dark:bg-slate-900 shadow-xl border border-border/50 rounded-lg">
+          {/* Table View Heading - Only visible when table view is active */}
+          {currentView === "table" && (
+            <div className="absolute left-4 lg:left-6 z-10 flex items-center" style={{ top: 'calc(1rem + 2px)' }}>
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white">Detailed Analysis</h3>
             </div>
-            
-            {/* Content based on current view */}
-            {currentView === "table" ? (
-              <div className="pt-16">
-                <RateTrendsTable 
-                  competitorStartIndex={competitorStartIndex}
-                  digitCount={selectedDigitCount}
-                />
-              </div>
-            ) : currentView === "chart" ? (
-              <div className="pt-16">
-                <RTRateTrendsChart key="rate-trends-chart" rateData={{}} digitCount={selectedDigitCount} />
-              </div>
-            ) : (
-              <RateTrendCalendar 
-                currentView={currentView} 
-                highlightToday={true}
-                showWeekNumbers={false}
+          )}
+
+          {/* Calendar View Heading - Only visible when calendar view is active */}
+          {currentView === "calendar" && (
+            <div className="absolute left-4 lg:left-6 z-10 flex items-center" style={{ top: 'calc(1rem + 2px)' }}>
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                Rates Calendar
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400 ml-2">(in USD from 4 Sep to 10 Sep)</span>
+              </h3>
+            </div>
+          )}
+
+          {/* Month Navigation - Only visible when calendar view is active and multi-month range */}
+          {currentView === "calendar" && shouldShowMonthNavigation && (
+            <div className="absolute top-4 z-10 flex items-center justify-center" style={{ left: '50%', transform: 'translateX(-50%)' }}>
+              <MonthNavigation
                 shouldShowMonthNavigation={shouldShowMonthNavigation}
                 availableMonths={availableMonths}
                 currentMonthIndex={currentMonthIndex}
                 onPrevMonth={prevMonth}
                 onNextMonth={nextMonth}
-                digitCount={selectedDigitCount}
-                startDate={startDate}
-                endDate={endDate}
-                onDateSelect={(date) => {
-                  console.log('📅 Date selected:', date.toLocaleDateString())
-                  // Add any additional date selection logic here
-                }}
               />
-            )}
+            </div>
+          )}
+
+
+          {/* Rate Legends & Competitor Navigation - Only visible when table view is active */}
+          {currentView === "table" && (
+            <div className="absolute right-48 z-10 flex items-center gap-8" style={{ top: 'calc(1rem + 4px)' }}>
+              {/* Rate Legends */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                  <span className="text-xs text-gray-600 dark:text-gray-400">Highest Rate</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  <span className="text-xs text-gray-600 dark:text-gray-400">Lowest Rate</span>
+                </div>
+              </div>
+
+              {/* Competitor Navigation */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-600 dark:text-gray-400">
+                  Competitors {competitorStartIndex + 1}-{Math.min(competitorStartIndex + competitorsPerPage, 9)} of 9
+                </span>
+                <span className="text-xs text-blue-500 bg-blue-50 px-2 py-1 rounded">
+                  {screenSize.width}px ({screenSize.isSmall ? 'Small' : screenSize.isMedium ? 'Medium' : screenSize.isLarge ? 'Large' : 'Default'}) - {competitorsPerPage} cols
+                </span>
+                <button
+                  onClick={prevCompetitors}
+                  disabled={!canGoPrev()}
+                  className={`p-1 rounded-md border ${canGoPrev()
+                    ? 'border-gray-300 hover:bg-gray-50 text-gray-700'
+                    : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={nextCompetitors}
+                  disabled={!canGoNext()}
+                  className={`p-1 rounded-md border ${canGoNext()
+                    ? 'border-gray-300 hover:bg-gray-50 text-gray-700'
+                    : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+
+          {/* Rate Legends - Only visible when calendar view is active */}
+          {currentView === "calendar" && (
+            <div className="absolute top-4 z-10 flex items-center gap-2 hidden md:flex m-2" style={{ right: '11rem' }}>
+              {/* Rate Legends */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                  <span className="text-xs text-gray-600 dark:text-gray-400">Highest Rate</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  <span className="text-xs text-gray-600 dark:text-gray-400">Lowest Rate</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+
+          {/* View Toggle - Positioned consistently for all views */}
+          <div className="absolute top-4 right-4 lg:right-6 z-10">
+            <TooltipProvider>
+              <div className="flex items-center border border-border rounded-lg overflow-hidden bg-white dark:bg-slate-800 shadow-sm">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={currentView === "calendar" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setCurrentView("calendar")}
+                      className={cn(
+                        "h-8 px-3 rounded-none border-r-0 border-b-0",
+                        currentView === "calendar" ? "border-r-0 border-b-0" : "border-r-0 border-b-0 hover:border-r-0 hover:border-b-0"
+                      )}
+                    >
+                      <Calendar className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                    <p className="text-xs">Calendar View</p>
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={currentView === "chart" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setCurrentView("chart")}
+                      className={cn(
+                        "h-8 px-3 rounded-none border-l-0 border-r-0 border-t-0 border-b-0",
+                        currentView === "chart" ? "border-l-0 border-r-0 border-t-0 border-b-0" : "border-l-0 border-r-0 border-t-0 border-b-0 hover:border-l-0 hover:border-r-0 hover:border-t-0 hover:border-b-0"
+                      )}
+                    >
+                      <TrendingUp className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                    <p className="text-xs">Chart View</p>
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={currentView === "table" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setCurrentView("table")}
+                      className={cn(
+                        "h-8 px-3 rounded-none border-l-0 border-t-0",
+                        currentView === "table" ? "border-l-0 border-t-0" : "border-l-0 border-t-0 hover:border-l-0 hover:border-t-0"
+                      )}
+                    >
+                      <Grid3X3 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                    <p className="text-xs">Table View</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </TooltipProvider>
           </div>
-          
-          {/* Blank spacer div with 250px height */}
-          <div className="h-[250px]"></div>
+
+          {/* Content based on current view */}
+          {currentView === "table" ? (
+            <div className="pt-16">
+              <RateTrendsTable
+                competitorStartIndex={competitorStartIndex}
+                digitCount={selectedDigitCount}
+                rateData={rateData}
+                rateCompData={rateCompData}
+              />
+            </div>
+          ) : currentView === "chart" ? (
+            <div className="pt-16">
+              <RTRateTrendsChart key="rate-trends-chart" rateData={rateData}
+                rateCompData={rateCompData} digitCount={selectedDigitCount} />
+            </div>
+          ) : (
+            <RateTrendCalendar
+              currentView={currentView}
+              highlightToday={true}
+              showWeekNumbers={false}
+              shouldShowMonthNavigation={shouldShowMonthNavigation}
+              availableMonths={availableMonths}
+              currentMonthIndex={currentMonthIndex}
+              onPrevMonth={prevMonth}
+              onNextMonth={nextMonth}
+              digitCount={selectedDigitCount}
+              startDate={startDate}
+              endDate={endDate}
+              onDateSelect={(date) => {
+                console.log('📅 Date selected:', date.toLocaleDateString())
+                // Add any additional date selection logic here
+              }}
+              rateData={rateData}
+              rateCompData={rateCompData}
+              selectedProperty={selectedProperty}
+            />
+          )}
+        </div>
+
+        {/* Blank spacer div with 250px height */}
+        <div className="h-[250px]"></div>
       </main>
 
       {/* Filter Sidebar */}
-      <FilterSidebar 
-       losGuest={losGuest}
-        isOpen={isFilterSidebarOpen} 
-        onClose={() => setIsFilterSidebarOpen(false)} 
+      <FilterSidebar
+        losGuest={losGuest}
+        isOpen={isFilterSidebarOpen}
+        onClose={() => setIsFilterSidebarOpen(false)}
         onApply={(filters) => {
           // Handle filter apply logic here
           console.log('Applied filters:', filters)
@@ -606,12 +817,12 @@ export default function RateTrendPage() {
         }}
       />
       {/* Lightning Refresh Modal */}
-      <LightningRefreshModal 
+      <LightningRefreshModal
         isOpen={isLightningRefreshModalOpen}
         onClose={() => setIsLightningRefreshModalOpen(false)}
         onRefresh={handleLightningRefresh}
       />
-      
+
       {/* Snackbar */}
       <Snackbar
         isOpen={isSnackbarOpen}
@@ -620,7 +831,5 @@ export default function RateTrendPage() {
         type={snackbarType}
       />
     </div>
-    </ComparisonProvider>
-    </DateProvider>
   )
 }

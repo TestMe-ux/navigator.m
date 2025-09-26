@@ -382,7 +382,7 @@ export default function Home() {
             };
           });
           res.body.pricePositioningEntites = CalulatedData;
-          console.log('Rate trends data:', res.body);
+          // console.log('Rate trends data:', res.body);
           setRateData(res.body);
           setLosGuest({ "Los": res.body?.losList, "Guest": res.body?.guestList });
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
@@ -449,7 +449,7 @@ export default function Home() {
             };
           });
           res.body.pricePositioningEntites = CalulatedData;
-          console.log('Rate trends data:', res.body);
+          // console.log('Rate trends data:', res.body);
           setRateCompData(res.body);
           // setLosGuest({ "Los": res.body?.losList, "Guest": res.body?.guestList });
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));

@@ -176,8 +176,25 @@ export function CreatePasswordForm({ userId, token }: CreatePasswordFormProps) {
       id: 'special',
       label: '1 special char. (!@#$%^&*)',
       test: (pwd: string) => /[!@#$%^&*(),.?":{}|<>]/.test(pwd)
+    },
+    {
+      id: "noSequences",
+      label: "No sequential characters (e.g., 123, abc)",
+      test: (pwd:string) => !/(012|123|234|345|456|567|678|789|890|abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz)/i.test(pwd),
+    },
+    {
+      id: 'noSpace',
+      label: 'No spaces allowed',
+      test: (pwd: string) => !/\s/.test(pwd)
+    },
+    {
+      id: 'noSQLInjection',
+      label: 'No SQL injection patterns',
+      test: (pwd: string) => !/('|;|--|\/\*|\*\/|drop|select|insert|delete|update|union|exec)/i.test(pwd)
     }
   ]
+
+
 
   /**
    * Get password strength score
@@ -241,6 +258,7 @@ export function CreatePasswordForm({ userId, token }: CreatePasswordFormProps) {
     setIsLoading(true)
 
     try {
+
       const passwordEncrypted = CryptoUtils.encryptString(password);
       // API call for password creation using validated userId and token
       const response = await PasswordRecovery({ uid: userId, token: token, pwd: passwordEncrypted })

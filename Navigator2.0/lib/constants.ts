@@ -15,6 +15,7 @@ export class Constants {
     public static readonly DemandAPI_GET_DemandAI = "DemandAI/getOptimaDemandData";
     public static readonly API_GET_GetAllEvents = "Events/GetAllEvents";
     public static readonly API_GetRateTrend = "RateTrend/GetPricePositioning"
+    public static readonly API_POST_CachePage = "RateTrend/SetCachePageDataToRedish"; 
     public static readonly API_GET_GetAllHoliday = "Events/GetALLHolidayList";
     public static readonly API_AddEvents = "Events/AddEvents";
     public static readonly API_UpdateEvents = "Events/UpdateEvents";
