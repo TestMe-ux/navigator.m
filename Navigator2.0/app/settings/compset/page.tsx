@@ -83,6 +83,7 @@ export default function CompsetSettingsPage() {
     }
   }, [searchQuery])
   useEffect(() => {
+    debugger;
     if (!selectedProperty?.sid) return;
 
     const fetchCompset = async () => {
@@ -155,13 +156,14 @@ export default function CompsetSettingsPage() {
         setIsSearchApi(true);
         const response = await AddCompSet(competitor);
         if (response.status) {
+          setShowSnackbar(true)
           handleCancelAddCompetitor();
           toast({
             description: response.message || "Competitor has been added successfully",
             variant: "success",
             duration: 3000,
           })
-          setShowSnackbar(true)
+
         }
         else {
           toast({
@@ -239,6 +241,8 @@ export default function CompsetSettingsPage() {
   }
 
   const handleClearSearch = () => {
+    debugger;
+    setFilteredSuggestions([])
     setSearchQuery("")
     setNewCompetitor((prev) => ({ ...prev, hotelName: "" }))
     setShowSuggestions(false)
@@ -762,8 +766,8 @@ export default function CompsetSettingsPage() {
                     id="hotel-name"
                     value={searchQuery}
                     onChange={handleSearchInputChange}
-                    onFocus={handleSearchInputFocus}
-                    onBlur={handleSearchInputBlur}
+                    // onFocus={handleSearchInputFocus}
+                    // onBlur={handleSearchInputBlur}
                     // disabled={isSearchApi}
                     placeholder="Search and select hotel name"
                     className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
@@ -772,9 +776,9 @@ export default function CompsetSettingsPage() {
                     <button
                       type="button"
                       onClick={handleClearSearch}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors z-[99]"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-4 h-4"/>
                     </button>
                   )}
                   {isSearchApi && searchQuery && (
@@ -835,7 +839,7 @@ export default function CompsetSettingsPage() {
               </Button>
               <Button
                 onClick={handleAddCompetitor}
-                disabled={!searchQuery || !newCompetitor.competitorType || isSearchApi}
+                disabled={!searchQuery || !newCompetitor.competitorType || isSearchApi || newCompetitor.hotelMasterId === 0}
                 className="h-9 px-4 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
               >
                 Add Competitor
