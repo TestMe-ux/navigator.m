@@ -615,7 +615,7 @@ export default function RateTrendPage() {
             <div className="absolute left-4 lg:left-6 z-10 flex items-center" style={{ top: 'calc(1rem + 2px)' }}>
               <h3 className="text-base font-semibold text-gray-900 dark:text-white">
                 Rates Calendar
-                <span className="text-xs font-medium text-gray-600 dark:text-gray-400 ml-2">{`(in \u200E ${selectedProperty?.currencySymbol ?? '$'} \u200E from 4 Sep to 10 Sep)`}</span>
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400 ml-2">{`(in \u200E ${selectedProperty?.currencySymbol ?? '$'} \u200E from ${startDate ? format(startDate, 'dd MMM') : 'N/A'} to ${endDate ? format(endDate, 'dd MMM') : 'N/A'})`}</span>
               </h3>
             </div>
           )}
@@ -788,8 +788,8 @@ export default function RateTrendPage() {
               onPrevMonth={prevMonth}
               onNextMonth={nextMonth}
               digitCount={selectedDigitCount}
-              startDate={startDate}
-              endDate={endDate}
+              startDate={startDate || new Date()}
+              endDate={endDate || new Date()}
               onDateSelect={(date) => {
                 console.log('📅 Date selected:', date.toLocaleDateString())
                 // Add any additional date selection logic here
@@ -811,6 +811,7 @@ export default function RateTrendPage() {
         isOpen={isFilterSidebarOpen}
         onClose={() => setIsFilterSidebarOpen(false)}
         onApply={(filters) => {
+          setSideFilter(filters)
           // Handle filter apply logic here
           console.log('Applied filters:', filters)
           setIsFilterSidebarOpen(false)

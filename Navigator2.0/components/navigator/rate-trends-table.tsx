@@ -581,7 +581,7 @@ export function RateTrendsTable({
                 }
 
                 return columnsToShow.map((name, index) => (
-                  <th key={index} colSpan={3} className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200">
+                  <th title={name || ""} key={index} colSpan={3} className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200">
                     {name ? (name.length > 15 ? `${name.substring(0, 12)}...` : name) : ''}
                   </th>
                 ));
