@@ -2,7 +2,7 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-ARG ENV=qa
+ARG ENV=prod
 # Install dependencies
 COPY package*.json ./
 RUN npm install
