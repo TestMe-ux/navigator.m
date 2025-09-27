@@ -1,5 +1,5 @@
 "use client"
-import React, { useMemo, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { BarChart3, Calendar, Star, ChevronLeft, ChevronRight, Zap } from "lucide-react"
 // import { useDateContext } from "@/components/date-context" // Hidden for static data
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -310,7 +310,7 @@ export function RateTrendsTable({
   const transformedData = useMemo(() => {
     if (!rateData || !rateCompData) { }
     return transformLiveDataToTableFormat(rateData)
-  }, [rateData, rateCompData])
+  }, [rateData, rateCompData]);
 
   // Calculate dynamic column width based on rate values (further reduced for 4-competitor view)
   const calculateRateColumnWidth = (rate: number) => {
@@ -581,7 +581,7 @@ export function RateTrendsTable({
                 }
 
                 return columnsToShow.map((name, index) => (
-                  <th key={index} colSpan={3} className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200">
+                  <th title={name || ""} key={index} colSpan={3} className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200">
                     {name ? (name.length > 15 ? `${name.substring(0, 12)}...` : name) : ''}
                   </th>
                 ));

@@ -1371,7 +1371,10 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
 
                                                       {/* Rate */}
                                                       <td className="py-1.5 align-top text-left font-bold text-blue-900 dark:text-blue-200" style={{ width: rateWidth, paddingRight: '16px' }}>
-                                                        <div className="truncate" title={rateText}>{truncatedRate}</div>
+                                                        <div className="truncate" title={rateText}>
+                                                          {dayData.rate == 0 && dayData.statusMessage == "Closed" ? 'Sold Out' :
+                                                            dayData.rate == 0 && dayData.statusMessage !== "Closed" ? "--" : truncatedRate}
+                                                        </div>
                                                       </td>
 
                                                       {/* Room type */}
@@ -1598,24 +1601,17 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                                       {/* Rate */}
                                                       <td className="py-1.5 align-top pl-4 pr-2 text-left font-bold text-blue-900 dark:text-blue-200" style={{ minWidth: '90px', maxWidth: '140px' }}>
                                                         {(() => {
-                                                          const dayOfMonth = getDayOfMonth(dayData.checkInDate)
-                                                          if (dayOfMonth === 30) return 'Sold Out'
-                                                          if (dayOfMonth === 31) {
-                                                            const isBenchmarkSoldOut = isBenchmarkSoldOutForDate31(dayData.checkInDate)
-                                                            const isCurrentChannelSoldOut = isSoldOutForDate31(channelIndex, dayData.checkInDate)
 
-                                                            if (isBenchmarkSoldOut) {
-                                                              return 'Sold Out' // Show benchmark as sold out if it is sold out
-                                                            } else if (isCurrentChannelSoldOut) {
-                                                              return 'Sold Out' // Show sold out if current channel is sold out
-                                                            }
-                                                          }
                                                           // Get benchmark rate from API
                                                           const benchmarkRate = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
                                                             const rateDate = new Date(rate.checkInDate)
                                                             return rateDate.getTime() === new Date(dayData.checkInDate).getTime()
-                                                          })?.rate || 0
-                                                          return formatNumber(benchmarkRate)
+                                                          })
+
+                                                          const benchmarkDatas = benchmarkRate.rate == 0 && benchmarkRate.statusMessage == "Closed" ? 'Sold Out' :
+                                                            benchmarkRate.rate == 0 && benchmarkRate.statusMessage !== "Closed" ? "--" : formatNumber(benchmarkRate.rate)
+
+                                                          return benchmarkDatas;
                                                         })()}
                                                       </td>
 

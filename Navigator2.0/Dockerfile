@@ -2,7 +2,7 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-ARG ENV=qa
+ARG ENV=prod
 # Install dependencies
 COPY package*.json ./
 RUN npm install
@@ -12,7 +12,7 @@ COPY . .
 
 # Use MY_ENV_VARIABLE in subsequent instructions, e.g., in a RUN command
 RUN echo "The value is: ${ENV}"
-RUN cp .env.${ENV} .env
+RUN cp .env.${ENV} .env.local
 
 RUN npm run build
 

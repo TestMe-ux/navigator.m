@@ -17,4 +17,7 @@ export async function AddBRGSettings(filtersValue: any) {
     const { data } = await apiClient.post(`${Constants.API_SET_UpdateBRGCalculation}`, filtersValue);
     return data;
 }
-
+export async function getRateEvalutionData(filtersValue: any) {
+    const { data } = await apiClient.post(`${Constants.API_GetRateEvalution}`, filtersValue);
+    return data;
+}

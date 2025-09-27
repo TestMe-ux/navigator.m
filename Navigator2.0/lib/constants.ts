@@ -39,6 +39,7 @@ export class Constants {
     public static readonly API_GET_AddSubscriberCompSet = "Compset/AddSubscriberCompSets";
     public static readonly API_GET_BRGCalculationHistory = "BRG/GetBRGHistory";
     public static readonly API_SET_UpdateBRGCalculation = "BRG/UpdateBRGCalculation";
+    public static readonly API_GetRateEvalution="PaceView/GetPaceView"
     public static readonly API_GET_AllChannelList = "Channel/GetChannelList";
     public static readonly API_GET_ChannelHistory = "Channel/GetChannelHistory";
     public static readonly API_DeleteChannel = "Channel/DeleteChannel";
