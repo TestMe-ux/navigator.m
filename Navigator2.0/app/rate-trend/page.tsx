@@ -615,7 +615,7 @@ export default function RateTrendPage() {
             <div className="absolute left-4 lg:left-6 z-10 flex items-center" style={{ top: 'calc(1rem + 2px)' }}>
               <h3 className="text-base font-semibold text-gray-900 dark:text-white">
                 Rates Calendar
-                <span className="text-xs font-medium text-gray-600 dark:text-gray-400 ml-2">(in USD from 4 Sep to 10 Sep)</span>
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400 ml-2">{`(in \u200E ${selectedProperty?.currencySymbol ?? '$'} \u200E from 4 Sep to 10 Sep)`}</span>
               </h3>
             </div>
           )}
