@@ -63,4 +63,14 @@ export class Constants {
     public static readonly API_AddUpdateUser = "UserRole/AddUpdateUser";
     public static readonly API_AddProfilePhoto = "GCSUploadOps/AddProfilePhoto";
 
+    public static readonly API_GenerateAndMailReportCSV = "Report/GenerateAndMailReportCSV";
+    public static readonly API_CheckMappingValidation = "Report/CheckMappingValidation";
+    public static readonly API_CheckMapping = "Report/CheckMapping";
+  public static readonly API_GetScheduleReportData = "Report/GetScheduleReportData";
+  public static readonly API_SaveReportData = "Report/SaveReportData";
+    public static readonly API_GetEditScheduleData = "Report/GetEditScheduleData";
+    public static readonly API_DeleteReport = "Report/DeleteReport";
+    public static readonly API_GenerateOndemandReport = "Report/GenerateOndemandReport";
+    public static readonly API_GET_CurrencyList = "Report/GetCurrency";
+    public static readonly API_GET_TimeZoneList = "Report/GetTimeZone";
 }
