@@ -191,4 +191,43 @@ export class LocalStorageService {
     const currentTime = new Date().getTime();
     return currentTime >= refreshTime;
   }
+
+  /**
+   * Get pgh end date from localStorage
+   * @returns The pgh end date or 0 if not found
+   */
+  static getpghEndDate(): string {
+    const property = this.getItem('SelectedProperty');
+    return property?.pghEndDate ? property.pghEndDate : '0';
+  }
+
+  /**
+   * Get SID from SelectedProperty in localStorage
+   * @returns The SID or 0 if not found
+   */
+  static getSID(): number {
+    const property = this.getItem('SelectedProperty');
+    return property?.sid ? parseInt(property.sid) : 0;
+  }
+
+  /**
+   * Get user display name (firstName + lastName) from UserDetails in localStorage
+   * @returns The user display name or empty string if not found
+   */
+  static getUserDisplayName(): string {
+    const user = this.getItem('UserDetails');
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    return '';
+  }
+
+  /**
+   * Get user email from UserDetails in localStorage
+   * @returns The user email or empty string if not found
+   */
+  static getUserName(): string {
+    const user = this.getItem('UserDetails');
+    return user?.email || '';
+  }
 }

@@ -22,3 +22,68 @@ export async function getUsageTrendChartData(filtersValue:any) {
     const { data } = await apiClient.get(`${Constants.API_GetChartData}`, { params: filtersValue });
     return data;
 }
+
+export async function generateAndMailReportCSV(detailData: any) {
+    const { data } = await apiClient.post(`${Constants.API_GenerateAndMailReportCSV}`, detailData);
+    return data;
+}
+
+export async function getChannelList(params: any) {
+    const { data } = await apiClient.get(`${Constants.API_GET_ChannelList}`, { params });
+    return data;
+}
+
+export async function getCompleteCompSet(params: any) {
+    const { data } = await apiClient.get(`${Constants.API_GET_GetCompletecCompset}`, { params });
+    return data;
+}
+
+export async function checkMappingValidation(propertyValidation: any) {
+    const { data } = await apiClient.post(`${Constants.API_CheckMappingValidation}`, propertyValidation);
+    return data;
+}
+
+export async function checkMapping(mappingData: any) {
+    const { data } = await apiClient.post(`${Constants.API_CheckMapping}`, mappingData);
+    return data;
+}
+
+export async function generateOndemandReport(requestModel: any) {
+    const { data } = await apiClient.post(`${Constants.API_GenerateOndemandReport}`, requestModel);
+    return data;
+}
+
+export async function getCurrencyList() {
+    const { data } = await apiClient.get(`${Constants.API_GET_CurrencyList}`);
+    return data;
+}
+
+export async function getTimeZoneList() {
+    const { data } = await apiClient.get(`${Constants.API_GET_TimeZoneList}`);
+    return data;
+}
+
+export async function getScheduleReportDataBySid(sid: string) {
+    const { data } = await apiClient.get(`${Constants.API_GetScheduleReportData}?SID=${sid}`);
+    return data;
+}
+
+export async function saveReportData(scheduleReportData: any) {
+    const { data } = await apiClient.post(`${Constants.API_SaveReportData}`, scheduleReportData);
+    return data;
+}
+
+export async function getEditScheduleData(reportId: string) {
+    const { data } = await apiClient.get(`${Constants.API_GetEditScheduleData}?PGHReportScheduleId=${reportId}`);
+    return data;
+}
+
+export async function deleteScheduleReport(universalId: number, reportId: number) {
+    const { data } = await apiClient.post(`${Constants.API_DeleteReport}?UniversalId=${universalId}&ReportId=${reportId}`);
+    return data;
+}
+
+export async function getSummaryData(sid: string) {
+    const { data } = await apiClient.get(`${Constants.API_GetSummaryData}?Sid=${sid}`);
+    return data;
+}

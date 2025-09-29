@@ -46,24 +46,15 @@ export function ReportsHeader({ handleRefresh, handleCreateOnDemand, reportsCoun
               <Button 
                 variant="default" 
                 size="sm" 
-                className={`${hasInProgressReports 
-                  ? 'bg-gray-400 hover:bg-gray-400 text-gray-600 cursor-not-allowed' 
-                  : 'bg-primary hover:bg-primary/90 text-primary-foreground'
-                }`}
-                onClick={hasInProgressReports ? undefined : handleCreateOnDemand}
-                disabled={hasInProgressReports}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                onClick={handleCreateOnDemand}
               >
                 <Plus className="w-4 h-4 mr-1" />
                 Create On-Demand Report
               </Button>
             </TooltipTrigger>
             <TooltipContent className="bg-black text-white border-black">
-              <p>
-                {hasInProgressReports 
-                  ? 'Cannot create new report while other reports are in progress' 
-                  : 'Create a new on-demand report'
-                }
-              </p>
+              <p>Create a new on-demand report</p>
             </TooltipContent>
           </Tooltip>
           

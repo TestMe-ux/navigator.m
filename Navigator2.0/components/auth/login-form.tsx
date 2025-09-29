@@ -11,7 +11,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { InputWithTooltip, ValidationHelpers } from "@/components/auth/field-tooltip"
 import { LocalStorageService, LoginResponse } from "@/lib/localstorage"
-import { GetSIDListforUser } from "@/lib/login"
+import { GetSIDListforUser, GetPackageDetails } from "@/lib/login"
 
 /**
  * Login Form Component
@@ -300,12 +300,27 @@ export function LoginForm() {
           LocalStorageService.setItem('SelectedProperty', defaultProperty);
           setSelectedHotel(defaultProperty);
           setHotelOptions(res.body);
+          
+          // Call getPackageDetails after setting properties
+          getPackageDetails(res.body[0]);
+          
           router.push('/')
           // setotachannel(res.body);
           // getOTARankOnAllChannels(res.body);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
         setIsLoading(false);
+      })
+      .catch((err) => console.error(err));
+  }
+
+  const getPackageDetails = (property: any) => {
+    GetPackageDetails({ sid: property.sid })
+      .then((responsePack) => {
+        if (responsePack.status) {
+          let currentDateUTC = new Date().toISOString();
+          LocalStorageService.setItem("packageDetails", JSON.stringify(responsePack.body));
+        }
       })
       .catch((err) => console.error(err));
   }
