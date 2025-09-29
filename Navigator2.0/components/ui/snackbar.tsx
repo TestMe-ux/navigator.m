@@ -9,7 +9,7 @@ interface SnackbarProps {
   isOpen: boolean
   onClose: () => void
   message: string
-  type?: 'info' | 'success'
+  type?: 'info' | 'success' | 'error'
   className?: string
 }
 
@@ -17,7 +17,7 @@ export function Snackbar({ isOpen, onClose, message, type = 'info', className }:
   if (!isOpen) return null
 
   const isSuccess = type === 'success'
-  const bgColor = isSuccess ? 'bg-green-600' : 'bg-blue-600'
+  const bgColor = isSuccess ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600'
   const iconColor = isSuccess ? 'text-green-600' : 'text-blue-600'
   const buttonColor = isSuccess ? 'hover:bg-green-700' : 'hover:bg-blue-700'
 
@@ -45,12 +45,12 @@ export function Snackbar({ isOpen, onClose, message, type = 'info', className }:
           )}
         </div>
       </div>
-      
+
       {/* Message */}
       <div className="flex-1 text-sm font-medium leading-relaxed whitespace-nowrap">
         {message}
       </div>
-      
+
       {/* Close Button */}
       <Button
         variant="outline"

@@ -188,7 +188,7 @@ export function RateDetailModal({ isOpen, onClose, selectedDate, onPrevDay, onNe
     <TooltipProvider delayDuration={500} skipDelayDuration={100}>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent
-          className="!w-[950px] !max-w-[950px] flex flex-col p-0 overflow-hidden"
+          className="!w-[950px] !max-w-[950px] flex flex-col p-0 overflow-hidden z-[999]"
           style={{ height: '550px', maxHeight: '550px', minHeight: '550px' }}
         >
           <DialogHeader className="p-6 pb-4 flex-shrink-0">
