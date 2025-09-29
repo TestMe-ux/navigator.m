@@ -1192,7 +1192,7 @@ export default function UserManagementPage() {
                 <Label className="block text-xs font-medium text-gray-700 mb-1">
                   User Role<span className="text-red-500 ml-1">*</span>
                 </Label>
-                <Select disabled
+                <Select disabled={userDetails?.userRoletext !== 'Admin' || newUser.userRole === 'Admin'}
                   value={newUser.userRole}
                   onValueChange={(value) => setNewUser((prev) => ({ ...prev, userRole: value }))}
                 >
@@ -1213,6 +1213,7 @@ export default function UserManagementPage() {
                   Email ID<span className="text-red-500 ml-1">*</span>
                 </Label>
                 <Input
+                  disabled
                   type="email"
                   value={newUser.emailId}
                   onChange={(e) => setNewUser((prev) => ({ ...prev, emailId: e.target.value }))}
