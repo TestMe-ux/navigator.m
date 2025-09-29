@@ -35,6 +35,7 @@ import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { useDateContext } from "@/components/date-context"
 import { conevrtDateforApi } from "@/lib/utils"
 import { GlobalProgressBar, LoadingSkeleton } from "@/components/loading-skeleton"
+import { LocalStorageService } from "@/lib/localstorage"
 
 /**
  * Modern Quick Actions Configuration
@@ -328,6 +329,9 @@ export default function Home() {
       GetParityDatas_Comp()
     ]);
   }, [selectedComparison])
+  useEffect(() => {
+    LocalStorageService.setItem("preferredDateMode", "next7days")
+  }, [selectedProperty?.sid])
 
   const getRateDate = () => {
     setRateData({});

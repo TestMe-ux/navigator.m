@@ -492,7 +492,7 @@ export default function OTARankingsPage() {
       const avgRank = isPropertyDataAvailable ? rankingItem.otaRank : 501
       const totalRankings = 500
       debugger;
-      const rankingChange = isPropertyDataAvailable && rankingItem?.changeInRank && (viewMode === "Rank" ? (ratedays ? rankingItem?.changeInRateDays <= 7  : rankingItem?.changeInRateDays > 7 ) : true) ? parseInt(rankingItem.changeInRank) : 0
+      const rankingChange = isPropertyDataAvailable && rankingItem?.changeInRank && (viewMode === "Rank" ? (ratedays ? rankingItem?.changeInRateDays <= 7 && rankingItem?.changeInRateDays > 0 : rankingItem?.changeInRateDays > 7 ) : true) ? parseInt(rankingItem.changeInRank) : 0
       const reviewScore = rankingItem?.score ? parseFloat(rankingItem.score) : 0
 
       return {

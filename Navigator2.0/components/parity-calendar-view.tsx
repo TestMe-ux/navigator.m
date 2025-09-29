@@ -1618,9 +1618,22 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                                       {/* Room with abbreviation */}
                                                       <td className="py-1.5 align-top pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ width: '180px', paddingRight: '16px' }}>
                                                         {(() => {
-                                                          const roomType = dayData.toolTipProductName || ''
-                                                          const formattedRoom = formatRoomText(roomType)
-
+                                                          const benchmarkRate = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
+                                                            const rateDate = new Date(rate.checkInDate)
+                                                            return rateDate.getTime() === new Date(dayData.checkInDate).getTime()
+                                                          })
+                                                          const roomType = benchmarkRate.toolTipProductName || ''
+                                                          // console.log("BenchMark", benchmarkRate);
+                                                          // const formattedRoom = formatRoomText(roomType)
+                                                          let formattedRoom;
+                                                          if (dayData.rate == 0 && dayData.statusMessage == "Closed") {
+                                                            formattedRoom = ""
+                                                          } else if (dayData.rate == 0 && dayData.statusMessage !== "Closed") {
+                                                            formattedRoom = ""
+                                                          }
+                                                          else {
+                                                            formattedRoom = formatRoomText(roomType)
+                                                          }
                                                           if (typeof formattedRoom === 'string') {
                                                             return <div title={roomType}>{formattedRoom}</div>
                                                           } else {
@@ -1637,9 +1650,21 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                                       {/* Inclusion */}
                                                       <td className="py-1.5 align-top pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ width: '180px' }}>
                                                         {(() => {
-                                                          const inclusion = dayData.inclusion
-                                                          const formattedInclusion = formatInclusionText(inclusion)
-
+                                                          const benchmarkRate = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
+                                                            const rateDate = new Date(rate.checkInDate)
+                                                            return rateDate.getTime() === new Date(dayData.checkInDate).getTime()
+                                                          })
+                                                          const inclusion = benchmarkRate.inclusion
+                                                          // const formattedInclusion = formatInclusionText(inclusion)
+                                                          let formattedInclusion;
+                                                          if (dayData.rate == 0 && dayData.statusMessage == "Closed") {
+                                                            formattedInclusion = ""
+                                                          } else if (dayData.rate == 0 && dayData.statusMessage !== "Closed") {
+                                                            formattedInclusion = ""
+                                                          }
+                                                          else {
+                                                            formattedInclusion = formatInclusionText(inclusion)
+                                                          }
                                                           if (typeof formattedInclusion === 'string') {
                                                             return <div title={inclusion}>{formattedInclusion}</div>
                                                           } else {
