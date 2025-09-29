@@ -69,10 +69,10 @@ export default function CompsetSettingsPage() {
       }
 
       if (newCompetitor.hotelMasterId > 0) return;
-      
+
       setIsInputFocused(false);
       setIsSearchApi(true);
-      
+
       getSearchHotelList(searchQuery.toLowerCase(), selectedProperty?.sid || 0, selectedProperty?.hmid || 0)
         .then((response: any) => {
           if (response?.Status && response?.Body?.length > 0) {
@@ -91,6 +91,10 @@ export default function CompsetSettingsPage() {
         .finally(() => {
           setIsInputFocused(true);
           setIsSearchApi(false);
+          if (searchQuery.trim() === "" || searchQuery.length < 3) {
+            setFilteredSuggestions([]);
+            setShowSuggestions(false);
+          }
         });
     }, 300); // 300ms debounce
 
@@ -130,7 +134,7 @@ export default function CompsetSettingsPage() {
     if (showSnackbar && selectedProperty?.sid) {
       // Reset snackbar state
       setShowSnackbar(false);
-      
+
       // Refresh data
       const refreshData = async () => {
         try {
