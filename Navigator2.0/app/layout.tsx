@@ -8,6 +8,8 @@ import { ErrorBoundary } from "@/components/error-boundary"
 import { Toaster } from "@/components/ui/toaster"
 import { ComparisonProvider } from "@/components/comparison-context"
 import { DatadogProvider } from "@/lib/datadogRum"
+import { PollingProvider } from "@/components/polling/polling-context"
+import { GlobalSnackbar } from "@/components/polling/global-snackbar"
 
 /**
  * Root Layout Metadata
@@ -73,10 +75,14 @@ export default function RootLayout({
 
             <ComparisonProvider>
               <DateProvider>
-                {/* Conditional Layout - Header only appears on non-auth pages */}
-                <ConditionalLayout>{children}</ConditionalLayout>
-                {/* Toast notifications */}
-                <Toaster />
+                <PollingProvider>
+                  {/* Conditional Layout - Header only appears on non-auth pages */}
+                  <ConditionalLayout>{children}</ConditionalLayout>
+                  {/* Toast notifications */}
+                  <Toaster />
+                  {/* Global Snackbar for polling notifications */}
+                  <GlobalSnackbar />
+                </PollingProvider>
               </DateProvider>
             </ComparisonProvider>
           </ThemeProvider>

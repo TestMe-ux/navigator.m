@@ -730,7 +730,7 @@ export function EnhancedDemandTrendsChart({ filter, events, holidaysData, demand
 
   // Calculate Y-axis domains dynamically
   const demandDomain = [0, 4]
-
+debugger;
   // Calculate actual price domain from data with robust error handling
   const priceValues = trendData.flatMap(d => [d.hotelADR, d.marketADR]).filter(val => val != null && !isNaN(val))
   const minPrice = priceValues.length > 0 ? Math.min(...priceValues) : 70

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,18 +10,52 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CustomDatePicker } from "./custom-date-picker"
+import { useSelectedProperty } from "@/hooks/use-local-storage"
+import { getRTRRChannel } from "@/lib/reports"
+import { format } from "date-fns"
 
 interface LightningRefreshModalProps {
   isOpen: boolean
   onClose: () => void
+  onRefresh?: (data: { selectedChannel: string; channels: string; checkInStartDate: string; compSet: string; guests: string; los: string }) => void
 }
 
-export function LightningRefreshModal({ isOpen, onClose }: LightningRefreshModalProps) {
-  const [channels, setChannels] = useState("Booking.com")
-  const [checkInStartDate, setCheckInStartDate] = useState("")
+export function LightningRefreshModal({ isOpen, onClose, onRefresh }: LightningRefreshModalProps) {
+  const [channels, setChannels] = useState<any[]>([])
+  const [checkInStartDate, setCheckInStartDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [compSet, setCompSet] = useState("primary")
+  const [channel, setChannel] = useState("");
   const [guests, setGuests] = useState("2")
   const [los, setLos] = useState("1")
+  const [selectedProperty] = useSelectedProperty();
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!selectedProperty?.sid) return;
+
+    const fetchChannels = async () => {
+      try {
+        const response: any = await getRTRRChannel({
+          SID: selectedProperty.sid,
+          isMetaSite: true,
+          bForceFresh: false,
+        });
+
+        if (response?.status) {
+          setChannels(response.body || []);
+          setChannel(response.body[0].cname)
+        }
+      } catch (error) {
+        console.error("Error fetching channels:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    setIsLoading(true); // Start loading before fetch
+    fetchChannels();
+
+  }, [selectedProperty?.sid]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -35,7 +69,7 @@ export function LightningRefreshModal({ isOpen, onClose }: LightningRefreshModal
           <DialogTitle className="text-2xl font-bold text-gray-900 dark:text-white">
             Lightning Refresh
           </DialogTitle>
-          
+
           {/* Light Blue Banner - Reduced height */}
           <div className="bg-blue-100 dark:bg-blue-900/30 px-3 py-2 rounded-lg mt-3">
             <p className="text-sm text-blue-800 dark:text-blue-200">
@@ -43,7 +77,7 @@ export function LightningRefreshModal({ isOpen, onClose }: LightningRefreshModal
             </p>
           </div>
         </DialogHeader>
-        
+
         <div className="space-y-6 mt-4">
           {/* Two Column Layout */}
           <div className="grid grid-cols-2 gap-6">
@@ -54,41 +88,17 @@ export function LightningRefreshModal({ isOpen, onClose }: LightningRefreshModal
                 <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
                   Channels <span className="text-red-500">*</span>
                 </Label>
-                <Select value={channels} onValueChange={setChannels}>
+                <Select value={channels?.length > 0 && channels[0].cname.toLowerCase()} onValueChange={setChannel} >
                   <SelectTrigger className="w-full h-10 bg-white dark:bg-white border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-50">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="max-h-[200px] overflow-y-auto select-item-no-tick">
-                    <SelectItem value="Booking.com" className="data-[state=checked]:bg-blue-50 data-[state=checked]:text-blue-900 data-[state=checked]:font-medium">
-                      Booking.com
-                    </SelectItem>
-                    <SelectItem value="Expedia" className="data-[state=checked]:bg-blue-50 data-[state=checked]:text-blue-900 data-[state=checked]:font-medium">
-                      Expedia
-                    </SelectItem>
-                    <SelectItem value="Hotels.com" className="data-[state=checked]:bg-blue-50 data-[state=checked]:text-blue-900 data-[state=checked]:font-medium">
-                      Hotels.com
-                    </SelectItem>
-                    <SelectItem value="Agoda" className="data-[state=checked]:bg-blue-50 data-[state=checked]:text-blue-900 data-[state=checked]:font-medium">
-                      Agoda
-                    </SelectItem>
-                    <SelectItem value="Trip.com" className="data-[state=checked]:bg-blue-50 data-[state=checked]:text-blue-900 data-[state=checked]:font-medium">
-                      Trip.com
-                    </SelectItem>
-                    <SelectItem value="Priceline" className="data-[state=checked]:bg-blue-50 data-[state=checked]:text-blue-900 data-[state=checked]:font-medium">
-                      Priceline
-                    </SelectItem>
-                    <SelectItem value="Travelocity" className="data-[state=checked]:bg-blue-50 data-[state=checked]:text-blue-900 data-[state=checked]:font-medium">
-                      Travelocity
-                    </SelectItem>
-                    <SelectItem value="Orbitz" className="data-[state=checked]:bg-blue-50 data-[state=checked]:text-blue-900 data-[state=checked]:font-medium">
-                      Orbitz
-                    </SelectItem>
-                    <SelectItem value="Kayak" className="data-[state=checked]:bg-blue-50 data-[state=checked]:text-blue-900 data-[state=checked]:font-medium">
-                      Kayak
-                    </SelectItem>
-                    <SelectItem value="Trivago" className="data-[state=checked]:bg-blue-50 data-[state=checked]:text-blue-900 data-[state=checked]:font-medium">
-                      Trivago
-                    </SelectItem>
+
+                    {channels?.length > 0 && channels.map((site: any) => (
+                      <SelectItem key={site.cid} value={site.cname.toLowerCase()} className="data-[state=checked]:bg-blue-50 data-[state=checked]:text-blue-900 data-[state=checked]:font-medium">
+                        {site.cname}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -173,7 +183,7 @@ export function LightningRefreshModal({ isOpen, onClose }: LightningRefreshModal
 
         {/* Separator Line */}
         <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
-        
+
         {/* Action Buttons */}
         <div className="flex justify-end gap-3">
           <Button
@@ -185,13 +195,21 @@ export function LightningRefreshModal({ isOpen, onClose }: LightningRefreshModal
           </Button>
           <Button
             onClick={() => {
-              console.log('Lightning Refresh clicked', {
-                channels,
+              const refreshData = {
+                selectedChannel:channel,
                 checkInStartDate,
                 compSet,
                 guests,
-                los
-              })
+                los,
+                channels
+              }
+              console.log('Lightning Refresh clicked', refreshData)
+
+              // Call the onRefresh callback if provided
+              if (onRefresh) {
+                onRefresh(refreshData)
+              }
+
               onClose()
             }}
             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white"

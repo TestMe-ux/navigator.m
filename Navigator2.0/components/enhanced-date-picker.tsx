@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { LocalStorageService } from "@/lib/localstorage"
 
-type DateMode = "next7days" | "next14days" | "next30days" | "customRange"
+type DateMode = "next7days" | "next14days" | "next28days" | "customRange"
 
 interface EnhancedDatePickerProps {
   startDate?: Date
@@ -54,7 +54,6 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
 
   // Initialize with next 7 days if no dates provided
   React.useEffect(() => {
-    debugger;
     if (!startDate && !endDate) {
       // Ensure Next 7 Days is selected and applied by default
       const today = new Date()
@@ -119,9 +118,9 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
         newStartDate = today
         newEndDate = addDays(today, 13) // 14 days including today
         break
-      case "next30days":
+      case "next28days":
         newStartDate = today
-        newEndDate = addDays(today, 29) // 30 days including today
+        newEndDate = addDays(today, 27) // 30 days including today
         break
       case "customRange":
       default:
@@ -173,8 +172,8 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
         return formatDateRange(today, addDays(today, 6))
       case "next14days":
         return formatDateRange(today, addDays(today, 13))
-      case "next30days":
-        return formatDateRange(today, addDays(today, 29))
+      case "next28days":
+        return formatDateRange(today, addDays(today, 27))
       case "customRange":
         // Never show dates under Custom Date Range option in dropdown
         // Keep it clean with just the label
@@ -187,7 +186,7 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
   const quickDateOptions = [
     { mode: "next7days" as DateMode, label: "Next 7 Days" },
     { mode: "next14days" as DateMode, label: "Next 14 Days" },
-    { mode: "next30days" as DateMode, label: "Next 30 Days" },
+    { mode: "next28days" as DateMode, label: "Next 28 Days" },
     { mode: "customRange" as DateMode, label: "Custom Date Range" },
   ]
   const minDate = new Date();
@@ -318,7 +317,7 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
       if (isSameDay(selectedStartDate, today) && mode !== "customRange") {
         if (daysDiff === 7) return `Next 7 Days • ${dateRangeText}`
         if (daysDiff === 14) return `Next 14 Days • ${dateRangeText}`
-        if (daysDiff === 30) return `Next 30 Days • ${dateRangeText}`
+        if (daysDiff === 28) return `Next 28 Days • ${dateRangeText}`
       }
 
       // Default to just the date range for custom selections

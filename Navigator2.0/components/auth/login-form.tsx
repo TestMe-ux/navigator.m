@@ -225,7 +225,7 @@ export function LoginForm() {
         general: errorMessage
       }))
     } finally {
-      
+      setIsLoading(false);
     }
   }
   function handleLoginError(error: any) {

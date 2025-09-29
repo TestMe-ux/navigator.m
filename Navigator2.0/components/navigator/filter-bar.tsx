@@ -85,7 +85,7 @@ interface FilterBarProps {
  * @component
  * @version 3.0.0
  */
-export function FilterBar({ onMoreFiltersClick,setSelectedChannel }: FilterBarProps) {
+export function FilterBar({ onMoreFiltersClick, setSelectedChannel }: FilterBarProps) {
   const [selectedProperty] = useSelectedProperty()
 
 
@@ -100,6 +100,10 @@ export function FilterBar({ onMoreFiltersClick,setSelectedChannel }: FilterBarPr
 
   // Compare dropdown state - using context now
   const [isCompareOpen, setIsCompareOpen] = React.useState(false)
+  
+  // Dropdown state management - track which dropdown is open
+  const [openDropdown, setOpenDropdown] = React.useState<string | null>(null)
+  
   const [selectedFilters, setSelectedFilters] = React.useState(() =>
     allFiltersList.reduce(
       (acc, group) => {
@@ -143,8 +147,8 @@ export function FilterBar({ onMoreFiltersClick,setSelectedChannel }: FilterBarPr
 
         // Set data
         setChannelData(channelList);
-
-        setSelectedChannel(channelList);
+        if (!!setSelectedChannel)
+          setSelectedChannel(channelList);
         // Set selected channels as array of cids
         setSelectedChannels(channelList.map(c => c.cid));
         setChannelFilter({ channelId: channelList.map(c => c.cid), channelName: channelList.map(c => c.name) })
@@ -244,7 +248,9 @@ export function FilterBar({ onMoreFiltersClick,setSelectedChannel }: FilterBarPr
     if (!open) {
       // Reset channel filter when dropdown closes
       setChannelFilter({ channelId: selectedChannels, channelName: [] })
-      // console.log(`🔄 Channel filter reset to: ${selectedChannels.join(", ")}`)
+      setOpenDropdown(null)
+    } else {
+      setOpenDropdown('channel')
     }
   }
   /**
@@ -376,7 +382,7 @@ export function FilterBar({ onMoreFiltersClick,setSelectedChannel }: FilterBarPr
 
               {/* Visible Filters */}
               <div className="flex items-center gap-3 flex-wrap min-w-0">
-                <DropdownMenu key="channel" onOpenChange={(event) => onOpenChangeSelect(event)}>
+                <DropdownMenu key="channel" open={openDropdown === 'channel'} onOpenChange={(event) => onOpenChangeSelect(event)}>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
@@ -395,7 +401,7 @@ export function FilterBar({ onMoreFiltersClick,setSelectedChannel }: FilterBarPr
                     <div className="flex">
                       <div className="w-56 p-4">
                         <h4 className="font-semibold text-sm text-gray-700 mb-3">Channels</h4>
-                          <ScrollArea className={cn(
+                        <ScrollArea className={cn(
                           "max-h-68 overflow-hidden ",
                           channelData.length > 8 ? "h-64" : "h-auto"
                         )}>
@@ -427,7 +433,13 @@ export function FilterBar({ onMoreFiltersClick,setSelectedChannel }: FilterBarPr
                   // Special handling for Comparison filter (multi-select with checkboxes)
                   if (group.name === "Compset") {
                     return (
-                      <DropdownMenu key={group.name}>
+                      <DropdownMenu key={group.name} open={openDropdown === 'compset'} onOpenChange={(open) => {
+                        if (open) {
+                          setOpenDropdown('compset')
+                        } else {
+                          setOpenDropdown(null)
+                        }
+                      }}>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="outline"
@@ -476,7 +488,13 @@ export function FilterBar({ onMoreFiltersClick,setSelectedChannel }: FilterBarPr
                   const isActive = selectedFilters[group.name] !== group.defaultOption
 
                   return (
-                    <DropdownMenu key={group.name}>
+                    <DropdownMenu key={group.name} open={openDropdown === group.name.toLowerCase().replace(/\s+/g, '-')} onOpenChange={(open) => {
+                      if (open) {
+                        setOpenDropdown(group.name.toLowerCase().replace(/\s+/g, '-'))
+                      } else {
+                        setOpenDropdown(null)
+                      }
+                    }}>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant={isActive ? "default" : "outline"}
@@ -519,11 +537,11 @@ export function FilterBar({ onMoreFiltersClick,setSelectedChannel }: FilterBarPr
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-10 gap-2 font-medium hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 transition-all duration-200 relative shadow-sm hover:shadow-md border-slate-200 dark:border-slate-700 xl-1366:px-4 px-2"
+                        className="h-10 gap-2 font-medium hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 transition-all duration-200 relative shadow-sm hover:shadow-md border-slate-200 dark:border-slate-700 xl:px-4 px-2"
                         onClick={onMoreFiltersClick}
                       >
                         <Filter className="w-4 h-4" />
-                        <span className="hidden xl-1366:inline font-semibold">More Filters</span>
+                        <span className="hidden xl:inline font-semibold">More Filters</span>
                         {getActiveFilters.length > 0 && (
                           <Badge
                             className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg"
@@ -533,7 +551,7 @@ export function FilterBar({ onMoreFiltersClick,setSelectedChannel }: FilterBarPr
                         )}
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom" className="bg-slate-800 text-white border-slate-700 xl-1366:hidden">
+                    <TooltipContent side="bottom" className="bg-slate-800 text-white border-slate-700 xl:hidden">
                       <p className="text-xs">More Filters</p>
                     </TooltipContent>
                   </Tooltip>
