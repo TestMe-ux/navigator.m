@@ -114,7 +114,6 @@ export default function ReportsPage() {
   })
 
   // Date validation state
-  const [dateError, setDateError] = useState('')
 
   // Form validation state
   const [formErrors, setFormErrors] = useState({
@@ -799,7 +798,6 @@ export default function ReportsPage() {
 
     // Calculate date difference
     if (!formData.startDate || !formData.endDate) {
-      setDateError('Please select both start and end dates')
       return
     }
 
@@ -1000,7 +998,6 @@ export default function ReportsPage() {
     setIsLosOpen(false)
     setIsStartDateOpen(false)
     setIsEndDateOpen(false)
-    setDateError('')
     setFormErrors({
       channels: '',
       compSet: '',
@@ -1068,7 +1065,6 @@ export default function ReportsPage() {
     setIsLosOpen(false)
     setIsStartDateOpen(false)
     setIsEndDateOpen(false)
-    setDateError('')
     setFormErrors({
       channels: '',
       compSet: '',
@@ -1249,9 +1245,6 @@ export default function ReportsPage() {
     setIsStartDateOpen(false)
 
     // Clear errors when start date is selected
-    if (dateError) {
-      setDateError('')
-    }
     if (formErrors.startDate) {
       setFormErrors(prev => ({ ...prev, startDate: '' }))
     }
@@ -1281,19 +1274,16 @@ export default function ReportsPage() {
     // If end date exists and is before the new start date, clear end date
     if (date && formData.endDate && formData.endDate < date) {
       setFormData(prev => ({ ...prev, endDate: undefined }))
-      setDateError('End date cannot be before start date. Please select a new end date.')
     }
   }
 
   const handleEndDateSelect = (date: Date | undefined) => {
     // Validate that end date is not before start date
     if (date && formData.startDate && date < formData.startDate) {
-      setDateError('End date cannot be before start date')
       return
     }
 
     setFormData(prev => ({ ...prev, endDate: date }))
-    setDateError('')
     
     // Clear form error when end date is selected
     if (formErrors.endDate) {
@@ -2429,8 +2419,18 @@ export default function ReportsPage() {
                         onSelect={handleStartDateSelect}
                         numberOfMonths={1}
                         initialFocus
-                        disabled={(date) => date < today}
-                        fromDate={today}
+                        disabled={(date) => {
+                          const todayStart = new Date()
+                          todayStart.setHours(0, 0, 0, 0)
+                          const dateToCheck = new Date(date)
+                          dateToCheck.setHours(0, 0, 0, 0)
+                          return dateToCheck < todayStart
+                        }}
+                        fromDate={(() => {
+                          const todayStart = new Date()
+                          todayStart.setHours(0, 0, 0, 0)
+                          return todayStart
+                        })()}
                         toDate={maxDate}
                       />
                     </PopoverContent>
@@ -2463,18 +2463,21 @@ export default function ReportsPage() {
                         numberOfMonths={1}
                         initialFocus
                         disabled={(date) => {
-                          const isBeforeToday = date < today
-                          const isBeforeStartDate = formData.startDate && date < formData.startDate
+                          const todayStart = new Date()
+                          todayStart.setHours(0, 0, 0, 0)
+                          const dateToCheck = new Date(date)
+                          dateToCheck.setHours(0, 0, 0, 0)
+                          const isBeforeToday = dateToCheck < todayStart
+                          const isBeforeStartDate = formData.startDate && dateToCheck < formData.startDate
                           return Boolean(isBeforeToday || isBeforeStartDate)
                         }}
-                        fromDate={formData.startDate || today}
+                        fromDate={formData.startDate || (() => {
+                          const todayStart = new Date()
+                          todayStart.setHours(0, 0, 0, 0)
+                          return todayStart
+                        })()}
                         toDate={maxEndDate}
                       />
-                      {dateError && (
-                        <div className="p-3 text-sm text-red-600 bg-red-50 border-t border-red-200">
-                          {dateError}
-                        </div>
-                      )}
                     </PopoverContent>
                   </Popover>
                   {formErrors.endDate && (
