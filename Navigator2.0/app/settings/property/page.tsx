@@ -126,7 +126,7 @@ export default function PropertySettingsPage() {
       if (resImage?.status) {
         setPropertyData((prev: any) => ({ ...prev, imagePath: resImage.body[0] }));
       }
-      else{
+      else {
         toast({
           description: "Image upload failed!!",
           variant: "error",
@@ -472,9 +472,20 @@ export default function PropertySettingsPage() {
 
                 <div className="space-y-4">
                   <div>
-                    <Label className="block text-xs font-medium text-gray-700 mb-1">
-                      Property Image
-                    </Label>
+                    <div className="flex justify-between items-center mb-1">
+                      <Label className="text-xs font-medium text-gray-700">
+                        Property Image
+                      </Label>
+                      {propertyData.imagePath && (
+                        <button
+                          type="button"
+                          onClick={() => setPropertyData((prev: any) => ({ ...prev, imagePath: "" }))}
+                          className="text-xs text-red-600 hover:underline mt-1"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
                     <div className="relative">
                       <input
                         id="property-image-upload"
@@ -503,6 +514,7 @@ export default function PropertySettingsPage() {
                         )}
                       </button>
                     </div>
+
                   </div>
 
                   {/* Created By below Property Image */}
