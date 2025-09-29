@@ -176,10 +176,6 @@ export default function UserManagementPage() {
             return 2;
           case "Property User":
             return 1;
-          // case "Manager":
-          //   return 3;
-          // case "Viewer":
-          //   return 4;
           default:
             return 0; // fallback if role not found
         }
@@ -661,7 +657,7 @@ export default function UserManagementPage() {
                               <img
                                 src={userValue.imagePath}
                                 alt="User"
-                                className="w-3 h-3 rounded-full profileImage"
+                                className="w-6 h-6 rounded-full profileImage"
                               />
                             )}
 

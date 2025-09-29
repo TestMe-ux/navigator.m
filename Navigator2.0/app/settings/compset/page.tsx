@@ -59,40 +59,50 @@ export default function CompsetSettingsPage() {
     return () => clearTimeout(timer)
   }, [])
 
-  // Filter suggestions based on search query
+  // Debounced search for hotel suggestions
   useEffect(() => {
-    debugger
+    const timeoutId = setTimeout(() => {
+      if (searchQuery.trim() === "" || searchQuery.length < 3) {
+        setFilteredSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
 
-    setShowSuggestions(false)
-    if (searchQuery.trim() === "" || searchQuery.length < 3) {
-      setFilteredSuggestions([]);
-      // setShowSuggestions(false)
-    } else {
       if (newCompetitor.hotelMasterId > 0) return;
+      
       setIsInputFocused(false);
       setIsSearchApi(true);
-      getSearchHotelList(searchQuery.toLowerCase(), selectedProperty?.sid || 0, selectedProperty?.hmid || 0).then((response: any) => {
-        if (response?.Status && response?.Body?.length > 0) {
-          setFilteredSuggestions(response?.Body)
-          setShowSuggestions(response?.Body?.length > 0)
-        }
-      }).finally(() => {
-        setIsInputFocused(true);
-        setIsSearchApi(false);
-        if (searchQuery.trim() === "" || searchQuery.length < 3) {
+      
+      getSearchHotelList(searchQuery.toLowerCase(), selectedProperty?.sid || 0, selectedProperty?.hmid || 0)
+        .then((response: any) => {
+          if (response?.Status && response?.Body?.length > 0) {
+            setFilteredSuggestions(response?.Body);
+            setShowSuggestions(response?.Body?.length > 0);
+          } else {
+            setFilteredSuggestions([]);
+            setShowSuggestions(false);
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching hotel suggestions:", error);
           setFilteredSuggestions([]);
-          setShowSuggestions(false)
-        }
-      });
+          setShowSuggestions(false);
+        })
+        .finally(() => {
+          setIsInputFocused(true);
+          setIsSearchApi(false);
+        });
+    }, 300); // 300ms debounce
 
-    }
+    return () => clearTimeout(timeoutId);
   }, [searchQuery])
+  // Fetch competitors data
   useEffect(() => {
-    debugger;
     if (!selectedProperty?.sid) return;
 
     const fetchCompset = async () => {
       try {
+        setIsLoading(true);
         const response: any = await getAllCompSet({
           SID: selectedProperty.sid,
           isTempraroy: true
@@ -100,21 +110,50 @@ export default function CompsetSettingsPage() {
 
         if (response?.status) {
           setCompetitors(response.body || []);
-          const maxComp = response.body?.[0].maxNumberOfCompetitors
+          const maxComp = response.body?.[0]?.maxNumberOfCompetitors;
           if (maxComp) {
             setMaxCompetitors(maxComp);
           }
         }
       } catch (error) {
-        console.error("Error fetching channels:", error);
+        console.error("Error fetching competitors:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    setIsLoading(true); // Start loading before fetch
     fetchCompset();
-  }, [selectedProperty?.sid, showSnackbar]);
+  }, [selectedProperty?.sid]);
+
+  // Separate effect to handle data refresh after successful operations
+  useEffect(() => {
+    if (showSnackbar && selectedProperty?.sid) {
+      // Reset snackbar state
+      setShowSnackbar(false);
+      
+      // Refresh data
+      const refreshData = async () => {
+        try {
+          const response: any = await getAllCompSet({
+            SID: selectedProperty.sid,
+            isTempraroy: true
+          });
+
+          if (response?.status) {
+            setCompetitors(response.body || []);
+            const maxComp = response.body?.[0]?.maxNumberOfCompetitors;
+            if (maxComp) {
+              setMaxCompetitors(maxComp);
+            }
+          }
+        } catch (error) {
+          console.error("Error refreshing competitors:", error);
+        }
+      };
+
+      refreshData();
+    }
+  }, [showSnackbar, selectedProperty?.sid]);
   useEffect(() => {
     if (!selectedProperty?.sid || !showChangeHistory) return;
 

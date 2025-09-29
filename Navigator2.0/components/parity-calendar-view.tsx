@@ -337,7 +337,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
       setParityData(channels)
       const parityScrore = parityDataMain?.otaViolationChannelRate?.dateWiseWinMeetLoss || []
       setScoreParityData(parityScrore)
-      console.log('✅ Parity calendar data loaded directly from API:', channels)
+      console.log('✅ Parity calendar data loaded directly from API:', parityScrore)
 
       // Debug parity scores specifically
       channels.forEach((channel: any, index: number) => {
@@ -851,7 +851,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                       //  debugger;
 
 
-                                      let parityScoreDisplay = parityScoreData[index]?.parityScore || 0
+                                      let parityScoreDisplay = parityScoreData.find(x => format(x.checkInDate, 'dd/MM/yyyy') === format(date, 'dd/MM/yyyy'))?.parityScore || 0
                                       return `${parityScoreDisplay}%`
                                     })()}
                                   </div>
