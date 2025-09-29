@@ -65,7 +65,8 @@ export default function CompsetSettingsPage() {
 
     setShowSuggestions(false)
     if (searchQuery.trim() === "" || searchQuery.length < 3) {
-      setFilteredSuggestions([])
+      setFilteredSuggestions([]);
+      // setShowSuggestions(false)
     } else {
       if (newCompetitor.hotelMasterId > 0) return;
       setIsInputFocused(false);
@@ -78,6 +79,10 @@ export default function CompsetSettingsPage() {
       }).finally(() => {
         setIsInputFocused(true);
         setIsSearchApi(false);
+        if (searchQuery.trim() === "" || searchQuery.length < 3) {
+          setFilteredSuggestions([]);
+          setShowSuggestions(false)
+        }
       });
 
     }
@@ -192,6 +197,9 @@ export default function CompsetSettingsPage() {
     const compLength = competitors.length
     if (compLength < maxCompetitors) {
       setShowAddCompetitor(true);
+      setSearchQuery("");
+      setFilteredSuggestions([]);
+      setShowSuggestions(false)
     }
     else {
       toast({
@@ -778,7 +786,7 @@ export default function CompsetSettingsPage() {
                       onClick={handleClearSearch}
                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors z-[99]"
                     >
-                      <X className="w-4 h-4"/>
+                      <X className="w-4 h-4" />
                     </button>
                   )}
                   {isSearchApi && searchQuery && (
