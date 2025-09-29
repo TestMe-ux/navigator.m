@@ -17,13 +17,14 @@ import { format } from "date-fns"
 interface LightningRefreshModalProps {
   isOpen: boolean
   onClose: () => void
-  onRefresh?: (data: { channels: string; checkInStartDate: string; compSet: string; guests: string; los: string }) => void
+  onRefresh?: (data: { selectedChannel: string; channels: string; checkInStartDate: string; compSet: string; guests: string; los: string }) => void
 }
 
 export function LightningRefreshModal({ isOpen, onClose, onRefresh }: LightningRefreshModalProps) {
   const [channels, setChannels] = useState<any[]>([])
   const [checkInStartDate, setCheckInStartDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [compSet, setCompSet] = useState("primary")
+  const [channel, setChannel] = useState("");
   const [guests, setGuests] = useState("2")
   const [los, setLos] = useState("1")
   const [selectedProperty] = useSelectedProperty();
@@ -42,6 +43,7 @@ export function LightningRefreshModal({ isOpen, onClose, onRefresh }: LightningR
 
         if (response?.status) {
           setChannels(response.body || []);
+          setChannel(response.body[0].cname)
         }
       } catch (error) {
         console.error("Error fetching channels:", error);
@@ -86,7 +88,7 @@ export function LightningRefreshModal({ isOpen, onClose, onRefresh }: LightningR
                 <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
                   Channels <span className="text-red-500">*</span>
                 </Label>
-                <Select value={channels?.length > 0 && channels[0].cname.toLowerCase()}>
+                <Select value={channels?.length > 0 && channels[0].cname.toLowerCase()} onValueChange={setChannel} >
                   <SelectTrigger className="w-full h-10 bg-white dark:bg-white border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-50">
                     <SelectValue />
                   </SelectTrigger>
@@ -194,11 +196,12 @@ export function LightningRefreshModal({ isOpen, onClose, onRefresh }: LightningR
           <Button
             onClick={() => {
               const refreshData = {
-                channels,
+                selectedChannel:channel,
                 checkInStartDate,
                 compSet,
                 guests,
-                los
+                los,
+                channels
               }
               console.log('Lightning Refresh clicked', refreshData)
 

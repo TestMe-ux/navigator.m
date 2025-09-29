@@ -564,29 +564,6 @@ function RateTrendCalendarInner({
   const [internalAvailableMonths, setInternalAvailableMonths] = useState<{ month: number; year: number; monthName: string }[]>([])
 
   // const [selectedProperty] = useSelectedProperty();
-  // Handle loading state and ensure dates are available
-  if (isLoading || !startDate || !endDate) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-sm text-gray-600">Loading calendar data...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Handle case when no live data is available
-  if (!rateData || !rateData.pricePositioningEntites) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="text-slate-500 dark:text-slate-400 text-lg mb-2">No rate data available</div>
-          <p className="text-sm text-slate-600 dark:text-slate-400">Please check your data source and try again</p>
-        </div>
-      </div>
-    )
-  }
 
   // Use props if available, otherwise use internal state
   const currentMonthIndex = propCurrentMonthIndex ?? internalCurrentMonthIndex
@@ -922,6 +899,30 @@ function RateTrendCalendarInner({
       window.URL.revokeObjectURL(url)
     }
 
+  // Handle loading state and ensure dates are available
+  if (isLoading || !startDate || !endDate) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-sm text-gray-600">Loading calendar data...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Handle case when no live data is available
+  if (!rateData || !rateData.pricePositioningEntites) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="text-slate-500 dark:text-slate-400 text-lg mb-2">No rate data available</div>
+          <p className="text-sm text-slate-600 dark:text-slate-400">Please check your data source and try again</p>
+        </div>
+      </div>
+    )
+  }
+
     return (
       <div className="w-full shadow-xl border border-border/50 rounded-lg bg-white dark:bg-slate-900">
         <div>
@@ -1204,7 +1205,7 @@ function RateTrendCalendarInner({
                 return null
               }
               return (
-                <TooltipProvider delayDuration={0} skipDelayDuration={0}>
+                <TooltipProvider key={`mobile-day-${day.date}-${day.month}-${day.year}`} delayDuration={0} skipDelayDuration={0}>
                   <Tooltip delayDuration={0} disableHoverableContent>
                     <TooltipTrigger asChild>
                       <Card
@@ -1487,7 +1488,7 @@ function RateTrendCalendarInner({
                       )
                     }
                     return (
-                      <TooltipProvider delayDuration={0} skipDelayDuration={0}>
+                      <TooltipProvider key={`desktop-day-${day.date}-${day.month}-${day.year}`} delayDuration={0} skipDelayDuration={0}>
                         <Tooltip delayDuration={0} disableHoverableContent>
                           <TooltipTrigger asChild>
                             <Card

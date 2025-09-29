@@ -15,7 +15,8 @@ export class Constants {
     public static readonly DemandAPI_GET_DemandAI = "DemandAI/getOptimaDemandData";
     public static readonly API_GET_GetAllEvents = "Events/GetAllEvents";
     public static readonly API_GetRateTrend = "RateTrend/GetPricePositioning"
-    public static readonly API_POST_CachePage = "RateTrend/SetCachePageDataToRedish"; 
+    public static readonly API_POST_PPExcelDownload = "DownloadReport/PPExcelDownload"; 
+    public static readonly API_POST_CachePage = "RateTrend/SetCachePageDataToRedish";
     public static readonly API_GET_GetAllHoliday = "Events/GetALLHolidayList";
     public static readonly API_AddEvents = "Events/AddEvents";
     public static readonly API_UpdateEvents = "Events/UpdateEvents";
@@ -39,7 +40,7 @@ export class Constants {
     public static readonly API_GET_AddSubscriberCompSet = "Compset/AddSubscriberCompSets";
     public static readonly API_GET_BRGCalculationHistory = "BRG/GetBRGHistory";
     public static readonly API_SET_UpdateBRGCalculation = "BRG/UpdateBRGCalculation";
-    public static readonly API_GetRateEvalution="PaceView/GetPaceView"
+    public static readonly API_GetRateEvalution = "PaceView/GetPaceView"
     public static readonly API_GET_AllChannelList = "Channel/GetChannelList";
     public static readonly API_GET_ChannelHistory = "Channel/GetChannelHistory";
     public static readonly API_DeleteChannel = "Channel/DeleteChannel";
@@ -49,7 +50,10 @@ export class Constants {
     public static readonly API_SET_AddProfilePhoto = "GCSUploadOps/AddProfilePhoto";
     public static readonly API_RTRRCHANNEL = "RTRR/GetRTRRChannel";
     public static readonly API_RRTRVALIDATION = "RTRR/GetRTRRValidation";
-
+    public static readonly API_RRTRSTATUS = "RTRR/GetRTRRReportStatusbySID";
+    public static readonly API_RRTRREPORT = "RTRR/GenerateRTRRReport";
+    public static readonly API_RTRRReportSTATUS = "RTRR/GetReportStatusOfRTRR";
+    public static readonly API_REGENERATERTRR = "RTRR/ReGenrateRTRRReport";
 
 
     //User Management Page
