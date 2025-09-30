@@ -75,20 +75,20 @@ export function ParityChannelProvider({ children }: { children: React.ReactNode 
   const [selectedChannels, setSelectedChannels] = useState<any[]>([])
   const [availableChannels, setAvailableChannels] = useState<any[]>([])
   const [selectedProperty] = useSelectedProperty()
-
+  const fallbackChannels:any = [];
   // Fallback channels to ensure we always have at least 8 channels
-  const fallbackChannels = [
-    { cid: -1, name: "All Channels", channelId: -1, channelName: "All Channels", isActive: true },
-    { cid: 1, name: "Booking.com", channelId: 1, channelName: "Booking.com", isActive: true },
-    { cid: 2, name: "Expedia", channelId: 2, channelName: "Expedia", isActive: true },
-    { cid: 3, name: "Agoda", channelId: 3, channelName: "Agoda", isActive: true },
-    { cid: 4, name: "Hotels.com", channelId: 4, channelName: "Hotels.com", isActive: true },
-    { cid: 5, name: "Priceline", channelId: 5, channelName: "Priceline", isActive: true },
-    { cid: 6, name: "Kayak", channelId: 6, channelName: "Kayak", isActive: true },
-    { cid: 7, name: "TripAdvisor", channelId: 7, channelName: "TripAdvisor", isActive: true },
-    { cid: 8, name: "Trivago", channelId: 8, channelName: "Trivago", isActive: true },
-    { cid: 9, name: "MakeMyTrip", channelId: 9, channelName: "MakeMyTrip", isActive: true }
-  ]
+  // const fallbackChannels = [
+  //   { cid: -1, name: "All Channels", channelId: -1, channelName: "All Channels", isActive: true },
+  //   { cid: 1, name: "Booking.com", channelId: 1, channelName: "Booking.com", isActive: true },
+  //   { cid: 2, name: "Expedia", channelId: 2, channelName: "Expedia", isActive: true },
+  //   { cid: 3, name: "Agoda", channelId: 3, channelName: "Agoda", isActive: true },
+  //   { cid: 4, name: "Hotels.com", channelId: 4, channelName: "Hotels.com", isActive: true },
+  //   { cid: 5, name: "Priceline", channelId: 5, channelName: "Priceline", isActive: true },
+  //   { cid: 6, name: "Kayak", channelId: 6, channelName: "Kayak", isActive: true },
+  //   { cid: 7, name: "TripAdvisor", channelId: 7, channelName: "TripAdvisor", isActive: true },
+  //   { cid: 8, name: "Trivago", channelId: 8, channelName: "Trivago", isActive: true },
+  //   { cid: 9, name: "MakeMyTrip", channelId: 9, channelName: "MakeMyTrip", isActive: true }
+  // ]
 
   const channelFilter = {
     channelId: selectedChannels.map(ch => ch.channelId || ch.cid),
@@ -126,59 +126,59 @@ export function ParityFilterBar({ className, benchmarkChannel, onChannelSelectio
   const [isChannelOpen, setIsChannelOpen] = useState(false)
 
   // Fetch available channels and ensure we have at least 8
-  useEffect(() => {
-    if (selectedProperty?.sid) {
-      const filtersValue = {
-        sid: selectedProperty.sid
-      }
-      getChannels(filtersValue)
-        .then((response) => {
-          if (response.status && response.body && response.body.length > 0) {
-            // Convert API response to consistent format
-            const apiChannels = response.body.map((channel: any) => ({
-              ...channel,
-              channelId: channel.channelId || channel.cid,
-              channelName: channel.channelName || channel.name
-            }))
+  // useEffect(() => {
+  //   if (selectedProperty?.sid) {
+  //     const filtersValue = {
+  //       sid: selectedProperty.sid
+  //     }
+  //     getChannels(filtersValue)
+  //       .then((response) => {
+  //         if (response.status && response.body && response.body.length > 0) {
+  //           // Convert API response to consistent format
+  //           const apiChannels = response.body.map((channel: any) => ({
+  //             ...channel,
+  //             channelId: channel.channelId || channel.cid,
+  //             channelName: channel.channelName || channel.name
+  //           }))
             
-            // Ensure we have at least 8 channels
-            if (apiChannels.length >= 8) {
-              setAvailableChannels(apiChannels)
-            } else {
-              // Merge API channels with fallback channels to ensure we have at least 8
-              const mergedChannels = [...apiChannels]
+  //           // Ensure we have at least 8 channels
+  //           if (apiChannels.length >= 8) {
+  //             setAvailableChannels(apiChannels)
+  //           } else {
+  //             // Merge API channels with fallback channels to ensure we have at least 8
+  //             const mergedChannels = [...apiChannels]
               
-              // Add fallback channels that don't exist in API response
-              fallbackChannels.forEach(fallbackChannel => {
-                const exists = apiChannels.some((apiChannel: any) => 
-                  apiChannel.cid === fallbackChannel.cid || 
-                  apiChannel.name?.toLowerCase() === fallbackChannel.name.toLowerCase()
-                )
-                if (!exists && mergedChannels.length < 10) {
-                  mergedChannels.push(fallbackChannel)
-                }
-              })
+  //             // Add fallback channels that don't exist in API response
+  //             fallbackChannels.forEach(fallbackChannel => {
+  //               const exists = apiChannels.some((apiChannel: any) => 
+  //                 apiChannel.cid === fallbackChannel.cid || 
+  //                 apiChannel.name?.toLowerCase() === fallbackChannel.name.toLowerCase()
+  //               )
+  //               if (!exists && mergedChannels.length < 10) {
+  //                 mergedChannels.push(fallbackChannel)
+  //               }
+  //             })
               
-              setAvailableChannels(mergedChannels)
-            }
-            console.log(`📋 Loaded ${availableChannels.length} channels for parity monitoring`)
-          } else {
-            // Use fallback channels if API fails
-            setAvailableChannels(fallbackChannels)
-            console.log('📋 Using fallback channels for parity monitoring')
-          }
-        })
-        .catch((error) => {
-          console.error('Failed to fetch channels:', error)
-          // Use fallback channels if API fails
-          setAvailableChannels(fallbackChannels)
-          console.log('📋 Using fallback channels due to API error')
-        })
-    } else {
-      // Use fallback channels if no property selected
-      setAvailableChannels(fallbackChannels)
-    }
-  }, [selectedProperty?.sid, setAvailableChannels, fallbackChannels])
+  //             setAvailableChannels(mergedChannels)
+  //           }
+  //           console.log(`📋 Loaded ${availableChannels.length} channels for parity monitoring`)
+  //         } else {
+  //           // Use fallback channels if API fails
+  //           setAvailableChannels(fallbackChannels)
+  //           console.log('📋 Using fallback channels for parity monitoring')
+  //         }
+  //       })
+  //       .catch((error) => {
+  //         console.error('Failed to fetch channels:', error)
+  //         // Use fallback channels if API fails
+  //         setAvailableChannels(fallbackChannels)
+  //         console.log('📋 Using fallback channels due to API error')
+  //       })
+  //   } else {
+  //     // Use fallback channels if no property selected
+  //     setAvailableChannels(fallbackChannels)
+  //   }
+  // }, [selectedProperty?.sid, setAvailableChannels, fallbackChannels])
 
   const handleChannelToggle = (channel: any) => {
     const isSelected = selectedChannels.some(ch => ch.channelId === channel.channelId)

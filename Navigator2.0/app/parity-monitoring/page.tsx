@@ -22,169 +22,16 @@ import { ParityFilterBar, ParityDateProvider, ParityChannelProvider, useParityDa
 import { ParityCalendarView } from "@/components/parity-calendar-view"
 import { ParityOverviewFilterBar } from "@/components/parity-overview-filter-bar"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
-import { GetParityData } from "@/lib/parity"
+import { getBRGCalculationSetting, GetParityData } from "@/lib/parity"
 import { conevrtDateforApi } from "@/lib/utils"
 
-
-// Sample data for the parity table
-const parityData = [
-  {
-    date: "Fri 01/08",
-    brandCom: { rate: 817, trend: "up", parity: true },
-    bookingCom: { rate: 817, trend: "up", parity: true },
-    expedia: { rate: 1124, trend: "up", parity: false },
-    agoda: { rate: 727, trend: "up", parity: true },
-    makeMyTrip: { rate: 580, trend: "up", parity: false },
-    lossChannels: ["Vio.com"],
-    lowestRate: 727,
-  },
-  {
-    date: "Sat 02/08",
-    brandCom: { rate: 817, trend: "up", parity: true },
-    bookingCom: { rate: 817, trend: "up", parity: true },
-    expedia: { rate: 1124, trend: "up", parity: false },
-    agoda: { rate: 583, trend: "up", parity: true },
-    makeMyTrip: { rate: 580, trend: "up", parity: false },
-    lossChannels: ["Vio.com", "Trip.com"],
-    lowestRate: 767,
-  },
-  {
-    date: "Sun 03/08",
-    brandCom: { rate: 817, trend: "up", parity: true },
-    bookingCom: { rate: 817, trend: "up", parity: true },
-    expedia: { rate: 1126, trend: "up", parity: false },
-    agoda: { rate: 583, trend: "up", parity: true },
-    makeMyTrip: { rate: 580, trend: "up", parity: false },
-    lossChannels: ["Roomsxxl", "Vio.com", "Trip.com"],
-    lowestRate: 585,
-  },
-  {
-    date: "Mon 04/08",
-    brandCom: { rate: 817, trend: "up", parity: true },
-    bookingCom: { rate: 817, trend: "up", parity: true },
-    expedia: { rate: 1124, trend: "up", parity: false },
-    agoda: { rate: 583, trend: "up", parity: true },
-    makeMyTrip: { rate: 523, trend: "up", parity: false },
-    lossChannels: ["Trip.com", "Vio.com"],
-    lowestRate: 721,
-  },
-  {
-    date: "Tue 05/08",
-    brandCom: { rate: 688, trend: "down", parity: true },
-    bookingCom: { rate: 688, trend: "up", parity: true },
-    expedia: { rate: 945, trend: "up", parity: false },
-    agoda: { rate: 688, trend: "up", parity: true },
-    makeMyTrip: { rate: 385, trend: "up", parity: false },
-    lossChannels: ["Roomsxxl", "GoSeek", "Vio.com", "Trip.com"],
-    lowestRate: 585,
-  },
-  {
-    date: "Wed 06/08",
-    brandCom: { rate: 688, trend: "down", parity: true },
-    bookingCom: { rate: 688, trend: "up", parity: true },
-    expedia: { rate: 926, trend: "up", parity: false },
-    agoda: { rate: 688, trend: "up", parity: true },
-    makeMyTrip: { rate: 385, trend: "up", parity: false },
-    lossChannels: ["Roomsxxl", "Vio.com", "Trip.com"],
-    lowestRate: 585,
-  },
-  {
-    date: "Thu 07/08",
-    brandCom: { rate: 688, trend: "down", parity: true },
-    bookingCom: { rate: 688, trend: "up", parity: true },
-    expedia: { rate: 955, trend: "up", parity: false },
-    agoda: { rate: 688, trend: "up", parity: true },
-    makeMyTrip: { rate: 385, trend: "up", parity: false },
-    lossChannels: ["Roomsxxl", "Vio.com", "Trip.com"],
-    lowestRate: 585,
-  },
-  {
-    date: "Fri 08/08",
-    brandCom: { rate: 817, trend: "up", parity: true },
-    bookingCom: { rate: 817, trend: "up", parity: true },
-    expedia: { rate: 1112, trend: "up", parity: false },
-    agoda: { rate: 817, trend: "down", parity: true },
-    makeMyTrip: { rate: 523, trend: "stable", parity: false },
-    lossChannels: ["Roomsxxl", "GoSeek", "Vio.com", "Trip.com"],
-    lowestRate: 585,
-  },
-  {
-    date: "Sat 09/08",
-    brandCom: { rate: 817, trend: "up", parity: true },
-    bookingCom: { rate: 817, trend: "up", parity: true },
-    expedia: { rate: 1118, trend: "up", parity: false },
-    agoda: { rate: 817, trend: "up", parity: true },
-    makeMyTrip: { rate: null, trend: "stable", parity: false },
-    lossChannels: ["Vio.com"],
-    lowestRate: 767,
-  },
-  {
-    date: "Sun 10/08",
-    brandCom: { rate: 817, trend: "up", parity: true },
-    bookingCom: { rate: 817, trend: "up", parity: true },
-    expedia: { rate: 1112, trend: "up", parity: false },
-    agoda: { rate: 817, trend: "up", parity: true },
-    makeMyTrip: { rate: 555, trend: "up", parity: false },
-    lossChannels: ["Roomsxxl", "Trip.com", "Vio.com"],
-    lowestRate: 585,
-  },
-  {
-    date: "Mon 11/08",
-    brandCom: { rate: 817, trend: "up", parity: true },
-    bookingCom: { rate: 817, trend: "up", parity: true },
-    expedia: { rate: 1112, trend: "up", parity: false },
-    agoda: { rate: 817, trend: "down", parity: true },
-    makeMyTrip: { rate: 555, trend: "up", parity: false },
-    lossChannels: ["Vio.com"],
-    lowestRate: 767,
-  },
-  {
-    date: "Tue 12/08",
-    brandCom: { rate: 817, trend: "up", parity: true },
-    bookingCom: { rate: 817, trend: "up", parity: true },
-    expedia: { rate: 1109, trend: "up", parity: false },
-    agoda: { rate: 817, trend: "up", parity: true },
-    makeMyTrip: { rate: 555, trend: "up", parity: false },
-    lossChannels: ["Vio.com"],
-    lowestRate: 767,
-  },
-  {
-    date: "Wed 13/08",
-    brandCom: { rate: 817, trend: "up", parity: true },
-    bookingCom: { rate: 817, trend: "up", parity: true },
-    expedia: { rate: 1112, trend: "up", parity: false },
-    agoda: { rate: 817, trend: "down", parity: true },
-    makeMyTrip: { rate: 555, trend: "up", parity: false },
-    lossChannels: ["Roomsxxl", "Trip.com", "Vio.com"],
-    lowestRate: 585,
-  },
-  {
-    date: "Thu 14/08",
-    brandCom: { rate: 688, trend: "up", parity: true },
-    bookingCom: { rate: 688, trend: "up", parity: true },
-    expedia: { rate: 926, trend: "up", parity: false },
-    agoda: { rate: 688, trend: "up", parity: true },
-    makeMyTrip: { rate: 463, trend: "up", parity: false },
-    lossChannels: ["Roomsxxl", "Vio.com", "Trip.com"],
-    lowestRate: 585,
-  },
-  {
-    date: "Fri 15/08",
-    brandCom: { rate: 817, trend: "up", parity: true },
-    bookingCom: { rate: 817, trend: "up", parity: true },
-    expedia: { rate: 1118, trend: "up", parity: false },
-    agoda: { rate: 817, trend: "up", parity: true },
-    makeMyTrip: { rate: 555, trend: "down", parity: false },
-    lossChannels: ["Bluepillow.it", "Trip.com"],
-    lowestRate: 688,
-  },
-]
 
 function ParityMonitoringContent() {
   const [selectedProperty] = useSelectedProperty()
   const { startDate, endDate } = useParityDateContext()
   const { selectedChannels } = useParityChannelContext()
-    const [parityResponseData, setParityResponseData] = useState<any>(null)
+  const [parityResponseData, setParityResponseData] = useState<any>(null)
+  const [brgSettingData,setBrgSettingData] = useState<any>(null)
   
   // Function to handle data from child component (if needed)
   const handleChildData = useCallback((data: any) => {
@@ -198,14 +45,14 @@ function ParityMonitoringContent() {
     // This will trigger the useEffect that fetches parity data
   }, [])
 
-  const [filters, setFilters] = useState({
-    rateType: "lowest",
-    device: "desktop",
-    nights: "1",
-    guests: "2",
-    room: "any",
-    meal: "any",
-  })
+  // const [filters, setFilters] = useState({
+  //   rateType: "lowest",
+  //   device: "desktop",
+  //   nights: "1",
+  //   guests: "2",
+  //   room: "any",
+  //   meal: "any",
+  // })
   const [apiParityData, setApiParityData] = useState<any>(null)
   const [isLoadingData, setIsLoadingData] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -455,6 +302,25 @@ function ParityMonitoringContent() {
     }
   }, [selectedProperty?.sid, startDate, endDate, JSON.stringify(selectedChannels)])
 
+  useEffect(()=>{
+    if(!selectedProperty?.sid) return;
+
+    const fetechBRGCalculationSetting = async () => {
+      try {
+        const response: any = await getBRGCalculationSetting({
+          SID:selectedProperty?.sid
+        });
+ 
+        if (response?.status) {
+          setBrgSettingData(response?.body);
+          }
+      } catch (error) {
+        console.error("Error fetching channels:", error);
+      }
+    };
+
+   fetechBRGCalculationSetting();
+  },[selectedProperty?.sid])
   // Chart configuration from OTA Rankings
   const MAX_LINES = 10
 
@@ -693,19 +559,15 @@ function ParityMonitoringContent() {
 
   // Get benchmark channel info
   const benchmarkChannel = useMemo(() => {
-    if (apiParityData && apiParityData.otaViolationChannelRate?.violationChannelRatesCollection?.length > 0) {
-      const channels = apiParityData.otaViolationChannelRate.violationChannelRatesCollection
-      const benchmark = channels.find((ch: any) => ch.isBrand)
-      if (benchmark) {
+    if(brgSettingData!=null){
         return {
-          channelId: benchmark.channelId,
-          channelName: benchmark.channelName,
-          isBrand: benchmark.isBrand
+          channelId: brgSettingData?.otaBench,
+          channelName: brgSettingData?.otaBenchName,
+          isBrand: true
         }
       }
-    }
-    return null
-  }, [apiParityData])
+      return null;
+  }, [brgSettingData])
 
   // Get card data (API or fallback)
   const cardData = useMemo(() => {
@@ -719,150 +581,150 @@ function ParityMonitoringContent() {
     // Always return fallback data when API data is not available
     console.log('🎯 Using fallback card data - API data not available')
     return [
-      { 
-        channelName: "MakeMyTripBooking", 
-        channelIcon: "https://storage.googleapis.com/rgdatalake/rg_optimanew/ChannelIcon/MakeMyTrip.svg", 
-        parityScore: 35, 
-        trend: 'down', 
-        trendValue: 3.2,
-        winPercent: 15,
-        meetPercent: 20,
-        lossPercent: 65,
-        totalViolations: 65,
-        violationsTrend: 'up',
-        violationsTrendValue: 3,
-        rateViolations: 21,
-        rateViolationsTrend: 'down',
-        rateViolationsTrendValue: 2,
-        availabilityViolations: 44,
-        availabilityViolationsTrend: 'up',
-        availabilityViolationsTrendValue: 3.2,
-        color: 'blue-600',
-        isBrand: true
-      },
-      { 
-        channelName: "Tripadvisor", 
-        channelIcon: "🦉", 
-        parityScore: 80, 
-        trend: 'up', 
-        trendValue: 3.2,
-        winPercent: 30,
-        meetPercent: 26,
-        lossPercent: 44,
-        totalViolations: 20,
-        violationsTrend: 'up',
-        violationsTrendValue: 3,
-        rateViolations: 8,
-        rateViolationsTrend: 'down',
-        rateViolationsTrendValue: 2,
-        availabilityViolations: 12,
-        availabilityViolationsTrend: 'up',
-        availabilityViolationsTrendValue: 2.5,
-        color: 'green-600',
-        isBrand: false
-      },
-      { 
-        channelName: "Expedia", 
-        channelIcon: "https://storage.googleapis.com/rgdatalake/rg_optimanew/ChannelIcon/Expedia.svg", 
-        parityScore: 62, 
-        trend: 'down', 
-        trendValue: 3.2,
-        winPercent: 22,
-        meetPercent: 50,
-        lossPercent: 28,
-        totalViolations: 28,
-        violationsTrend: 'up',
-        violationsTrendValue: 3,
-        rateViolations: 21,
-        rateViolationsTrend: 'down',
-        rateViolationsTrendValue: 2,
-        availabilityViolations: 7,
-        availabilityViolationsTrend: 'up',
-        availabilityViolationsTrendValue: 3.2,
-        color: 'yellow-500'
-      },
-      { 
-        channelName: "Agoda", 
-        channelIcon: "A", 
-        parityScore: 80, 
-        trend: 'up', 
-        trendValue: 3.2,
-        winPercent: 30,
-        meetPercent: 26,
-        lossPercent: 44,
-        totalViolations: 20,
-        violationsTrend: 'up',
-        violationsTrendValue: 3,
-        rateViolations: 8,
-        rateViolationsTrend: 'down',
-        rateViolationsTrendValue: 2,
-        availabilityViolations: 12,
-        availabilityViolationsTrend: 'down',
-        availabilityViolationsTrendValue: 1.5,
-        color: 'red-500'
-      },
-      { 
-        channelName: "Hotels.com", 
-        channelIcon: "H", 
-        parityScore: 62, 
-        trend: 'down', 
-        trendValue: 3.2,
-        winPercent: 22,
-        meetPercent: 50,
-        lossPercent: 28,
-        totalViolations: 28,
-        violationsTrend: 'up',
-        violationsTrendValue: 3,
-        rateViolations: 21,
-        rateViolationsTrend: 'down',
-        rateViolationsTrendValue: 2,
-        availabilityViolations: 7,
-        availabilityViolationsTrend: 'up',
-        availabilityViolationsTrendValue: 3.2,
-        color: 'purple-600',
-        isBrand: false
-      },
-      { 
-        channelName: "Kayak", 
-        channelIcon: "K", 
-        parityScore: 75, 
-        trend: 'up', 
-        trendValue: 2.1,
-        winPercent: 35,
-        meetPercent: 40,
-        lossPercent: 25,
-        totalViolations: 25,
-        violationsTrend: 'down',
-        violationsTrendValue: 1.8,
-        rateViolations: 15,
-        rateViolationsTrend: 'down',
-        rateViolationsTrendValue: 1.2,
-        availabilityViolations: 10,
-        availabilityViolationsTrend: 'down',
-        availabilityViolationsTrendValue: 0.8,
-        color: 'orange-500'
-      },
-      { 
-        channelName: "Priceline", 
-        channelIcon: "P", 
-        parityScore: 68, 
-        trend: 'down', 
-        trendValue: 1.5,
-        winPercent: 28,
-        meetPercent: 45,
-        lossPercent: 27,
-        totalViolations: 32,
-        violationsTrend: 'up',
-        violationsTrendValue: 2.3,
-        rateViolations: 18,
-        rateViolationsTrend: 'up',
-        rateViolationsTrendValue: 1.8,
-        availabilityViolations: 14,
-        availabilityViolationsTrend: 'up',
-        availabilityViolationsTrendValue: 1.2,
-        color: 'indigo-600',
-        isBrand: false
-      }
+      // { 
+      //   channelName: "MakeMyTripBooking", 
+      //   channelIcon: "https://storage.googleapis.com/rgdatalake/rg_optimanew/ChannelIcon/MakeMyTrip.svg", 
+      //   parityScore: 35, 
+      //   trend: 'down', 
+      //   trendValue: 3.2,
+      //   winPercent: 15,
+      //   meetPercent: 20,
+      //   lossPercent: 65,
+      //   totalViolations: 65,
+      //   violationsTrend: 'up',
+      //   violationsTrendValue: 3,
+      //   rateViolations: 21,
+      //   rateViolationsTrend: 'down',
+      //   rateViolationsTrendValue: 2,
+      //   availabilityViolations: 44,
+      //   availabilityViolationsTrend: 'up',
+      //   availabilityViolationsTrendValue: 3.2,
+      //   color: 'blue-600',
+      //   isBrand: true
+      // },
+      // { 
+      //   channelName: "Tripadvisor", 
+      //   channelIcon: "🦉", 
+      //   parityScore: 80, 
+      //   trend: 'up', 
+      //   trendValue: 3.2,
+      //   winPercent: 30,
+      //   meetPercent: 26,
+      //   lossPercent: 44,
+      //   totalViolations: 20,
+      //   violationsTrend: 'up',
+      //   violationsTrendValue: 3,
+      //   rateViolations: 8,
+      //   rateViolationsTrend: 'down',
+      //   rateViolationsTrendValue: 2,
+      //   availabilityViolations: 12,
+      //   availabilityViolationsTrend: 'up',
+      //   availabilityViolationsTrendValue: 2.5,
+      //   color: 'green-600',
+      //   isBrand: false
+      // },
+      // { 
+      //   channelName: "Expedia", 
+      //   channelIcon: "https://storage.googleapis.com/rgdatalake/rg_optimanew/ChannelIcon/Expedia.svg", 
+      //   parityScore: 62, 
+      //   trend: 'down', 
+      //   trendValue: 3.2,
+      //   winPercent: 22,
+      //   meetPercent: 50,
+      //   lossPercent: 28,
+      //   totalViolations: 28,
+      //   violationsTrend: 'up',
+      //   violationsTrendValue: 3,
+      //   rateViolations: 21,
+      //   rateViolationsTrend: 'down',
+      //   rateViolationsTrendValue: 2,
+      //   availabilityViolations: 7,
+      //   availabilityViolationsTrend: 'up',
+      //   availabilityViolationsTrendValue: 3.2,
+      //   color: 'yellow-500'
+      // },
+      // { 
+      //   channelName: "Agoda", 
+      //   channelIcon: "A", 
+      //   parityScore: 80, 
+      //   trend: 'up', 
+      //   trendValue: 3.2,
+      //   winPercent: 30,
+      //   meetPercent: 26,
+      //   lossPercent: 44,
+      //   totalViolations: 20,
+      //   violationsTrend: 'up',
+      //   violationsTrendValue: 3,
+      //   rateViolations: 8,
+      //   rateViolationsTrend: 'down',
+      //   rateViolationsTrendValue: 2,
+      //   availabilityViolations: 12,
+      //   availabilityViolationsTrend: 'down',
+      //   availabilityViolationsTrendValue: 1.5,
+      //   color: 'red-500'
+      // },
+      // { 
+      //   channelName: "Hotels.com", 
+      //   channelIcon: "H", 
+      //   parityScore: 62, 
+      //   trend: 'down', 
+      //   trendValue: 3.2,
+      //   winPercent: 22,
+      //   meetPercent: 50,
+      //   lossPercent: 28,
+      //   totalViolations: 28,
+      //   violationsTrend: 'up',
+      //   violationsTrendValue: 3,
+      //   rateViolations: 21,
+      //   rateViolationsTrend: 'down',
+      //   rateViolationsTrendValue: 2,
+      //   availabilityViolations: 7,
+      //   availabilityViolationsTrend: 'up',
+      //   availabilityViolationsTrendValue: 3.2,
+      //   color: 'purple-600',
+      //   isBrand: false
+      // },
+      // { 
+      //   channelName: "Kayak", 
+      //   channelIcon: "K", 
+      //   parityScore: 75, 
+      //   trend: 'up', 
+      //   trendValue: 2.1,
+      //   winPercent: 35,
+      //   meetPercent: 40,
+      //   lossPercent: 25,
+      //   totalViolations: 25,
+      //   violationsTrend: 'down',
+      //   violationsTrendValue: 1.8,
+      //   rateViolations: 15,
+      //   rateViolationsTrend: 'down',
+      //   rateViolationsTrendValue: 1.2,
+      //   availabilityViolations: 10,
+      //   availabilityViolationsTrend: 'down',
+      //   availabilityViolationsTrendValue: 0.8,
+      //   color: 'orange-500'
+      // },
+      // { 
+      //   channelName: "Priceline", 
+      //   channelIcon: "P", 
+      //   parityScore: 68, 
+      //   trend: 'down', 
+      //   trendValue: 1.5,
+      //   winPercent: 28,
+      //   meetPercent: 45,
+      //   lossPercent: 27,
+      //   totalViolations: 32,
+      //   violationsTrend: 'up',
+      //   violationsTrendValue: 2.3,
+      //   rateViolations: 18,
+      //   rateViolationsTrend: 'up',
+      //   rateViolationsTrendValue: 1.8,
+      //   availabilityViolations: 14,
+      //   availabilityViolationsTrend: 'up',
+      //   availabilityViolationsTrendValue: 1.2,
+      //   color: 'indigo-600',
+      //   isBrand: false
+      // }
     ]
   }, [apiParityData])
 
@@ -1082,6 +944,7 @@ function ParityMonitoringContent() {
   )
 
   // Show loading state when data is being fetched
+  
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
@@ -1099,8 +962,9 @@ function ParityMonitoringContent() {
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
           {/* Enhanced Filter Bar with Sticky Positioning */}
           <div className="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200 relative overflow-hidden">
-            {isLoadingData && <WidgetProgress />}
+            {/* {isLoadingData && <WidgetProgress />} */}
             <ParityOverviewFilterBar 
+              benchmarkChannel={benchmarkChannel}
               onChannelSelectionChange={handleChannelSelectionChange}
             />
           </div>
@@ -1247,6 +1111,7 @@ function ParityMonitoringContent() {
                   
                   return sortedCardData.map((channel: CardDataType, index: number) => {
                     const isBenchmark = channel.isBrand === true
+                    
                   return (
                       <Card key={index} className={cn(
                         "border shadow-sm transition-shadow duration-200",

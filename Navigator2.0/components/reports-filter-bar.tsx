@@ -7,7 +7,7 @@ import { ChevronDown, Calendar, FileText } from "lucide-react"
 import { ReportsDatePicker } from "@/components/reports-date-picker"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { cn } from "@/lib/utils"
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { addDays } from "date-fns"
 import { useRouter, usePathname } from "next/navigation"
 
@@ -15,6 +15,9 @@ interface ReportsFilterBarProps {
   className?: string
   onDateRangeChange?: (startDate: Date | undefined, endDate: Date | undefined) => void
   onReportTypeChange?: (reportType: string) => void
+  currentDateRange?: { start: Date | undefined; end: Date | undefined }
+  currentReportType?: string
+  currentFilter?: string
   showDateAndTypeFilters?: boolean
 }
 
@@ -29,25 +32,42 @@ interface ReportsFilterBarProps {
  * @component
  * @version 1.0.0
  */
-export function ReportsFilterBar({ 
-  className, 
-  onDateRangeChange, 
+export function ReportsFilterBar({
+  className,
+  onDateRangeChange,
   onReportTypeChange,
+  currentDateRange,
+  currentReportType,
+  currentFilter,
   showDateAndTypeFilters = true
 }: ReportsFilterBarProps) {
   // Navigation hooks
   const router = useRouter()
   const pathname = usePathname()
-  
-  // Default to last 7 days (7 days ago to today)
+
+  // Use props if available, otherwise use default values
   const today = new Date()
-  const [startDate, setStartDate] = useState<Date | undefined>(addDays(today, -6))
-  const [endDate, setEndDate] = useState<Date | undefined>(today)
-  const [selectedReportType, setSelectedReportType] = useState<string>("All")
+  const [startDate, setStartDate] = useState<Date | undefined>(currentDateRange?.start || addDays(today, -6))
+  const [endDate, setEndDate] = useState<Date | undefined>(currentDateRange?.end || today)
+  const [selectedReportType, setSelectedReportType] = useState<string>(currentReportType || "All")
   const [isReportTypeDropdownOpen, setIsReportTypeDropdownOpen] = useState(false)
-  
+
   // Determine active tab based on current path
   const activeTab = pathname === '/reports-schedules' ? 'schedules' : 'reports'
+
+  // Sync local state with props when they change
+  useEffect(() => {
+    if (currentDateRange) {
+      setStartDate(currentDateRange.start)
+      setEndDate(currentDateRange.end)
+    }
+  }, [currentDateRange])
+
+  useEffect(() => {
+    if (currentReportType !== undefined) {
+      setSelectedReportType(currentReportType)
+    }
+  }, [currentReportType])
 
   // Report type options
   const reportTypes = [
@@ -74,7 +94,9 @@ export function ReportsFilterBar({
   const handleReportTypeSelect = useCallback((reportType: string) => {
     setSelectedReportType(reportType)
     setIsReportTypeDropdownOpen(false) // Close dropdown after selection
+    // const reportTypeS = reportType ==="Scheduled"?"Batch":reportType
     onReportTypeChange?.(reportType)
+    // onFilterChange?.(reportType) // Also call filter change callback
     console.log(`📊 Report type changed: ${reportType}`)
   }, [onReportTypeChange])
 
@@ -107,10 +129,10 @@ export function ReportsFilterBar({
       <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
         <div className="max-w-7xl xl:max-w-none mx-auto">
           <div className="flex items-center justify-between py-4 gap-4">
-            
+
             {/* Left Side - Toggle, Shop Date Range and Report Type */}
             <div className="flex items-center gap-4 flex-1">
-              
+
               {/* Toggle Buttons */}
               <div className="shrink-0">
                 <ToggleGroup
@@ -118,7 +140,7 @@ export function ReportsFilterBar({
                   value={activeTab}
                   onValueChange={(value) => {
                     console.log('🎯 Toggle value changed:', { value, activeTab })
-                    
+
                     // Handle navigation based on the selected value
                     if (value === 'reports') {
                       handleNavigateToReports()
@@ -166,44 +188,44 @@ export function ReportsFilterBar({
               {/* Report Type Filter */}
               {showDateAndTypeFilters && (
                 <div className="shrink-0">
-                <DropdownMenu open={isReportTypeDropdownOpen} onOpenChange={setIsReportTypeDropdownOpen}>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md min-w-0 max-w-[180px] hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
-                    >
-                      <FileText className="w-4 h-4 shrink-0" />
-                      <span className="truncate max-w-[100px] font-semibold">
-                        {getReportTypeDisplayText()}
-                      </span>
-                      <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-auto p-0 shadow-xl border-slate-200 dark:border-slate-700 z-[60]">
-                    <div className="flex">
-                      <div className="w-[168px] p-4">
-                        <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">Report Type</h4>
-                        <div className="space-y-1">
-                          {reportTypes.map((type) => (
-                            <div
-                              key={type.value}
-                              className={cn(
-                                "py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer",
-                                selectedReportType === type.value && "bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300"
-                              )}
-                              onClick={() => handleReportTypeSelect(type.value)}
-                            >
-                              <span className="font-medium text-sm flex-1">
-                                {type.label}
-                              </span>
-                            </div>
-                          ))}
+                  <DropdownMenu open={isReportTypeDropdownOpen} onOpenChange={setIsReportTypeDropdownOpen}>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md min-w-0 max-w-[180px] hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
+                      >
+                        <FileText className="w-4 h-4 shrink-0" />
+                        <span className="truncate max-w-[100px] font-semibold">
+                          {getReportTypeDisplayText()}
+                        </span>
+                        <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-auto p-0 shadow-xl border-slate-200 dark:border-slate-700 z-[60]">
+                      <div className="flex">
+                        <div className="w-[168px] p-4">
+                          <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">Report Type</h4>
+                          <div className="space-y-1">
+                            {reportTypes.map((type) => (
+                              <div
+                                key={type.value}
+                                className={cn(
+                                  "py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer",
+                                  selectedReportType === type.value && "bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300"
+                                )}
+                                onClick={() => handleReportTypeSelect(type.value)}
+                              >
+                                <span className="font-medium text-sm flex-1">
+                                  {type.label}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               )}
 

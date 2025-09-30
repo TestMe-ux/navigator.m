@@ -62,7 +62,7 @@ function OTARankView({
     rankingTrendsData: rankingTrendsData,
     isLoading
   })
-  
+
   if (isLoading) {
     return (
       <Card className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 mb-6">
@@ -188,143 +188,143 @@ function OTARankView({
             {rankingTrendsData && rankingTrendsData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={rankingTrendsData} margin={{ top: 20, right: 40, left: 30, bottom: 30 }}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-15 dark:opacity-10" stroke="#e5e7eb" />
-                <XAxis
-                  dataKey="date"
-                  className="text-xs"
-                  interval="preserveStartEnd"
-                  height={85}
-                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", dy: 10 }}
-                  axisLine={true}
-                  tickLine={false}
-                />
-                <YAxis
-                  className="text-xs"
-                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                  axisLine={false}
-                  tickLine={false}
-                  domain={[1, 'dataMax']}
-                  reversed={true}
-                  label={{
-                    value: 'Ranking Position',
-                    angle: -90,
-                    position: 'insideLeft',
-                    style: { textAnchor: 'middle' }
-                  }}
-                  tickFormatter={(value: number) => {
-                    // Calculate the maximum rank from the current data
-                    if (rankingTrendsData.length === 0) return value.toString()
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-15 dark:opacity-10" stroke="#e5e7eb" />
+                  <XAxis
+                    dataKey="date"
+                    className="text-xs"
+                    interval="preserveStartEnd"
+                    height={85}
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", dy: 10 }}
+                    axisLine={true}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    className="text-xs"
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    axisLine={false}
+                    tickLine={false}
+                    domain={[1, 'dataMax']}
+                    reversed={true}
+                    label={{
+                      value: 'Ranking Position',
+                      angle: -90,
+                      position: 'insideLeft',
+                      style: { textAnchor: 'middle' }
+                    }}
+                    tickFormatter={(value: number) => {
+                      // Calculate the maximum rank from the current data
+                      if (rankingTrendsData.length === 0) return value.toString()
 
-                    // Get all rank values from visible hotel lines
-                    const visibleHotels = availableHotelLines.filter(hotel => legendVisibility[hotel.dataKey])
-                    const allRankValues = rankingTrendsData.flatMap(d =>
-                      visibleHotels
-                        .map(hotel => d[hotel.dataKey])
-                        .filter(rank => rank != null && typeof rank === 'number' && rank > 0)
-                    )
+                      // Get all rank values from visible hotel lines
+                      const visibleHotels = availableHotelLines.filter(hotel => legendVisibility[hotel.dataKey])
+                      const allRankValues = rankingTrendsData.flatMap(d =>
+                        visibleHotels
+                          .map(hotel => d[hotel.dataKey])
+                          .filter(rank => rank != null && typeof rank === 'number' && rank > 0)
+                      )
 
-                    if (allRankValues.length === 0) return value.toString()
+                      if (allRankValues.length === 0) return value.toString()
 
-                    const maxRank = Math.max(...allRankValues)
+                      const maxRank = Math.max(...allRankValues)
 
-                    // Hide the highest rank value (worst ranking) from Y-axis
-                    // Show rank 1 (best) and intermediate values, but hide the worst rank
-                    if (value >= maxRank && value > 1) {
-                      return ''
-                    }
+                      // Hide the highest rank value (worst ranking) from Y-axis
+                      // Show rank 1 (best) and intermediate values, but hide the worst rank
+                      if (value >= maxRank && value > 1) {
+                        return ''
+                      }
 
-                    return value.toString()
-                  }}
-                  width={50}
-                />
-                <RechartsTooltip
-                  content={(props) => (
-                    <OTARankingTooltip
-                      active={props.active || false}
-                      payload={props.payload || []}
-                      label={props.label || ''}
-                      coordinate={props.coordinate || { x: 0, y: 0 }}
-                      availableHotelLines={availableHotelLines}
-                    />
-                  )}
-                  allowEscapeViewBox={{ x: true, y: true }}
-                  offset={0}
-                  isAnimationActive={false}
-                  position={{ x: undefined, y: undefined }}
-                  wrapperStyle={{
-                    zIndex: 10000,
-                    pointerEvents: 'none'
-                  }}
-                />
-                {/* Hotel Lines - Dynamic rendering using Overview page pattern */}
-                {availableHotelLines.map((hotel) => {
-                  const isVisible = legendVisibility[hotel.dataKey]
-
-                  return (
-                    <Line
-                      key={hotel.dataKey}
-                      type="monotone"
-                      dataKey={hotel.dataKey}
-                      stroke={isVisible ? hotel.color : 'transparent'}
-                      strokeWidth={isVisible ? (hotel.dataKey === 'myHotel' ? 3 : 2) : 0}
-                      name={hotel.name}
-                      dot={isVisible ? {
-                        fill: "white",
-                        stroke: hotel.color,
-                        strokeWidth: 2,
-                        r: hotel.dataKey === 'myHotel' ? 4 : 3
-                      } : false}
-                      activeDot={isVisible ? {
-                        r: hotel.dataKey === 'myHotel' ? 6 : 5,
-                        fill: hotel.color,
-                        stroke: hotel.color,
-                        strokeWidth: 2
-                      } : false}
-                      hide={!isVisible}
-                      isAnimationActive={false}
-                      animationDuration={0}
-                    />
-                  )
-                })}
-
-                {/* Recharts Legend with Overview page pattern */}
-                <Legend
-                  verticalAlign="bottom"
-                  height={30}
-                  iconType="line"
-                  wrapperStyle={{
-                    paddingTop: "5px",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                    lineHeight: "1.6",
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: "18px",
-                    justifyContent: "center"
-                  }}
-                  onClick={(event: any) => {
-                    if (event.dataKey && typeof event.dataKey === 'string') {
-                      // Toggle legend visibility using Overview page pattern
-                      toggleLegendVisibility(event.dataKey)
-                    }
-                  }}
-                  formatter={(value, entry: any) => {
-                    const dataKey = entry.dataKey as string
-                    const isVisible = legendVisibility[dataKey]
+                      return value.toString()
+                    }}
+                    width={50}
+                  />
+                  <RechartsTooltip
+                    content={(props) => (
+                      <OTARankingTooltip
+                        active={props.active || false}
+                        payload={props.payload || []}
+                        label={props.label || ''}
+                        coordinate={props.coordinate || { x: 0, y: 0 }}
+                        availableHotelLines={availableHotelLines}
+                      />
+                    )}
+                    allowEscapeViewBox={{ x: true, y: true }}
+                    offset={0}
+                    isAnimationActive={false}
+                    position={{ x: undefined, y: undefined }}
+                    wrapperStyle={{
+                      zIndex: 10000,
+                      pointerEvents: 'none'
+                    }}
+                  />
+                  {/* Hotel Lines - Dynamic rendering using Overview page pattern */}
+                  {availableHotelLines.map((hotel) => {
+                    const isVisible = legendVisibility[hotel.dataKey]
 
                     return (
-                      <span style={{
-                        color: isVisible ? entry.color : '#9ca3af',
-                        fontWeight: isVisible ? 500 : 400,
-                        textDecoration: isVisible ? 'none' : 'line-through',
-                        cursor: 'pointer'
-                      }}>
-                        {value}
-                      </span>
+                      <Line
+                        key={hotel.dataKey}
+                        type="monotone"
+                        dataKey={hotel.dataKey}
+                        stroke={isVisible ? hotel.color : 'transparent'}
+                        strokeWidth={isVisible ? (hotel.dataKey === 'myHotel' ? 3 : 2) : 0}
+                        name={hotel.name}
+                        dot={isVisible ? {
+                          fill: "white",
+                          stroke: hotel.color,
+                          strokeWidth: 2,
+                          r: hotel.dataKey === 'myHotel' ? 4 : 3
+                        } : false}
+                        activeDot={isVisible ? {
+                          r: hotel.dataKey === 'myHotel' ? 6 : 5,
+                          fill: hotel.color,
+                          stroke: hotel.color,
+                          strokeWidth: 2
+                        } : false}
+                        hide={!isVisible}
+                        isAnimationActive={false}
+                        animationDuration={0}
+                      />
                     )
-                  }}
-                />
-              </LineChart>
+                  })}
+
+                  {/* Recharts Legend with Overview page pattern */}
+                  <Legend
+                    verticalAlign="bottom"
+                    height={30}
+                    iconType="line"
+                    wrapperStyle={{
+                      paddingTop: "5px",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      lineHeight: "1.6",
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: "18px",
+                      justifyContent: "center"
+                    }}
+                    onClick={(event: any) => {
+                      if (event.dataKey && typeof event.dataKey === 'string') {
+                        // Toggle legend visibility using Overview page pattern
+                        toggleLegendVisibility(event.dataKey)
+                      }
+                    }}
+                    formatter={(value, entry: any) => {
+                      const dataKey = entry.dataKey as string
+                      const isVisible = legendVisibility[dataKey]
+
+                      return (
+                        <span style={{
+                          color: isVisible ? entry.color : '#9ca3af',
+                          fontWeight: isVisible ? 500 : 400,
+                          textDecoration: isVisible ? 'none' : 'line-through',
+                          cursor: 'pointer'
+                        }}>
+                          {value}
+                        </span>
+                      )
+                    }}
+                  />
+                </LineChart>
               </ResponsiveContainer>
             ) : (
               <div className="flex items-center justify-center h-full">
@@ -354,9 +354,12 @@ function OTARankView({
                           <div className="text-xs text-muted-foreground font-normal mt-0.5">Rank</div>
                         </th>
                         {/* Competitor Columns */}
-                        {Array.from({ length: 4 }, (_, index) => {
-                          const competitorSlice = availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey]).slice(competitorPage * 4, (competitorPage + 1) * 4);
-                          const hotel = competitorSlice[index];
+                        {(() => {
+                          const allCompetitors = availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel');
+                          const competitorSlice = allCompetitors.slice(competitorPage * 4, (competitorPage + 1) * 4);
+                          
+                          return Array.from({ length: 4 }, (_, index) => {
+                            const hotel = competitorSlice[index];
 
                           if (hotel) {
                             return (
@@ -383,9 +386,10 @@ function OTARankView({
                               </th>
                             );
                           }
-                        })}
+                        });
+                        })()}
                         {/* Navigation Column */}
-                        {availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey]).length > 0 && (
+                        {availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel').length > 0 && (
                           <th className="text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground w-20">
                             <TooltipProvider>
                               <div className="flex items-center justify-center">
@@ -414,7 +418,7 @@ function OTARankView({
                                         size="sm"
                                         className="h-6 w-6 p-0 rounded-none border-0"
                                         onClick={handleNextCompetitors}
-                                        disabled={competitorPage >= Math.ceil(availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey]).length / 4) - 1}
+                                        disabled={competitorPage >= Math.ceil(availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel').length / 4) - 1}
                                       >
                                         <ChevronRight className="h-3 w-3" />
                                       </Button>
@@ -432,10 +436,10 @@ function OTARankView({
                     </thead>
                     <tbody>
                       {rankingTrendsData.map((dataPoint, index) => {
-                        debugger;
                         // Find the selected property (myHotel) or use the first available property
                         const myHotelData = availableHotelLines.find(hotel => hotel.dataKey === 'myHotel');
-                        const competitors = availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel' && legendVisibility[hotel.dataKey]).slice(competitorPage * 4, (competitorPage + 1) * 4);
+                        const allCompetitors = availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel');
+                        const competitors = allCompetitors.slice(competitorPage * 4, (competitorPage + 1) * 4);
 
                         return (
                           <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 group">
@@ -456,7 +460,7 @@ function OTARankView({
                               <div className="flex items-center justify-end space-x-6">
                                 {/* <span className="font-semibold text-sm">{dataPoint[myHotelData?.dataKey || 'myHotel'] ?? '500+'}</span> */}
                                 {
-                                  dataPoint[myHotelData?.dataKey || 'myHotel'] === null || dataPoint[myHotelData?.dataKey || 'myHotel'] === undefined ?
+                                  dataPoint[myHotelData?.dataKey || 'myHotel'] === null || dataPoint[myHotelData?.dataKey || 'myHotel'] === undefined || dataPoint[myHotelData?.dataKey || 'myHotel'] > 500 ?
                                     (<div className="flex items-center justify-end space-x-1">
                                       <TooltipProvider>
                                         <Tooltip>
@@ -507,7 +511,7 @@ function OTARankView({
                                     <div className="flex items-center justify-end space-x-6">
 
                                       {
-                                        dataPoint[hotel.dataKey] === null || dataPoint[hotel.dataKey] === undefined ?
+                                        dataPoint[hotel.dataKey] === null || dataPoint[hotel.dataKey] === undefined || dataPoint[hotel.dataKey] > 500 ?
                                           (<div className="flex items-center justify-end space-x-1">
                                             <TooltipProvider>
                                               <Tooltip>

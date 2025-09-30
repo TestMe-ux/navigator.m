@@ -12,6 +12,7 @@ import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useParityDateContext, useParityChannelContext } from "@/components/parity-filter-bar"
 
+
 interface ParityOverviewFilterBarProps {
   className?: string
   benchmarkChannel?: {
@@ -34,22 +35,30 @@ interface ParityOverviewFilterBarProps {
  * @component
  * @version 5.0.0 - Independent Filter Components
  */
-export function ParityOverviewFilterBar({ className, benchmarkChannel, onChannelSelectionChange }: ParityOverviewFilterBarProps) {
+export function ParityOverviewFilterBar({ className, benchmarkChannel }: ParityOverviewFilterBarProps) {
   const [selectedProperty] = useSelectedProperty()
   const { startDate, endDate, setDateRange } = useParityDateContext()
   const { selectedChannels, setSelectedChannels, availableChannels, setAvailableChannels, fallbackChannels } = useParityChannelContext()
   
   // Keep track of channels fetch
   const didFetch = useRef(false)
-
+  const [channelFilter,setChannelFilter] = useState<any>([]);
+  
   // Reset didFetch when property changes
   useEffect(() => {
     didFetch.current = false
   }, [selectedProperty?.sid])
-
+  // Keep channelFilter and selectedChannels synchronized
+  useEffect(() => {
+    if (selectedChannels.length > 0 && channelFilter.length === 0) {
+      console.log('🔄 Syncing channelFilter with selectedChannels:', selectedChannels)
+      setChannelFilter([...selectedChannels])
+    }
+  }, [selectedChannels, channelFilter])
   // Fetch channels for parity page and ensure we have at least 8
   useEffect(() => {
-    if (!selectedProperty?.sid || didFetch.current) return
+   
+    if (!selectedProperty?.sid || didFetch.current || availableChannels.length>0) return
 
     didFetch.current = true
     getChannels({ SID: selectedProperty?.sid })
@@ -87,64 +96,66 @@ export function ParityOverviewFilterBar({ className, benchmarkChannel, onChannel
           let channelList = [allChannel, ...res.body]
           
           // Ensure we have at least 8 channels (excluding "All Channels")
-          if (res.body.length < 8) {
-            // Add fallback channels that don't exist in API response
-            fallbackChannels.forEach(fallbackChannel => {
-              if (fallbackChannel.cid === -1) return // Skip "All Channels" from fallbacks
+          // if (res.body.length < 8) {
+          //   // Add fallback channels that don't exist in API response
+          //   fallbackChannels.forEach(fallbackChannel => {
+          //     if (fallbackChannel.cid === -1) return // Skip "All Channels" from fallbacks
               
-              const exists = res.body.some((apiChannel: any) => 
-                apiChannel.cid === fallbackChannel.cid || 
-                apiChannel.name?.toLowerCase() === fallbackChannel.name.toLowerCase()
-              )
+          //     const exists = res.body.some((apiChannel: any) => 
+          //       apiChannel.cid === fallbackChannel.cid || 
+          //       apiChannel.name?.toLowerCase() === fallbackChannel.name.toLowerCase()
+          //     )
               
-              if (!exists && channelList.length < 10) {
-                channelList.push({
-                  ...fallbackChannel,
-                  channelMasterId: null,
-                  url: null,
-                  resultsPerPage: null,
-                  isMetaSite: false,
-                  orderId: null,
-                  isMobileChannel: false,
-                  isApproved: true,
-                  isNew: false,
-                  createdDate: null,
-                  lastUpdateDate: null,
-                  subscriberChannelMappingId: null,
-                  channelGroupName: "",
-                  channelIcon: "",
-                  isOta: true,
-                  isMeta: false,
-                  isBrand: false,
-                  isGds: false,
-                  isOthers: false,
-                  displayName: fallbackChannel.name,
-                })
-              }
-            })
-          }
-          
+          //     if (!exists && channelList.length < 10) {
+          //       channelList.push({
+          //         ...fallbackChannel,
+          //         channelMasterId: null,
+          //         url: null,
+          //         resultsPerPage: null,
+          //         isMetaSite: false,
+          //         orderId: null,
+          //         isMobileChannel: false,
+          //         isApproved: true,
+          //         isNew: false,
+          //         createdDate: null,
+          //         lastUpdateDate: null,
+          //         subscriberChannelMappingId: null,
+          //         channelGroupName: "",
+          //         channelIcon: "",
+          //         isOta: true,
+          //         isMeta: false,
+          //         isBrand: false,
+          //         isGds: false,
+          //         isOthers: false,
+          //         displayName: fallbackChannel.name,
+          //       })
+          //     }
+          //   })
+          // }
+         
           // Set data for parity page
           setAvailableChannels(channelList)
           
           // Set selected channels as array of cids for parity page
+          setChannelFilter([...channelList.map(c => c.cid)])
           setSelectedChannels(channelList.map(c => c.cid))
           console.log(`📋 Parity channels initialized with ${channelList.length} channels (${channelList.length - 1} actual channels + All Channels)`)
-        } else {
-          // Use fallback channels if API returns empty
-          setAvailableChannels(fallbackChannels)
-          setSelectedChannels(fallbackChannels.map(c => c.cid))
-          console.log('📋 Using fallback channels for parity monitoring - API returned empty')
-        }
+        } 
+        // else {
+        //   // Use fallback channels if API returns empty
+        //   setAvailableChannels(fallbackChannels)
+        //   setSelectedChannels(fallbackChannels.map(c => c.cid))
+        //   console.log('📋 Using fallback channels for parity monitoring - API returned empty')
+        // }
       })
       .catch((err) => {
         console.error("Parity channels fetch error:", err)
         // Use fallback channels if API fails
-        setAvailableChannels(fallbackChannels)
-        setSelectedChannels(fallbackChannels.map(c => c.cid))
+        //setAvailableChannels(fallbackChannels)
+       // setSelectedChannels(fallbackChannels.map(c => c.cid))
         console.log('📋 Using fallback channels due to API error')
       })
-  }, [selectedProperty?.sid, setAvailableChannels, setSelectedChannels, fallbackChannels])
+  }, [selectedProperty?.sid])
 
   /**
    * Handle date range updates for parity page
@@ -160,20 +171,20 @@ export function ParityOverviewFilterBar({ className, benchmarkChannel, onChannel
    * Get display text for channel button (parity page)
    */
   const getChannelDisplayText = useCallback(() => {
-    if (selectedChannels.length === 0) {
+    if (channelFilter.length === 0) {
       return "All Channels"
-    } else if (selectedChannels.includes(-1)) {
+    } else if (channelFilter.includes(-1)) {
       return "All Channels"
-    } else if (selectedChannels.length === 1) {
-      const channel = availableChannels.find((c: any) => c.cid === selectedChannels[0])
+    } else if (channelFilter.length === 1) {
+      const channel = availableChannels.find((c: any) => c.cid === channelFilter[0])
       if (channel) {
         return channel.name
       }
       return "Select Channels"
     } else {
-      return `${selectedChannels.length} Channels`
+      return `${channelFilter.length} Channels`
     }
-  }, [selectedChannels, availableChannels])
+  }, [channelFilter, availableChannels])
 
   /**
    * Handle channel selection with multi-select logic for parity page
@@ -184,48 +195,53 @@ export function ParityOverviewFilterBar({ className, benchmarkChannel, onChannel
       return
     }
 
-    setSelectedChannels(prev => {
+    setChannelFilter(prev => {
+      debugger;
       const isSelected = prev.includes(channel)
       let newSelection: number[]
-
+      let benchmarkChannelinfo = channelData.map((c: any) => c.cid).filter((cid: number) => cid == benchmarkChannel?.channelId)
+      let channelWithoutAllchannel = channelData.map((c: any) => c.cid).filter((cid: number) => cid !==-1)
       if (channel === -1) {
         // If selecting "All Channels", clear all others
-        newSelection = isSelected ? [] : channelData.map((c: any) => c.cid).filter((cid: number) => cid !== benchmarkChannel?.channelId)
+        newSelection = isSelected ? benchmarkChannelinfo : channelData.map((c: any) => c.cid).filter((c: number) => c !==-1)
       } else {
         // If selecting a specific channel
         if (isSelected) {
           // Remove the channel
-          newSelection = prev.filter(c => c !== channel)
+          newSelection = prev.filter((c: any) => c !== channel && c !==-1)
         } else {
           // Add the channel and remove "All Channels" if present
-          const filteredSelection = prev.filter(c => c !== 0)
+          const filteredSelection = prev.filter((c: number) => c !==-1)
           newSelection = [...filteredSelection, channel]
         }
       }
-      if (newSelection.length === channelData.length - 2 || newSelection.length === channelData.length) {
-        newSelection = channelData.map((c: any) => c.cid).filter((cid: number) => cid !== benchmarkChannel?.channelId) // Reset to "All Channels" if all are selected, excluding benchmark
+      if ((newSelection.length === channelWithoutAllchannel.length)) {
+        newSelection = channelData.map((c: any) => c.cid) // Reset to "All Channels" if all are selected, excluding benchmark
       } else {
         newSelection = newSelection.filter(c => c !== -1) // Ensure "All Channels" is not included
       }
       console.log(`📋 Parity channel selection changed: ${newSelection.join(", ")}`)
       
       // Trigger API call callback
-      if (onChannelSelectionChange) {
-        const selectedChannelObjects = channelData.filter((c: any) => newSelection.includes(c.cid))
-        onChannelSelectionChange(selectedChannelObjects)
-      }
+      // if (onChannelSelectionChange) {
+      //   const selectedChannelObjects = channelData.filter((c: any) => newSelection.includes(c.cid))
+      //   onChannelSelectionChange(selectedChannelObjects)
+      // }
       
       return newSelection
     })
-  }, [setSelectedChannels, benchmarkChannel, onChannelSelectionChange])
+  }, [])
 
   const onOpenChangeSelect = (open: any) => {
-    if (!open) {
+    if (!open ) {
+        setSelectedChannels(channelFilter);
       // Reset channel filter when dropdown closes for parity page
       console.log(`🔄 Parity channel filter reset to: ${selectedChannels.join(", ")}`)
     }
   }
-
+ const onChannelCheck = (option: any): boolean => {
+  return channelFilter.includes(option?.cid)|| false;
+  } 
   return (
     <div className={cn("bg-background border-b border-border shadow-sm", className)}>
       <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
@@ -238,8 +254,8 @@ export function ParityOverviewFilterBar({ className, benchmarkChannel, onChannel
               {/* Check-in Date Range Picker */}
               <div className="shrink-0">
                 <EnhancedDatePicker
-                  startDate={startDate}
-                  endDate={endDate}
+                  startDate={startDate || undefined}
+                  endDate={endDate || undefined}
                   onChange={handleDateRangeChange}
                 />
               </div>
@@ -283,17 +299,12 @@ export function ParityOverviewFilterBar({ className, benchmarkChannel, onChannel
                                     "h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3",
                                     isBenchmark ? "cursor-not-allowed" : "cursor-pointer"
                                   )}
-                                  checked={selectedChannels.includes(option?.cid)}
+                                  checked={onChannelCheck(option) || false}
                                   onChange={() => !isBenchmark && handleChannelSelect(option?.cid, availableChannels)}
-                                  disabled={isBenchmark}
+                                  disabled={isBenchmark || false}
                                 />
                                 <span className="font-medium text-sm flex-1">
                                   {option?.name}
-                                  {isBenchmark && (
-                                    <span className="text-xs text-muted-foreground ml-2">
-                                      (Disabled - Benchmark)
-                                    </span>
-                                  )}
                                 </span>
                               </label>
                             )

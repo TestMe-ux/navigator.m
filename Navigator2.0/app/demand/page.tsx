@@ -17,7 +17,6 @@ import { MyEventsHolidaysTable } from "@/components/navigator/my-events-holidays
 import { useDemandDateContext, DemandDateProvider } from "@/components/demand-date-context"
 import { GetCurrencySymbolDetails, GetDemandAIData, GetDemandAIPerCountryAverageData } from "@/lib/demand"
 import { getAllEvents, getAllHoliday, getAllSubscribeEvents } from "@/lib/events"
-import localStorageService from "@/lib/localstorage"
 import { getRateTrends } from "@/lib/rate"
 import { getChannels } from "@/lib/channels"
 import { conevrtDateforApi } from "@/lib/utils"

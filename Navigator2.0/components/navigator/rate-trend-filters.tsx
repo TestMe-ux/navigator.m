@@ -1,6 +1,7 @@
 "use client"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { ChevronDown, Settings, Filter, Users, Bed, Utensils, Building2, Monitor, Clock } from "lucide-react"
 import { useState } from "react"
 
@@ -48,15 +49,24 @@ export function RateTrendFilters() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button 
-            variant={showAllFilters ? "default" : "outline"} 
-            size="sm" 
-            onClick={() => setShowAllFilters(!showAllFilters)}
-            className="gap-2"
-          >
-            <Filter className="h-3 w-3" />
-            More Filters
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant={showAllFilters ? "default" : "outline"} 
+                  size="sm" 
+                  onClick={() => setShowAllFilters(!showAllFilters)}
+                  className="gap-2 xl-1366:px-3 px-2"
+                >
+                  <Filter className="h-3 w-3" />
+                  <span className="hidden xl-1366:inline">More Filters</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="bg-slate-800 text-white border-slate-700 xl-1366:hidden">
+                <p className="text-xs">More Filters</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         {/* Expanded filters */}

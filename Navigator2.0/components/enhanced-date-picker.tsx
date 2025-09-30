@@ -21,7 +21,7 @@ import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import localStorageService from "@/lib/localstorage"
+import { LocalStorageService } from "@/lib/localstorage"
 
 type DateMode = "next7days" | "next14days" | "next30days" | "customRange"
 
@@ -61,12 +61,12 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
       setSelectedStartDate(today)
       setSelectedEndDate(sevenDaysFromNow)
       setMode("next7days") // Explicitly set mode to next7days
-      localStorageService.set("preferredDateMode", "next7days")
+      LocalStorageService.setItem("preferredDateMode", "next7days")
       setCurrentMonth(today)
       // Auto-apply the default selection
       onChange?.(today, sevenDaysFromNow)
     } else {
-      setMode(localStorageService.get("preferredDateMode") || "next7days")
+      setMode(LocalStorageService.getItem("preferredDateMode") || "next7days")
       setSelectedStartDate(startDate)
       setSelectedEndDate(endDate)
       if (startDate) {
@@ -104,7 +104,7 @@ export function EnhancedDatePicker({ startDate, endDate, onChange, className }: 
     }
 
     setMode(newMode)
-    localStorageService.set("preferredDateMode", newMode)
+    LocalStorageService.setItem("preferredDateMode", newMode)
     const today = new Date()
     let newStartDate: Date | undefined
     let newEndDate: Date | undefined

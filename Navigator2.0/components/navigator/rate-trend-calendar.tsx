@@ -3,37 +3,145 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Activity, Calendar, DollarSign } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Activity, Calendar, DollarSign, Star, Percent, ArrowUp, ArrowDown, Download, Wifi, Utensils, Coffee, Car, Dumbbell, BarChart3, Zap } from "lucide-react"
 import { RateTrendGraph } from "./rate-trend-graph"
+import { RTRateTrendsChart } from "./rt-rate-trends-chart"
 import { RateDetailModal } from "./rate-detail-modal"
 import { useDateContext } from "@/components/date-context"
-import { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect, useMemo, useCallback } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+
+
 
 interface CalendarDay {
   date: number
-  month: number // 0-indexed (0 for Jan, 11 for Dec)
+  month: number
   year: number
   currentPrice: string
-  recommendedPrice?: string
   comparison: string
+  isFuture?: boolean
+  dayOfWeek?: string
+  // New fields for the image layout
+  subscriberRate: string
+  hotelLowestRate: number
+  rateDifference: string
+  roomType: string
+  hasInclusion: boolean
+  inclusionIcon: string
+  hasEvent: boolean
+  eventIcon: string
+  eventCount: number
+  isHighest: boolean
+  isLowest: boolean
+  isMyRateLowest: boolean
+  isMyRateHighest: boolean
+  showRateDot: boolean
+
   hasFlag?: boolean
   flagCountry?: string
   hasIndicator?: boolean
-  indicatorType?: "circle" | "square"
   indicatorColor?: string
-  isFuture?: boolean
-  dayOfWeek?: string
-  reasoning?: {
-    strategy: string
-    factors: string[]
-    confidence: 'high' | 'medium' | 'low'
-    impact: string
-    eventInfluence?: string
-  }
+  indicatorType?: 'circle' | 'square'
+  hasLightningRefresh?: boolean
 }
 
-// Enhanced pricing recommendation logic
-const getPricingRecommendation = (date: number, month: number, year: number): CalendarDay['reasoning'] => {
+interface CompetitorRate {
+  hotelName: string
+  rate: string
+  rateValue: number
+  difference: string
+  isLowest: boolean
+  isHighest: boolean
+}
+
+interface CompetitorData {
+  date: number
+  competitors: CompetitorRate[]
+  avgCompsetRate: number
+  avgCompsetDifference: string
+  isMyRateLowest: boolean
+  isMyRateHighest: boolean
+  showRateDot: boolean
+}
+
+// Generate competitor rates data for a week with competitive comparison logic
+const generateCompetitorData = (week: CalendarDay[]): CompetitorData[] => {
+  const competitors = [
+    'Acom Hotel Berlin',
+    'Comfort Hotel Central',
+    'Hotel Alexander Plaza',
+    'Grand Plaza Resort',
+    'Marriott Downtown',
+    'Hilton City Center',
+    'Westin Metropolitan'
+  ]
+  
+  return week.map(day => {
+    // Generate competitor rates
+    const competitorRates = competitors.map(hotelName => {
+      const rateValue = Math.floor(Math.random() * 400 + 100)
+      return {
+        hotelName,
+        rate: `$${rateValue}`,
+        rateValue,
+        difference: `${Math.random() > 0.5 ? '+' : '-'}${Math.floor(Math.random() * 50 + 5)}`,
+        isLowest: false,
+        isHighest: false
+      }
+    })
+
+    // Add my hotel rate to comparison
+    const allRates = [...competitorRates, {
+      hotelName: 'My Hotel',
+      rate: `$${day.hotelLowestRate}`,
+      rateValue: day.hotelLowestRate,
+      difference: day.rateDifference,
+      isLowest: false,
+      isHighest: false
+    }]
+
+    // Find lowest and highest rates
+    const lowestRate = Math.min(...allRates.map(r => r.rateValue))
+    const highestRate = Math.max(...allRates.map(r => r.rateValue))
+
+    // Mark lowest and highest
+    allRates.forEach(rate => {
+      rate.isLowest = rate.rateValue === lowestRate
+      rate.isHighest = rate.rateValue === highestRate
+    })
+
+    // Get my hotel's competitive status (don't mutate original day object)
+    const myRate = allRates.find(r => r.hotelName === 'My Hotel')
+    const isMyRateLowest = myRate?.isLowest || false
+    const isMyRateHighest = myRate?.isHighest || false
+
+    // Calculate average compset rate (excluding my hotel)
+    const compsetRates = competitorRates.map(c => c.rateValue)
+    const avgRate = Math.round(compsetRates.reduce((sum, rate) => sum + rate, 0) / compsetRates.length)
+    const avgDifference = Math.random() > 0.5 ? '+' : '-'
+    const avgDiffValue = Math.floor(Math.random() * 40 + 10)
+
+    // Mark competitors as lowest/highest
+    competitorRates.forEach(comp => {
+      comp.isLowest = comp.rateValue === lowestRate
+      comp.isHighest = comp.rateValue === highestRate
+    })
+
+    return {
+      date: day.date,
+      competitors: competitorRates,
+      avgCompsetRate: avgRate,
+      avgCompsetDifference: `${avgDifference}${avgDiffValue}`,
+      isMyRateLowest,
+      isMyRateHighest,
+      showRateDot: isMyRateLowest || isMyRateHighest
+    }
+  })
+}
+
+// Enhanced pricing recommendation logic (deprecated but kept for reference)
+const getPricingRecommendation = (date: number, month: number, year: number) => {
   const dateObj = new Date(year, month, date)
   const dayOfWeek = dateObj.getDay() // 0 = Sunday, 6 = Saturday
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -133,37 +241,7 @@ const getPricingRecommendation = (date: number, month: number, year: number): Ca
   }
 }
 
-// Generate recommended price based on current price and strategy
-const getRecommendedPrice = (currentPrice: string, reasoning: CalendarDay['reasoning']): string => {
-  const basePrice = parseInt(currentPrice.replace('$', '').replace(',', ''))
-  let multiplier = 1.0
-  
-  switch (reasoning.strategy) {
-    case 'Event Premium Pricing':
-      multiplier = 1.47 // +47% for events
-      break
-    case 'US Market Holiday Premium':
-      multiplier = 1.35 // +35% for US holidays
-      break
-    case 'Weekend Leisure Premium':
-      multiplier = 1.50 // +50% for weekends
-      break
-    case 'Weekend Transition Pricing':
-      multiplier = 1.20 // +20% for Thursday
-      break
-    case 'Week Start Optimization':
-      multiplier = 0.95 // -5% for Sunday
-      break
-    case 'Business Focus Pricing':
-      multiplier = 1.10 // +10% for business days
-      break
-    default:
-      multiplier = 1.0
-  }
-  
-  const recommendedPrice = Math.round(basePrice * multiplier)
-  return `$${recommendedPrice.toLocaleString()}`
-}
+
 
 // Enhanced calendar data with future dates and recommendations
 const generateCalendarData = (startDateRange: Date, endDateRange: Date): CalendarDay[][] => {
@@ -214,17 +292,31 @@ const generateCalendarData = (startDateRange: Date, endDateRange: Date): Calenda
         currentPrice,
         comparison: `${Math.random() > 0.5 ? '-' : '+'}${Math.floor(Math.random() * 30 + 40)}% vs. Comp`,
         isFuture,
-        dayOfWeek: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][currentDate.getDay()]
+        dayOfWeek: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][currentDate.getDay()],
+        // New fields for the image layout
+        subscriberRate: `$${Math.floor(Math.random() * 900 + 100)}`,
+        hotelLowestRate: Math.floor(Math.random() * 400 + 150),
+        rateDifference: `${Math.random() > 0.5 ? '+' : '-'}${Math.floor(Math.random() * 90 + 10)}`,
+        roomType: "STD",
+        hasInclusion: true,
+        inclusionIcon: "wifi",
+        hasEvent: Math.random() > 0.6,
+        eventIcon: "⭐",
+        eventCount: Math.random() > 0.5 ? Math.floor(Math.random() * 3 + 1) : 1,
+        isHighest: Math.random() > 0.7,
+        isLowest: Math.random() > 0.8,
+        isMyRateLowest: false,
+        isMyRateHighest: false,
+        showRateDot: false,
+        hasFlag: Math.random() > 0.8,
+        flagCountry: Math.random() > 0.8 ? '🇺🇸' : undefined,
+        hasIndicator: Math.random() > 0.7,
+        indicatorColor: Math.random() > 0.7 ? (Math.random() > 0.5 ? 'bg-red-500' : 'bg-green-500') : undefined,
+        indicatorType: Math.random() > 0.8 ? 'square' : 'circle',
+        hasLightningRefresh: Math.random() > 0.75 // Show lightning refresh icon on ~25% of dates
       }
       
-      // Add recommendations ONLY for actual future dates
-      if (isFuture) {
-        const reasoning = getPricingRecommendation(date, month, year)
-        const recommendedPrice = getRecommendedPrice(currentPrice, reasoning)
-        
-        dayData.recommendedPrice = recommendedPrice
-        dayData.reasoning = reasoning
-      }
+
       
       // Add special indicators and events
       if (month === 5 && date >= 18 && date <= 25) { // Dubai Film Festival
@@ -252,36 +344,277 @@ const generateCalendarData = (startDateRange: Date, endDateRange: Date): Calenda
   return weeks
 }
 
-const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+// Helper function to get month name
+const getMonthName = (month: number): string => {
+  const monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ]
+  return monthNames[month] || ''
+}
 
 interface RateTrendCalendarProps {
   currentView: "calendar" | "chart" | "table"
+  onDateSelect?: (date: Date) => void
+  highlightToday?: boolean
+  showWeekNumbers?: boolean
+  shouldShowMonthNavigation?: boolean
+  availableMonths?: { month: number; year: number; monthName: string }[]
+  currentMonthIndex?: number
+  onPrevMonth?: () => void
+  onNextMonth?: () => void
 }
 
-export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
+function RateTrendCalendarInner({ 
+  currentView, 
+  onDateSelect,
+  highlightToday = true,
+  showWeekNumbers = false,
+  shouldShowMonthNavigation: propShouldShowMonthNavigation,
+  availableMonths: propAvailableMonths,
+  currentMonthIndex: propCurrentMonthIndex,
+  onPrevMonth: propOnPrevMonth,
+  onNextMonth: propOnNextMonth
+}: RateTrendCalendarProps) {
   const { startDate, endDate, isLoading } = useDateContext()
   const [currentWeekIndex, setCurrentWeekIndex] = useState(0)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedDateForModal, setSelectedDateForModal] = useState<Date | null>(null)
+  const [expandedWeekIndex, setExpandedWeekIndex] = useState<number | null>(null)
+  const [selectedWeekForCompetitors, setSelectedWeekForCompetitors] = useState<CalendarDay[] | null>(null)
+  
+  // Month navigation state - use props if available, otherwise use internal state
+  const [internalCurrentMonthIndex, setInternalCurrentMonthIndex] = useState(0)
+  const [internalAvailableMonths, setInternalAvailableMonths] = useState<{ month: number; year: number; monthName: string }[]>([])
+  
+  // Use props if available, otherwise use internal state
+  const currentMonthIndex = propCurrentMonthIndex ?? internalCurrentMonthIndex
+  const availableMonths = propAvailableMonths ?? internalAvailableMonths
+  const shouldShowMonthNavigation = propShouldShowMonthNavigation ?? (availableMonths.length > 1)
+  
+  // Helper function to determine if we should show limited days
+  const daySelectionInfo = useMemo(() => {
+    if (!startDate || !endDate) return { type: 'normal', totalDays: 0 }
+    
+    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    
+    if (totalDays === 7) {
+      return { type: '7days', totalDays: 7 } // Show today + next 6 days (7 days total)
+    } else if (totalDays === 14) {
+      return { type: '14days', totalDays: 14 } // Show today + next 13 days (14 days total)
+    } else if (totalDays === 30) {
+      return { type: '30days', totalDays: 30 } // Show today + next 29 days (30 days total)
+    } else {
+      return { type: 'custom', totalDays } // Show custom date range
+    }
+  }, [startDate, endDate])
+
+  // Calculate available months for multi-month date ranges
+  const calculateAvailableMonths = useMemo(() => {
+    if (!startDate || !endDate) return []
+    
+    const months: { month: number; year: number; monthName: string }[] = []
+    const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
+    const end = new Date(endDate.getFullYear(), endDate.getMonth(), 1)
+    
+    while (current <= end) {
+      months.push({
+        month: current.getMonth(),
+        year: current.getFullYear(),
+        monthName: getMonthName(current.getMonth()) + ' ' + current.getFullYear()
+      })
+      current.setMonth(current.getMonth() + 1)
+    }
+    
+    return months
+  }, [startDate, endDate])
+
+  // Update available months when date range changes (only if using internal state)
+  useEffect(() => {
+    if (!propAvailableMonths) {
+      setInternalAvailableMonths(calculateAvailableMonths)
+      setInternalCurrentMonthIndex(0) // Reset to first month when date range changes
+    }
+  }, [calculateAvailableMonths, propAvailableMonths])
+
+  // Month navigation functions - use props if available, otherwise use internal state
+  const nextMonth = propOnNextMonth ?? (() => {
+    setInternalCurrentMonthIndex(prev => Math.min(prev + 1, availableMonths.length - 1))
+  })
+
+  const prevMonth = propOnPrevMonth ?? (() => {
+    setInternalCurrentMonthIndex(prev => Math.max(prev - 1, 0))
+  })
+  
+  // Helper function to check if a date should be rendered
+  const shouldRenderDate = useCallback((day: CalendarDay) => {
+    if (!startDate || !endDate || daySelectionInfo.type === 'normal') return true
+    
+    const dayDate = new Date(day.year, day.month, day.date)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    // Check if we're in month navigation mode and if the day belongs to current month
+    if (shouldShowMonthNavigation && availableMonths.length > 0) {
+      const currentMonth = availableMonths[currentMonthIndex]
+      if (currentMonth && (day.month !== currentMonth.month || day.year !== currentMonth.year)) {
+        return false
+      }
+    }
+    
+    if (daySelectionInfo.type === '7days') {
+      // For 7-day selection: show today + next 7 days (8 days total)
+      const endDate7 = new Date(today)
+      endDate7.setDate(today.getDate() + 7) // Today + 7 more days = 8 days total
+      
+      return dayDate >= today && dayDate <= endDate7
+    } else if (daySelectionInfo.type === '14days') {
+      // For 14-day selection: show today + next 14 days (15 days total)
+      const endDate14 = new Date(today)
+      endDate14.setDate(today.getDate() + 14) // Today + 14 more days = 15 days total
+      
+      return dayDate >= today && dayDate <= endDate14
+    } else if (daySelectionInfo.type === '30days') {
+      // For 30-day selection: show today + next 30 days (31 days total)
+      const endDate30 = new Date(today)
+      endDate30.setDate(today.getDate() + 30) // Today + 30 more days = 31 days total
+      
+      return dayDate >= today && dayDate <= endDate30
+    } else if (daySelectionInfo.type === 'custom') {
+      // For custom selection: show dates within the selected range
+      return dayDate >= startDate && dayDate <= endDate
+    }
+    
+    return true
+  }, [daySelectionInfo, startDate, endDate, shouldShowMonthNavigation, availableMonths, currentMonthIndex])
   
   // Generate calendar data based on selected date range
   const calendarData = useMemo(() => {
-    return generateCalendarData(startDate, endDate)
+    if (startDate && endDate) {
+      const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+      
+      if (totalDays === 7 || totalDays === 14 || totalDays === 30) {
+        // For predefined ranges (7, 14, 30 days), show data from today onwards
+        const today = new Date()
+        const endDateFromToday = new Date(today)
+        endDateFromToday.setDate(today.getDate() + totalDays - 1) // Today + N-1 days
+        
+        // Start from Monday of the week containing today
+        const startOfWeek = new Date(today)
+        const dayOfWeek = startOfWeek.getDay() // 0 = Sunday, 1 = Monday
+        const monday = new Date(startOfWeek)
+        monday.setDate(startOfWeek.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)) // Go to Monday
+        
+        // Calculate how many weeks we need to cover the range
+        const weeksNeeded = Math.ceil(totalDays / 7) + 1 // Add extra week to ensure coverage
+        const endOfRange = new Date(monday)
+        endOfRange.setDate(monday.getDate() + (weeksNeeded * 7) - 1) // Go to Sunday of last week
+        
+        return generateCalendarData(monday, endOfRange)
+      } else {
+        // For custom date ranges, show full weeks but only display data for selected dates
+        const startOfWeek = new Date(startDate)
+        const dayOfWeek = startOfWeek.getDay() // 0 = Sunday, 1 = Monday
+        const monday = new Date(startOfWeek)
+        monday.setDate(startOfWeek.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)) // Go to Monday
+        
+        // Calculate how many weeks we need to cover the entire range
+        const weeksNeeded = Math.ceil(totalDays / 7) + 1 // Add extra week to ensure coverage
+        
+        const endOfRange = new Date(monday)
+        endOfRange.setDate(monday.getDate() + (weeksNeeded * 7) - 1) // Go to Sunday of last week
+        
+        return generateCalendarData(monday, endOfRange)
+      }
+    } else {
+      // For default case, also start from Monday of current week
+      const today = new Date()
+      const dayOfWeek = today.getDay() // 0 = Sunday, 1 = Monday
+      const monday = new Date(today)
+      monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)) // Go to Monday
+      
+      const defaultEnd = new Date(monday)
+      defaultEnd.setDate(monday.getDate() + 6) // Default to next 6 days from Monday (full week)
+      return generateCalendarData(monday, defaultEnd)
+    }
   }, [startDate, endDate])
+
+  // Filter weeks that have at least one visible day for mobile navigation
+  const visibleWeeks = useMemo(() => {
+    return calendarData.filter(week => week.some(day => shouldRenderDate(day)))
+  }, [calendarData, shouldRenderDate])
+
+  // Reset current week index when visible weeks change
+  useEffect(() => {
+    if (currentWeekIndex >= visibleWeeks.length && visibleWeeks.length > 0) {
+      setCurrentWeekIndex(0)
+    }
+  }, [visibleWeeks.length, currentWeekIndex])
+
+  // Memoize competitor data to prevent refresh
+  const memoizedCompetitorData = useMemo(() => {
+    if (!selectedWeekForCompetitors) return []
+    return generateCompetitorData(selectedWeekForCompetitors)
+  }, [selectedWeekForCompetitors])
+
+  // Memoize all competitive data for the entire calendar to prevent constant reloading
+  const memoizedAllCompetitiveData = useMemo(() => {
+    const competitiveMap = new Map()
+    calendarData.flat().forEach(day => {
+      const competitiveInfo = generateCompetitorData([day])[0]
+      const key = `${day.date}-${day.month}-${day.year}`
+      competitiveMap.set(key, {
+        isMyRateLowest: competitiveInfo?.isMyRateLowest || false,
+        isMyRateHighest: competitiveInfo?.isMyRateHighest || false,
+        showRateDot: competitiveInfo?.showRateDot || false
+      })
+    })
+    return competitiveMap
+  }, [calendarData])
+
+  // Helper function to get competitive data for a day (now uses memoized data)
+  const getCompetitiveData = useCallback((day: CalendarDay) => {
+    const key = `${day.date}-${day.month}-${day.year}`
+    return memoizedAllCompetitiveData.get(key) || {
+      isMyRateLowest: false,
+      isMyRateHighest: false,
+      showRateDot: false
+    }
+  }, [memoizedAllCompetitiveData])
   
   const allDays = useMemo(() => {
     return calendarData.flat()
   }, [calendarData])
 
-  const handleDateClick = (dayData: CalendarDay) => {
-    setSelectedDateForModal(new Date(dayData.year, dayData.month, dayData.date))
+  const handleDateClick = useCallback((dayData: CalendarDay) => {
+    const selectedDate = new Date(dayData.year, dayData.month, dayData.date)
+    setSelectedDateForModal(selectedDate)
     setIsModalOpen(true)
+    
+    // Call optional onDateSelect callback
+    if (onDateSelect) {
+      onDateSelect(selectedDate)
   }
+  }, [onDateSelect])
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setIsModalOpen(false)
     setSelectedDateForModal(null)
-  }
+  }, [])
+
+  const handleShowCompetitorRates = useCallback((week: CalendarDay[], weekIndex: number) => {
+    if (expandedWeekIndex === weekIndex) {
+      // Close if already expanded
+      setExpandedWeekIndex(null)
+      setSelectedWeekForCompetitors(null)
+    } else {
+      // Open new week
+      setExpandedWeekIndex(weekIndex)
+      setSelectedWeekForCompetitors(week)
+    }
+  }, [expandedWeekIndex])
 
   const findDayIndex = (date: Date | null): number => {
     if (!date) return -1
@@ -290,7 +623,7 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
     )
   }
 
-  const navigateDay = (direction: "prev" | "next") => {
+  const navigateDay = useCallback((direction: "prev" | "next") => {
     if (!selectedDateForModal) return
     const currentIndex = findDayIndex(selectedDateForModal)
     const newIndex = direction === "prev" ? currentIndex - 1 : currentIndex + 1
@@ -299,7 +632,7 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
       const newDayData = allDays[newIndex]
       setSelectedDateForModal(new Date(newDayData.year, newDayData.month, newDayData.date))
     }
-  }
+  }, [selectedDateForModal, allDays, findDayIndex])
 
   const nextWeek = () => {
     setCurrentWeekIndex((prev) => Math.min(prev + 1, calendarData.length - 1))
@@ -309,637 +642,343 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
     setCurrentWeekIndex((prev) => Math.max(prev - 1, 0))
   }
 
+  // Navigate to today's week
+  const goToToday = () => {
+    const today = new Date()
+    const todayIndex = allDays.findIndex(day => 
+      day.year === today.getFullYear() && 
+      day.month === today.getMonth() && 
+      day.date === today.getDate()
+    )
+    
+    if (todayIndex !== -1) {
+      const weekIndex = Math.floor(todayIndex / 7)
+      setCurrentWeekIndex(weekIndex)
+    }
+  }
+
+  // Helper to check if a day is today
+  const isToday = (day: CalendarDay) => {
+    if (!highlightToday) return false
+    const today = new Date()
+    return day.year === today.getFullYear() && 
+           day.month === today.getMonth() && 
+           day.date === today.getDate()
+  }
+
   // Generate table data from calendar data (always compute, regardless of view)
   const tableData = useMemo(() => {
     return calendarData.flat().map((day, index) => {
       const date = new Date(day.year, day.month, day.date)
-      const dayName = weekDays[date.getDay()]
+      const dayName = weekDays[(date.getDay() + 6) % 7]
       
       // Calculate change percentages
       const currentPrice = parseInt(day.currentPrice.replace('$', '').replace(',', ''))
-      const recommendedPrice = day.recommendedPrice ? parseInt(day.recommendedPrice.replace('$', '').replace(',', '')) : null
-      const priceChange = recommendedPrice ? ((recommendedPrice - currentPrice) / currentPrice * 100) : 0
+      const priceChange = 0
       
       return {
         id: index,
-        date: date.toLocaleDateString(),
+        date: date, // Store as Date object instead of string
         dayName,
         dayOfWeek: date.getDay(),
         currentPrice: day.currentPrice,
-        recommendedPrice: day.recommendedPrice || 'N/A',
+        
         priceChange: priceChange,
         comparison: day.comparison,
         isFuture: day.isFuture,
         hasFlag: day.hasFlag,
         flagCountry: day.flagCountry,
-        reasoning: day.reasoning,
         isWeekend: date.getDay() === 5 || date.getDay() === 6, // Friday or Saturday in Dubai
-        eventInfluence: day.reasoning?.eventInfluence,
-        confidence: day.reasoning?.confidence
+        eventInfluence: undefined,
+        confidence: undefined
       }
     })
   }, [calendarData])
 
   if (currentView === "chart") {
-    return <RateTrendGraph />
+    return <RTRateTrendsChart rateData={{}} />
   }
 
   if (currentView === "table") {
+    const handleExportCSV = () => {
+      const csvHeaders = ['Date', 'Day', 'Current Rate', 'Change %', 'Market Trends', 'Events']
+      const csvData = tableData.map(row => [
+        row.date.toLocaleDateString(),
+        row.dayName,
+        row.currentPrice,
+        row.priceChange !== 0 ? `${row.priceChange.toFixed(1)}%` : '-',
+        row.comparison,
+        row.hasFlag ? row.flagCountry : '-'
+      ])
+      
+      const csvContent = [
+        csvHeaders.join(','),
+        ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n')
+
+      const blob = new Blob([csvContent], { type: 'text/csv' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `rate-trends-table-${new Date().toISOString().split('T')[0]}.csv`
+      link.click()
+      window.URL.revokeObjectURL(url)
+    }
 
     return (
-      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm">
-        {/* Table Header */}
-        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between">
+             <div className="w-full shadow-xl border border-border/50 rounded-lg bg-white dark:bg-slate-900">
             <div>
-              <h3 className="text-lg font-semibold text-foreground">Rate Trends Data Table</h3>
-              <p className="text-sm text-muted-foreground">
-                Detailed view with current rates, AI recommendations, and pricing strategies
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                {tableData.filter(row => row.isFuture && row.recommendedPrice !== 'N/A').length} AI Recommendations
-              </Badge>
-              <Badge variant="outline">
-                {tableData.length} Total Days
-              </Badge>
-            </div>
-          </div>
-        </div>
-
-        {/* Table Content */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50 dark:bg-slate-800">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          <table className="w-full relative table-fixed">
+                    {/* Two-Level Sticky Header */}
+                    <thead className="bg-gray-50 sticky top-0 z-20">
+                      {/* First Header Row - Main Column Groups */}
+                      <tr className="border-b border-gray-200">
+                        {/* Sticky Date Column */}
+                        <th rowSpan={2} className="sticky left-0 z-30 bg-gray-50 text-left py-1.5 pl-4 pr-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-36" style={{width: '141px'}}>
                   Date
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Day
+                        
+                        {/* Sticky Demand Column */}
+                        <th rowSpan={2} className="sticky left-40 z-30 bg-gray-50 text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-15" style={{width: '60px'}}>
+                  Demand
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Current Rate
+                        
+                        {/* Sticky Avg. Compset Column Group */}
+                        <th colSpan={2} className="sticky left-56 z-30 bg-gray-50 text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-24">
+                          Avg. Compset
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  AI Recommended
+                        
+                        {/* Sticky Subscriber Column Group */}
+                        <th colSpan={4} className="sticky left-84 z-30 bg-blue-50 text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-40">
+                          Subscriber
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Change %
+                        
+                        {/* Competitor Hotel 1 */}
+                        <th colSpan={4} className="text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-40">
+                          Comfort Hotel..
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Strategy
+                        
+                        {/* Competitor Hotel 2 */}
+                        <th colSpan={4} className="text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-40">
+                          acom Hotel B..
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Confidence
+
+                </tr>
+                      
+                      {/* Second Header Row - Sub Columns */}
+                      <tr className="border-b border-gray-200">
+                        {/* Avg. Compset Sub-columns */}
+                        <th className="sticky left-56 z-30 bg-gray-50 text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
+                          €
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Market Trends
+                        <th className="sticky left-68 z-30 bg-gray-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
+                          ⟂⇂
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Events
+                        
+                        {/* Subscriber Sub-columns */}
+                        <th className="sticky left-84 z-30 bg-blue-50 text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-16" style={{width: '64px'}}>
+                          €
                 </th>
+                        <th className="sticky left-96 z-30 bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
+                          ⟂⇂
+                </th>
+                        <th className="sticky left-108 z-30 bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+                          <Utensils className="w-3 h-3 mx-auto" />
+                </th>
+                        <th className="sticky left-116 z-30 bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+                          #
+                </th>
+                        
+                        {/* Comfort Hotel Sub-columns */}
+                        <th className="text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-16" style={{width: '64px'}}>
+                          €
+                </th>
+                        <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
+                          ⟂⇂
+                </th>
+                        <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+                          <Utensils className="w-3 h-3 mx-auto" />
+                </th>
+                        <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+                          #
+                </th>
+                        
+                        {/* acom Hotel Sub-columns */}
+                        <th className="text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-16" style={{width: '64px'}}>
+                          €
+                </th>
+                        <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
+                          ⟂⇂
+                </th>
+                        <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+                          <Utensils className="w-3 h-3 mx-auto" />
+                </th>
+                        <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+                          #
+                </th>
+
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-700">
-              {tableData.map((row) => (
+                  
+                  <tbody>
+                    {tableData.slice(0, 14).map((row, index) => {
+                      // Generate stable data based on row index to prevent refreshing
+                      const seedValue = index + 1000; // Use index as a stable seed
+                      const seededRandom = (seed: number, offset: number = 0) => {
+                        const x = Math.sin(seed + offset) * 10000;
+                        return x - Math.floor(x);
+                      };
+                      
+                      // Sample data for demonstration - now stable
+                      const avgCompsetRate = Math.floor(seededRandom(seedValue, 1) * 100) + 50;
+                      const avgCompsetVariance = Math.floor(seededRandom(seedValue, 2) * 50) - 25;
+                      const hotelLowestRate = Math.floor(seededRandom(seedValue, 3) * 400) + 150;
+                      const hotelVariance = Math.floor(seededRandom(seedValue, 4) * 80) - 40;
+                      const subscriberRank = Math.floor(seededRandom(seedValue, 5) * 4) + 1;
+                      
+
+
+                      // Competitor data - now stable
+                      const competitors = [
+                        { name: 'Comfort Hotel', rate: Math.floor(seededRandom(seedValue, 10) * 150) + 50, variance: Math.floor(seededRandom(seedValue, 11) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 12) * 4) + 1 },
+                        { name: 'acom Hotel', rate: Math.floor(seededRandom(seedValue, 13) * 150) + 50, variance: Math.floor(seededRandom(seedValue, 14) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 15) * 4) + 1 },
+                        { name: 'InterCity Hotel', rate: Math.floor(seededRandom(seedValue, 16) * 150) + 50, variance: Math.floor(seededRandom(seedValue, 17) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 18) * 4) + 1 },
+                        { name: 'Hilton Garden', rate: Math.floor(seededRandom(seedValue, 19) * 150) + 50, variance: Math.floor(seededRandom(seedValue, 20) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 21) * 4) + 1 },
+                        { name: 'Marriott Suites', rate: Math.floor(seededRandom(seedValue, 22) * 150) + 50, variance: Math.floor(seededRandom(seedValue, 23) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 24) * 4) + 1 },
+                        { name: 'Sheraton Plaza', rate: Math.floor(seededRandom(seedValue, 25) * 150) + 50, variance: Math.floor(seededRandom(seedValue, 26) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 27) * 4) + 1 },
+                        { name: 'Holiday Inn', rate: Math.floor(seededRandom(seedValue, 28) * 150) + 50, variance: Math.floor(seededRandom(seedValue, 29) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 30) * 4) + 1 },
+                        { name: 'Crowne Plaza', rate: Math.floor(seededRandom(seedValue, 31) * 150) + 50, variance: Math.floor(seededRandom(seedValue, 32) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 33) * 4) + 1 },
+                        { name: 'Four Seasons', rate: Math.floor(seededRandom(seedValue, 34) * 150) + 50, variance: Math.floor(seededRandom(seedValue, 35) * 80) - 40, rank: Math.floor(seededRandom(seedValue, 36) * 4) + 1 }
+                      ];
+                      
+                      return (
                 <tr 
                   key={row.id} 
-                  className={`hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${
-                    row.isFuture ? 'bg-gradient-to-r from-emerald-50/20 to-teal-50/10 dark:from-emerald-950/20 dark:to-teal-950/10' : ''
-                  }`}
+                                                    className="border-b border-gray-200 group hover:bg-gray-50"
                 >
-                  {/* Date */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-foreground">{row.date}</span>
-                      {row.isFuture && (
-                        <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
-                          Future
-                        </Badge>
-                      )}
+                                                    {/* Sticky Date Column */}
+                          <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 py-2 pl-4 pr-2 font-medium text-foreground text-sm border-r border-gray-200" style={{width: '141px'}}>
+                            <div className="flex flex-col">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1">
+                                  <BarChart3 className="w-3 h-3 text-gray-500" />
+                                  <span className="text-foreground" style={{marginLeft: '10px'}}>
+                                    {row.date.getDate()} {row.date.toLocaleDateString('en', {month: 'short'})} '{row.date.getFullYear().toString().slice(-2)},
+                                  </span>
+                                  <span className="text-gray-500">{row.dayName}</span>
+                                </div>
+                                {seededRandom(seedValue, 51) > 0.7 && (
+                                  <Calendar className="w-3 h-3 text-blue-500" />
+                                )}
+                              </div>
                     </div>
                   </td>
 
-                  {/* Day */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm font-medium ${
-                        row.isWeekend ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-400'
-                      }`}>
-                        {row.dayName}
+                          {/* Sticky Demand Column */}
+                          <td className="sticky left-40 z-10 bg-white group-hover:bg-gray-50 py-2 px-1 text-center text-sm border-r border-gray-200" style={{width: '60px'}}>
+                            {(() => {
+                              const demandValue = Math.floor(seededRandom(seedValue, 40) * 60) + 40;
+                              const getDemandColor = (value: number) => {
+                                if (value <= 50) return 'text-blue-300'; // Light blue
+                                if (value <= 65) return 'text-blue-600'; // Medium blue
+                                if (value <= 80) return 'text-red-400'; // Light red
+                                return 'text-red-600'; // Dark red
+                              };
+                              return <span className={`font-semibold ${getDemandColor(demandValue)}`}>{demandValue}</span>;
+                            })()}
+                  </td>
+
+                          {/* Sticky Avg. Compset - Rate */}
+                          <td className="sticky left-56 z-10 bg-white group-hover:bg-gray-50 py-2 text-center text-sm border-r border-gray-200">
+                            <span className="font-semibold">${avgCompsetRate}</span>
+                  </td>
+
+                          {/* Sticky Avg. Compset - Variance */}
+                          <td className="sticky left-68 z-10 bg-white group-hover:bg-gray-50 py-2 px-1 text-center text-sm border-r border-gray-200">
+                            <span className={`text-xs font-medium ${avgCompsetVariance > 0 ? 'text-red-600' : avgCompsetVariance < 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                              {avgCompsetVariance > 0 ? '+' : ''}{avgCompsetVariance !== 0 ? avgCompsetVariance : '--'}
                       </span>
-                      {row.isWeekend && (
-                        <Badge variant="secondary" className="text-xs bg-red-50 text-red-700 border-red-200">
-                          Weekend
-                        </Badge>
-                      )}
-                    </div>
                   </td>
 
-                  {/* Current Rate */}
-                  <td className="px-4 py-3 whitespace-nowrap text-right">
-                    <span className="text-sm font-bold text-foreground">{row.currentPrice}</span>
+                          {/* Sticky Subscriber - Rate */}
+                          <td className="sticky left-84 z-10 bg-blue-50 group-hover:bg-blue-100 py-2 text-center text-sm border-r border-b border-gray-200" style={{width: '64px'}}>
+                            <span className="font-semibold">{hotelLowestRate === 0 ? 'Sold Out' : `$${hotelLowestRate}`}</span>
                   </td>
 
-                  {/* AI Recommended */}
-                  <td className="px-4 py-3 whitespace-nowrap text-right">
-                    {row.recommendedPrice !== 'N/A' ? (
-                      <div className="text-right">
-                        <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
-                          {row.recommendedPrice}
+                          {/* Sticky Subscriber - Variance */}
+                          <td className="sticky left-96 z-10 bg-blue-50 group-hover:bg-blue-100 py-2 px-1 text-center text-sm border-r border-b border-gray-200">
+                            <span className={`text-xs font-medium ${hotelVariance > 0 ? 'text-red-600' : hotelVariance < 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                              {hotelVariance > 0 ? '+' : ''}{hotelVariance !== 0 ? hotelVariance : 'NA'}
                         </span>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-slate-400">N/A</span>
-                    )}
                   </td>
 
-                  {/* Change % */}
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
-                    {row.priceChange !== 0 ? (
-                      <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        row.priceChange > 0 
-                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
-                          : row.priceChange < 0 
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                          : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400'
-                      }`}>
-                        {row.priceChange > 0 ? '+' : ''}{row.priceChange.toFixed(1)}%
-                      </div>
-                    ) : (
-                      <span className="text-xs text-slate-400">-</span>
-                    )}
+                          {/* Sticky Subscriber - Inclusions */}
+                          <td className="sticky left-108 z-10 bg-blue-50 group-hover:bg-blue-100 py-2 px-1 text-center text-xs border-r border-b border-gray-200">
+                            {(() => {
+                              const inclusionType = Math.floor(seededRandom(seedValue, 41) * 4);
+                              if (inclusionType === 0) return <Wifi className="w-3 h-3 text-gray-600 mx-auto" />;
+                              if (inclusionType === 1) return <Coffee className="w-3 h-3 text-gray-600 mx-auto" />;
+                              if (inclusionType === 2) return <Utensils className="w-3 h-3 text-gray-600 mx-auto" />;
+                              return <Car className="w-3 h-3 text-gray-600 mx-auto" />;
+                            })()}
                   </td>
 
-                  {/* Strategy */}
-                  <td className="px-4 py-3">
-                    {row.reasoning ? (
-                      <div className="max-w-xs">
-                        <div className="text-xs font-medium text-foreground mb-1">
-                          {row.reasoning.strategy}
-                        </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
-                          {row.reasoning.factors.slice(0, 2).join(', ')}
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-slate-400">Historical</span>
-                    )}
+                          {/* Sticky Subscriber - Rank */}
+                          <td className="sticky left-116 z-10 bg-blue-50 group-hover:bg-blue-100 py-2 px-1 text-center text-sm border-r border-b border-gray-200">
+                            {subscriberRank}
                   </td>
 
-                  {/* Confidence */}
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
-                    {row.confidence ? (
-                      <div className="flex items-center justify-center">
-                        <div className={`w-2 h-2 rounded-full ${
-                          row.confidence === 'high' ? 'bg-green-500' : 
-                          row.confidence === 'medium' ? 'bg-yellow-500' : 'bg-red-500'
-                        }`} />
-                        <span className={`ml-1 text-xs font-medium ${
-                          row.confidence === 'high' ? 'text-green-700 dark:text-green-400' : 
-                          row.confidence === 'medium' ? 'text-yellow-700 dark:text-yellow-400' : 'text-red-700 dark:text-red-400'
-                        }`}>
-                          {row.confidence}
+                          {/* Competitor Hotels Data - First 2 Only */}
+                          {competitors.slice(0, 2).map((competitor, compIndex) => (
+                            <div key={compIndex}>
+                              {/* Rate */}
+                              <td className="py-2 text-center text-sm border-r border-gray-200 group-hover:bg-gray-50">
+                                <span className="font-semibold">{competitor.rate === 0 ? 'Sold Out' : `$${competitor.rate}`}</span>
+                  </td>
+                              
+                              {/* Variance */}
+                              <td className="py-2 px-1 text-center text-sm border-r border-gray-200 group-hover:bg-gray-50">
+                                <span className={`text-xs font-medium ${competitor.variance > 0 ? 'text-red-600' : competitor.variance < 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                                  {competitor.variance > 0 ? '+' : ''}{competitor.variance !== 0 ? competitor.variance : 'NA'}
                         </span>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-slate-400">-</span>
-                    )}
                   </td>
 
-                  {/* Market Trends */}
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
-                    <div className="text-xs text-slate-600 dark:text-slate-400">
-                      {row.comparison}
-                    </div>
+                              {/* Inclusions */}
+                              <td className="py-2 px-1 text-center text-xs border-r border-gray-200 group-hover:bg-gray-50">
+                                {(() => {
+                                  const inclusionType = Math.floor(seededRandom(seedValue, 42 + compIndex) * 4);
+                                  if (inclusionType === 0) return <Wifi className="w-3 h-3 text-gray-600 mx-auto" />;
+                                  if (inclusionType === 1) return <Coffee className="w-3 h-3 text-gray-600 mx-auto" />;
+                                  if (inclusionType === 2) return <Utensils className="w-3 h-3 text-gray-600 mx-auto" />;
+                                  return <Dumbbell className="w-3 h-3 text-gray-600 mx-auto" />;
+                                })()}
                   </td>
 
-                  {/* Events */}
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      {row.hasFlag && row.flagCountry && (
-                        <span className="text-lg">{row.flagCountry}</span>
-                      )}
-                      {row.eventInfluence && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
-                                Event
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="text-sm">{row.eventInfluence}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                      {!row.hasFlag && !row.eventInfluence && (
-                        <span className="text-xs text-slate-400">-</span>
-                      )}
-                    </div>
+                              {/* Rank */}
+                              <td className="py-2 px-1 text-center text-sm border-r border-gray-200 group-hover:bg-gray-50">
+                                {competitor.rank}
                   </td>
-                </tr>
+                            </div>
               ))}
+
+                        </tr>
+                      );
+                    })}
             </tbody>
           </table>
-        </div>
-
-        {/* Table Footer with Summary */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
-            <div>
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Days</div>
-              <div className="text-lg font-bold text-foreground">{tableData.length}</div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Future Days</div>
-              <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-                {tableData.filter(row => row.isFuture).length}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">AI Recommendations</div>
-              <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                {tableData.filter(row => row.recommendedPrice !== 'N/A').length}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Weekend Days</div>
-              <div className="text-lg font-bold text-red-600 dark:text-red-400">
-                {tableData.filter(row => row.isWeekend).length}
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     )
   }
 
-  if (currentView === "table") {
-    return (
-      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm">
-        {/* Table Header */}
-        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-foreground">Rate Trends Data Table</h3>
-              <p className="text-sm text-muted-foreground">
-                Detailed view with current rates, AI recommendations, and pricing strategies
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                {tableData.filter(row => row.isFuture && row.recommendedPrice !== 'N/A').length} AI Recommendations
-              </Badge>
-              <Badge variant="outline">
-                {tableData.length} Total Days
-              </Badge>
-            </div>
-          </div>
-        </div>
 
-        {/* Table Content */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50 dark:bg-slate-800">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Day
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Current Rate
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  AI Recommended
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Change %
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Strategy
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Confidence
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Market Trends
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Events
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-700">
-              {tableData.map((row) => (
-                <tr 
-                  key={row.id} 
-                  className={`hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${
-                    row.isFuture ? 'bg-gradient-to-r from-emerald-50/20 to-teal-50/10 dark:from-emerald-950/20 dark:to-teal-950/10' : ''
-                  }`}
-                >
-                  {/* Date */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-foreground">{row.date}</span>
-                      {row.isFuture && (
-                        <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
-                          Future
-                        </Badge>
-                      )}
-                    </div>
-                  </td>
 
-                  {/* Day */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm font-medium ${
-                        row.isWeekend ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-400'
-                      }`}>
-                        {row.dayName}
-                      </span>
-                      {row.isWeekend && (
-                        <Badge variant="secondary" className="text-xs bg-red-50 text-red-700 border-red-200">
-                          Weekend
-                        </Badge>
-                      )}
-                    </div>
-                  </td>
 
-                  {/* Current Rate */}
-                  <td className="px-4 py-3 whitespace-nowrap text-right">
-                    <span className="text-sm font-bold text-foreground">{row.currentPrice}</span>
-                  </td>
-
-                  {/* AI Recommended */}
-                  <td className="px-4 py-3 whitespace-nowrap text-right">
-                    {row.recommendedPrice !== 'N/A' ? (
-                      <div className="text-right">
-                        <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
-                          {row.recommendedPrice}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-slate-400">N/A</span>
-                    )}
-                  </td>
-
-                  {/* Change % */}
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
-                    {row.priceChange !== 0 ? (
-                      <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        row.priceChange > 0 
-                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
-                          : row.priceChange < 0 
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                          : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400'
-                      }`}>
-                        {row.priceChange > 0 ? '+' : ''}{row.priceChange.toFixed(1)}%
-                      </div>
-                    ) : (
-                      <span className="text-xs text-slate-400">-</span>
-                    )}
-                  </td>
-
-                  {/* Strategy */}
-                  <td className="px-4 py-3">
-                    {row.reasoning ? (
-                      <div className="max-w-xs">
-                        <div className="text-xs font-medium text-foreground mb-1">
-                          {row.reasoning.strategy}
-                        </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
-                          {row.reasoning.factors.slice(0, 2).join(', ')}
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-slate-400">Historical</span>
-                    )}
-                  </td>
-
-                  {/* Confidence */}
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
-                    {row.confidence ? (
-                      <div className="flex items-center justify-center">
-                        <div className={`w-2 h-2 rounded-full ${
-                          row.confidence === 'high' ? 'bg-green-500' : 
-                          row.confidence === 'medium' ? 'bg-yellow-500' : 'bg-red-500'
-                        }`} />
-                        <span className={`ml-1 text-xs font-medium ${
-                          row.confidence === 'high' ? 'text-green-700 dark:text-green-400' : 
-                          row.confidence === 'medium' ? 'text-yellow-700 dark:text-yellow-400' : 'text-red-700 dark:text-red-400'
-                        }`}>
-                          {row.confidence}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-slate-400">-</span>
-                    )}
-                  </td>
-
-                  {/* Market Trends */}
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
-                    <div className="text-xs text-slate-600 dark:text-slate-400">
-                      {row.comparison}
-                    </div>
-                  </td>
-
-                  {/* Events */}
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      {row.hasFlag && row.flagCountry && (
-                        <span className="text-lg">{row.flagCountry}</span>
-                      )}
-                      {row.eventInfluence && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
-                                Event
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="text-sm">{row.eventInfluence}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                      {!row.hasFlag && !row.eventInfluence && (
-                        <span className="text-xs text-slate-400">-</span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Table Footer with Summary */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
-            <div>
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Days</div>
-              <div className="text-lg font-bold text-foreground">{tableData.length}</div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Future Days</div>
-              <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-                {tableData.filter(row => row.isFuture).length}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">AI Recommendations</div>
-              <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                {tableData.filter(row => row.recommendedPrice !== 'N/A').length}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Weekend Days</div>
-              <div className="text-lg font-bold text-red-600 dark:text-red-400">
-                {tableData.filter(row => row.isWeekend).length}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (currentView === "chart") {
-    return <RateTrendGraph />
-  }
-
-  // Enhanced Tooltip component with Today's New Logic for pricing reasoning
-  const PricingTooltip = ({ day, children }: { day: CalendarDay, children: React.ReactNode }) => {
-    // Call Today's New Logic for rate trend calendar
-    const callTodaysNewLogic = () => {
-      const today = new Date()
-      const dayDate = new Date(day.year, day.month, day.date)
-      
-      // Normalize dates for accurate comparison
-      const todayNormalized = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-      const dayDateNormalized = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate())
-      
-      const isToday = todayNormalized.getTime() === dayDateNormalized.getTime()
-      const isPast = dayDateNormalized < todayNormalized
-      const isFuture = dayDateNormalized > todayNormalized
-      
-      return {
-        isToday,
-        isPast,
-        isFuture,
-        daysDifference: Math.ceil((dayDateNormalized.getTime() - todayNormalized.getTime()) / (1000 * 60 * 60 * 24))
-      }
-    }
-
-    const { isToday, isPast, isFuture } = callTodaysNewLogic()
-    
-    // Show tooltips for all days but with different styling based on today's logic
-    const hasReasoningToShow = day.isFuture && day.reasoning
-    const shouldShowTooltip = hasReasoningToShow || isToday || isPast
-
-    if (!shouldShowTooltip) {
-      return <>{children}</>
-    }
-
-    // Enhanced tooltip positioning based on today's logic
-    const getTooltipSide = () => {
-      if (isToday) return "bottom" // Today gets bottom positioning for better visibility
-      return "top" // Standard top positioning for other days
-    }
-
-    // Enhanced background styling for today
-    const getTooltipBgClasses = () => {
-      if (isToday) {
-        return "max-w-sm p-4 bg-gradient-to-br from-blue-900 to-slate-900 text-white border-2 border-blue-400"
-      }
-      return "max-w-sm p-4 bg-slate-900 text-white"
-    }
-
-    return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            {children}
-          </TooltipTrigger>
-          <TooltipContent side={getTooltipSide()} className={getTooltipBgClasses()}>
-            <div className="space-y-3">
-              {/* Today's Special Header */}
-              {isToday && (
-                <div className="flex items-center gap-2 text-blue-300 bg-blue-800/30 px-2 py-1 rounded mb-2">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                  <span className="text-sm font-bold">TODAY'S RATE</span>
-                </div>
-              )}
-              
-              {/* Current Price Information */}
-              <div className={`flex items-center gap-2 ${isToday ? 'text-blue-200' : ''}`}>
-                <DollarSign className="w-4 h-4" />
-                <span className="font-semibold text-sm">Current: {day.currentPrice}</span>
-              </div>
-              
-              {/* Future Reasoning (if available) */}
-              {hasReasoningToShow && (
-                <>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${
-                      day.reasoning!.confidence === 'high' ? 'bg-green-400' : 
-                      day.reasoning!.confidence === 'medium' ? 'bg-yellow-400' : 'bg-red-400'
-                    }`} />
-                    <span className="font-semibold text-sm">{day.reasoning!.strategy}</span>
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-slate-300">Key Factors:</p>
-                    <ul className="text-xs space-y-0.5">
-                      {day.reasoning!.factors.map((factor, index) => (
-                        <li key={index} className="text-slate-200">• {factor}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-700">
-                    <span className="text-xs font-medium text-slate-300">Expected Impact:</span>
-                    <span className="text-xs font-bold text-green-400">{day.reasoning!.impact}</span>
-                  </div>
-                  
-                  {day.reasoning!.eventInfluence && (
-                    <div className="flex items-center gap-1 text-xs text-purple-300">
-                      <Activity className="w-3 h-3" />
-                      <span>{day.reasoning!.eventInfluence}</span>
-                    </div>
-                  )}
-                </>
-              )}
-              
-              {/* Past/Today Context */}
-              {(isToday || isPast) && !hasReasoningToShow && (
-                <div className="text-xs text-gray-300">
-                  {isToday && (
-                    <div className="text-blue-200">📍 Current active rate</div>
-                  )}
-                  {isPast && (
-                    <div className="text-gray-400">🕒 Historical rate</div>
-                  )}
-                </div>
-              )}
-            </div>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    )
-  }
 
   // Show loading state when date range is changing
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm p-8">
+      <div className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 rounded-lg p-8">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
           <p className="text-slate-600 dark:text-slate-400">Loading calendar data...</p>
@@ -949,188 +988,801 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
   }
 
   return (
-    <>
-      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm">
+    <div className="rounded-lg">
         {/* Mobile View - Single Week with Navigation */}
         <div className="block lg:hidden">
-          <div className="p-4">
+          <div className="p-4 pt-16">
             <div className="flex items-center justify-between mb-4">
               <Button variant="outline" size="sm" onClick={prevWeek} disabled={currentWeekIndex === 0}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
+              <div className="flex items-center gap-2">
               <span className="text-sm font-medium">
-                Week {currentWeekIndex + 1} of {calendarData.length}
+                Week {currentWeekIndex + 1} of {visibleWeeks.length}
               </span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={goToToday}
+                  className="text-xs px-2 py-1 h-6"
+                >
+                  Today
+                </Button>
+            </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={nextWeek}
-                disabled={currentWeekIndex === calendarData.length - 1}
+                disabled={currentWeekIndex === visibleWeeks.length - 1}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
-            </div>
+              </div>
 
             {/* Mobile Grid - 2 columns */}
             <div className="grid grid-cols-2 gap-3">
-              {calendarData[currentWeekIndex]?.map((day, dayIndex) => (
-                                  <PricingTooltip key={`mobile-${dayIndex}`} day={day}>
+              {visibleWeeks[currentWeekIndex]?.map((day, dayIndex) => {
+                const shouldShow = shouldRenderDate(day)
+                if (!shouldShow) {
+                  // Don't show anything for dates outside selected range
+                  return null
+                }
+                return (
+                <TooltipProvider delayDuration={0} skipDelayDuration={0}>
+                  <Tooltip delayDuration={0} disableHoverableContent>
+                    <TooltipTrigger asChild>
                   <Card 
-                    className={`p-3 cursor-pointer hover:shadow-md transition-all duration-200 ${
-                      day.isFuture ? 'ring-2 ring-emerald-200 dark:ring-emerald-800 bg-gradient-to-br from-emerald-50/30 to-teal-50/20 dark:from-emerald-950/30 dark:to-teal-950/20' : 
-                      'hover:bg-slate-50 dark:hover:bg-slate-800'
+                    className={`p-3 h-28 cursor-pointer hover:shadow-md transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:outline-none border ${
+                      isToday(day) ? 'border-gray-200 dark:border-gray-500 bg-white dark:bg-slate-900' :
+                      (() => {
+                        const competitive = getCompetitiveData(day)
+                        return competitive.isMyRateHighest ? 'border-red-500 dark:border-red-400 bg-white dark:bg-slate-900' : 
+                               competitive.isMyRateLowest ? 'border-green-500 dark:border-green-400 bg-white dark:bg-slate-900' : 
+                               'border-gray-200 dark:border-gray-500 hover:border-gray-400 dark:hover:border-gray-400 bg-white dark:bg-slate-900'
+                      })()
                     }`} 
                     onClick={() => handleDateClick(day)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Rate information for ${weekDays[dayIndex % 7]} ${day.date}, ${day.currentPrice}`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleDateClick(day)
+                      }
+                    }}
                   >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1">
-                          <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
-                            {weekDays[dayIndex % 7]} {day.date}
+                  <div className="relative h-full flex flex-col justify-between">
+                    {/* Top Section: Date on left, Event Icon with margin, Colored Dot on top right */}
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        {/* Date on left side */}
+                        <div className={`text-xs font-medium ${
+                          isToday(day) 
+                            ? 'w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center' 
+                            : 'text-gray-600 dark:text-gray-300'
+                        }`}>
+                          {day.date}
+            </div>
+                        {/* Lightning refresh icon next to date */}
+                        {day.hasLightningRefresh && (
+                          <div className="ml-1">
+                            <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                          </div>
+                        )}
+                        {/* Event icon after specific margin */}
+                        <div className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                          {day.hasEvent ? day.eventIcon : ''}
+              </div>
+            </div>
+                      {/* Colored dot on top right - competitive rate indicator */}
+                      {(() => {
+                        const competitive = getCompetitiveData(day)
+                        return competitive.showRateDot && (
+                          <div className={`w-2 h-2 rounded-full ${
+                            competitive.isMyRateLowest ? 'bg-green-500 dark:bg-green-400' : 'bg-red-500 dark:bg-red-400'
+                          }`} />
+                        )
+                      })()}
+          </div>
+                      
+                    {/* Center Section: Hotel Lowest Rate (center aligned) */}
+                    <div className="text-center mb-1">
+                      <div className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                        ${day.hotelLowestRate}
+        </div>
+      </div>
+                      
+                    {/* Center Section: Difference vs Last Period (center aligned) */}
+                    <div className="text-center mb-2">
+                      <div className={`text-xs font-medium ${
+                        day.rateDifference.startsWith('+') ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'
+                      }`}>
+                        {day.rateDifference}
+            </div>
+            </div>
+
+                    {/* Bottom Section: Room Type & Inclusions (center aligned) */}
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                          {day.roomType}
                       </span>
-                                                     {day.isFuture && (
+                        {day.hasInclusion && (
+                          <Wifi className="w-3 h-3 text-blue-400 dark:text-blue-300" />
+                        )}
+          </div>
+        </div>
+
+                    {/* Badge indicators for Today/Future */}
+                    {(isToday(day) || day.isFuture) && (
+                      <div className="absolute -top-1 -left-1">
+                        {isToday(day) && (
+                          <Badge variant="secondary" className="text-xs px-1 py-0 bg-blue-100 text-blue-700 border-blue-200">Today</Badge>
+                        )}
+                        {day.isFuture && !isToday(day) && (
                              <Badge variant="secondary" className="text-xs px-1 py-0 bg-emerald-100 text-emerald-700 border-emerald-200">Future</Badge>
-                           )}
-                        </div>
-                        <div className="flex items-center gap-1">
-                      {day.hasFlag && <span className="text-lg">{day.flagCountry}</span>}
-                      {day.hasIndicator && (
-                        <div
-                              className={`w-2 h-2 rounded-full ${day.indicatorColor || "bg-gray-400"} ${
-                                day.indicatorType === "square" ? "rounded-none" : ""
-                              }`}
-                        />
                       )}
+                    </div>
+                    )}
+                  </div>
+                </Card>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 pr-6 w-[528px] z-[10001]">
+                      <div>
+                        <div className="mb-2">
+                          <div className="flex justify-between items-center">
+                            <h3 className="text-gray-900 dark:text-white">
+                              <span className="text-base font-bold">{String(day.date).padStart(2, '0')} {(() => {
+                                const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                                return months[day.month]
+                              })()} 2024</span>
+                              <span className="text-sm font-normal">, {(() => {
+                                const date = new Date(day.year, day.month, day.date)
+                                return weekDays[(date.getDay() + 6) % 7]
+                              })()}</span>
+                            </h3>
+                            {(() => {
+                              const competitive = getCompetitiveData(day)
+                              if (competitive.showRateDot) {
+                                return (
+                    <div className="flex items-center gap-2">
+                                    <div className={`w-2.5 h-2.5 rounded-full ${
+                                      competitive.isMyRateLowest ? 'bg-green-500 dark:bg-green-400' : 'bg-red-500 dark:bg-red-400'
+                                    }`} />
+                                    <span className={`text-xs font-medium ${
+                                      competitive.isMyRateLowest ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                                    }`}>
+                                      {competitive.isMyRateLowest ? 'Lowest Rate' : 'Highest Rate'}
+                      </span>
+                    </div>
+                                )
+                              }
+                              return null
+                            })()}
+                      </div>
+                          <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mt-1 mb-4">
+                            Alhambra Hotel
                     </div>
                       </div>
                       
-                      {/* Current Price */}
-                      <div className="bg-slate-100 dark:bg-slate-800 rounded-md p-2 text-center">
-                        <div className="text-lg font-bold text-gray-800 dark:text-gray-200">{day.currentPrice}</div>
-                        <div className="text-xs text-slate-600 dark:text-slate-400">Current Rate</div>
+                        <div className="space-y-3 mb-3">
+                          <div className="grid gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                            <div className="text-left">Lowest Rate</div>
+                            <div className="text-left">Room</div>
+                            <div className="text-left">Inclusion</div>
+                            <div className="text-left">Channel</div>
                       </div>
                       
-                                             {/* Recommended Price for Future Dates */}
-                       {day.isFuture && day.recommendedPrice && (
-                         <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950 dark:to-teal-950 rounded-md p-2 text-center border border-emerald-200 dark:border-emerald-800">
-                           <div className="flex items-center justify-center gap-1 mb-0.5">
-                             <TrendingUp className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
-                             <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">AI Rec</span>
-                           </div>
-                           <div className="text-sm font-bold text-emerald-800 dark:text-emerald-200">{day.recommendedPrice}</div>
-                           <div className={`w-1.5 h-1.5 rounded-full mx-auto mt-1 ${
-                             day.reasoning?.confidence === 'high' ? 'bg-green-500' : 
-                             day.reasoning?.confidence === 'medium' ? 'bg-yellow-500' : 'bg-red-500'
-                           }`} />
-                         </div>
-                       )}
+                          <div className="grid gap-2 text-xs mt-2" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                              $210
+                        </div>
+                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                              Standard King
+                        </div>
+                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                              <div className="flex items-start gap-1">
+                                <Wifi className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                                <div className="text-wrap">
+                                  {(() => {
+                                    const inclusionText = "Free Wifi and Airport Pickup - Drop";
+                                    if (inclusionText.length <= 19) {
+                                      return <span>{inclusionText}</span>;
+                                    }
+                                    
+                                    const firstLine = inclusionText.substring(0, 19);
+                                    const remaining = inclusionText.substring(19);
+                                    const secondLine = remaining.length > 14 
+                                      ? remaining.substring(0, 14) + "..."
+                                      : remaining;
+                                    
+                                    return (
+                                      <div>
+                                        <div>{firstLine}</div>
+                                        <div>{secondLine}</div>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                              Booking.com
+                            </div>
+                          </div>
+                        </div>
+                          
+                        <div className="mb-3">
+                          <div className="flex items-start gap-6">
+                            {/* Avg. Compset Section */}
+                            <div className="text-xs text-black dark:text-gray-100">
+                              <div className="text-left whitespace-nowrap">
+                                <span className="font-bold">$210</span> <span className="font-medium">- Avg. Compset</span>
+                              </div>
+                            </div>
+                            
+                            {/* Events Section with 24px margin */}
+                            {day.hasEvent && (
+                              <div style={{ marginLeft: '24px' }}>
+                                <div className="flex items-center gap-2">
+                                  <Star className="w-3 h-3 text-amber-500 fill-current" />
+                                  <div className="text-xs text-gray-800 dark:text-gray-200">
+                                    Music Festival
+                                  </div>
+                                  <div style={{ paddingLeft: '0px' }}>
+                                    <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                                      (+2 more)
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       
-                      <div className="text-xs text-green-700 dark:text-green-400 text-center">{day.comparison}</div>
-                  </div>
-                </Card>
-                </PricingTooltip>
-              ))}
-            </div>
+                        <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
+                          <div className="text-xs text-gray-800 dark:text-gray-200 leading-relaxed text-left">
+                            Standard King | Continental breakfast included. Breakfast rated 6. Non-refundable. If you cancel, modify the booking, or don't show up, the fee will be the total price of the reservation...
+                          </div>
+                        </div>
+                      </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                )
+              })}
+                    </div>
           </div>
         </div>
 
         {/* Desktop View - Full Calendar Grid */}
-        <div className="hidden lg:block p-6">
-          {/* Date Range Header */}
-          <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-            <div className="flex items-center justify-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-              <Calendar className="w-4 h-4" />
-              <span>
-                Showing: {startDate.toLocaleDateString()} - {endDate.toLocaleDateString()}
-              </span>
-              {calendarData.some(week => week.some(day => day.isFuture && day.recommendedPrice)) && (
-                <Badge variant="outline" className="ml-2 bg-emerald-50 text-emerald-700 border-emerald-200">
-                  AI Recommendations Available
-                </Badge>
-              )}
-            </div>
-          </div>
-          
+        <div className="hidden lg:block p-6 pt-16">
           {/* Header */}
-          <div className="grid grid-cols-7 gap-4 mb-4">
+          <div className="grid grid-cols-8 gap-2 mb-3">
+            {/* Week Column Header */}
+            <div className="text-xs font-medium text-gray-600 dark:text-gray-300 text-center">
+              Week
+            </div>
+            {/* Day Headers */}
             {weekDays.map((day) => (
-              <div key={day} className="text-sm font-medium text-gray-600 dark:text-gray-300 text-center">
+              <div key={day} className="text-xs font-medium text-gray-600 dark:text-gray-300 text-center">
                 {day}
               </div>
             ))}
-          </div>
+        </div>
 
           {/* Calendar Grid */}
-          <div className="space-y-4">
-            {calendarData.map((week, weekIndex) => (
-              <div key={weekIndex} className="grid grid-cols-7 gap-4">
-                {week.map((day, dayIndex) => (
-                  <PricingTooltip key={`desktop-${weekIndex}-${dayIndex}`} day={day}>
+          <div className="space-y-2">
+            {calendarData
+              .filter(week => week.some(day => shouldRenderDate(day))) // Only show weeks with at least one visible day
+              .map((week, weekIndex) => (
+              <div key={weekIndex}>
+                <div className="grid grid-cols-8 gap-2">
+                {/* Week Cell - Always shown */}
+                <Card className="p-2 min-h-fit hover:shadow-lg transition-all duration-200 relative cursor-pointer focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 bg-white dark:bg-slate-900">
+                  <div className="relative h-full flex flex-col justify-center items-center" style={{ gap: '2px' }}>
+                    {/* Week Date Range */}
+                    <div className="text-center">
+                      <div className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                        {week[0]?.date} {getMonthName(week[0]?.month)}-{week[6]?.date} {getMonthName(week[6]?.month)}
+            </div>
+              </div>
+                    {/* Competitor Rates Button */}
+                    <div className="text-center">
+                      <button
+                        onClick={() => handleShowCompetitorRates(week, weekIndex)}
+                        className="text-xs text-blue-600 dark:text-blue-400 cursor-pointer hover:text-blue-800 dark:hover:text-blue-300 transition-colors font-medium py-1"
+                      >
+                        {expandedWeekIndex === weekIndex ? 'Hide Comp. Rates' : 'Show Comp. Rates'}
+                      </button>
+            </div>
+              </div>
+                </Card>
+                {week.map((day, dayIndex) => {
+                  const shouldShow = shouldRenderDate(day)
+                  if (!shouldShow) {
+                    // Don't show anything for dates outside selected range
+                    return (
+                      <div 
+                        key={`desktop-blank-${dayIndex}`}
+                        className="h-16"
+                      >
+                      </div>
+                    )
+                  }
+                  return (
+                <TooltipProvider delayDuration={0} skipDelayDuration={0}>
+                  <Tooltip delayDuration={0} disableHoverableContent>
+                    <TooltipTrigger asChild>
                   <Card
-                      className={`p-3 hover:shadow-lg transition-all duration-200 relative cursor-pointer ${
-                        day.isFuture ? 'ring-2 ring-emerald-200 dark:ring-emerald-800 bg-gradient-to-br from-emerald-50/30 to-teal-50/20 dark:from-emerald-950/30 dark:to-teal-950/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800'
+                      className={`p-2 min-h-fit hover:shadow-lg transition-all duration-200 relative cursor-pointer focus:ring-2 focus:ring-blue-500 focus:outline-none border ${
+                        isToday(day) ? 'border-gray-200 dark:border-gray-500 bg-white dark:bg-slate-900' :
+                        (() => {
+                          const competitive = getCompetitiveData(day)
+                          return competitive.isMyRateHighest ? 'border-red-500 dark:border-red-400 bg-white dark:bg-slate-900' : 
+                                 competitive.isMyRateLowest ? 'border-green-500 dark:border-green-400 bg-white dark:bg-slate-900' : 
+                                 'border-gray-200 dark:border-gray-500 hover:border-gray-400 dark:hover:border-gray-400 bg-white dark:bg-slate-900'
+                        })()
                       }`}
                     onClick={() => handleDateClick(day)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Rate information for ${day.date}, ${day.currentPrice}`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleDateClick(day)
+                      }
+                    }}
                   >
-                      <div className="space-y-3">
-                        {/* Date Header */}
-                      <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1">
-                            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{day.date}</span>
-                                                         {day.isFuture && (
-                               <Badge variant="outline" className="text-xs px-1 py-0 bg-emerald-50 text-emerald-700 border-emerald-200">
-                                 Future
-                               </Badge>
-                             )}
+                                        <div className="relative h-full flex flex-col">
+                    {/* Row 1: Date on left, Colored Dot on top right */}
+                    <div className="flex items-center justify-between rounded">
+                      <div className="flex items-center gap-2">
+                        {/* Date on left side */}
+                        <div className={`text-xs font-medium ${
+                          isToday(day) 
+                            ? 'w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center' 
+                            : 'text-gray-600 dark:text-gray-300'
+                        }`}>
+                          {day.date}
+            </div>
+                        {/* Lightning refresh icon next to date */}
+                        {day.hasLightningRefresh && (
+                          <div className="ml-1">
+                            <Zap className="w-3 h-3 text-blue-500 fill-current" />
                           </div>
-                          <div className="flex items-center gap-1">
-                        {day.hasFlag && <span className="text-lg">{day.flagCountry}</span>}
-                        {day.hasIndicator && (
-                          <div
-                                className={`w-2 h-2 rounded-full ${day.indicatorColor || "bg-gray-400"} ${
-                                  day.indicatorType === "square" ? "rounded-none" : ""
-                                }`}
-                          />
                         )}
-                      </div>
-                        </div>
-
-                        {/* Current Price */}
-                        <div className="bg-slate-100 dark:bg-slate-800 rounded-md p-3 text-center">
-                          <div className="text-lg font-bold text-gray-800 dark:text-gray-200">{day.currentPrice}</div>
-                          <div className="text-xs text-slate-600 dark:text-slate-400">Current Rate</div>
-                        </div>
-
-                                                 {/* Recommended Price for Future Dates */}
-                         {day.isFuture && day.recommendedPrice && (
-                           <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950 dark:to-teal-950 rounded-md p-2 text-center border border-emerald-200 dark:border-emerald-800">
-                             <div className="flex items-center justify-center gap-1 mb-1">
-                               <TrendingUp className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                               <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">AI Rec</span>
-                             </div>
-                             <div className="text-base font-bold text-emerald-800 dark:text-emerald-200">{day.recommendedPrice}</div>
-                             <div className="flex items-center justify-center gap-1 mt-1">
-                               <div className={`w-2 h-2 rounded-full ${
-                                 day.reasoning?.confidence === 'high' ? 'bg-green-500' : 
-                                 day.reasoning?.confidence === 'medium' ? 'bg-yellow-500' : 'bg-red-500'
-                               }`} />
-                               <span className="text-xs text-emerald-600 dark:text-emerald-400">
-                                 {day.reasoning?.confidence === 'high' ? 'High' : 
-                                  day.reasoning?.confidence === 'medium' ? 'Med' : 'Low'}
-                               </span>
-                             </div>
-                           </div>
-                         )}
-
-                        {/* Comparison */}
-                        <div className="text-xs text-center text-green-700 dark:text-green-400">{day.comparison}</div>
+              </div>
+                      {/* Colored dot on top right - competitive rate indicator */}
+                      {(() => {
+                        const competitive = getCompetitiveData(day)
+                        return competitive.showRateDot && (
+                          <div className={`w-2 h-2 rounded-full ${
+                            competitive.isMyRateLowest ? 'bg-green-500 dark:bg-green-400' : 'bg-red-500 dark:bg-red-400'
+                          }`} />
+                        )
+                      })()}
+            </div>
+                                        {/* Row 2: Hotel Lowest Rate */}
+                    <div className="text-center rounded">
+                      <div className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                        ${day.hotelLowestRate}
+          </div>
+        </div>
+                    {/* Row 3: Difference vs Last Period */}
+                    <div className="text-center rounded pb-2">
+                      <div className={`text-xs font-medium ${
+                        day.rateDifference.startsWith('+') ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'
+                      }`}>
+                        {day.rateDifference}
+      </div>
+                    </div>
+                    {/* Row 4: Events, Room Type & Inclusions */}
+                    <div className="text-center rounded">
+                      <div className="flex items-center justify-center gap-1">
+                        {/* Event Icon with 16px margin */}
+                        {day.hasEvent && (
+                          <div className="flex items-center" style={{ marginRight: '16px' }}>
+                            <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                </div>
+              )}
+                        <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                          {day.roomType}
+                        </span>
+                        {day.hasInclusion && (
+                          <Wifi className="w-3 h-3 text-blue-400 dark:text-blue-300" />
+                             )}
+              </div>
+                    </div>
                     </div>
                   </Card>
-                  </PricingTooltip>
-                ))}
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 pr-6 w-[528px] z-[10001]">
+                      <div>
+                        <div className="mb-2">
+                          <div className="flex justify-between items-center">
+                            <h3 className="text-gray-900 dark:text-white">
+                              <span className="text-base font-bold">{String(day.date).padStart(2, '0')} {(() => {
+                                const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                                return months[day.month]
+                              })()} 2024</span>
+                              <span className="text-sm font-normal">, {(() => {
+                                const date = new Date(day.year, day.month, day.date)
+                                return weekDays[(date.getDay() + 6) % 7]
+                              })()}</span>
+                            </h3>
+                            {(() => {
+                              const competitive = getCompetitiveData(day)
+                              if (competitive.showRateDot) {
+                                return (
+                  <div className="flex items-center gap-2">
+                                    <div className={`w-2.5 h-2.5 rounded-full ${
+                                      competitive.isMyRateLowest ? 'bg-green-500 dark:bg-green-400' : 'bg-red-500 dark:bg-red-400'
+                    }`} />
+                                    <span className={`text-xs font-medium ${
+                                      competitive.isMyRateLowest ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                                    }`}>
+                                      {competitive.isMyRateLowest ? 'Lowest Rate' : 'Highest Rate'}
+                                    </span>
+                                  </div>
+                                )
+                              }
+                              return null
+                            })()}
+                          </div>
+                          <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mt-1 mb-4">
+                            Alhambra Hotel
+                          </div>
+                  </div>
+                  
+                        <div className="space-y-3 mb-3">
+                          <div className="grid gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                            <div className="text-left">Lowest Rate</div>
+                            <div className="text-left">Room</div>
+                            <div className="text-left">Inclusion</div>
+                            <div className="text-left">Channel</div>
+                  </div>
+                  
+                          <div className="grid gap-2 text-xs mt-2" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                              $210
+                            </div>
+                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                              Standard King
+                            </div>
+                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                          <div className="flex items-start gap-1">
+                                <Wifi className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                                <div className="text-wrap">
+                                  {(() => {
+                                    const inclusionText = "Free Wifi and Airport Pickup - Drop";
+                                    if (inclusionText.length <= 19) {
+                                      return <span>{inclusionText}</span>;
+                                    }
+                                    
+                                    const firstLine = inclusionText.substring(0, 19);
+                                    const remaining = inclusionText.substring(19);
+                                    const secondLine = remaining.length > 14 
+                                      ? remaining.substring(0, 14) + "..."
+                                      : remaining;
+                                    
+                                    return (
+                                      <div>
+                                        <div>{firstLine}</div>
+                                        <div>{secondLine}</div>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                              Booking.com
+                            </div>
+                          </div>
+                  </div>
+                  
+                        <div className="mb-3">
+                          <div className="flex items-start gap-6">
+                            {/* Avg. Compset Section */}
+                            <div className="text-xs text-black dark:text-gray-100">
+                              <div className="text-left whitespace-nowrap">
+                                <span className="font-bold">$210</span> <span className="font-medium">- Avg. Compset</span>
+                              </div>
+                            </div>
+                            
+                            {/* Events Section with 24px margin */}
+                            {day.hasEvent && (
+                              <div style={{ marginLeft: '24px' }}>
+                                <div className="flex items-center gap-2">
+                                  <Star className="w-3 h-3 text-amber-500 fill-current" />
+                                  <div className="text-xs text-gray-800 dark:text-gray-200">
+                                    Music Festival
+                                  </div>
+                                  <div style={{ paddingLeft: '0px' }}>
+                                    <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                                      (+2 more)
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
+                          <div className="text-xs text-gray-800 dark:text-gray-200 leading-relaxed text-left">
+                            Standard King | Continental breakfast included. Breakfast rated 6. Non-refundable. If you cancel, modify the booking, or don't show up, the fee will be the total price of the reservation...
+                          </div>
+                        </div>
+            </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                  )
+                })}
+                    </div>
+
+              
+                {/* Inline Competitor Table */}
+                {expandedWeekIndex === weekIndex && selectedWeekForCompetitors && (
+                  <div className="mt-2">
+                  <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden mb-[18px]">
+
+                    
+                    <div className="overflow-x-auto">
+                      {/* Fixed Avg. Compset Row */}
+                      <div className="grid" style={{ gridTemplateColumns: `1fr repeat(7, 1fr)` }}>
+                        {/* Hotel Names Column - Avg. Compset */}
+                        <div>
+                          <div className="px-2 py-0.5 text-xs font-medium text-gray-900 dark:text-gray-100 bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800/60 border-0 h-12 flex items-center border-b border-b-gray-300 dark:border-b-gray-500 transition-colors duration-200">
+                            <div className="truncate w-full font-semibold">
+                              Avg. Compset
+        </div>
+      </div>
+                        </div>
+
+                        {/* Date Columns for Avg. Compset - Always show 7 columns, populate only visible dates */}
+                        {selectedWeekForCompetitors.map((day, dayIndex) => {
+                          const isVisible = shouldRenderDate(day);
+                          const competitorData = memoizedCompetitorData[dayIndex];
+                          const avgRate = competitorData?.avgCompsetRate || 200;
+                          const avgDiff = competitorData?.avgCompsetDifference || '+15';
+
+  return (
+                            <div key={`avg-${dayIndex}`}>
+                              <div className="px-2 py-0.5 text-center border-0 bg-blue-100 dark:bg-blue-900/50 h-12 flex items-center justify-center border-b border-b-gray-300 dark:border-b-gray-500">
+                                <div className="flex flex-col items-center">
+                                  {isVisible ? (
+                                    <>
+                                      <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+                                        ${avgRate}
+                                      </span>
+                                      <div className="flex items-center gap-2">
+                                        <span className={`text-xs font-medium ${
+                                          avgDiff.startsWith('+') ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'
+                                        }`}>
+                                          {avgDiff}
+                                        </span>
+                                        {Math.random() > 0.5 && (
+                                          <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                        )}
+                                      </div>
+                                    </>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      
+                      {/* Scrollable Competitor Rows */}
+                      <div className="grid max-h-60 overflow-y-auto" style={{ gridTemplateColumns: `1fr repeat(7, 1fr)` }}>
+                        {/* Hotel Names Column */}
+                        <div>
+                          {memoizedCompetitorData[0]?.competitors.map((_, compIndex) => {
+                            const isLastRow = compIndex === memoizedCompetitorData[0]?.competitors.length - 1;
+                            return (
+                              <div key={compIndex} className={`px-2 py-0.5 text-xs font-medium text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/60 border-0 h-12 flex items-center transition-colors duration-200 ${!isLastRow ? 'border-b border-b-gray-300 dark:border-b-gray-500' : ''}`}>
+                                <div className="truncate w-full" title={memoizedCompetitorData[0]?.competitors[compIndex]?.hotelName}>
+                                  {memoizedCompetitorData[0]?.competitors[compIndex]?.hotelName}
+                           </div>
+                         </div>
+                            );
+                          })}
+                         </div>
+                        
+                        {/* Date Columns aligned with calendar - Always show 7 columns, populate only visible dates */}
+                        {selectedWeekForCompetitors.map((day, dayIndex) => {
+                          const isVisible = shouldRenderDate(day);
+                          return (
+                            <div key={dayIndex}>
+                              {memoizedCompetitorData[0]?.competitors.map((_, compIndex) => {
+                                const competitorData = memoizedCompetitorData[dayIndex]
+                                const competitor = competitorData?.competitors[compIndex]
+                                const isLastRow = compIndex === memoizedCompetitorData[0]?.competitors.length - 1;
+                              const hotelName = memoizedCompetitorData[0]?.competitors[compIndex]?.hotelName || 'Competitor Hotel';
+
+                              return (
+                                <div>
+                                  {isVisible ? (
+                                    <TooltipProvider delayDuration={0} skipDelayDuration={0}>
+                                      <Tooltip delayDuration={0} disableHoverableContent>
+                                        <TooltipTrigger asChild>
+                                          <div className={`px-2 py-0.5 text-center border-0 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800/60 h-12 flex items-center justify-center transition-colors duration-200 ${!isLastRow ? 'border-b border-b-gray-300 dark:border-b-gray-500' : ''}`}>
+                                            <div className="flex flex-col items-center">
+                                              <div className="flex items-center justify-center gap-2">
+                                                <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+                                                  {competitor?.rate}
+                                                </span>
+                                                {/* Competitive rate dot with 8px padding */}
+                                                {(competitor?.isLowest || competitor?.isHighest) && (
+                                   <div className={`w-2 h-2 rounded-full ${
+                                                    competitor?.isLowest ? 'bg-green-500 dark:bg-green-400' : 'bg-red-500 dark:bg-red-400'
+                                   }`} />
+                                                )}
+                                              </div>
+                                              <div className="flex items-center gap-2">
+                                                <span className={`text-xs font-medium ${
+                                                  competitor?.difference.startsWith('+') ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'
+                                                }`}>
+                                                  {competitor?.difference}
+                                                </span>
+                                                {Math.random() > 0.6 && (
+                                                  <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </TooltipTrigger>
+                                    <TooltipContent side="top" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-4 pr-6 w-[528px] z-[10001]">
+                                      <div>
+                                        <div className="mb-2">
+                                          <div className="flex justify-between items-center">
+                                            <h3 className="text-gray-900 dark:text-white">
+                                              <span className="text-base font-bold">{String(day.date).padStart(2, '0')} {(() => {
+                                                const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                                                return months[day.month]
+                                              })()} 2024</span>
+                                              <span className="text-sm font-normal">, {(() => {
+                                                const date = new Date(day.year, day.month, day.date)
+                                                return weekDays[(date.getDay() + 6) % 7]
+                                              })()}</span>
+                                            </h3>
+                                            {(() => {
+                                              // Show competitor's status if they have highest/lowest rate
+                                              if (competitor?.isLowest || competitor?.isHighest) {
+                                                return (
+                                                  <div className="flex items-center gap-2">
+                                                    <div className={`w-2.5 h-2.5 rounded-full ${
+                                                      competitor?.isLowest ? 'bg-green-500 dark:bg-green-400' : 'bg-red-500 dark:bg-red-400'
+                                                    }`} />
+                                                    <span className={`text-xs font-medium ${
+                                                      competitor?.isLowest ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                                                    }`}>
+                                                      {competitor?.isLowest ? 'Lowest Rate' : 'Highest Rate'}
+                                                    </span>
+                                                  </div>
+                                                )
+                                              }
+                                              return null
+                                            })()}
+                                          </div>
+                                          <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mt-1 mb-4 text-left">
+                                            {hotelName}
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="space-y-3 mb-3">
+                                          <div className="grid gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-1" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                                            <div className="text-left">Lowest Rate</div>
+                                            <div className="text-left">Room</div>
+                                            <div className="text-left">Inclusion</div>
+                                            <div className="text-left">Channel</div>
+                                          </div>
+                                          
+                                          <div className="grid gap-2 text-xs mt-2" style={{gridTemplateColumns: '95px 135px 135px 120px'}}>
+                                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                                              {competitor?.rate || '$210'}
+                                            </div>
+                                            <div className="font-semibold text-gray-900 dark:text-white break-words overflow-hidden text-left" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                                              Standard King
+                                            </div>
+                                            <div className="font-semibold text-gray-900 dark:text-white text-left">
+                                              <div className="flex items-start gap-1">
+                                                <Wifi className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                                                <div className="text-wrap">
+                                                  {(() => {
+                                                    const inclusionText = "Free Wifi and Airport Pickup - Drop";
+                                                    if (inclusionText.length <= 19) {
+                                                      return <span>{inclusionText}</span>;
+                                                    }
+                                                    
+                                                    const firstLine = inclusionText.substring(0, 19);
+                                                    const remaining = inclusionText.substring(19);
+                                                    const secondLine = remaining.length > 14 
+                                                      ? remaining.substring(0, 14) + "..."
+                                                      : remaining;
+                                                    
+                                                    return (
+                                                      <div>
+                                                        <div>{firstLine}</div>
+                                                        <div>{secondLine}</div>
+                                                      </div>
+                                                    );
+                                                  })()}
+                                                </div>
+                                              </div>
+                                            </div>
+                                            <div className="font-semibold text-gray-900 dark:text-white text-left">
+                                              {(() => {
+                                                const channelName = "Booking.com";
+                                                return channelName.length > 14 
+                                                  ? channelName.substring(0, 14) + "..."
+                                                  : channelName;
+                                              })()}
+                                            </div>
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="mb-3">
+                                          <div className="flex items-start gap-6">
+                                            {/* Avg. Compset Section */}
+                                            <div className="text-xs text-black dark:text-gray-100">
+                                              <div className="text-left whitespace-nowrap">
+                                                <span className="font-bold">$210</span> <span className="font-medium">- Avg. Compset</span>
+                                              </div>
+                                            </div>
+                                            
+                                            {/* Events Section with 24px margin */}
+                                            <div style={{ marginLeft: '24px' }}>
+                                              <div className="flex items-center gap-2">
+                                                <Star className="w-3 h-3 text-amber-500 fill-current" />
+                                                <div className="text-xs text-gray-800 dark:text-gray-200">
+                                                  Music Festival
+                                                </div>
+                                                <div style={{ paddingLeft: '0px' }}>
+                                                  <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                                                    (+2 more)
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      
+                                        <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
+                                          <div className="text-xs text-gray-800 dark:text-gray-200 leading-relaxed text-left">
+                                            Standard King | Continental breakfast included. Breakfast rated 6. Non-refundable. If you cancel, modify the booking, or don't show up, the fee will be the total price of the reservation...
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  ) : (
+                                    <div className={`px-2 py-0.5 text-center border-0 bg-white dark:bg-slate-900 h-12 flex items-center justify-center transition-colors duration-200 ${!isLastRow ? 'border-b border-b-gray-300 dark:border-b-gray-500' : ''}`}>
+                                      <div className="flex flex-col items-center">
+                                        {/* Blank cell - no content */}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                  </div>
+                )}
               </div>
             ))}
-          </div>
         </div>
       </div>
       
@@ -1141,6 +1793,80 @@ export function RateTrendCalendar({ currentView }: RateTrendCalendarProps) {
         onPrevDay={() => navigateDay("prev")}
         onNextDay={() => navigateDay("next")}
       />
-    </>
+
+
+      </div>
+  )
+}
+
+// Export the main component directly
+export function RateTrendCalendar(props: RateTrendCalendarProps) {
+  return <RateTrendCalendarInner {...props} />
+}
+
+// Export month navigation component for use in parent
+export function MonthNavigation({ 
+  shouldShowMonthNavigation, 
+  availableMonths, 
+  currentMonthIndex, 
+  onPrevMonth, 
+  onNextMonth 
+}: {
+  shouldShowMonthNavigation: boolean
+  availableMonths: { month: number; year: number; monthName: string }[]
+  currentMonthIndex: number
+  onPrevMonth: () => void
+  onNextMonth: () => void
+}) {
+  if (!shouldShowMonthNavigation || availableMonths.length === 0) {
+    return null
+  }
+
+  const currentMonth = availableMonths[currentMonthIndex]
+  const canGoPrev = currentMonthIndex > 0
+  const canGoNext = currentMonthIndex < availableMonths.length - 1
+
+  return (
+    <TooltipProvider delayDuration={500} skipDelayDuration={100}>
+      <div className="flex items-center gap-0.5">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onPrevMonth}
+              disabled={!canGoPrev}
+              className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="bg-black text-white text-xs px-3 py-2" sideOffset={5}>
+            Previous Month
+          </TooltipContent>
+        </Tooltip>
+        
+        <span className="text-base font-semibold text-black dark:text-white px-0.5" style={{ marginLeft: '8px', marginRight: '8px' }}>
+          {currentMonth?.monthName || 'Loading...'}
+        </span>
+        
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onNextMonth}
+              disabled={!canGoNext}
+              className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="bg-black text-white text-xs px-3 py-2" sideOffset={5}>
+            Next Month
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    </TooltipProvider>
   )
 }

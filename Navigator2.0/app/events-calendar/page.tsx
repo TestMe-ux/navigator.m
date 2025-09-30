@@ -122,113 +122,113 @@ interface Event {
 }
 
 // Custom events storage key
-const CUSTOM_EVENTS_KEY = 'events-calendar-custom-events'
+//const CUSTOM_EVENTS_KEY = 'events-calendar-custom-events'
 
 // Function to save custom events to localStorage
-const saveCustomEventsToStorage = (customEvents: Event[]) => {
-  // Check if we're on the client side
-  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
-    console.warn('localStorage is not available (SSR environment)')
-    return
-  }
+// const saveCustomEventsToStorage = (customEvents: Event[]) => {
+//   // Check if we're on the client side
+//   if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+//     console.warn('localStorage is not available (SSR environment)')
+//     return
+//   }
 
-  try {
-    // Ensure we only save custom events with proper timestamps
-    const eventsWithTimestamp = customEvents.filter(event => event.isCustom).map(event => ({
-      ...event,
-      createdAt: event.createdAt || Date.now()
-    }))
+//   try {
+//     // Ensure we only save custom events with proper timestamps
+//     const eventsWithTimestamp = customEvents.filter(event => event.isCustom).map(event => ({
+//       ...event,
+//       createdAt: event.createdAt || Date.now()
+//     }))
 
-    const dataToSave = JSON.stringify(eventsWithTimestamp)
-    localStorage.setItem(CUSTOM_EVENTS_KEY, dataToSave)
-    console.log(`💾 Saved ${eventsWithTimestamp.length} custom events to localStorage`)
+//     const dataToSave = JSON.stringify(eventsWithTimestamp)
+//     localStorage.setItem(CUSTOM_EVENTS_KEY, dataToSave)
+//     console.log(`💾 Saved ${eventsWithTimestamp.length} custom events to localStorage`)
 
-    // Verify the save was successful
-    const verification = localStorage.getItem(CUSTOM_EVENTS_KEY)
-    if (!verification) {
-      throw new Error('Failed to verify localStorage save')
-    }
-  } catch (error) {
-    console.error('Failed to save custom events to localStorage:', error)
-    // Try to notify user if localStorage is not available
-    if (error instanceof DOMException && error.code === 22) {
-      console.warn('localStorage quota exceeded or disabled')
-    }
-  }
-}
+//     // Verify the save was successful
+//     const verification = localStorage.getItem(CUSTOM_EVENTS_KEY)
+//     if (!verification) {
+//       throw new Error('Failed to verify localStorage save')
+//     }
+//   } catch (error) {
+//     console.error('Failed to save custom events to localStorage:', error)
+//     // Try to notify user if localStorage is not available
+//     if (error instanceof DOMException && error.code === 22) {
+//       console.warn('localStorage quota exceeded or disabled')
+//     }
+//   }
+// }
 
 // Function to load custom events from localStorage
-const loadCustomEventsFromStorage = (): Event[] => {
-  // Check if we're on the client side
-  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
-    console.warn('localStorage is not available (SSR environment)')
-    return []
-  }
+// const loadCustomEventsFromStorage = (): Event[] => {
+//   // Check if we're on the client side
+//   if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+//     console.warn('localStorage is not available (SSR environment)')
+//     return []
+//   }
 
-  try {
+//   try {
 
-    const stored = localStorage.getItem(CUSTOM_EVENTS_KEY)
-    if (!stored || stored === 'null' || stored === 'undefined') {
-      console.log('📂 No custom events found in localStorage')
-      return []
-    }
+//     const stored = localStorage.getItem(CUSTOM_EVENTS_KEY)
+//     if (!stored || stored === 'null' || stored === 'undefined') {
+//       console.log('📂 No custom events found in localStorage')
+//       return []
+//     }
 
-    let events: (Event & { createdAt: number })[]
-    try {
-      events = JSON.parse(stored)
-    } catch (parseError) {
-      console.error('Failed to parse stored events, clearing localStorage:', parseError)
-      localStorage.removeItem(CUSTOM_EVENTS_KEY)
-      return []
-    }
+//     let events: (Event & { createdAt: number })[]
+//     try {
+//       events = JSON.parse(stored)
+//     } catch (parseError) {
+//       console.error('Failed to parse stored events, clearing localStorage:', parseError)
+//       localStorage.removeItem(CUSTOM_EVENTS_KEY)
+//       return []
+//     }
 
-    // Ensure events is an array
-    if (!Array.isArray(events)) {
-      console.error('Stored events is not an array, clearing localStorage')
-      localStorage.removeItem(CUSTOM_EVENTS_KEY)
-      return []
-    }
+//     // Ensure events is an array
+//     if (!Array.isArray(events)) {
+//       console.error('Stored events is not an array, clearing localStorage')
+//       localStorage.removeItem(CUSTOM_EVENTS_KEY)
+//       return []
+//     }
 
-    const threeDaysAgo = Date.now() - (3 * 24 * 60 * 60 * 1000) // 3 days in milliseconds
+//     const threeDaysAgo = Date.now() - (3 * 24 * 60 * 60 * 1000) // 3 days in milliseconds
 
-    // Filter out events older than 3 days and ensure they have required properties
-    const validEvents = events.filter(event => {
-      // Check if event has required properties
-      if (!event.id || !event.name || !event.isCustom) {
-        console.warn('Invalid event found, skipping:', event)
-        return false
-      }
+//     // Filter out events older than 3 days and ensure they have required properties
+//     const validEvents = events.filter(event => {
+//       // Check if event has required properties
+//       if (!event.id || !event.name || !event.isCustom) {
+//         console.warn('Invalid event found, skipping:', event)
+//         return false
+//       }
 
-      // Check if event is within 3-day window
-      const createdAt = event.createdAt || 0
-      return createdAt > threeDaysAgo
-    })
+//       // Check if event is within 3-day window
+//       const createdAt = event.createdAt || 0
+//       return createdAt > threeDaysAgo
+//     })
 
-    const expiredCount = events.length - validEvents.length
+//     const expiredCount = events.length - validEvents.length
 
-    // Save back the filtered events to clean up expired ones
-    if (validEvents.length !== events.length) {
-      try {
-        localStorage.setItem(CUSTOM_EVENTS_KEY, JSON.stringify(validEvents))
-        console.log(`🗑️ Cleaned up ${expiredCount} expired events (older than 3 days)`)
-      } catch (saveError) {
-        console.error('Failed to save cleaned events:', saveError)
-      }
-    }
+//     // Save back the filtered events to clean up expired ones
+//     if (validEvents.length !== events.length) {
+//       try {
+//         localStorage.setItem(CUSTOM_EVENTS_KEY, JSON.stringify(validEvents))
+//         console.log(`🗑️ Cleaned up ${expiredCount} expired events (older than 3 days)`)
+//       } catch (saveError) {
+//         console.error('Failed to save cleaned events:', saveError)
+//       }
+//     }
 
-    console.log(`📂 Loaded ${validEvents.length} custom events from localStorage`)
-    return validEvents
-  } catch (error) {
-    console.error('Failed to load custom events from localStorage:', error)
-    // Clear corrupted data
-    try {
-      localStorage.removeItem(CUSTOM_EVENTS_KEY)
-    } catch (clearError) {
-      console.error('Failed to clear corrupted localStorage data:', clearError)
-    }
-    return []
-  }
-}
+//     console.log(`📂 Loaded ${validEvents.length} custom events from localStorage`)
+//     return validEvents
+//   } catch (error) {
+//     console.error('Failed to load custom events from localStorage:', error)
+//     // Clear corrupted data
+//     try {
+//       localStorage.removeItem(CUSTOM_EVENTS_KEY)
+//     } catch (clearError) {
+//       console.error('Failed to clear corrupted localStorage data:', clearError)
+//     }
+//     return []
+//   }
+// }
 
 // Custom Event Tooltip Component with Today's New Logic
 const EventTooltip = ({ children, event, isVisible, day, currentDate }: {
@@ -466,7 +466,7 @@ export default function EventsCalendarPage() {
 
   const [bookmarkSearchQuery, setBookmarkSearchQuery] = useState("")
   const [bookmarkCategoryFilter, setBookmarkCategoryFilter] = useState<string[]>(["all", "conferences", "tradeshow", "workshop", "social", "holidays"])
-  const [bookmarkTypeFilter, setBookmarkTypeFilter] = useState<string[]>(["all", "bookmarked", "holiday", "suggested", "available"])
+  const [bookmarkTypeFilter, setBookmarkTypeFilter] = useState<string[]>([])
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [dropdownKey, setDropdownKey] = useState(0) // Force re-render of dropdown
 
@@ -490,6 +490,7 @@ export default function EventsCalendarPage() {
 
   // Helper function to check if a type should be checked (bookmark popup Event Type)
   const isTypeChecked = useCallback((typeId: string) => {
+
     // Always return true for individual types when "all" is present
     const allTypes = ["bookmarked", "holiday", "suggested", "available"]
 
@@ -920,7 +921,49 @@ export default function EventsCalendarPage() {
   }, [categoryData])
 
   // Helper function to get category data for events
+  const getCategoryData = useCallback(
+    (event: Event) => {
 
+      const normalize = (s?: string) => (s ?? "").toLowerCase().trim();
+
+      let eventCategory = normalize(event.category);
+      const eventType = normalize(event.type);
+      const eventStatus = normalize(event.status);
+
+      if (eventCategory === "conference") {
+        eventCategory = eventCategory + "s"; // -> "conferences"
+      }
+      //  Match by explicit category first (highest priority)
+      if (eventCategory) {
+        const byCategory = categoryData.find(cat => {
+          const id = normalize(cat.id);
+          const name = normalize(cat.name);
+          return id === eventCategory || name === eventCategory;
+        });
+        if (byCategory) return byCategory;
+      }
+
+      //  Holiday type
+      if (eventType === "holiday") {
+        return categoryData.find(cat => cat.id === "holidays");
+      }
+
+      //  Suggested status (only if no explicit category)
+      if (eventStatus === "suggested") {
+        return categoryData.find(cat => cat.id === "social");
+      }
+
+      //  Match by type if still not found
+      if (eventType) {
+        const byType = categoryData.find(cat => normalize(cat.id) === eventType);
+        if (byType) return byType;
+      }
+
+      //  Default → all
+      return categoryData.find(cat => cat.id === "all");
+    },
+    [categoryData]
+  );
 
   // const getCategoryData = useCallback(
   //   (event: Event) => {
@@ -940,13 +983,6 @@ export default function EventsCalendarPage() {
 
   //     // Try match by id or name (case-insensitive)
   //     return categoryData.find(cat => {
-  //       console.log(
-  //         "Event:", event.name,
-  //         "| Category:", event.category,
-  //         "| Type:", event.type,
-  //         "| Mapped Category:", cat?.name,
-  //         "| Icon:", cat?.icon?.name
-  //       );
   //       const id = normalize(cat.id);
   //       const name = normalize(cat.name);
   //       return id === eventCategory || name === eventCategory || id === eventType || name === eventType;
@@ -958,29 +994,9 @@ export default function EventsCalendarPage() {
   // );
 
 
-  const getCategoryData = useCallback((event: Event) => {
-    // For suggested events, use Social icon
-    if (event.status === "suggested") {
-      return categoryData.find(cat => cat.id === "social")
-    }
-
-    // For holidays, use Sparkles icon
-    if (event.type === "holiday") {
-      return categoryData.find(cat => cat.id === "holidays")
-    }
-
-    // For other events, try to match by category
-    return categoryData.find(cat =>
-      cat.id === event.category ||
-      cat.name.toLowerCase() === event.category?.toLowerCase() ||
-      cat.id === event.type
-    )
-  }, [categoryData])
-
-
   // Toggle bookmark status  
-  const toggleBookmark = useCallback((eventId: string) => {
-    
+  const toggleBookmark = useCallback((eventId: string, SID: string) => {
+
     setEvents(prevEvents => {
       let updatedEvent: Event | any = null;
 
@@ -1006,7 +1022,16 @@ export default function EventsCalendarPage() {
         setSelectedEvent(prev => (prev?.eventId === eventId ? updatedEvent! : prev));
         // Call API only once per toggle
 
-        callApiToUpdateEvent(updatedEvent);
+        if (Number(SID)) {
+          console.log("TOGGLE BOOKMARK DEBUG:", {
+            eventId,
+            sid: selectedProperty?.sid,
+            updatedEvent
+          });
+          callApiToUpdateEvent(updatedEvent, Number(SID));
+        } else {
+          console.log("Skipping API call: selectedProperty.sid is undefined");
+        }
         if (
           updatedEvent.status === "available" && // it was removed from bookmarks
           eventId === updatedEvent.eventId
@@ -1014,8 +1039,8 @@ export default function EventsCalendarPage() {
           setSelectedEvent(null);       // Deselect event
           setIsDayViewOpen(false);      // Close modal
         }
-        setIsSaveEvent(true);
-        setTimeout(() => setLoadingProgress(0), 100);
+        //setIsSaveEvent(true);
+        // setTimeout(() => setLoadingProgress(0), 100);
       }
 
 
@@ -1023,11 +1048,11 @@ export default function EventsCalendarPage() {
     });
   }, []);
 
-  const callApiToUpdateEvent = async (getevents: Event) => {
+  const callApiToUpdateEvent = async (getevents: Event, sid: number) => {
     try {
 
       if (!getevents) return;
-      console.log("call Api To UpdateEvent rows:", getevents);
+      //console.log("call Api To UpdateEvent rows:", getevents);
 
       if (getevents.isCustom) {
         // Decide new status before API call
@@ -1040,6 +1065,7 @@ export default function EventsCalendarPage() {
           const response = await setSubscribeUnsubscribeEvent(filtersValues);
           if (response?.status) {
             //console.log("filtersValues SubscribeUnsubscribe", filtersValues)
+            // fetchAllData();           
             setEvents(prev => prev.map(ev => ev.eventId === getevents.eventId ? response.body.eventId : ev));
             setFilteredEvents(prev => prev.map(ev => ev.eventId === getevents.eventId ? response.body.eventId : ev));
             setSelectedEvent(prev => prev?.eventId === getevents.eventId ? response.body.eventId : prev);
@@ -1051,9 +1077,13 @@ export default function EventsCalendarPage() {
           console.error("API Error:", err);
         }
       } else if (getevents.type === "holiday") {
+        if (!sid) {
+          console.error("Missing selectedProperty.sid, cannot subscribe holiday event");
+          return;
+        }
         var filtersValue = {
           "EventHolidayID": getevents.eventId,
-          "SID": selectedProperty?.sid,
+          "SID": sid,
           "IsActive": getevents.status == "bookmarked" ? true : false,
           "Imapact": getevents.priority === "high" ? 1 : getevents.priority === "medium" ? 2 : 3,
           "Type": 0
@@ -1083,7 +1113,7 @@ export default function EventsCalendarPage() {
           EventCity: getevents.eventCity,
           EventType: getevents.type,
           IsCustom: 0,
-          SID: selectedProperty?.sid,
+          SID: sid,
           ImageUrl: getevents.imageUrl,
           EventImpact: getevents.priority === "high" ? 1 : getevents.priority === "medium" ? 2 : 3,
           EventDescription: getevents.description,
@@ -1131,6 +1161,10 @@ export default function EventsCalendarPage() {
           console.error("API Error:", err);
         }
       }
+
+      setIsSaveEvent(true);
+      setTimeout(() => setLoadingProgress(0), 300);
+
 
     } catch (error) {
       console.error("API error:", getevents);
@@ -1849,7 +1883,7 @@ export default function EventsCalendarPage() {
         category: apiEvent.eventType?.trim(),
         location: apiEvent.eventLocation || '',
         description: apiEvent.eventDescription || '',
-        status: apiEvent.isSubscribed ? "bookmarked" : "suggested" as const,
+        status: apiEvent.isSubscribed === true ? "bookmarked" : "available" as const,
         country: apiEvent.eventCountry || '',
         flag: apiEvent.flag || '🇦🇪',
         isCustom: apiEvent.isCustom || false,
@@ -1898,15 +1932,23 @@ export default function EventsCalendarPage() {
 
 
   useEffect(() => {
-    let filtered = [...apiSubscribeEventList];
+    let filtered = [...apiSubscribeEventList]
+    // ;
 
     // Status/type filter
     filtered = filtered.filter(event => {
-      if (event.status === "bookmarked" && enabledEventTypes.bookmarked) return true;
-      if (event.type === "holiday" && enabledEventTypes.holidays) return true;
-      if (event.status !== "bookmarked" && event.type !== "holiday") return true; // default show others
+      if (event.type !== "holiday" && event.status === "bookmarked" && enabledEventTypes.bookmarked) return true;
+      if (event.type === "holiday" && event.status == "bookmarked" && enabledEventTypes.holidays) return true;
+      // if (event.type === "conference" && enabledEventTypes.conferences) return true;
+      // if (event.type === "social" && enabledEventTypes.social) return true;
       return false;
     });
+    // filtered = filtered.filter(event => {
+    //   if (event.status === "bookmarked" && enabledEventTypes.bookmarked) return true;
+    //   if (event.type === "holiday" && enabledEventTypes.holidays && event.status == "bookmarked") return true;
+    //   if (event.status !== "bookmarked" && event.type !== "holiday") return true; // default show others
+    //   return false;
+    // });
 
     // Country filter
     if (selectedCountry !== selectedProperty?.country && selectedCountry !== "All") {
@@ -1954,7 +1996,7 @@ export default function EventsCalendarPage() {
   ]);
 
   // useEffect(() => {
-  //   debugger
+
   //   let filtered = apiSubscribeEventList.filter((event) => {
   //     //  Status/type filter
   //     if (event.status === "bookmarked" && enabledEventTypes.bookmarked) return true;
@@ -2023,7 +2065,11 @@ export default function EventsCalendarPage() {
     if (!isBookmarkModalOpen) {
       // Clear the search input when modal closes
       setBookmarkSearchQuery("");
+      bookMarkDialogClose();
     }
+    // if (isBookmarkModalOpen) {
+    //   console.log("POPUP OPEN - selectedProperty:", selectedProperty);
+    // }
   }, [isBookmarkModalOpen]);
 
   const monthNames = [
@@ -2060,34 +2106,102 @@ export default function EventsCalendarPage() {
   //   })
   // }
 
-  // Previous/Next month navigation
-  const navigateMonth = (direction: "prev" | "next") => {
+  // Previous/Next month navigation  
+  const navigateMonth = (direction: "prev" | "next" | "prevYear" | "nextYear") => {
     setCurrentDate(prevDate => {
-      const restrictions = getDateRestrictions()
+      const today = new Date()
       const newDate = new Date(prevDate)
 
-      if (direction === "prev") {
-        newDate.setMonth(prevDate.getMonth() - 1)
-      } else {
-        newDate.setMonth(prevDate.getMonth() + 1)
+      // 🔹 Move by month or year
+      switch (direction) {
+        case "prev":
+          newDate.setMonth(prevDate.getMonth() - 1)
+          break
+        case "next":
+          newDate.setMonth(prevDate.getMonth() + 1)
+          break
+        case "prevYear":
+          newDate.setFullYear(prevDate.getFullYear() - 1)
+          break
+        case "nextYear":
+          newDate.setFullYear(prevDate.getFullYear() + 1)
+          break
       }
 
-      // stop navigation if out of range
       const newYear = newDate.getFullYear()
       const newMonth = newDate.getMonth()
+      const currentYear = today.getFullYear()
+      const currentMonth = today.getMonth()
 
-      if (
-        newYear < restrictions.minYear ||
-        newYear > restrictions.maxYear ||
-        (newYear === restrictions.minYear && newMonth < restrictions.minMonth) ||
-        (newYear === restrictions.maxYear && newMonth > restrictions.maxMonth)
-      ) {
-        return prevDate // ❌ don't change
+      // 🔹 Apply rules
+      if (newYear === currentYear) {
+        return newDate // ✅ all months allowed
       }
 
-      return newDate // ✅ valid new date
+      if (newYear === currentYear + 1) {
+        // ✅ Next year → only up to current month
+        if (newMonth <= currentMonth) return newDate
+      }
+
+      if (newYear === currentYear - 1) {
+        // ✅ Previous year → only months >= current month
+        if (newMonth >= currentMonth) return newDate
+      }
+
+      return prevDate // ❌ invalid navigation
     })
   }
+
+
+  // const navigateMonth = (direction: "prev" | "next") => {
+  //   setCurrentDate(prevDate => {
+  //     const restrictions = getDateRestrictions()
+  //     const newDate = new Date(prevDate)
+
+  //     if (direction === "prev") {
+  //       newDate.setMonth(prevDate.getMonth() - 1)
+  //     } else {
+  //       newDate.setMonth(prevDate.getMonth() + 1)
+  //     }
+
+  //     // stop navigation if out of range
+  //     const newYear = newDate.getFullYear()
+  //     const newMonth = newDate.getMonth()
+
+  //     if (
+  //       newYear < restrictions.minYear ||
+  //       newYear > restrictions.maxYear ||
+  //       (newYear === restrictions.minYear && newMonth < restrictions.minMonth) ||
+  //       (newYear === restrictions.maxYear && newMonth > restrictions.maxMonth)
+  //     ) {
+  //       return prevDate // ❌ don't change
+  //     }
+
+  //     return newDate // ✅ valid new date
+  //   })
+  // }
+
+  const isPrevDisabled = (currentDate: Date) => {
+    const today = new Date()
+    const currentYear = today.getFullYear()
+    const currentMonth = today.getMonth()
+
+    if (currentDate.getFullYear() < currentYear - 1) return true
+    if (currentDate.getFullYear() === currentYear - 1 && currentDate.getMonth() <= currentMonth) return true
+    return false
+  }
+
+  const isNextDisabled = (currentDate: Date) => {
+    const today = new Date()
+    const currentYear = today.getFullYear()
+    const currentMonth = today.getMonth()
+
+    if (currentDate.getFullYear() > currentYear + 1) return true
+    if (currentDate.getFullYear() === currentYear + 1 && currentDate.getMonth() >= currentMonth) return true
+    return false
+  }
+
+
 
   // Navigate to today's month - call today's new logic
   const navigateToToday = () => {
@@ -2112,6 +2226,8 @@ export default function EventsCalendarPage() {
   }
 
   // Month picker functionality
+
+
   const [monthPickerYear, setMonthPickerYear] = useState(currentDate.getFullYear())
 
   // Navigate to specific month
@@ -2217,36 +2333,28 @@ export default function EventsCalendarPage() {
   const isMonthSelectable = (
     month: number,
     year: number,
-    referenceDate: Date = currentDate,
-    direction: "prevYear" | "nextYear" | null = null
+    referenceDate: Date | null
   ) => {
-    const restrictions = getDateRestrictions()
-    const currentMonth = referenceDate.getMonth()
-    const currentYear = referenceDate.getFullYear()
+    const today = new Date(); // ✅ define "today" here
+    const baseDate = referenceDate ?? today; // fallback if null
 
-    // Year out of allowed range
-    if (year < restrictions.minYear || year > restrictions.maxYear) return false
+    const currentMonth = baseDate.getMonth();
+    const currentYear = baseDate.getFullYear();
 
-    if (year === currentYear) {
-      // In the current year, all months are selectable
-      return true
-    }
+    // Current year → all months allowed
+    if (year === currentYear) return true;
 
-    // Year jump logic
-    if (direction === "prevYear") {
-      if (month < currentMonth) return false // Only months AFTER current month selectable
-    } else if (direction === "nextYear") {
-      if (month > currentMonth) return false // Only months BEFORE current month selectable
-    }
+    // Next year → only months up to current month
+    if (year === currentYear + 1) return month <= currentMonth;
 
-    // Boundary check for min/max year
-    if ((year === restrictions.minYear && month < restrictions.minMonth) ||
-      (year === restrictions.maxYear && month > restrictions.maxMonth)) {
-      return false
-    }
+    // Previous year → only months from current month onward
+    if (year === currentYear - 1) return month >= currentMonth;
 
-    return true
-  }
+    // Any other year → disabled
+    return false;
+  };
+
+
 
   // const isMonthSelectable = (month: number, year: number) => {
   //   const restrictions = getDateRestrictions()
@@ -2329,7 +2437,7 @@ export default function EventsCalendarPage() {
     };
 
     // Optimistically add to UI immediately
-    setEvents(prev => [tempEvent, ...prev]);
+    // setEvents(prev => [tempEvent, ...prev]);
 
     const addEventObj = {
       EventType: tempEvent.type,
@@ -2356,9 +2464,9 @@ export default function EventsCalendarPage() {
         const serverId = String(res.body.eventId);
 
         // Replace temp ID with server ID
-        setEvents(prev =>
-          prev.map(ev => (ev.id === tempId ? { ...ev, id: serverId, eventId: serverId } : ev))
-        );
+        // setEvents(prev =>
+        //   prev.map(ev => (ev.id === tempId ? { ...ev, id: serverId, eventId: serverId } : ev))
+        // );
 
         setIsSaveEvent(true);
       } else {
@@ -2600,12 +2708,34 @@ export default function EventsCalendarPage() {
 
   // Get event background color and border based on type/status
   const getEventBgColor = (event: Event) => {
-    // Priority order: bookmarked > holiday > suggested > default
-    if (event.status === "bookmarked") return "bg-gradient-to-r from-green-50 to-green-25 text-green-700 border border-green-200 border-l-4 border-l-green-500 shadow-sm dark:from-green-900 dark:to-green-800 dark:text-green-300 dark:border-green-600 dark:border-l-green-400"
-    if (event.type === "holiday") return "bg-gradient-to-r from-purple-50 to-purple-25 text-purple-700 border border-purple-200 border-l-4 border-l-purple-500 shadow-sm dark:from-purple-900 dark:to-purple-800 dark:text-purple-300 dark:border-purple-600 dark:border-l-purple-400"
-    if (event.status === "suggested") return "bg-gradient-to-r from-blue-50 to-blue-25 text-blue-700 border border-blue-200 border-l-4 border-l-blue-500 shadow-sm dark:from-blue-900 dark:to-blue-800 dark:text-blue-300 dark:border-blue-600 dark:border-l-blue-400"
-    return "bg-gradient-to-r from-gray-50 to-gray-25 text-gray-700 border border-gray-200 border-l-4 border-l-gray-400 shadow-sm dark:from-gray-800 dark:to-gray-700 dark:text-gray-300 dark:border-gray-600 dark:border-l-gray-500"
-  }
+    // Priority order: holiday + bookmarked > bookmarked > holiday > suggested > default
+
+    if (event.type === "holiday" && event.status === "bookmarked") {
+      return "bg-gradient-to-r from-purple-50 to-purple-25 text-purple-700 border border-purple-200 border-l-4 border-l-purple-500 shadow-sm dark:from-purple-900 dark:to-purple-800 dark:text-purple-300 dark:border-purple-600 dark:border-l-purple-400";
+    }
+
+    if (event.status === "bookmarked") {
+      return "bg-gradient-to-r from-green-50 to-green-25 text-green-700 border border-green-200 border-l-4 border-l-green-500 shadow-sm dark:from-green-900 dark:to-green-800 dark:text-green-300 dark:border-green-600 dark:border-l-green-400";
+    }
+
+    if (event.type === "holiday") {
+      return "bg-gradient-to-r from-yellow-50 to-yellow-25 text-yellow-700 border border-yellow-200 border-l-4 border-l-yellow-500 shadow-sm dark:from-yellow-900 dark:to-yellow-800 dark:text-yellow-300 dark:border-yellow-600 dark:border-l-yellow-400";
+    }
+
+    if (event.status === "suggested") {
+      return "bg-gradient-to-r from-blue-50 to-blue-25 text-blue-700 border border-blue-200 border-l-4 border-l-blue-500 shadow-sm dark:from-blue-900 dark:to-blue-800 dark:text-blue-300 dark:border-blue-600 dark:border-l-blue-400";
+    }
+
+    return "bg-gradient-to-r from-gray-50 to-gray-25 text-gray-700 border border-gray-200 border-l-4 border-l-gray-400 shadow-sm dark:from-gray-800 dark:to-gray-700 dark:text-gray-300 dark:border-gray-600 dark:border-l-gray-500";
+  };
+
+  // const getEventBgColor = (event: Event) => {
+  //   // Priority order: bookmarked > holiday > suggested > default
+  //   if (event.status === "bookmarked") return "bg-gradient-to-r from-green-50 to-green-25 text-green-700 border border-green-200 border-l-4 border-l-green-500 shadow-sm dark:from-green-900 dark:to-green-800 dark:text-green-300 dark:border-green-600 dark:border-l-green-400"
+  //   if (event.type === "holiday") return "bg-gradient-to-r from-purple-50 to-purple-25 text-purple-700 border border-purple-200 border-l-4 border-l-purple-500 shadow-sm dark:from-purple-900 dark:to-purple-800 dark:text-purple-300 dark:border-purple-600 dark:border-l-purple-400"
+  //   if (event.status === "suggested") return "bg-gradient-to-r from-blue-50 to-blue-25 text-blue-700 border border-blue-200 border-l-4 border-l-blue-500 shadow-sm dark:from-blue-900 dark:to-blue-800 dark:text-blue-300 dark:border-blue-600 dark:border-l-blue-400"
+  //   return "bg-gradient-to-r from-gray-50 to-gray-25 text-gray-700 border border-gray-200 border-l-4 border-l-gray-400 shadow-sm dark:from-gray-800 dark:to-gray-700 dark:text-gray-300 dark:border-gray-600 dark:border-l-gray-500"
+  // }
 
   // Check if event spans multiple days
   const isMultiDayEvent = (event: Event) => {
@@ -2630,54 +2760,95 @@ export default function EventsCalendarPage() {
   }
 
   // Filter events for bookmark modal
-  const getFilteredBookmarkEvents = useMemo(() => {
+  const ALL_TYPES = ["bookmarked", "available"];
 
-    let filtered = [...events]
-    //events
+  const getFilteredBookmarkEvents = useMemo(() => {
+    // Deduplicate events by eventId
+    const seen = new Set();
+    let filtered = events.filter(event => {
+      if (seen.has(event.eventId)) return false;
+      seen.add(event.eventId);
+      return true;
+    });
 
     // Apply bookmark search filter
     if (bookmarkSearchQuery) {
-      const searchLower = bookmarkSearchQuery.toLowerCase()
+      const searchLower = bookmarkSearchQuery.toLowerCase();
       filtered = filtered.filter(
         (event) =>
-          event.name.toLowerCase().includes(searchLower) ||
-          event.description.toLowerCase().includes(searchLower),
-      )
+          (event.name?.toLowerCase() || "").includes(searchLower) ||
+          (event.description?.toLowerCase() || "").includes(searchLower)
+      );
     }
+
 
     // Apply category filter
     if (!bookmarkCategoryFilter.includes("all")) {
-      filtered = filtered.filter((event) => {
-        return bookmarkCategoryFilter.some(category => {
+      filtered = filtered.filter((event) =>
+        bookmarkCategoryFilter.some(category => {
           if (category === "social" || category === "business") {
-            return event.category === category
+            return event.category === category;
           } else if (category === "holidays") {
-            return event.type === "holiday"
+            return event.type === "holiday";
           } else {
-            return event.type === category
+            return event.type === category;
           }
         })
-      })
+      );
     }
 
     // Apply type filter
-    if (!bookmarkTypeFilter.includes("all")) {
+    const selectedTypes = bookmarkTypeFilter.filter(t => t !== "all");
+    if (selectedTypes.length === 0) {
+      return [];
+    } else {
       filtered = filtered.filter((event) => {
-        return bookmarkTypeFilter.some(type => {
-          if (type === "bookmarked") {
-            // Only show events that are actually bookmarked
-            return event.status === "bookmarked"
-          } else if (type === "suggested" || type === "available") {
-            return event.status === type
-          } else {
-            return event.type === type
-          }
-        })
-      })
+        const conditionMap: Record<string, (event: any) => boolean> = {
+          bookmarked: (event) =>
+            (event.status === "bookmarked" && event.type === "holiday") || event.status === "bookmarked",
+
+          available: (event) =>
+            (event.status === "available" && event.type === "holiday") ||
+            (event.status === "holidays" && event.type === "holiday") || event.status === "available",
+
+
+
+          suggested: (event) =>
+            event.category?.toLowerCase() === "social",
+        };
+
+        return selectedTypes.some(type =>
+          conditionMap[type] ? conditionMap[type](event) : event.type === type
+        );
+      });
     }
+
+    // const selectedTypes = bookmarkTypeFilter.filter(t => t !== "all");
+    // if (selectedTypes.length === 0) {
+    //   return [];
+    // } else {
+    //   filtered = filtered.filter((event) => {
+    //     return selectedTypes.some((type) => {
+    //       switch (type) {
+    //         case "bookmarked":
+    //           return event.status === "bookmarked"; // actual bookmarks
+    //         case "holidays":
+    //           return event.type === "holiday"; // holidays
+    //         case "suggested":
+    //           return event.category === "social"; // social events count as suggested
+    //         case "available":
+    //           return event.status === "available";
+    //         default:
+    //           return event.type === type; // fallback for other types
+    //       }
+    //     });
+    //   });
+    // }
+
+    // ✅ sort the filtered array, not the Set
     return filtered.sort((a, b) => {
-      const aIsBookmarked = a.status === 'bookmarked' ? 1 : 0;
-      const bIsBookmarked = b.status === 'bookmarked' ? 1 : 0;
+      const aIsBookmarked = a.status === "bookmarked" ? 1 : 0;
+      const bIsBookmarked = b.status === "bookmarked" ? 1 : 0;
 
       if (bIsBookmarked - aIsBookmarked !== 0) {
         return bIsBookmarked - aIsBookmarked; // Bookmarked first
@@ -2686,7 +2857,8 @@ export default function EventsCalendarPage() {
       return new Date(a.startDate).getTime() - new Date(b.startDate).getTime(); // Then by date
     });
 
-  }, [events, bookmarkSearchQuery, bookmarkCategoryFilter, bookmarkTypeFilter])
+  }, [events, bookmarkSearchQuery, bookmarkCategoryFilter, bookmarkTypeFilter]);
+
 
   const groupedBookmarkEvents = useMemo(() => {
     return getFilteredBookmarkEvents.reduce((acc, event) => {
@@ -2699,7 +2871,6 @@ export default function EventsCalendarPage() {
 
   // Handle category selection with multi-select logic
   const handleCategorySelection = (category: string) => {
-
     setBookmarkCategoryFilter(prev => {
       if (category === "all") {
         // If selecting "All", toggle between all selected and all unselected
@@ -2748,53 +2919,110 @@ export default function EventsCalendarPage() {
   }
 
   // Handle type selection with multi-select logic
+
   const handleTypeSelection = (type: string) => {
     setBookmarkTypeFilter(prev => {
+      let newSelection = [...prev];
+
       if (type === "all") {
-        // If selecting "All", toggle between all selected and all unselected
-        if (prev.includes("all")) {
-          return [] // Unselect all
-        } else {
-          return ["all", "bookmarked", "holiday", "suggested", "available"] // Select all
-        }
+        // Toggle "all"
+        if (prev.includes("all")) return []; // Unselect all
+        return ["all", ...ALL_TYPES]; // Select all
       }
 
-      const isSelected = prev.includes(type)
-      let newSelection: string[]
-
-      if (isSelected) {
-        // Remove the type and "all" if present
-        newSelection = prev.filter(t => t !== type && t !== "all")
+      if (prev.includes(type)) {
+        // Remove the type
+        newSelection = newSelection.filter(t => t !== type);
       } else {
-        // Add the type and remove "all" if present
-        newSelection = prev.filter(t => t !== "all")
-        newSelection = [...newSelection, type]
-
-        // If all individual types are now selected, add "all"
-        if (newSelection.length === 4) {
-          newSelection = ["all", ...newSelection]
-        }
+        // Add the type
+        newSelection.push(type);
       }
 
-      return newSelection
-    })
-  }
+      // Remove "all" if not all individual types are selected
+      const individualSelected = newSelection.filter(t => ALL_TYPES.includes(t));
+      if (individualSelected.length === ALL_TYPES.length) {
+        newSelection = ["all", ...ALL_TYPES]; // Select all if all selected
+      } else {
+        newSelection = [...individualSelected]; // Only keep actually selected types
+      }
+      return newSelection;
+    });
+  };
+
+  //   const handleTypeSelection = (type: string) => {
+
+  //     setBookmarkTypeFilter(prev => {
+  //       if (type === "all") {
+  //         // If selecting "All", toggle between all selected and all unselected
+  //         if (prev.includes("all")) {
+  //           return [] // Unselect all
+  //         } else {
+  //           return ["all", "bookmarked", "holiday", "suggested", "available"] // Select all
+  //         }
+  //       }
+
+  //       const isSelected = prev.includes(type)
+  //       let newSelection: string[]
+
+  //       if (isSelected) {
+  //         // Remove the type and "all" if present
+  //         newSelection = prev.filter(t => t !== type && t !== "all")
+  //       } else {
+  //         // Add the type and remove "all" if present
+  //         newSelection = prev.filter(t => t !== "all")
+  //         newSelection = [...newSelection, type]
+
+  //         // If all individual types are now selected, add "all"
+  //         if (newSelection.length === 4) {
+  //           newSelection = ["all", ...newSelection]
+  //         }
+  //       }
+  //       console.log("Updated bookmarkTypeFilter:", newSelection);
+  //       return newSelection
+  //     })
+  //   }
 
   // Get display text for bookmark type filter
   const getBookmarkTypeDisplayText = () => {
-    if (bookmarkTypeFilter.includes("all") || bookmarkTypeFilter.length === 4) {
-      return "All Events"
+    //const allTypes = ["bookmarked", "holiday", "suggested", "available"];
+
+    // If "all" or all individual types are selected → All Events
+    if (bookmarkTypeFilter.includes("all") || ALL_TYPES.every(t => bookmarkTypeFilter.includes(t))) {
+      return "All Events";
     }
-    if (bookmarkTypeFilter.length === 1) {
-      const type = bookmarkTypeFilter[0]
-      if (type === "bookmarked") return "Bookmarked"
-      if (type === "holidays") return "Holidays"
-      if (type === "suggested") return "Suggested"
-      if (type === "available") return "Available"
-      return type.charAt(0).toUpperCase() + type.slice(1)
+
+    // Exclude "all"
+    const selected = bookmarkTypeFilter.filter(t => t !== "all");
+
+    if (selected.length === 0) return "Select Type";
+
+    if (selected.length === 1) return selected[0].charAt(0).toUpperCase() + selected[0].slice(1);
+
+    if (selected.length === 3) {
+      const missing = ALL_TYPES.find(t => !selected.includes(t));
+      return missing ? missing.charAt(0).toUpperCase() + missing.slice(1) : "All Events";
     }
-    return `${bookmarkTypeFilter.length} Types`
-  }
+
+    return `${selected.length} Types`;
+  };
+
+  //   const getBookmarkTypeDisplayText = () => {
+
+  //   if (bookmarkTypeFilter.includes("all") || bookmarkTypeFilter.length === 4) {
+  //     return "All Events"
+  //   }
+  //   if (bookmarkTypeFilter.length === 1) {
+  //     const type = bookmarkTypeFilter[0]
+  //     if (type === "bookmarked") return "Bookmarked"
+  //     if (type === "holidays") return "Holidays"
+  //     if (type === "suggested") return "Suggested"
+  //     if (type === "available") return "Available"
+  //     const missing = bookmarkTypeFilter.find(t => !type.includes(t));
+  //   return missing ? missing.charAt(0).toUpperCase() + missing.slice(1) : "All Events";
+  //    // return type.charAt(0).toUpperCase() + type.slice(1)
+  //   }
+  //   return `${bookmarkTypeFilter.length} Types`
+  // }
 
   const renderCalendarDays = () => {
 
@@ -3073,7 +3301,7 @@ export default function EventsCalendarPage() {
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  toggleBookmark(event.eventId)
+                                  toggleBookmark(event.eventId, `${selectedProperty?.sid}`)
                                 }}
                                 className="h-8 w-8 p-0"
                               >
@@ -3176,6 +3404,7 @@ export default function EventsCalendarPage() {
     setBookmarkSearchQuery("");
     setBookmarkCategoryFilter(["all", "conferences", "tradeshow", "workshop", "social", "holidays"]);
     setBookmarkTypeFilter(["all", "bookmarked", "holiday", "suggested", "available"]);
+    fetchAllData();
   }
   // Show loading state when data is being fetched
   if (isLoading) {
@@ -3212,11 +3441,18 @@ export default function EventsCalendarPage() {
                           size="icon"
                           onClick={() => navigateMonth("prev")}
                           className="hover:bg-primary/10"
+                          disabled={isPrevDisabled(currentDate)}
+                        >
+                          {/* <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigateMonth("prev")}
+                          className="hover:bg-primary/10"
                           disabled={
                             currentDate.getFullYear() === getDateRestrictions().minYear &&
                             currentDate.getMonth() === getDateRestrictions().minMonth
                           }
-                        >
+                        > */}
                           <ChevronLeft className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
@@ -3263,9 +3499,14 @@ export default function EventsCalendarPage() {
                         {/* Month Grid */}
                         <div className="grid grid-cols-3 gap-1.5 p-3">
                           {monthNames.map((month, index) => {
-                            const isSelectable = isMonthSelectable(index, monthPickerYear, currentDate, yearJumpDirection)
-                            const isCurrentMonth = index === currentDate.getMonth() && monthPickerYear === currentDate.getFullYear()
-                            const isToday = index === new Date().getMonth() && monthPickerYear === new Date().getFullYear()
+                            const isSelectable = isMonthSelectable(index, monthPickerYear, selectedDate);
+                            const isCurrentMonth =
+                              index === (selectedDate ?? new Date()).getMonth() &&
+                              monthPickerYear === (selectedDate ?? new Date()).getFullYear();
+
+                            const isToday =
+                              index === new Date().getMonth() &&
+                              monthPickerYear === new Date().getFullYear();
 
                             return (
                               <Button
@@ -3324,11 +3565,18 @@ export default function EventsCalendarPage() {
                           size="icon"
                           onClick={() => navigateMonth("next")}
                           className="hover:bg-primary/10"
+                          disabled={isNextDisabled(currentDate)}
+                        >
+                          {/* <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigateMonth("next")}
+                          className="hover:bg-primary/10"
                           disabled={
                             currentDate.getFullYear() === getDateRestrictions().maxYear &&
                             currentDate.getMonth() === getDateRestrictions().maxMonth
                           }
-                        >
+                        > */}
                           <ChevronRight className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
@@ -3705,7 +3953,7 @@ export default function EventsCalendarPage() {
                               />
                               <span>Holidays</span>
                             </label> */}
-                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
+                            {/* <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={isTypeChecked("suggested")}
@@ -3713,9 +3961,9 @@ export default function EventsCalendarPage() {
                                 className="rounded h-3.5 w-3.5"
                               />
                               <span>Suggested</span>
-                            </label>
+                            </label> */}
 
-                            {/* <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
+                            <label className="flex items-center space-x-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white text-sm">
                               <input
                                 type="checkbox"
                                 checked={isTypeChecked("available")}
@@ -3723,7 +3971,7 @@ export default function EventsCalendarPage() {
                                 className="rounded h-3.5 w-3.5"
                               />
                               <span>Available</span>
-                            </label> */}
+                            </label>
                           </div>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -3759,6 +4007,16 @@ export default function EventsCalendarPage() {
                                 <div className="flex items-start gap-2">
                                   {(() => {
                                     const eventCategory = getCategoryData(event)
+                                    // console.log("Rendering:", {
+                                    //   eventCategory: eventCategory?.id,
+                                    //   color: eventCategory?.color,
+                                    //   eventStatus: event.status,
+                                    //   eventType: event.type,
+                                    //   eventCategoryRaw: event.category,
+                                    //   eventName: event.name,
+                                    //   eventId: event.eventId,
+                                    //   icon: `${eventCategory?.color}`
+                                    // });
                                     if (eventCategory && eventCategory.id !== "all") {
                                       const IconComponent = eventCategory.icon
                                       return <IconComponent className={`h-3 w-3 ${eventCategory.color}`} />
@@ -3815,7 +4073,7 @@ export default function EventsCalendarPage() {
                                 onMouseDown={(e) => {
                                   e.preventDefault()
                                   e.stopPropagation()
-                                  toggleBookmark(event.eventId)
+                                  toggleBookmark(event.eventId, `${selectedProperty?.sid}`)
                                 }}
                                 className={cn(
                                   "px-3 gap-2 text-xs",
@@ -3838,10 +4096,41 @@ export default function EventsCalendarPage() {
 
                   <div className="flex items-center justify-between pt-3 border-t flex-shrink-0">
                     <div className="text-xs text-muted-foreground">
-                      {events.filter((e) => e.status === "bookmarked").length} events bookmarked
+                      {/* {events.filter((e) => e.status === "bookmarked").length} events bookmarked */}
+                      {
+                        getFilteredBookmarkEvents.filter(
+                          (e) => e.status?.toLowerCase() === "bookmarked"
+                        ).length
+                      }{" "}
+                      events bookmarked
                     </div>
-                    <Button onClick={() => bookMarkDialogClose()} className="px-4 py-2 text-sm">Done</Button>
+                    {/* <Button onClick={() => bookMarkDialogClose()} className="px-4 py-2 text-sm">Done</Button> */}
                   </div>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => bookMarkDialogClose()}
+                      className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="lucide lucide-x h-4 w-4"
+                      >
+                        <path d="M18 6 6 18" />
+                        <path d="m6 6 12 12" />
+                      </svg>
+                      <span className="sr-only">Close</span>
+                    </button>
+                  </div>
+
                 </DialogContent>
               </Dialog>
 
@@ -4711,7 +5000,7 @@ export default function EventsCalendarPage() {
 
       {/* Day View Modal */}
       <Dialog open={isDayViewOpen} onOpenChange={setIsDayViewOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh]">
+        <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
               <CalendarIcon className="h-5 w-5 text-primary" />
@@ -4719,8 +5008,8 @@ export default function EventsCalendarPage() {
               {selectedDate ? formatListHeader(selectedDate.toISOString()) : ""}
             </DialogTitle>
           </DialogHeader>
-
-          <ScrollArea className="max-h-96">
+          {/* max-h-96 */}
+          <ScrollArea className="flex-1 overflow-y-auto">
             <div className="space-y-3">
               {getEventsForSelectedDate().map((event) => (
                 <div
@@ -4798,7 +5087,7 @@ export default function EventsCalendarPage() {
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation()
-                        toggleBookmark(event.eventId)
+                        toggleBookmark(event.eventId, `${selectedProperty?.sid}`)
                       }}
                       className={cn(
                         "px-3 gap-2 text-xs",
@@ -4817,7 +5106,7 @@ export default function EventsCalendarPage() {
               ))}
 
               {getEventsForSelectedDate().length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-6 text-muted-foreground">
                   <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
                   <p>No events on this day</p>
                 </div>
@@ -4825,12 +5114,25 @@ export default function EventsCalendarPage() {
             </div>
           </ScrollArea>
 
-          <div className="flex items-center justify-between pt-4 border-t">
+          <div className="flex-shrink-0 flex items-center justify-between px-3 py-2 border-t border-gray-300 bg-white">
+            <div className="text-xs text-muted-foreground">
+              {getEventsForSelectedDate().length} event
+              {getEventsForSelectedDate().length !== 1 ? "s" : ""} on this day
+            </div>
+            <Button
+              onClick={() => setIsDayViewOpen(false)}
+              className="px-3 py-1 text-xs"
+            >
+              Close
+            </Button>
+          </div>
+
+          {/* <div className="flex items-center justify-between pt-4 border-t">
             <div className="text-sm text-muted-foreground">
               {getEventsForSelectedDate().length} event{getEventsForSelectedDate().length !== 1 ? "s" : ""} on this day
             </div>
-            <Button onClick={() => setIsDayViewOpen(false)} className="px-4">Close</Button>
-          </div>
+            <Button onClick={() => setIsDayViewOpen(false)} className="px-4 mt-0.5max-w-4xl max-h-[80vh] relative -translate-y-[8px]">Close</Button>
+          </div> */}
         </DialogContent>
       </Dialog>
 
@@ -4918,7 +5220,7 @@ export default function EventsCalendarPage() {
                         variant={selectedEvent.status === "bookmarked" || selectedEvent.status === "suggested" ? "default" : "outline"}
                         onClick={(e) => {
                           e.stopPropagation()
-                          toggleBookmark(selectedEvent.eventId)
+                          toggleBookmark(selectedEvent.eventId, `${selectedProperty?.sid}`)
                         }}
                         className={cn(
                           "px-4 gap-3",
@@ -4937,7 +5239,7 @@ export default function EventsCalendarPage() {
                         variant="outline"
                         onClick={(e) => {
                           e.stopPropagation()
-                          toggleBookmark(selectedEvent.eventId)
+                          toggleBookmark(selectedEvent.eventId, `${selectedProperty?.sid}`)
                         }}
                         className="px-4 gap-3 hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950"
                       >
