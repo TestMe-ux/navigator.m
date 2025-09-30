@@ -8,8 +8,11 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { useUserDetail, useSelectedProperty } from "@/hooks/use-local-storage"
 import { differenceInDays, format, isSameMonth, isSameYear, parseISO } from "date-fns"
 import { get } from "http"
-import { getRateShopsData, getUsageTrendChartData } from "@/lib/reports"
+import { getRateShopsData, getRTRRValidation, getUsageTrendChartData } from "@/lib/reports"
 import { GetPackageDetails } from "@/lib/login"
+import { addUpdateUser, uploadImage } from "@/lib/userManagement"
+import { toast } from "@/hooks/use-toast"
+import { LocalStorageService } from "@/lib/localstorage"
 
 // Mock data for the usage trend chart - different datasets for each view
 // const generateUsageData = (viewBy: string) => {
@@ -54,7 +57,7 @@ import { GetPackageDetails } from "@/lib/login"
 export default function MyAccountPage() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [viewBy, setViewBy] = useState("Daily")
-  const [profileImage, setProfileImage] = useState<string | null>(null)
+  const [profileImage, setProfileImage] = useState<ProfileImage | null>(null);
   const [isLoading, setIsLoading] = useState(true)
   const [isChartLoading, setIsChartLoading] = useState(true)
   const [loadingProgress, setLoadingProgress] = useState(0)
@@ -64,23 +67,117 @@ export default function MyAccountPage() {
   const [rateShops, setRateShops] = useState<any>({});
   const [packageDetail, setPackageDetail] = useState<any>({});
   const [chartData, setChartData] = useState<any[]>([]);
-
+  const [isRtrrEnabled, setIsRtrrEnabled] = useState<boolean>(false);
+  interface ProfileImage {
+    imageName: string,
+    imagePath: any
+  }
   // Dummy girl image for testing
   const dummyGirlImage = "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face"
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      // For demo purposes, set the dummy image instantly
-      setProfileImage(dummyGirlImage)
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const ProfilePic = e.target.files[0];
+      if (!ProfilePic) {
+        console.warn("No file selected");
+        return;
+      }
+      try {
+        var form_data = new FormData();
+        form_data.append("flag", "1");
+        form_data.append("profileimage", ProfilePic);
 
-      // Also process the actual file (commented out for now to use dummy)
-      // const reader = new FileReader()
-      // reader.onload = (e) => {
-      //   setProfileImage(e.target?.result as string)
-      // }
-      // reader.readAsDataURL(file)
+        const imageResponse = await uploadImage(form_data);
+
+        if (imageResponse.status && imageResponse.body) {
+          // setProfileImage({
+          //   imagePath: imageResponse.body[0],
+          //   imageName: imageResponse.body[1],
+          // });
+          handleAddUser(imageResponse);
+          console.log("Image uploaded successfully:", imageResponse.body);
+        } else {
+          toast({
+            description: "Image upload failed!!",
+            variant: "error",
+            duration: 3000,
+          });
+        }
+      } catch (error) {
+        console.error("Image upload failed:", error);
+      } finally {
+        e.target.value = "";
+      }
     }
+    // const file = event.target.files?.[0]
+    // if (file) {
+    //   // For demo purposes, set the dummy image instantly
+    //   setProfileImage(dummyGirlImage)
+
+    //   // Also process the actual file (commented out for now to use dummy)
+    //   // const reader = new FileReader()
+    //   // reader.onload = (e) => {
+    //   //   setProfileImage(e.target?.result as string)
+    //   // }
+    //   // reader.readAsDataURL(file)
+    // }
+  }
+  const handleRemoveImage = () => {
+    handleAddUser(undefined);
+  }
+  const handleAddUser = async (imageResponse: any) => {
+    debugger
+    const filtersValues: any = {}
+    if (imageResponse?.body.length > 0) {
+      filtersValues.imagePath = imageResponse.body[0];
+      filtersValues.imageName = imageResponse.body[1];
+    }
+    else {
+      filtersValues.imagePath = "";
+      filtersValues.imageName = "";
+    }
+    filtersValues.firstName = userDetail?.firstName;
+    filtersValues.lastName = userDetail?.lastName;
+    filtersValues.email = userDetail?.email;
+    // filtersValues.pghAccess = sele?.interfaceAccess;
+    // filtersValues.pghReportEmail = userDetail?.emailAccess;
+    // filtersValues.defaultLandingPage = selectedProperty?.defaultLandingPage;
+    filtersValues.createdBy = userDetail?.userId;
+    filtersValues.sID = selectedProperty?.sid;
+    filtersValues.userRoleID = selectedProperty?.roleID;
+    filtersValues.userRoleText = userDetail?.userRoletext;
+    filtersValues.updatedBy = userDetail?.userId.toString();
+    filtersValues.currentUserRole = userDetail?.userRoletext;
+    filtersValues.userID = Number(userDetail?.userId);
+    filtersValues.OperationAddorUpdate = 1;
+    filtersValues.isNewOptimaDelete = false;
+
+
+    const response = await addUpdateUser(filtersValues);
+
+    if (response.status && response.body) {
+      let userData = LocalStorageService.getItem("UserDetails")
+      userData.imagePath = filtersValues.imagePath || "";
+      LocalStorageService.setItem("UserDetails", userData);
+      setProfileImage({
+        imagePath: filtersValues.imagePath,
+        imageName: filtersValues.imageName,
+      });
+      toast({
+        description: filtersValues.imagePath == "" ? "Image Removed successfully" : "Image Uploaded successfully",
+        variant: "success",
+        duration: 3000,
+      })
+    }
+    else {
+      toast({
+        title: "Error",
+        description: response.message || "Something went wrong. Please try again!",
+        variant: "error",
+        duration: 5000,
+      })
+    }
+
   }
 
   const triggerFileInput = () => {
@@ -116,15 +213,23 @@ export default function MyAccountPage() {
       }, 80);
 
       try {
-        const filtersValue = { sid: selectedProperty.sid };
-        Promise.all([await getRateShopsData(filtersValue), await GetPackageDetails(filtersValue)]).then(([rateShopsResponse, packageResponse]) => {
-          if (!isCancelled && rateShopsResponse?.status) {
-            setRateShops(rateShopsResponse.body);
-          }
-          if (!isCancelled && packageResponse?.status) {
-            setPackageDetail(packageResponse.body);
-          }
-        });
+        const filtersValue = { sid: selectedProperty.sid, UserID: userDetail?.userId };
+
+        Promise.all([
+          await getRateShopsData(filtersValue),
+          await GetPackageDetails(filtersValue),
+          await getRTRRValidation(filtersValue)])
+          .then(([rateShopsResponse, packageResponse, rtrValidationResponse]) => {
+            if (!isCancelled && rateShopsResponse?.status) {
+              setRateShops(rateShopsResponse.body);
+            }
+            if (!isCancelled && packageResponse?.status) {
+              setPackageDetail(packageResponse.body);
+            }
+            if (!isCancelled && rtrValidationResponse?.status) {
+              setIsRtrrEnabled(true);
+            }
+          });
         // const response = await getRateShopsData(filtersValue);
         // const responsePackage = await GetPackageDetails(filtersValue);
 
@@ -138,6 +243,10 @@ export default function MyAccountPage() {
         console.error("Error loading rate shops:", error);
       } finally {
         // Finish loading
+        setProfileImage({
+          imagePath: userDetail?.imagePath,
+          imageName: "",
+        });
         clearInterval(progressInterval);
         setLoadingProgress(100);
 
@@ -357,7 +466,7 @@ export default function MyAccountPage() {
         {profileImage && (
           <div className="fixed top-4 right-4 rounded-full border-2 border-white shadow-lg overflow-hidden z-50 bg-white" style={{ width: '40px', height: '40px' }}>
             <img
-              src={profileImage}
+              src={profileImage.imagePath}
               alt="Profile"
               className="w-full h-full object-cover"
               style={{ width: '40px', height: '40px' }}
@@ -390,24 +499,40 @@ export default function MyAccountPage() {
                   <CardContent className="px-6 pb-6 pt-2">
                     <div className="flex flex-col lg:flex-row lg:space-x-8 space-y-6 lg:space-y-0">
                       {/* Left Side - Profile Avatar */}
-                      <div className="flex-shrink-0 flex items-end">
-                        <div className="relative group cursor-pointer" onClick={triggerFileInput}>
-                          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center transition-all duration-200 group-hover:bg-muted/80 overflow-hidden shadow-md hover:shadow-lg">
-                            {profileImage ? (
-                              <img
-                                src={profileImage}
-                                alt="Profile"
-                                className="w-full h-full object-cover rounded-full group-hover:opacity-50 transition-opacity duration-200"
-                              />
-                            ) : (
-                              <UserCircle className="w-10 h-10 text-muted-foreground group-hover:opacity-50 transition-opacity duration-200" />
-                            )}
+                      <div className="flex-shrink-0">
+                        <div className="flex flex-col items-center">
+                          {/* Profile image with hover */}
+                          <div className="relative group cursor-pointer" onClick={triggerFileInput}>
+                            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center transition-all duration-200 group-hover:bg-muted/80 overflow-hidden shadow-md hover:shadow-lg">
+                              {profileImage?.imagePath ? (
+                                <img
+                                  src={profileImage?.imagePath}
+                                  alt="Profile"
+                                  className="w-full h-full object-cover rounded-full group-hover:opacity-50 transition-opacity duration-200"
+                                />
+                              ) : (
+                                <UserCircle className="w-10 h-10 text-muted-foreground group-hover:opacity-50 transition-opacity duration-200" />
+                              )}
+                            </div>
+
+                            {/* Hover overlay */}
+                            <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                              <Camera className="w-5 h-5 text-white" />
+                            </div>
                           </div>
-                          {/* Hover overlay */}
-                          <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                            <Camera className="w-5 h-5 text-white" />
-                          </div>
+
+                          {/* Remove button BELOW image */}
+                          {profileImage?.imagePath && (
+                            <button
+                              type="button"
+                              onClick={handleRemoveImage}
+                              className="text-sm text-red-600 hover:underline mt-1"
+                            >
+                              Remove
+                            </button>
+                          )}
                         </div>
+
                         {/* Hidden file input */}
                         <input
                           id="profile-image-input"
@@ -417,6 +542,7 @@ export default function MyAccountPage() {
                           className="hidden"
                         />
                       </div>
+
 
                       {/* Right Side - Information Sections */}
                       <div className="flex-1 grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr] gap-8 lg:mt-0">
@@ -443,8 +569,8 @@ export default function MyAccountPage() {
 
                         {/* Custom Section */}
                         <div className="space-y-1">
-                          <h3 className="text-sm font-semibold text-foreground capitalize tracking-wide">{packageDetail?.displayName||'Custom'}:</h3>
-                          <p className="text-sm text-foreground">{packageDetail?.packageName||'NA'}</p>
+                          <h3 className="text-sm font-semibold text-foreground capitalize tracking-wide">{packageDetail?.displayName || 'Custom'}:</h3>
+                          <p className="text-sm text-foreground">{packageDetail?.packageName || 'NA'}</p>
                         </div>
                       </div>
                     </div>
@@ -476,10 +602,12 @@ export default function MyAccountPage() {
                             <span className="text-sm text-muted-foreground">On Demand</span>
                             <span className="text-sm font-semibold">{rateShops?.consumedShopsOnDemand}</span>
                           </div>
-                          <div className="flex justify-between items-center py-2">
-                            <span className="text-sm text-muted-foreground">Lightning Refresh</span>
-                            <span className="text-sm font-semibold">{rateShops?.consumedShopsRTRR}</span>
-                          </div>
+                          {isRtrrEnabled &&
+                            <div className="flex justify-between items-center py-2">
+                              <span className="text-sm text-muted-foreground">Lightning Refresh</span>
+                              <span className="text-sm font-semibold">{rateShops?.consumedShopsRTRR}</span>
+                            </div>
+                          }
                         </div>
                       </div>
 
@@ -602,7 +730,7 @@ export default function MyAccountPage() {
                                         tick={{ fontSize: 11, fill: "#666" }}
                                         axisLine={{ stroke: "#e5e7eb" }}
                                         tickLine={{ stroke: "#e5e7eb" }}
-                                        interval={chartData.length <10 ? 0 : chartData.length < 15 ? 1 : chartData.length < 30 ? 3 : 4}
+                                        interval={chartData.length < 10 ? 0 : chartData.length < 15 ? 1 : chartData.length < 30 ? 3 : 4}
                                         tickFormatter={(value) => {
                                           let values;
 
@@ -702,7 +830,9 @@ export default function MyAccountPage() {
                                       />
                                       <Bar dataKey="scheduledConsumedShops" stackId="usage" fill="#3b82f6" name="Scheduled" radius={[0, 0, 0, 0]} />
                                       <Bar dataKey="onDemandConsumedShops" stackId="usage" fill="#10b981" name="On Demand" radius={[0, 0, 0, 0]} />
-                                      <Bar dataKey="lightningRefreshConsumedShops" stackId="usage" fill="#8b5cf6" name="Lightning Refresh" radius={[2, 2, 0, 0]} />
+                                      {isRtrrEnabled &&
+                                        <Bar dataKey="lightningRefreshConsumedShops" stackId="usage" fill="#8b5cf6" name="Lightning Refresh" radius={[2, 2, 0, 0]} />
+                                      }
                                     </BarChart>
                                   </ResponsiveContainer>
                                 </div>
@@ -719,10 +849,12 @@ export default function MyAccountPage() {
                                 <div className="w-3 h-3 rounded-sm bg-emerald-500"></div>
                                 <span className="text-sm text-emerald-500">On Demand</span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-sm bg-purple-500"></div>
-                                <span className="text-sm text-purple-500">Lightning Refresh</span>
-                              </div>
+                              {isRtrrEnabled &&
+                                <div className="flex items-center gap-2">
+                                  <div className="w-3 h-3 rounded-sm bg-purple-500"></div>
+                                  <span className="text-sm text-purple-500">Lightning Refresh</span>
+                                </div>
+                              }
                             </div>
                           </div>
                         </div>

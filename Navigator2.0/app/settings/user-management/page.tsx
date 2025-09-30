@@ -120,7 +120,7 @@ export default function UserManagementPage() {
 
   useEffect(() => {
     fetchUserData();
-  }, [selectedProperty, fetchUserData]);
+  }, [selectedProperty?.sid, fetchUserData]);
 
 
   // Auto-hide snackbar after 5 seconds
@@ -176,10 +176,6 @@ export default function UserManagementPage() {
             return 2;
           case "Property User":
             return 1;
-          // case "Manager":
-          //   return 3;
-          // case "Viewer":
-          //   return 4;
           default:
             return 0; // fallback if role not found
         }
@@ -202,13 +198,13 @@ export default function UserManagementPage() {
       filtersValues.userRoleID = mapUserRole(newUser.userRole);
       filtersValues.userRoleText = newUser.userRole;
       filtersValues.updatedBy = userDetails?.userId.toString();
-      filtersValues.currentUserRole = newUser.userRole;
-      filtersValues.isNewOptimaDelete = false;
-      if (newUser.userID == null && newUser.userID == "") {
+      filtersValues.currentUserRole = userDetails?.userRoletext;
+      if (newUser.userID === null && newUser.userID === "") {
         filtersValues.OperationAddorUpdate = 0;
-      } else if (newUser.userID != null && newUser.userID != "") {
+      } else if (newUser.userID !== null && newUser.userID !== "") {
         filtersValues.userID = Number(newUser.userID);
         filtersValues.OperationAddorUpdate = 1;
+        filtersValues.isNewOptimaDelete = false;
       }
 
       const response = await addUpdateUser(filtersValues);
@@ -226,7 +222,7 @@ export default function UserManagementPage() {
 
         //if (newUser.userID == null && newUser.userID == "") {
         //   setUsersDetails((prev) => [newUser, ...prev]);
-        //} else {
+        //} else if (newUser.userID !== null && newUser.userID !== "") {
         //   setUsersDetails((prev) => {
         //     const filtered = prev.filter(user => user.userID === newUser.userID);
         //     console.log("apiUsers after updated:", filtered);
@@ -253,18 +249,6 @@ export default function UserManagementPage() {
           duration: 5000,
         })
       }
-      //
-
-      // Reset form
-      // setNewUser({
-      //   firstName: "",
-      //   lastName: "",
-      //   userRole: "",
-      //   emailId: "",
-      //   interfaceAccess: false,
-      //   emailAccess: false,
-      //   defaultLandingPage: "",
-      // })
     }
   }
 
@@ -307,7 +291,7 @@ export default function UserManagementPage() {
         isNewOptimaDelete: null,
         IsNewOptimaDelete: true,
         currentUserRole: null,
-        CurrentUserRole: userToDelete.userRoleText,
+        CurrentUserRole: userDetails?.userRoletext,
         operationAddorUpdate: 0,
         OperationAddorUpdate: 1,
         defaultLandingPage: userToDelete.defaultLandingPage,
@@ -673,7 +657,7 @@ export default function UserManagementPage() {
                               <img
                                 src={userValue.imagePath}
                                 alt="User"
-                                className="w-3 h-3 rounded-full profileImage"
+                                className="w-6 h-6 rounded-full profileImage"
                               />
                             )}
 
@@ -971,7 +955,7 @@ export default function UserManagementPage() {
       <Dialog open={showChangeHistory} onOpenChange={setShowChangeHistory}>
         <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">User Change History</DialogTitle>
+            <DialogTitle className="text-xl font-bold">User Change History</DialogTitle>
             <DialogDescription>
               Shows the history of all the changes
             </DialogDescription>
@@ -1208,7 +1192,7 @@ export default function UserManagementPage() {
                 <Label className="block text-xs font-medium text-gray-700 mb-1">
                   User Role<span className="text-red-500 ml-1">*</span>
                 </Label>
-                <Select
+                <Select disabled={userDetails?.userRoletext !== 'Admin' || newUser.userRole === 'Admin'}
                   value={newUser.userRole}
                   onValueChange={(value) => setNewUser((prev) => ({ ...prev, userRole: value }))}
                 >
@@ -1229,6 +1213,7 @@ export default function UserManagementPage() {
                   Email ID<span className="text-red-500 ml-1">*</span>
                 </Label>
                 <Input
+                  disabled
                   type="email"
                   value={newUser.emailId}
                   onChange={(e) => setNewUser((prev) => ({ ...prev, emailId: e.target.value }))}

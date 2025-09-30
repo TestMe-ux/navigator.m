@@ -35,6 +35,7 @@ import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { useDateContext } from "@/components/date-context"
 import { conevrtDateforApi } from "@/lib/utils"
 import { GlobalProgressBar, LoadingSkeleton } from "@/components/loading-skeleton"
+import { LocalStorageService } from "@/lib/localstorage"
 
 /**
  * Modern Quick Actions Configuration
@@ -328,6 +329,9 @@ export default function Home() {
       GetParityDatas_Comp()
     ]);
   }, [selectedComparison])
+  useEffect(() => {
+    LocalStorageService.setItem("preferredDateMode", "next7days")
+  }, [selectedProperty?.sid])
 
   const getRateDate = () => {
     setRateData({});
@@ -382,7 +386,7 @@ export default function Home() {
             };
           });
           res.body.pricePositioningEntites = CalulatedData;
-          console.log('Rate trends data:', res.body);
+          // console.log('Rate trends data:', res.body);
           setRateData(res.body);
           setLosGuest({ "Los": res.body?.losList, "Guest": res.body?.guestList });
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
@@ -449,7 +453,7 @@ export default function Home() {
             };
           });
           res.body.pricePositioningEntites = CalulatedData;
-          console.log('Rate trends data:', res.body);
+          // console.log('Rate trends data:', res.body);
           setRateCompData(res.body);
           // setLosGuest({ "Los": res.body?.losList, "Guest": res.body?.guestList });
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));

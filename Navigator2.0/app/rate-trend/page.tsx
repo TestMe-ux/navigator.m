@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useMemo, useEffect, use } from "react"
+import React, { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -16,13 +16,18 @@ import { FilterSidebar } from "@/components/filter-sidebar"
 import { LightningRefreshModal } from "@/components/navigator/generate-report-modal"
 import { Snackbar } from "@/components/ui/snackbar"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
-import { useDateContext } from "@/components/date-context"
+import { DateProvider, useDateContext } from "@/components/date-context"
 import { ComparisonProvider, useComparison } from "@/components/comparison-context"
-import { differenceInDays, format } from "date-fns"
-import { rateTrendsAPI, getKPIData, type KPIData } from "@/lib/rate-trends-data"
+import { format, differenceInDays, set } from "date-fns"
+import { getKPIData } from "@/lib/rate-trends-data"
+// import { LocalStorageService } from "@/lib/localstorage" // Removed - using static data only
 import { useLocalStorage, useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
-import { getRTRRChannel, getRTRRValidation } from "@/lib/reports"
-import { getRateTrends } from "@/lib/rate"
+import { useScreenSize } from "@/hooks/use-screen-size"
+import { getRateTrends, PPExcelDownload } from "@/lib/rate"
+import { generateRTRRReport, getRTRRReportStatusBySID, getRTRRValidation } from "@/lib/reports"
+import { RTRRRequestModel } from "@/lib/RTRRRequestModel"
+import { usePollingContext } from "@/components/polling/polling-context"
+import { useToast } from "@/hooks/use-toast"
 
 /**
  * Utility function to format dates consistently across server and client
@@ -58,28 +63,9 @@ const formatDateConsistently = (date: Date | null): string => {
  * @returns Object containing all KPI metrics and metadata
  */
 // Use sample data from our comprehensive database
-const generateKPIData = (startDate: Date, endDate: Date) => {
-  console.log('📊 Using sample KPI data for range:', {
-    start: formatDateConsistently(startDate),
-    end: formatDateConsistently(endDate),
-    timestamp: Date.now()
-  })
-
-  const daysDifference = differenceInDays(endDate, startDate) + 1
-  console.log(`📅 Period analysis: ${daysDifference} days`)
-
-  // Map to our standard comparison periods
-  let comparisonPeriod = 7 // Default to weekly
-  if (daysDifference <= 7) {
-    comparisonPeriod = 7
-  } else if (daysDifference <= 30) {
-    comparisonPeriod = 30
-  } else {
-    comparisonPeriod = 91
-  }
-
-  console.log('✅ Using sample data with period:', comparisonPeriod)
-  return getKPIData(comparisonPeriod)
+const generateKPIData = () => {
+  // Using static KPI data for consistent performance - always 7 days
+  return getKPIData(7)
 }
 
 /**
@@ -96,46 +82,54 @@ const generateKPIData = (startDate: Date, endDate: Date) => {
  */
 export default function RateTrendPage() {
   const { selectedComparison, channelFilter, compsetFilter, setSideFilter, sideFilter } = useComparison()
-  const [currentView, setCurrentView] = useLocalStorage<"calendar" | "chart" | "table">("rate-trend-view", "calendar")
+  const [currentView, setCurrentView] = useLocalStorage<"calendar" | "chart" | "table">("rate-trend-view", "table")
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false)
-  const [isClient, setIsClient] = useState(false)
+  // No isClient state needed for static data
   const [losGuest, setLosGuest] = useState<{ "Los": any[], "Guest": any[] }>({ "Los": [], "Guest": [] });
-  const [loadedKpiData, setLoadedKpiData] = useState<KPIData | null>(null)
   const [dataLoading, setDataLoading] = useState(false)
-  const [isPageLoading, setIsPageLoading] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [loadingCycle, setLoadingCycle] = useState(1)
-  const [selectedProperty] = useSelectedProperty();
-  const [userDetails] = useUserDetail();
+  const [selectedValue, setSelectedValue] = useState("4,444 (4 digit)")
+  const [selectedDigitCount, setSelectedDigitCount] = useState(4)
+  const { startDate, endDate, isLoading } = useDateContext()
+  const [objForExcel, setObjForExcel] = useState<any>({})
+  // Screen size detection for responsive competitor count
+  const screenSize = useScreenSize()
+
   // State for competitor scrolling (only for table view)
   const [competitorStartIndex, setCompetitorStartIndex] = useState(0)
-  const [competitorsPerPage, setCompetitorsPerPage] = useState(5) // Responsive competitor count
+  const [selectedProperty] = useSelectedProperty();
+  const [userDetails] = useUserDetail();
   const [rateData, setRateData] = useState(Object);
+
+  // Polling context for task management
+  const { startTaskPolling, isTaskPolling, resumePolling } = usePollingContext();
   const [rateCompData, setRateCompData] = useState(Object);
-  const [selectedChannel, setSelectedChannel] = useState([])
-  // Calculate responsive competitor count based on screen size
-  useEffect(() => {
-    const calculateCompetitorsPerPage = () => {
-      const screenWidth = window.innerWidth
+  const [competitorCount, setCompetitorCount] = useState(0)
+  // const [runningReport, setRunningReport] = useState<any>({});
+  // const [lightingRefreshData, setLightingRefreshData] = useState<any>({});
+  const [validationObject, setValidationObject] = useState<any>({});
+  const { toast } = useToast()
+  // Dynamic competitor count based on digitCount and screen resolution
+  const getCompetitorsPerPage = () => {
+    const { isSmall, isMedium, isLarge } = screenSize
 
-      // Always show 5 competitors initially for table view
-      return 5
+    if (isSmall) {
+      // Resolution from 1352px to 1500px
+      return selectedDigitCount === 4 ? 4 : selectedDigitCount === 6 ? 3 : 2
+    } else if (isMedium) {
+      // Resolution from 1501px to 1800px
+      return selectedDigitCount === 4 ? 5 : selectedDigitCount === 6 ? 4 : 4
+    } else if (isLarge) {
+      // Resolution above 1800px
+      return selectedDigitCount === 4 ? 8 : selectedDigitCount === 6 ? 6 : 5
+    } else {
+      // Default fallback (for screens < 1352px)
+      return selectedDigitCount === 4 ? 4 : selectedDigitCount === 6 ? 3 : 2
     }
+  }
 
-    const updateCompetitorCount = () => {
-      setCompetitorsPerPage(calculateCompetitorsPerPage())
-    }
-
-    // Set initial value
-    updateCompetitorCount()
-
-    // Listen for resize events
-    window.addEventListener('resize', updateCompetitorCount)
-
-    return () => {
-      window.removeEventListener('resize', updateCompetitorCount)
-    }
-  }, [])
+  const competitorsPerPage = getCompetitorsPerPage()
 
   // State for Lightning Refresh Modal
   const [isLightningRefreshModalOpen, setIsLightningRefreshModalOpen] = useState(false)
@@ -143,49 +137,41 @@ export default function RateTrendPage() {
   // State for Snackbar
   const [isSnackbarOpen, setIsSnackbarOpen] = useState(false)
   const [snackbarMessage, setSnackbarMessage] = useState("")
-  const [snackbarType, setSnackbarType] = useState<'info' | 'success'>('info')
+  const [snackbarType, setSnackbarType] = useState<'info' | 'success' | 'error'>('info')
 
   // State for Lightning Refresh progress
   const [isLightningRefreshInProgress, setIsLightningRefreshInProgress] = useState(false)
   const [isLightningRefreshEnable, setIsLightningRefreshEnable] = useState(false)
-
-  // Month navigation state
-  const [currentMonthIndex, setCurrentMonthIndex] = useState(0)
-  const [availableMonths, setAvailableMonths] = useState<{ month: number; year: number; monthName: string }[]>([])
-  const [shouldShowMonthNavigation, setShouldShowMonthNavigation] = useState(false)
-
-
-
   // Navigation functions for competitor scrolling
   const nextCompetitors = () => {
     setCompetitorStartIndex(prev => {
-      const totalCompetitors = 9 // We have 9 competitors total
+      debugger
       // Always move by 5 positions, even if it goes beyond total competitors
-      return Math.min(prev + 5, totalCompetitors)
+      return Math.min(prev + 4, competitorCount)
     })
   }
 
   const prevCompetitors = () => {
-    setCompetitorStartIndex(prev => Math.max(0, prev - 5))
+    setCompetitorStartIndex(prev => Math.max(0, prev - 4))
   }
 
   const canGoNext = () => {
-    const totalCompetitors = 9
     // Allow going to next page if we can show at least 1 more competitor
-    return competitorStartIndex + 5 < totalCompetitors
+    return competitorStartIndex + 4 < competitorCount
   }
 
   const canGoPrev = () => {
     return competitorStartIndex > 0
   }
 
-  // Reset competitor start index when competitors per page changes
-  useEffect(() => {
-    setCompetitorStartIndex(0)
-  }, [competitorsPerPage])
 
-  // Get date context for dynamic KPIs
-  const { startDate, endDate, isLoading } = useDateContext()
+  // // Static date range - spanning multiple months to show month navigation
+  // const startDate = new Date()
+  // const endDate = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000) // Next 45 days (spans multiple months)
+  // const isLoading = false // Always false for static data
+
+  // Month navigation state
+  const [currentMonthIndex, setCurrentMonthIndex] = useState(0)
 
   // Month navigation functions
   const nextMonth = () => {
@@ -196,23 +182,25 @@ export default function RateTrendPage() {
     setCurrentMonthIndex(prev => Math.max(prev - 1, 0))
   }
 
-  // Calculate available months for multi-month date ranges
+  // Calculate available months based on date range
   const calculateAvailableMonths = useMemo(() => {
     if (!startDate || !endDate) return []
 
     const months: { month: number; year: number; monthName: string }[] = []
-    const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
-    const end = new Date(endDate.getFullYear(), endDate.getMonth(), 1)
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-    while (current <= end) {
-      const monthNames = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ]
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+
+    // Add months between start and end dates
+    const current = new Date(start.getFullYear(), start.getMonth(), 1)
+    const endMonth = new Date(end.getFullYear(), end.getMonth(), 1)
+
+    while (current <= endMonth) {
       months.push({
         month: current.getMonth(),
         year: current.getFullYear(),
-        monthName: monthNames[current.getMonth()] + ' ' + current.getFullYear()
+        monthName: `${monthNames[current.getMonth()]} ${current.getFullYear()}`
       })
       current.setMonth(current.getMonth() + 1)
     }
@@ -220,21 +208,169 @@ export default function RateTrendPage() {
     return months
   }, [startDate, endDate])
 
-  // Update month navigation when date range changes
-  useEffect(() => {
-    const months = calculateAvailableMonths
-    setAvailableMonths(months)
-    setShouldShowMonthNavigation(months.length > 1)
-    setCurrentMonthIndex(0) // Reset to first month when date range changes
-  }, [calculateAvailableMonths])
+  // Use calculated values directly
+  const availableMonths = calculateAvailableMonths
+  const shouldShowMonthNavigation = availableMonths.length > 1
 
   // Handle lightning refresh
-  const handleLightningRefresh = (data: { channels: string; checkInStartDate: string; compSet: string; guests: string; los: string }) => {
-    const message = `⚡ Lightning Refresh ⚡ is in progress. Please wait while the data is being refreshed for ${data.channels}`
-    setSnackbarMessage(message)
-    setSnackbarType('info')
-    setIsSnackbarOpen(true)
-    setIsLightningRefreshInProgress(true)
+  const RTRFInitatedSuccess = (runningReport: any, lightingRefreshData: any) => {
+    if (validationObject) {
+      if (runningReport != undefined) {
+        if (runningReport.reportId == 0) {
+          let RTRFPostObj = CreatePostObjForRTRR(lightingRefreshData);
+          GenerateRTRRReport(RTRFPostObj);
+        }
+        else {
+          setSnackbarMessage("⚡Lightning Refresh⚡ is in progress. Please wait while the data is being refreshed")
+          setSnackbarType('info')
+          setIsSnackbarOpen(true)
+          setIsLightningRefreshInProgress(true)
+        }
+      }
+      else {
+        let RTRFPostObj = CreatePostObjForRTRR(lightingRefreshData);
+        GenerateRTRRReport(RTRFPostObj);
+      }
+
+    }
+    else {
+      //this.RTRRValidation = response.ValidationObj;
+    }
+  };
+  const CreatePostObjForRTRR = (lightingRefreshData: any) => {
+    debugger
+    var postdata: RTRRRequestModel = {
+      SID: selectedProperty?.sid || 0,
+      ContactId: userDetails?.userId?.toString() || '',
+      FirstCheckInDate: new Date(),
+      DaysOfData: 0,
+      LOS: 1,
+      Occupancy: 1,
+      Properties: [],
+      Sources: [],
+      AllProperties: [],
+      AllSources: [],
+      EmailIds: [],
+      ContactName: userDetails?.email || '',
+      Name: '',
+      Currency: '',
+      ReportSource: '',
+      RTRRInSecond: 0,
+      IsILOSApplicable: false,
+      IsOptimaTrial: false
+    };
+
+    // Update values from the form data
+    postdata.LOS = !!lightingRefreshData?.los ? parseInt(lightingRefreshData?.los) : 1;
+    postdata.Occupancy = !!lightingRefreshData?.guests ? parseInt(lightingRefreshData?.guests) : 1;
+    postdata.Name = userDetails?.firstName + " " + userDetails?.lastName
+    let CurrentDatetime = (new Date(lightingRefreshData?.checkInStartDate));
+    CurrentDatetime.setHours(0, 0, 0, 0);
+
+    //let totalDayinMonth = this.daysInMonth(CurrentDatetime.getMonth(), CurrentDatetime.getFullYear());
+    var todaysDate = new Date();
+    let DayOfData = 0;
+    todaysDate.setHours(0, 0, 0, 0);
+    if (new Date(lightingRefreshData?.checkInStartDate) >= todaysDate) {
+      if (CurrentDatetime < todaysDate) {
+        DayOfData = differenceInDays(new Date(lightingRefreshData?.checkInStartDate), todaysDate);
+      } else {
+        DayOfData = 30;// differenceInDays(new Date(this.checkInEndDate), new Date(this.checkInStartDate));
+      }
+    }
+    DayOfData = DayOfData == 0 ? 1 : DayOfData;
+    postdata.DaysOfData = DayOfData >= 31 ? 31 : DayOfData;
+
+    let properties: any[] = [];
+    let sources: any[] = [];
+
+
+    sources.push(lightingRefreshData.selectedChannel);
+
+    // if (this.primarySelected) {
+    //   this.primarySubscribers.forEach(item => {
+    //     properties.push(item);
+    //   })
+
+    // } else {
+    //   this.secondarySubscribers.forEach(item => {
+    //     properties.push(item);
+    //   })
+    // }
+
+    properties.push(selectedProperty?.hmid);
+
+    postdata.Sources = sources;
+    postdata.Properties = properties;
+    if (new Date(lightingRefreshData?.checkInStartDate) < todaysDate || DayOfData == 0) {
+      postdata.FirstCheckInDate = todaysDate;
+    } else {
+      // Use date-fns to properly construct the date
+      const checkInDate = new Date(lightingRefreshData?.checkInStartDate);
+      const day = checkInDate.getDate();
+      const month = checkInDate.getMonth();
+      const year = checkInDate.getFullYear();
+
+      // Create a new date with the same year and month, but with the calculated day
+      postdata.FirstCheckInDate = set(new Date(year, month, 1), {
+        date: day,
+        hours: 0,
+        minutes: 0,
+        seconds: 0,
+        milliseconds: 0
+      });
+    }
+
+    postdata.Currency = selectedProperty?.currencyCode?.toString() ?? '';
+    //let result = $.grep(vm.LightingChannel, function (e) { if (e.Cname.toLowerCase() == vm.RTRRChannelUnderProcessed.toLowerCase()) return true; else return false; });
+    if (lightingRefreshData.selectedChannel != undefined) {
+      const result = lightingRefreshData.channels.filter((e: any) =>
+        e.cname.toLowerCase() == lightingRefreshData.selectedChannel.toLowerCase()
+      );
+      if (result.length > 0) {
+        postdata.RTRRInSecond = result[0].rtrrInSecond;
+      }
+    }
+
+
+    return postdata;
+  }
+
+  const handleLightningRefresh = async (data: { selectedChannel: string; channels: string; checkInStartDate: string; compSet: string; guests: string; los: string }) => {
+    // const message = `⚡ Lightning Refresh ⚡ is in progress. Please wait while the data is being refreshed for ${data.selectedChannel}`
+    const response: any = await getRTRRValidation({
+      SID: selectedProperty?.sid,
+      UserID: userDetails?.userId,
+    });
+    if (response?.status) {
+      debugger;
+      setValidationObject(response.body);
+      const filtersValue = {
+        SID: selectedProperty?.sid,
+        Channel: data.selectedChannel,
+        LOS: data.los,
+        Guest: data.guests,
+        Month: new Date(data.checkInStartDate).getMonth() + 1,
+        Year: new Date(data.checkInStartDate).getFullYear()
+      }
+      debugger;
+      const responseRtrrReport: any = await getRTRRReportStatusBySID(filtersValue);
+      if (responseRtrrReport?.status) {
+        // setRunningReport(responseRtrrReport.body);
+        RTRFInitatedSuccess(responseRtrrReport.body, data);
+      }
+      else {
+        console.log('No record Found for SID');
+      }
+    }
+    else {
+      setIsLightningRefreshEnable(response.body.messageCode == 'M-001' ? false : true);
+      setIsLightningRefreshInProgress(response.body.messageCode == 'M-002' || response.body.messageCode == 'M-003' ? true : false);
+      setSnackbarMessage(response.body.message)
+      setSnackbarType('error')
+      setIsSnackbarOpen(true)
+    }
+
 
     // Auto-close progress snackbar after 10 seconds
     setTimeout(() => {
@@ -242,138 +378,65 @@ export default function RateTrendPage() {
     }, 10000)
 
     // Show success snackbar and reset button state after 10 seconds
-    setTimeout(() => {
-      setIsLightningRefreshInProgress(false)
+    // setTimeout(() => {
+    //   setIsLightningRefreshInProgress(false)
 
-      // Show success snackbar
-      const successMessage = `Your 'Lightning Refresh' has been completed successfully for ${data.channels}, LOS ${data.los}, GUEST ${data.guests}, and the next 30 days`
-      setSnackbarMessage(successMessage)
-      setSnackbarType('success')
-      setIsSnackbarOpen(true)
+    //   // Show success snackbar
+    //   const successMessage = `Your 'Lightning Refresh' has been completed successfully for ${data.selectedChannel}, LOS ${data.los}, GUEST ${data.guests}, and the next 30 days`
 
-      // Auto-close success snackbar after 10 seconds
-      setTimeout(() => {
-        setIsSnackbarOpen(false)
-      }, 10000)
-    }, 10000)
+
+    //   // Auto-close success snackbar after 10 seconds
+    //   setTimeout(() => {
+    //     setIsSnackbarOpen(false)
+    //   }, 10000)
+    // }, 10000)
   }
-
-  /**
-   * Ensure client-side hydration is complete before rendering date-dependent content
-   * Prevents hydration mismatches by deferring client-specific rendering
-   */
-  useEffect(() => {
-    // Set client to true immediately to prevent loading state issues
-    const timer = setTimeout(() => {
-      setIsClient(true)
-      console.log('🔄 Client hydration completed - React imported')
-    }, 0)
-
-    return () => clearTimeout(timer)
-  }, [])
-
-  // Load KPI data when component mounts
-  useEffect(() => {
-    const loadKPIData = async () => {
-      if (!isClient) return
-
-      setIsPageLoading(true)
-      setDataLoading(true)
-      setLoadingProgress(0)
-
-      // Progress interval
-      const progressInterval = setInterval(() => {
-        setLoadingProgress((prev) => {
-          const increment = Math.floor(Math.random() * 9) + 3; // 3-11% increment
-          const newProgress = prev + increment;
-
-          if (newProgress >= 100) {
-            setLoadingCycle(prevCycle => prevCycle + 1);
-            return 0;
+  const GenerateRTRRReport = async (filtersValue: RTRRRequestModel) => {
+    const response: any = await generateRTRRReport(filtersValue);
+    // console.log(response);
+    RTRFGenrateRequestSuccess(response, filtersValue);
+  }
+  const RTRFGenrateRequestSuccess = (response: any, filtersValue: RTRRRequestModel) => {
+    if (response.status) {
+      let channelName = filtersValue.Sources;
+      let losrtrr = filtersValue?.LOS != null ? filtersValue?.LOS : 1;
+      let guestrtrr = filtersValue?.Occupancy != null ? filtersValue?.Occupancy : 1;
+      let message = "" + ' ⚡Lightning Refresh⚡ is in progress. Please wait while the data is being refreshed for ' + "" + channelName + ", " + 'LOS ' + losrtrr + ", " + 'GUEST ' + guestrtrr + ", " + 'and the next ' + filtersValue.DaysOfData + ' days';
+      // this._snackbar.openSnackBar(message, '', 'success');
+      setSnackbarMessage(message)
+      setSnackbarType('info')
+      setIsSnackbarOpen(true)
+      setIsLightningRefreshInProgress(true)
+      // Start task polling for lightning refresh
+      if (selectedProperty?.sid && userDetails?.userId) {
+        const taskData = {
+          taskId: response.body,
+          channel: Array.isArray(channelName) ? channelName.join(', ') : channelName,
+          los: losrtrr.toString(),
+          guest: guestrtrr.toString(),
+          sid: typeof selectedProperty.sid === 'string' ? parseInt(selectedProperty.sid) : selectedProperty.sid,
+          userId: userDetails.userId.toString(),
+          checkInStartDate: filtersValue.FirstCheckInDate ? new Date(filtersValue.FirstCheckInDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          checkInEndDate: filtersValue.FirstCheckInDate ? new Date(new Date(filtersValue.FirstCheckInDate).getTime() + filtersValue.DaysOfData * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          month: filtersValue.FirstCheckInDate ? new Date(filtersValue.FirstCheckInDate).getMonth() + 1 : new Date().getMonth() + 1,
+          year: filtersValue.FirstCheckInDate ? new Date(filtersValue.FirstCheckInDate).getFullYear() : new Date().getFullYear(),
+          onTaskComplete: () => {
+            // Re-enable Lightning Refresh when task completes (success or failure, but not retry)
+            setIsLightningRefreshInProgress(false);
+            console.log('🔄 Lightning Refresh completed, re-enabling button');
           }
+        };
 
-          return newProgress;
-        });
-      }, 80);
-
-      try {
-        // Default to 7 days (Last Week) for now
-        const data = await rateTrendsAPI.getKPIData(7)
-        setLoadedKpiData(data)
-        console.log('📊 KPI data loaded successfully')
-      } catch (error) {
-        console.error('Error loading KPI data:', error)
-        // Fallback to static data
-        setLoadedKpiData(getKPIData(7))
-      } finally {
-        clearInterval(progressInterval);
-        setLoadingProgress(100); // finish instantly
-        setTimeout(() => {
-          setIsPageLoading(false);
-          setDataLoading(false);
-          setLoadingProgress(0); // reset for next load
-        }, 300); // brief delay so user sees 100%
+        startTaskPolling(taskData);
+        console.log('🔄 Started task polling for lightning refresh:', taskData);
+      } else {
+        console.warn('⚠️ Missing selectedProperty or userDetails for task polling');
       }
     }
-
-    loadKPIData()
-  }, [isClient])
-
-  // Trigger loading when date range changes
-  useEffect(() => {
-    if (!isClient || !startDate || !endDate) return
-
-    setIsPageLoading(true)
-    setLoadingProgress(0)
-
-    // Progress interval
-    const progressInterval = setInterval(() => {
-      setLoadingProgress((prev) => {
-        const increment = Math.floor(Math.random() * 9) + 3; // 3-11% increment
-        const newProgress = prev + increment;
-
-        if (newProgress >= 100) {
-          setLoadingCycle(prevCycle => prevCycle + 1);
-          return 0;
-        }
-
-        return newProgress;
-      });
-    }, 80);
-
-    // Simulate data loading delay
-    const loadingTimeout = setTimeout(() => {
-      clearInterval(progressInterval);
-      setLoadingProgress(100);
-      setTimeout(() => {
-        setIsPageLoading(false);
-        setLoadingProgress(0);
-      }, 300);
-    }, 1500); // 1.5 second loading simulation
-
-    return () => {
-      clearInterval(progressInterval);
-      clearTimeout(loadingTimeout);
+    else {
     }
-  }, [startDate, endDate, isClient])
-
-  // Calculate dynamic KPIs based on selected date range with fallback
-  const kpiData = useMemo(() => {
-    if (loadedKpiData) {
-      return loadedKpiData
-    }
-
-    if (!isClient) {
-      console.log('⏳ Waiting for client hydration...')
-      return getKPIData(7) // Return default data during hydration
-    }
-    // Ensure dates are not null before calling generateKPIData
-    if (!startDate || !endDate) {
-      console.log('⏳ Using default KPI data while dates initialize...')
-      return getKPIData(7) // Return default data while dates load
-    }
-    return generateKPIData(startDate, endDate)
-  }, [loadedKpiData, startDate, endDate, isClient])
+  }
+  const kpiData = generateKPIData()
 
   /**
    * Handle filter sidebar toggle with debugging
@@ -384,7 +447,7 @@ export default function RateTrendPage() {
   }
   useEffect(() => {
 
-    debugger
+
     const channelIds = channelFilter?.channelId ?? [];
     if (
       !startDate ||
@@ -392,8 +455,7 @@ export default function RateTrendPage() {
       !selectedProperty?.sid ||
       !(channelIds.length > 0)
     ) return;
-
-    setIsPageLoading(true);
+    // setIsPageLoading(true);
     setLoadingProgress(0);
 
     const progressInterval = setInterval(() => {
@@ -415,7 +477,7 @@ export default function RateTrendPage() {
       clearInterval(progressInterval);
       setLoadingProgress(100);
       setTimeout(() => {
-        setIsPageLoading(false);
+        // setIsPageLoading(false);
         setLoadingProgress(0);
       }, 300);
     });
@@ -428,6 +490,15 @@ export default function RateTrendPage() {
     sideFilter,
     compsetFilter
   ]);
+
+  useEffect(() => {
+    if (!startDate ||
+      !endDate ||
+      !selectedProperty?.sid) return;
+    Promise.all([
+      getCompRateData()
+    ]);
+  }, [selectedComparison])
   useEffect(() => {
     if (!selectedProperty?.sid) return;
     const fetchRTRRChannel = async () => {
@@ -442,6 +513,19 @@ export default function RateTrendPage() {
     }
     fetchRTRRChannel();
   }, [selectedProperty?.sid]);
+
+  // Resume polling when component mounts and has necessary data
+  useEffect(() => {
+    if (selectedProperty?.sid && userDetails?.userId) {
+      // Small delay to ensure localStorage is available and component is fully mounted
+      const timer = setTimeout(() => {
+        resumePolling();
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [selectedProperty?.sid, userDetails?.userId, resumePolling]);
+
   const getRateDate = () => {
     setRateData({});
     const filtersValue = {
@@ -471,10 +555,11 @@ export default function RateTrendPage() {
       "propertiesText": [],
       "isSecondary": compsetFilter,
     }
+    setObjForExcel(filtersValue)
     getRateTrends(filtersValue)
       .then((res) => {
         if (res.status) {
-          debugger
+          let digitCount = 4;
           const CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
             const rates = x.subscriberPropertyRate || [];
 
@@ -487,15 +572,19 @@ export default function RateTrendPage() {
               if (statuses.has("ND")) return [0, "ND"];
               return [0, "ND"];
             })();
-
+            if (Math.round(avgRate).toString().length > digitCount) {
+              digitCount = Math.round(avgRate).toString().length;
+            }
             return {
               ...x,
               AvgData: avgRate,
               AvgStatus: avgStatus
             };
           });
+          setSelectedDigitCount(digitCount);
           res.body.pricePositioningEntites = CalulatedData;
-          console.log('Rate trends data:', res.body);
+          setCompetitorCount(res.body.pricePositioningEntites.filter((x: any) => x.propertyType === 1).length)
+          // console.log('Rate trends data:', res.body);
           setRateData(res.body);
           setLosGuest({ "Los": res.body?.losList, "Guest": res.body?.guestList });
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
@@ -562,7 +651,7 @@ export default function RateTrendPage() {
             };
           });
           res.body.pricePositioningEntites = CalulatedData;
-          console.log('Rate trends data:', res.body);
+          // console.log('Rate trends data:', res.body);
           setRateCompData(res.body);
           // setLosGuest({ "Los": res.body?.losList, "Guest": res.body?.guestList });
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
@@ -570,41 +659,113 @@ export default function RateTrendPage() {
       })
       .catch((err) => console.error(err));
   }
-  // Show loading state during initial hydration or data loading
-  if (!isClient || isPageLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
-        <GlobalProgressBar />
-        <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8 xl:py-10">
-          <div className="max-w-7xl xl:max-w-none mx-auto">
-            <LoadingSkeleton type="rate-trend" showCycleCounter={true} />
-          </div>
-        </div>
-      </div>
-    )
+  // No loading state needed for static data
+  const PPExcelDownloads = (excelType: string) => {
+    var filterData: any = {};
+    if (excelType == 'LiteRate' && objForExcel?.LOS == null) {
+      toast({
+        description: "Please select a single LOS configuration for downloading the ‘Lite Report’.",
+        variant: "default",
+        duration: 3000,
+      })
+      return false;
+    }
+    filterData.SID = selectedProperty?.sid;
+    // filterData.subscriberName=this.localStr.getSelectedPropertyName();
+    filterData.reqDateTime = format(new Date(), "MM/dd/yyyy");
+    filterData.excelType = excelType;
+
+    if (excelType == 'LiteRate') {
+      var filterStartDate = objForExcel.checkInStartDate;
+      var filterEndDate = objForExcel.checkInEndDate;
+      // filterData.CheckInStartDate=filterStartDate;
+      // filterData.CheckInEndDate=filterEndDate;
+      // ObjForExcel.checkInStartDate = filterStartDate;
+      // ObjForExcel.CheckInEndDate = filterEndDate;
+    }
+
+    objForExcel.mSIRequired = true;
+    PPExcelDownload(filterData, objForExcel).then((response: any) => {
+      if (response.status) {
+        //this.BRGCalculationHistory = response.body;
+        var element = document.createElement('a');
+        element.setAttribute('href', response.body);
+
+        element.style.display = 'none';
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+      }
+      else {
+        toast({
+          description: "There is some issue in downloading the report. Please contact help@rategain.com",
+          variant: "error",
+          duration: 3000,
+        })
+      }
+    });
+    return true;
   }
 
   return (
-    // <ComparisonProvider>
+
+
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
 
       {/* Enhanced Filter Bar with Sticky Positioning */}
       <div className="sticky top-0 z-50 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md transition-all duration-200 min-h-[80px]">
         <FilterBar onMoreFiltersClick={handleMoreFiltersClick} />
       </div>
+
+
+
+
+
       {/* Main Content Area - Simplified */}
       <main className="px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 md:py-6 lg:py-8">
         {/* Dashboard Header with Enhanced Typography - Matching OTA Rankings */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold text-foreground">
-              Rate Trends
-            </h1>
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl font-bold text-foreground">
+                Rate Trends
+              </h1>
+              {/* Sample Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 px-3">
+                    {selectedValue}
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={() => {
+                    setSelectedValue("4,444 (4 digit)")
+                    setSelectedDigitCount(4)
+                  }}>
+                    4,444 (4 digit)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    setSelectedValue("444,400 (6 digit)")
+                    setSelectedDigitCount(6)
+                  }}>
+                    444,400 (6 digit)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    setSelectedValue("44,225,588 (8 digit)")
+                    setSelectedDigitCount(8)
+                  }}>
+                    44,225,588 (8 digit)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
             <p className="text-sm text-muted-foreground">
               Track rate movements and competitive positioning across time periods
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {/* Lightning Refresh and Report Buttons */}
             <TooltipProvider>
               <div className="flex items-center gap-2">
                 {/* Lightning Refresh Button */}
@@ -674,6 +835,7 @@ export default function RateTrendPage() {
                   <DropdownMenuContent align="end" className="w-auto min-w-fit">
                     <DropdownMenuItem
                       onClick={() => {
+                        PPExcelDownloads('Rate');
                         console.log('📥 Download Macro Report clicked');
                         // Add macro report download logic here
                       }}
@@ -712,7 +874,7 @@ export default function RateTrendPage() {
             <div className="absolute left-4 lg:left-6 z-10 flex items-center" style={{ top: 'calc(1rem + 2px)' }}>
               <h3 className="text-base font-semibold text-gray-900 dark:text-white">
                 Rates Calendar
-                <span className="text-xs font-medium text-gray-600 dark:text-gray-400 ml-2">(4 Sep - 10 Sep)</span>
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400 ml-2">{`(in \u200E ${selectedProperty?.currencySymbol ?? '$'} \u200E from ${startDate ? format(startDate, 'dd MMM') : 'N/A'} to ${endDate ? format(endDate, 'dd MMM') : 'N/A'})`}</span>
               </h3>
             </div>
           )}
@@ -750,6 +912,9 @@ export default function RateTrendPage() {
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-600 dark:text-gray-400">
                   Competitors {competitorStartIndex + 1}-{Math.min(competitorStartIndex + competitorsPerPage, 9)} of 9
+                </span>
+                <span className="text-xs text-blue-500 bg-blue-50 px-2 py-1 rounded">
+                  {screenSize.width}px ({screenSize.isSmall ? 'Small' : screenSize.isMedium ? 'Medium' : screenSize.isLarge ? 'Large' : 'Default'}) - {competitorsPerPage} cols
                 </span>
                 <button
                   onClick={prevCompetitors}
@@ -861,7 +1026,7 @@ export default function RateTrendPage() {
             <div className="pt-16">
               <RateTrendsTable
                 competitorStartIndex={competitorStartIndex}
-                competitorsPerPage={competitorsPerPage}
+                digitCount={selectedDigitCount}
                 rateData={rateData}
                 rateCompData={rateCompData}
               />
@@ -869,7 +1034,7 @@ export default function RateTrendPage() {
           ) : currentView === "chart" ? (
             <div className="pt-16">
               <RTRateTrendsChart key="rate-trends-chart" rateData={rateData}
-                rateCompData={rateCompData} />
+                rateCompData={rateCompData} digitCount={selectedDigitCount} />
             </div>
           ) : (
             <RateTrendCalendar
@@ -881,10 +1046,16 @@ export default function RateTrendPage() {
               currentMonthIndex={currentMonthIndex}
               onPrevMonth={prevMonth}
               onNextMonth={nextMonth}
+              digitCount={selectedDigitCount}
+              startDate={startDate || new Date()}
+              endDate={endDate || new Date()}
               onDateSelect={(date) => {
                 console.log('📅 Date selected:', date.toLocaleDateString())
                 // Add any additional date selection logic here
               }}
+              rateData={rateData}
+              rateCompData={rateCompData}
+              selectedProperty={selectedProperty}
             />
           )}
         </div>
@@ -899,6 +1070,7 @@ export default function RateTrendPage() {
         isOpen={isFilterSidebarOpen}
         onClose={() => setIsFilterSidebarOpen(false)}
         onApply={(filters) => {
+          setSideFilter(filters)
           // Handle filter apply logic here
           console.log('Applied filters:', filters)
           setIsFilterSidebarOpen(false)
@@ -919,6 +1091,5 @@ export default function RateTrendPage() {
         type={snackbarType}
       />
     </div>
-    // </ComparisonProvider>
   )
 }

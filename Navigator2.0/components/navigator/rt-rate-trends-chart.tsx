@@ -9,29 +9,46 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
-import { TrendingUp, Filter, Download, ChevronDown, Eye, EyeOff, ArrowUp, ArrowDown, Minus, BarChart3, Star, Maximize2, Calendar, Wifi, Coffee, Utensils, Car, Zap } from "lucide-react"
-import { useDateContext } from "@/components/date-context"
+import { TrendingUp, Filter, Download, ChevronDown, Eye, EyeOff, ArrowUp, ArrowDown, Minus, BarChart3, Star, Maximize2, Calendar, Zap, Check } from "lucide-react"
+// import { useDateContext } from "@/components/date-context" // Hidden for static data
 import { format, eachDayOfInterval, differenceInDays, isSameDay, parseISO, subDays } from "date-fns"
 import { Tooltip as RechartsTooltip } from "recharts"
+// import { LocalStorageService } from "@/lib/localstorage" // Removed - using static data only
 import { toPng } from "html-to-image";
 import { escapeCSVValue } from "@/lib/utils"
+import { getInclusionIcon } from "@/lib/inclusion-icons"
 import { RateDetailModal } from "./rate-detail-modal"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { useComparison } from "../comparison-context"
+import { useDateContext } from "../date-context"
 
 /**
  * Custom Tooltip Component for RT Rate Trends (independent from Overview)
  */
-const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
+const RTRateTrendsTooltip = ({ active, payload, label, coordinate, digitCount = 4 }: any) => {
+  const [selectedProperty] = useSelectedProperty();
+  // Utility function to format numbers with commas based on digit count
+  const formatRateValue = (value: number) => {
+    if (digitCount === 4) {
+      // For 4-digit: show values like 1,234
+      return value.toLocaleString()
+    } else if (digitCount === 6) {
+      // For 6-digit: show values like 123,456
+      return value.toLocaleString()
+    } else if (digitCount === 8) {
+      // For 8-digit: show values like 12,345,678
+      return value.toLocaleString()
+    }
+    return value.toLocaleString() // Default fallback
+  }
   if (active && payload && payload.length) {
     const data = payload[0]?.payload
-
+    
     // Check if any rate has more than 4 digits
-    const hasLargeRates = payload.some((entry: any) => {
-      const rate = entry.value
-      return rate && rate.toString().length > 4
-    })
-
+    const ratesLength =
+      payload.find((entry: any) => entry?.value != null && entry.value !== '')?.value
+        ?.toString().length || 4;
+    const hasLargeRates = false
     // Dynamic positioning based on cursor location
     const chartWidth = 800 // Approximate chart area width
     const tooltipWidth = 320 // Increased tooltip width for Rate and Variance columns
@@ -45,10 +62,27 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
       marginLeft: '10px'
     }
 
-    // Dynamic width classes based on rate size
-    const widthClasses = hasLargeRates
-      ? "min-w-[410px] max-w-[466px]" // Additional 20% increase reduced by 5% (432px * 0.95 = 410px, 490px * 0.95 = 466px)
-      : "min-w-[342px] max-w-[388px]"  // Standard 20% increase reduced by 5% (360px * 0.95 = 342px, 408px * 0.95 = 388px)
+    // Dynamic width classes based on date and rate size
+    // const date = new Date(data.date)
+    // const dayOfMonth = date.getDate()
+debugger
+    let widthClasses
+    if (ratesLength < 6) {
+      // Jan 2: Width for 4-digit values (Rate: +8px, Variance: +8px = +16px total)
+      widthClasses = hasLargeRates
+        ? "min-w-[426px] max-w-[482px]" // Increased by 16px
+        : "min-w-[358px] max-w-[404px]"  // Increased by 16px
+    } else if (ratesLength > 5 && ratesLength < 8) {
+      // Jan 3: Reduced width for 6-digit values (Rate: -30px, Variance: -30px = -60px total)
+      widthClasses = hasLargeRates
+        ? "min-w-[446px] max-w-[502px]" // Reduced by 60px from Jan 4+ width
+        : "min-w-[378px] max-w-[424px]"  // Reduced by 60px from Jan 4+ width
+    } else {
+      // Jan 4 and others: Increased width (Rate: +8px, Variance: +8px = +16px total)
+      widthClasses = hasLargeRates
+        ? "min-w-[506px] max-w-[562px]" // Increased by 16px
+        : "min-w-[438px] max-w-[484px]"  // Increased by 16px
+    }
 
     return (
       <div
@@ -64,27 +98,21 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
         </div>
 
         {/* Event Information */}
-        {data?.hasEvent && (
+        {data?.events && data?.events.length > 0 && (
           <div className="flex items-center gap-2 p-2 mb-0.5">
             <Star className="w-3 h-3 text-amber-500 fill-current" />
             <span className="text-xs text-black dark:text-white font-medium">
               {(() => {
                 // Generate event name based on date
-                const date = new Date(data.date)
-                const dayOfMonth = date.getDate()
-                const dayOfWeek = date.getDay()
 
-                let eventName = ""
-                if (dayOfMonth === 5) eventName = "Music Festival"
-                else if (dayOfMonth === 15) eventName = "Business Conference"
-                else if (dayOfMonth === 25) eventName = "Sports Event"
-                else if (dayOfWeek === 0 && dayOfMonth % 7 === 0) eventName = "Weekend Special"
-                else if (dayOfMonth % 3 === 0) eventName = "Regular Event"
-                else eventName = "Special Event"
+                const eventsData = data?.events;
+                const eventsDataCount = data?.events.length > 1 ? `(+${data?.events.length - 1} more` : '';
+                let eventName = eventsData[0].eventName;
+
 
                 // Limit to 32 characters and add ellipsis
                 const truncatedName = eventName.length > 32 ? eventName.substring(0, 32) + "..." : eventName
-                return `${truncatedName} (+2 more)`
+                return `${truncatedName + eventsDataCount} `
               })()}
             </span>
           </div>
@@ -92,12 +120,17 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
 
 
         {/* Column Headings */}
-        <div className="grid grid-cols-[1fr_120px_60px_50px] gap-0 px-2">
+        <div className={`grid gap-0 px-2 ${ratesLength < 6
+          ? "grid-cols-[1fr_108px_70px_50px]" // Jan 2: Rate +8px (100->108), Variance +8px (62->70)
+          : ratesLength < 8
+            ? "grid-cols-[1fr_118px_80px_50px]" // Jan 3: Rate -30px (148->118), Variance -30px (110->80)
+            : "grid-cols-[1fr_148px_110px_50px]" // Jan 4+: Rate +8px (140->148), Variance +8px (102->110)
+          }`}>
           <div className="px-2 pt-1 pb-0 text-left">
             <span className="text-xs font-medium text-gray-500 dark:text-slate-400">Property</span>
           </div>
           <div className="px-2 pt-1 pb-0 text-right">
-            <span className="text-xs font-medium text-gray-500 dark:text-slate-400" style={{ paddingRight: '20px' }}>Rate</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-slate-400" style={{ paddingRight: '20px' }}>Rate ({`\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E`})</span>
           </div>
           <div className="px-2 pt-1 pb-0 text-right">
             <span className="text-xs font-medium text-gray-500 dark:text-slate-400">Variance</span>
@@ -114,21 +147,41 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
             const myHotelEntry = payload.find((entry: any) => entry.dataKey === 'direct')
             const myHotelRate = myHotelEntry ? myHotelEntry.value : 0
 
-            const actualAvgCompsetEntry = payload.find((entry: any) => entry.name.includes('Compset') || entry.dataKey === 'avgCompset')
-            const actualAvgCompsetRate = actualAvgCompsetEntry?.value || 0
-            const allRates = payload.map((entry: any) => entry.value).filter((rate: any) => rate > 0)
-            const competitorRatesForRanking = (() => {
-              const cloneallRates = [...allRates];
-              const idx = cloneallRates.findIndex(r => r === actualAvgCompsetRate);
-              if (idx !== -1) cloneallRates.splice(idx, 1);
-              return cloneallRates;
-            })();
-            const sortedRates = competitorRatesForRanking.sort((a, b) => a - b)
             // Sort payload by rate to calculate ranking
-            // const sortedRates = payload.map((entry: any) => entry.value).sort((a: number, b: number) => a - b)
+            const sortedRates = payload.filter((entry: any) => entry.dataKey !== 'avgCompset' && entry.value > 0).map((entry: any) => entry.value).sort((a: number, b: number) => a - b)
+            const sortedPayload = [...payload].sort((a, b) => {
+              const aValue = a.value ?? 0;
+              const bValue = b.value ?? 0;
 
-            return payload.map((entry: any, index: number) => {
-              debugger
+              // Assign type priorities
+              const getPropertyType = (entry: any) => {
+                if (entry.name === 'My Hotel' || entry.dataKey === 'direct') return 0;      // Highest
+                if (entry.name === 'Avg. Compset' || entry.dataKey === 'avgCompset') return 1; // Second
+                return 2; // Competitors (default)
+              };
+
+              const aType = getPropertyType(a);
+              const bType = getPropertyType(b);
+
+              // Step 1: Sort by type priority
+              if (aType !== bType) return aType - bType;
+
+              // Step 2: Within same type, if both values = 0, sort alphabetically
+              const aZero = aValue === 0;
+              const bZero = bValue === 0;
+
+              if (aZero && bZero) {
+                return a.name.localeCompare(b.name);
+              }
+
+              if (aZero) return 1;  // a goes last
+              if (bZero) return -1; // b goes last
+
+              // Step 3: Otherwise sort by value ascending
+              return aValue - bValue;
+            });
+
+            return sortedPayload.map((entry: any, index: number) => {
               const rate = entry.value
               const isMyHotel = entry.dataKey === 'direct'
               const isAvgCompset = entry.dataKey === 'avgCompset'
@@ -144,9 +197,14 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
               const compareavgCompsetStatus = isAvgCompset ? data.compareavgCompsetStatus : "";
               const compareRate = isMyHotel ? data.compareRate : data[`compare${competitorKey}`];
 
+              // Get inclusion data for current period
+              const inclusionKey = `${competitorKey}_inclusion`;
+              const inclusionData = data[inclusionKey];
+              const directInclusion = isMyHotel ? data.directInclusion : "";
+              const avgCompInclusion = isAvgCompset ? data.avgCompsetInclusion : "";
+
               // Calculate variance using comparison data if available
               let variance = 0
-              let varianceFormatted = '-'
 
               if (isMyHotel && compareRate > 0) {
                 variance = rate - compareRate
@@ -173,18 +231,13 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
               // Calculate ranking (1 = cheapest, higher number = more expensive)
               const rank = sortedRates.indexOf(rate) + 1
 
-              // Generate inclusion icon based on index (for demo purposes)
-              const getInclusionIcon = (idx: number) => {
-                const iconIndex = (idx * 3 + 7) % 5 // Generate pseudo-random pattern
-                if (iconIndex === 0) return <Wifi className="w-3 h-3 text-gray-600" />
-                if (iconIndex === 1) return <Coffee className="w-3 h-3 text-gray-600" />
-                if (iconIndex === 2) return <Utensils className="w-3 h-3 text-gray-600" />
-                if (iconIndex === 3) return <Car className="w-3 h-3 text-gray-600" />
-                return null // Empty for some rows
-              }
-
               return (
-                <div key={index} className={`grid grid-cols-[1fr_120px_60px_50px] gap-0 items-center py-0.5 pl-2 pr-2 rounded-md ${isMyHotel ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700' : ''
+                <div key={index} className={`grid gap-0 items-center py-0.5 pl-2 pr-2 rounded-md ${ratesLength <= 4
+                  ? "grid-cols-[1fr_108px_70px_50px]" // Jan 2: Rate +8px (100->108), Variance +8px (62->70)
+                  : ratesLength <= 6
+                    ? "grid-cols-[1fr_118px_80px_50px]" // Jan 3: Rate -30px (148->118), Variance -30px (110->80)
+                    : "grid-cols-[1fr_148px_110px_50px]" // Jan 4+: Rate +8px (140->148), Variance +8px (102->110)
+                  } ${isMyHotel ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700' : ''
                   }`}>
                   {/* Property Column */}
                   <div className="flex items-center min-w-0 px-2 py-1 text-left">
@@ -197,39 +250,47 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
                   {/* Rate Column with Icon */}
                   <div className={`flex items-center justify-end px-2 py-1 ${isMyHotel ? 'text-blue-900 dark:text-blue-200' : 'text-gray-900 dark:text-slate-100'
                     }`}>
-                    {/* Show bolt icon on 25th date only for specific competitors */}
+                    {/* Show different icons based on date for specific competitors */}
                     {(() => {
                       const date = new Date(data.date)
                       const dayOfMonth = date.getDate()
-                      // Show bolt icon only for specific competitors (index 0, 2, 4) on 25th date
-                      const shouldShowBolt = dayOfMonth === 25 && (index === 0 || index === 2 || index === 4)
-                      return shouldShowBolt ? (
-                        <Zap className="w-3 h-3 text-blue-500 fill-current mr-2" />
-                      ) : null
+                      const month = date.getMonth() + 1 // getMonth() returns 0-11, so add 1
+                      // Show icons only for specific competitors (index 0, 2, 4) on Jan 2, 3 and 4
+                      const shouldShowIcon = month === 1 && (dayOfMonth === 2 || dayOfMonth === 3 || dayOfMonth === 4) && (index === 0 || index === 2 || index === 4)
+
+                      if (!shouldShowIcon) return null
+
+                      if (dayOfMonth === 2) {
+                        // Jan 2: Green tick icon with white checkmark
+                        return (
+                          <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center mr-2">
+                            <Check className="w-2 h-2 text-white stroke-4" />
+                          </div>
+                        )
+                      } else {
+                        // Jan 3, 4: Blue bolt icon
+                        return <Zap className="w-3 h-3 text-blue-500 fill-current mr-2" />
+                      }
                     })()}
                     <span className="text-sm font-bold">
                       {normalizedStatus
                         ? (() => {
                           const normalized = normalizedStatus.toUpperCase();
-
                           if ((normalized === "O" && rate > 0) || avgCompStatus > 0) {
-                            return `$${rate?.toLocaleString()}`;
+                            return `${rate?.toLocaleString()}`;
                           }
-
                           if (normalized === "C") {
                             return "Sold Out";
                           }
-
                           if (["NP", "ND", "RF", "TNA"].includes(normalized)) {
                             return "-";
                           }
-
                           return "-";
                         })()
                         : `$${rate?.toLocaleString()}`}
                     </span>
                     <div className="ml-1" style={{ paddingLeft: '4px' }}>
-                      {getInclusionIcon(index) || (
+                      {getInclusionIcon(inclusionData || directInclusion || avgCompInclusion || "") || (
                         <div className="w-3 h-3 opacity-0">
                           {/* Transparent placeholder to maintain spacing */}
                           <div className="w-full h-full"></div>
@@ -245,19 +306,15 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
                     {normalizedStatus
                       ? (() => {
                         const normalized = normalizedStatus.toUpperCase();
-
                         if ((normalized === "O" && rate > 0 && (comparestatusData === "O" || compareavgCompsetStatus === "O" || compareStatus === "O")) || avgCompStatus > 0) {
                           return `${variance > 0 ? "+" : ""}${Math.round(variance)}`;
                         }
-
                         if (normalized === "C" || comparestatusData === "C" || compareavgCompsetStatus === "C" || compareStatus === "C") {
                           return " ";
                         }
-
                         if (["NP", "ND", "RF", "TNA"].includes(normalized) || ["NP", "ND", "RF", "TNA"].includes(comparestatusData) || ["NP", "ND", "RF", "TNA"].includes(compareavgCompsetStatus) || ["NP", "ND", "RF", "TNA"].includes(compareStatus)) {
                           return "-";
                         }
-
                         return "-";
                       })()
                       : `${variance > 0 ? '+' : ''}${variance.toFixed(2)}%`}
@@ -265,7 +322,7 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate }: any) => {
 
                   {/* Rank Column */}
                   <div className="text-right text-sm font-medium text-gray-700 dark:text-gray-300 px-2 py-1">
-                    {rank > 0 ? rank : ''}
+                    {rank > 0 ? rank : !isAvgCompset ? '-' : ''}
                   </div>
                 </div>
               )
@@ -337,7 +394,9 @@ interface RateDataResponse {
 /**
  * Transform actual rate data to chart format
  */
-const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataResponse, selectedComparison: number): RateData[] => {
+const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataResponse, selectedComparison: number):
+  RateData[] => {
+
   // Check if rateData is empty or invalid
   if (!rateData || (typeof rateData === 'object' && Object.keys(rateData).length === 0)) {
     return []
@@ -345,9 +404,11 @@ const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataRes
 
   // Handle both nested (body.pricePositioningEntites) and direct (pricePositioningEntites) data structures
   const entities = rateData?.body?.pricePositioningEntites || rateData?.pricePositioningEntites
+
   const compEntities = rateCompData?.body?.pricePositioningEntites || rateCompData?.pricePositioningEntites
 
-  if (!entities) {
+  if (!entities || !compEntities) {
+
     return []
   }
 
@@ -357,20 +418,15 @@ const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataRes
   const dateMap = new Map<string, any>()
 
   entities.forEach((entity, entityIndex) => {
+
+
     entity.subscriberPropertyRate.forEach((rateEntry, rateIndex) => {
+
       const checkInDate = rateEntry.checkInDateTime.split('T')[0] // Extract date part
-
-      // Find corresponding comparison data
-      const compData = compEntities
-        ?.filter(ce => ce.propertyID === entity.propertyID)[0]
-        ?.subscriberPropertyRate
-        .find(re =>
-          isSameDay(
-            parseISO(re.checkInDateTime),
-            subDays(parseISO(rateEntry.checkInDateTime), selectedComparison)
-          )
-        );
-
+      const compData = compEntities?.filter(ce => ce.propertyID === entity.propertyID)[0]
+        ?.subscriberPropertyRate.find(re => isSameDay(parseISO(re.checkInDateTime),
+          subDays(parseISO(rateEntry.checkInDateTime), selectedComparison)
+        ));
       if (!dateMap.has(checkInDate)) {
         dateMap.set(checkInDate, {
           date: checkInDate,
@@ -389,12 +445,14 @@ const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataRes
         // Direct/Subscriber property
         dateData.directStatus = rateEntry.status === null ? rateEntry.rate : rateEntry.status
         dateData.direct = rate
+        dateData.directInclusion = rateEntry.inclusion || ""
         dateData.compareRate = compData?.rate ? parseFloat(compData.rate) : 0
         dateData.compareStatus = compData?.status === null ? compData.rate : compData?.status
       } else if (entity.propertyType === 2) {
         // Avg Compset
         dateData.avgCompsetStatus = rateEntry.status === null ? rateEntry.rate : rateEntry.status
         dateData.avgCompset = rate
+        dateData.avgCompsetInclusion = rateEntry.inclusion || ""
         dateData.compareavgCompset = compData?.rate ? parseFloat(compData.rate) : 0
         dateData.compareavgCompsetStatus = compData?.status === null ? compData.rate : compData?.status
       } else if (entity.propertyType === 1) {
@@ -403,6 +461,7 @@ const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataRes
         dateData[`${competitorKey}_Status`] = rateEntry.status === null ? rateEntry.rate : rateEntry.status
         dateData[competitorKey] = rate
         dateData[`${competitorKey}_name`] = entity.propertName
+        dateData[`${competitorKey}_inclusion`] = rateEntry.inclusion || ""
         dateData[`compare${competitorKey}`] = compData?.rate ? parseFloat(compData.rate) : 0
         dateData[`compare${competitorKey}_Status`] = compData?.status === null ? compData.rate : compData?.status
       }
@@ -415,6 +474,7 @@ const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataRes
 
   return transformedData
 }
+
 
 /**
  * Channel Configuration
@@ -433,11 +493,15 @@ interface ChannelConfig {
 /**
  * Generate channel configs based on actual data
  */
+
 const generateChannelConfigs = (rateData: RateDataResponse, rateCompData: RateDataResponse): ChannelConfig[] => {
+
+
   const configs: ChannelConfig[] = []
 
   // Check if rateData is empty or invalid
   if (!rateData || (typeof rateData === 'object' && Object.keys(rateData).length === 0)) {
+
     return configs
   }
 
@@ -445,8 +509,10 @@ const generateChannelConfigs = (rateData: RateDataResponse, rateCompData: RateDa
   const entities = rateData?.body?.pricePositioningEntites || rateData?.pricePositioningEntites
 
   if (!entities) {
+
     return configs
   }
+
 
   // Add direct property (propertyType = 0)
   const directEntity = entities.find(e => e.propertyType === 0)
@@ -460,6 +526,9 @@ const generateChannelConfigs = (rateData: RateDataResponse, rateCompData: RateDa
       description: 'My hotel rates',
       isVisible: true,
     })
+
+  } else {
+
   }
 
   // Add avg compset (propertyType = 2)
@@ -474,10 +543,14 @@ const generateChannelConfigs = (rateData: RateDataResponse, rateCompData: RateDa
       description: 'Average competitive set rates',
       isVisible: true,
     })
+
+  } else {
+
   }
 
   // Add competitor properties (propertyType = 1)
   const competitorEntities = entities.filter(e => e.propertyType === 1)
+
 
   const competitorColors = [
     '#10b981', '#f97316', '#8b5cf6', '#ef4444', '#f59e0b',
@@ -493,21 +566,13 @@ const generateChannelConfigs = (rateData: RateDataResponse, rateCompData: RateDa
       strokeWidth: 2,
       type: 'competitor',
       description: `Competitor property`,
-      isVisible: index < 3, // Show first 3 competitors by default
+      isVisible: index < 3, // Show first 8 competitors by default
     })
+
   })
 
-  return configs
-}
 
-/**
- * Custom Tooltip Component
- * Enhanced tooltip with comprehensive data display
- */
-interface CustomTooltipProps {
-  active?: boolean
-  payload?: any[]
-  label?: string
+  return configs
 }
 
 /**
@@ -526,7 +591,7 @@ function CustomXAxisTick({ x, y, payload, data }: CustomXAxisTickProps) {
   if (!payload || !x || !y) return null
 
   const dateData = data?.find(d => d.date === payload.value)
-  const hasEvents = dateData?.hasEvent || false
+  const hasEvents = dateData?.events || false
   const hasRefresh = dateData?.hasRefresh || false
 
   return (
@@ -572,211 +637,11 @@ function CustomXAxisTick({ x, y, payload, data }: CustomXAxisTickProps) {
     </g>
   )
 }
-
-/**
- * Enhanced Custom Tooltip with price positioning analysis
- */
-function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$' }: CustomTooltipProps & { coordinate?: { x: number, y: number }, currencySymbol?: string }) {
-  if (active && payload && payload.length) {
-    const data = payload[0]?.payload
-
-    // Find Avg. Compset rate for variance calculations
-    const avgCompsetEntry = payload.find(entry => entry.name === 'Avg. Compset')
-    const avgCompsetRate = avgCompsetEntry?.value || 0
-
-    // Dynamic positioning based on coordinate
-    const isNearRightEdge = coordinate && coordinate.x > 400 // Rough chart midpoint
-    const tooltipStyle = isNearRightEdge ? {
-      transform: 'translateX(-100%)',
-      marginLeft: '-20px'
-    } : {}
-
-    // Calculate price positioning
-    const myHotelRate = data?.direct || 0
-    const allRates = payload.map(entry => entry.value).filter(rate => rate > 0)
-    const competitorRates = allRates.filter(rate => rate !== myHotelRate)
-
-    // Price positioning analysis
-    const avgCompetitorRate = competitorRates.length > 0 ?
-      competitorRates.reduce((sum, rate) => sum + rate, 0) / competitorRates.length : 0
-    const priceDifference = myHotelRate - avgCompetitorRate
-    const priceDifferencePercent = avgCompetitorRate > 0 ?
-      ((priceDifference / avgCompetitorRate) * 100) : 0
-
-    // Market position (sorted by price - cheapest to most expensive)
-    // Exclude Avg Compset from ranking calculation
-    // Find the actual Avg Compset rate from the payload
-    const actualAvgCompsetEntry = payload.find(entry => entry.name.includes('Compset') || entry.dataKey === 'avgCompset')
-    const actualAvgCompsetRate = actualAvgCompsetEntry?.value || 0
-
-    const competitorRatesForRanking = allRates.filter(rate => rate !== actualAvgCompsetRate)
-    const sortedRates = competitorRatesForRanking.sort((a, b) => a - b)
-    const myPosition = sortedRates.indexOf(myHotelRate) + 1
-    const totalHotels = sortedRates.length
-
-
-
-    // Get position text for each hotel (excluding Avg Compset)
-    const getPositionText = (rate: number, hotelName: string) => {
-      // Don't calculate position for Avg Compset
-      if (rate === actualAvgCompsetRate) return ''
-
-      const position = sortedRates.indexOf(rate) + 1
-
-
-      if (position === 1) return 'Lowest'
-      if (position === totalHotels) return 'Highest'
-      if (position === 2) return '#2'
-      if (position === 3) return '#3'
-      return `#${position}`
-    }
-
-    return (
-      <div
-        className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-2xl rounded-lg p-3 min-w-[260px] max-w-[350px] z-[10001] relative"
-        style={tooltipStyle}
-      >
-        {/* Date Heading */}
-        <div className="mb-3">
-          <h3 className="text-gray-900 dark:text-white">
-            <span className="text-base font-bold">{label ? format(new Date(label), 'dd MMM yyyy') : ''}</span>
-            <span className="text-sm font-normal">{label ? `, ${format(new Date(label), 'EEE')}` : ''}</span>
-          </h3>
-          {/* Blue divider below tooltip heading */}
-          <div className="w-full h-[30px] bg-blue-500 mt-2 mb-2"></div>
-          {/* Event Information under date heading */}
-          {data?.hasEvent && (
-            <>
-              <p className="text-sm font-medium text-foreground mt-2 mb-1">Events</p>
-              <div className="flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-900/30 rounded-md border border-amber-200 dark:border-amber-700/50">
-                <Star className="w-4 h-4 text-amber-600 dark:text-amber-400 fill-current" />
-                <span className="text-sm text-amber-700 dark:text-amber-200 font-medium">
-                  {(() => {
-                    // Generate event name based on date
-                    const date = new Date(data.date)
-                    const dayOfMonth = date.getDate()
-                    const dayOfWeek = date.getDay()
-
-                    if (dayOfMonth === 5) return "Music Festival&nbsp;&nbsp;&nbsp;&nbsp;+2"
-                    if (dayOfMonth === 15) return "Business Conference&nbsp;&nbsp;&nbsp;&nbsp;+2"
-                    if (dayOfMonth === 25) return "Sports Event&nbsp;&nbsp;&nbsp;&nbsp;+2"
-                    if (dayOfWeek === 0 && dayOfMonth % 7 === 0) return "Weekend Special&nbsp;&nbsp;&nbsp;&nbsp;+2"
-                    if (dayOfMonth % 3 === 0) return "Regular Event&nbsp;&nbsp;&nbsp;&nbsp;+2"
-
-                    return "Special Event&nbsp;&nbsp;&nbsp;&nbsp;+2"
-                  })()}
-                </span>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Compact Rate Details */}
-        <div className="space-y-0">
-          {(() => {
-            // Custom sorting logic based on property types and ranking
-            const sortedPayload = [...payload].sort((a, b) => {
-              const aValue = a.value || 0
-              const bValue = b.value || 0
-
-              // Get property type from the data key
-              const getPropertyType = (entry: any) => {
-                if (entry.name === 'My Hotel' || entry.dataKey === 'direct') return 0
-                if (entry.name === 'Avg. Compset' || entry.dataKey === 'avgCompset') return 2
-                if (entry.dataKey?.startsWith('competitor_')) return 1
-                return 1 // Default to competitor
-              }
-
-              const aType = getPropertyType(a)
-              const bType = getPropertyType(b)
-
-              // Sort by property type first, then by rate
-              if (aType !== bType) {
-                // Order: Direct first, then Avg Compset, then competitors by rate
-                if (aType === 0) return -1  // Direct first
-                if (bType === 0) return 1
-                if (aType === 2) return -1  // Avg Compset second
-                if (bType === 2) return 1
-                // Competitors come last, sorted by rate
-                return aValue - bValue
-              }
-
-              // Within same type, sort by rate (lowest to highest)
-              return aValue - bValue
-            })
-
-            return sortedPayload.map((entry, index) => {
-              // Check if this is the direct property (propertyType=0) or Avg Compset (propertyType=2)
-              const isDirectProperty = entry.dataKey === 'direct' || entry.name.includes('Hotel') && !entry.name.includes('Compset')
-              const isAvgCompset = entry.name.includes('Compset') || entry.dataKey === 'avgCompset'
-              const isCheapest = index === 0
-
-              // Calculate variance against Avg. Compset for all entries except Avg. Compset itself
-              const priceDiff = !isAvgCompset && avgCompsetRate > 0 ?
-                ((entry.value - avgCompsetRate) / avgCompsetRate * 100) : 0
-
-              const isCompetitiveThreat = !isDirectProperty && !isAvgCompset && entry.value < myHotelRate
-              // Exclude Avg Compset from ranking - only show position for competitors
-              const positionText = !isAvgCompset ? getPositionText(entry.value, entry.name) : ''
-
-              return (
-                <div key={entry.name} className={`flex items-center justify-between gap-2 p-2 rounded transition-all ${index < 2
-                  ? isDirectProperty
-                    ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-                    : isAvgCompset
-                      ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
-                      : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                  : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                  }`}>
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className={`text-xs truncate ${index < 2
-                      ? isDirectProperty
-                        ? 'font-semibold text-blue-700 dark:text-blue-300'
-                        : isAvgCompset
-                          ? 'font-semibold text-red-700 dark:text-red-300'
-                          : 'text-gray-700 dark:text-gray-300'
-                      : 'text-gray-700 dark:text-gray-300'
-                      }`}>
-                      {entry.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-right flex-shrink-0">
-                    <div className={`text-sm font-bold min-w-[60px] text-right ${index < 2
-                      ? isDirectProperty
-                        ? 'text-blue-900 dark:text-blue-200'
-                        : isAvgCompset
-                          ? 'text-red-900 dark:text-red-200'
-                          : isCheapest
-                            ? 'text-emerald-700 dark:text-emerald-300'
-                            : 'text-gray-900 dark:text-slate-100'
-                      : isCheapest
-                        ? 'text-emerald-700 dark:text-emerald-300'
-                        : 'text-gray-900 dark:text-slate-100'
-                      }`}>
-                      {`\u200E${currencySymbol}\u200E ${entry.value?.toLocaleString()}`}
-                    </div>
-
-                    {/* Ranking column - only for competitors, not for Avg Compset */}
-                    <div className={`text-xs font-medium min-w-[50px] ${!isAvgCompset && positionText === 'Lowest'
-                      ? 'text-emerald-600 dark:text-emerald-400 font-bold'
-                      : !isAvgCompset && positionText === 'Highest'
-                        ? 'text-red-600 dark:text-red-400 font-bold'
-                        : !isAvgCompset && positionText
-                          ? 'text-gray-600 dark:text-gray-400'
-                          : ''
-                      }`}>
-                      {!isAvgCompset && positionText}
-                    </div>
-                  </div>
-                </div>
-              )
-            })
-          })()}
-        </div>
-      </div>
-    )
-  }
-  return null
+const formatYAxis = (value: string | number): string => {
+  const num = Number(value)
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`
+  if (num >= 1_000) return `${(num / 1_000).toFixed(0)}K`
+  return String(num)
 }
 
 /**
@@ -794,16 +659,19 @@ function CustomTooltip({ active, payload, label, coordinate, currencySymbol = '$
  * @component
  * @version 2.0.0
  */
-export function RTRateTrendsChart({ rateData, rateCompData }: any) {
+export function RTRateTrendsChart({ rateData, digitCount = 4, rateCompData }: any) {
   const { startDate, endDate, isLoading } = useDateContext()
+
   const [selectedProperty] = useSelectedProperty();
+
   const { selectedComparison } = useComparison()
 
-
-
+  // Generate sample channel configs for demonstration
   // Generate channel configs based on actual data
   const channelConfigs = useMemo(() => {
+    if (!rateData || !rateCompData) []
     return generateChannelConfigs(rateData, rateCompData)
+
   }, [rateData, rateCompData])
 
   // State management
@@ -853,8 +721,11 @@ export function RTRateTrendsChart({ rateData, rateCompData }: any) {
       console.log('✅ Error message cleared')
     }
   }, [errorMessage])
+
   const [legendVisibility, setLegendVisibility] = useState<Record<string, boolean>>({})
+
   const [channelVisibility, setChannelVisibility] = useState<Record<string, boolean>>({})
+
   const [isInitialized, setIsInitialized] = useState<boolean>(false)
 
   // Tab state
@@ -887,13 +758,17 @@ export function RTRateTrendsChart({ rateData, rateCompData }: any) {
     setSelectedDateForModal(newDate)
   }, [selectedDateForModal])
 
+  // Generate sample data dynamically based on date range
 
+  // Generate sample data for demonstration (fallback for 7 days)
 
-  // Generate data - use only real data from rateData and rateCompData
+  // Use static data only - similar to table and calendar views
   const data = useMemo(() => {
     // Transform actual rate data to chart format
     const transformedData = transformRateData(rateData, rateCompData, selectedComparison)
+
     return transformedData
+
   }, [rateData, rateCompData])
 
   // Initialize visibility states when channel configs change
@@ -901,41 +776,29 @@ export function RTRateTrendsChart({ rateData, rateCompData }: any) {
     if (channelConfigs.length > 0 && !isInitialized) {
       const initialLegendVisibility: Record<string, boolean> = {}
       const initialChannelVisibility: Record<string, boolean> = {}
-
       channelConfigs.forEach(config => {
         initialChannelVisibility[config.key] = config.isVisible
         // Show legend for channels that are initially selected
         initialLegendVisibility[config.key] = config.isVisible
       })
-
-      // Force avgCompset to always be visible by default
       if (channelConfigs.find(config => config.key === 'avgCompset')) {
         initialChannelVisibility['avgCompset'] = true
         initialLegendVisibility['avgCompset'] = true
       }
-
-      // Ensure that all selected channels also have their legends visible
-      // This prevents the "disabled" appearance for selected channels
       Object.keys(initialChannelVisibility).forEach(key => {
         if (initialChannelVisibility[key]) {
           initialLegendVisibility[key] = true
         }
       })
-
       setLegendVisibility(initialLegendVisibility)
       setChannelVisibility(initialChannelVisibility)
       setIsInitialized(true)
     }
   }, [channelConfigs, isInitialized])
-
-  // Auto-clear error messages when visible legend count drops below 10
   useEffect(() => {
-    // Only count channels that are both selected in dropdown AND visible in legend
     const currentVisibleCount = Object.keys(legendVisibility).filter(key =>
       legendVisibility[key] && channelVisibility[key]
     ).length
-
-    // Clear error message if we're now under the limit
     if (currentVisibleCount < 10 && errorMessage) {
       setErrorMessage('')
     }
@@ -946,11 +809,15 @@ export function RTRateTrendsChart({ rateData, rateCompData }: any) {
     channelConfigs.filter(config => channelVisibility[config.key]),
     [channelConfigs, channelVisibility]
   )
-
   // Filter competitor channels only for the dropdown (exclude My Hotel)
   const competitorChannels = useMemo(() =>
     channelConfigs.filter(config => config.type === 'competitor'),
     [channelConfigs]
+  )
+  // Get selected competitors (from dropdown) but limit to first 8 for chart visibility
+  const selectedCompetitors = useMemo(() =>
+    competitorChannels.filter(config => channelVisibility[config.key]),
+    [competitorChannels, channelVisibility]
   )
 
   const visibleCompetitors = useMemo(() =>
@@ -958,41 +825,69 @@ export function RTRateTrendsChart({ rateData, rateCompData }: any) {
     [competitorChannels, channelVisibility]
   )
 
-  // Always include My Hotel line + avgCompset + visible competitors for chart rendering
+  // Competitors beyond the 8th are considered disabled (selected but not visible)
+  const disabledCompetitors = useMemo(() =>
+    selectedCompetitors.slice(8), // Competitors 9+ are disabled
+    [selectedCompetitors]
+  )
+  // Always include My Hotel line + visible competitors for chart rendering
   const myHotelChannel = useMemo(() =>
     channelConfigs.find(config => config.type === 'direct'),
     [channelConfigs]
   )
 
+  // Always include Avg. Compset line for chart rendering
+
   const avgCompsetChannel = useMemo(() =>
     channelConfigs.find(config => config.key === 'avgCompset'),
     [channelConfigs]
   )
-
   const allSelectedChannels = useMemo(() => {
     const channels = []
     if (myHotelChannel) channels.push(myHotelChannel)
-    if (avgCompsetChannel) channels.push(avgCompsetChannel)
+    if (avgCompsetChannel) channels.push(avgCompsetChannel) // Always include avgCompset, visibility is checked separately
     channels.push(...visibleCompetitors)
     return channels
   }, [myHotelChannel, avgCompsetChannel, visibleCompetitors])
 
-  // Only first 8 competitors will be active on chart (plus My Hotel and Avg Compset = 10 total)
-  const activeChannels = useMemo(() => {
-    const channels = []
-    if (myHotelChannel) channels.push(myHotelChannel)
-    if (avgCompsetChannel) channels.push(avgCompsetChannel)
-    channels.push(...visibleCompetitors.slice(0, 8)) // Only first 8 competitors
-    return channels
-  }, [myHotelChannel, avgCompsetChannel, visibleCompetitors])
-
-  // Get channels that are selected but beyond the 8-competitor limit (for disabled legends)
-  const disabledChannels = useMemo(() =>
-    visibleCompetitors.slice(8), // Competitors 9+ are disabled
-    [visibleCompetitors]
+  // Only first 10 channels will be active on chart (dynamically fills slots when hotels are deselected)
+  const chartChannels = useMemo(() =>
+    allSelectedChannels.slice(0, 10),
+    [allSelectedChannels]
   )
 
+  // Get channels that are selected but beyond the 10-limit (for disabled legends)
+  const disabledChannels = useMemo(() =>
+    allSelectedChannels.slice(10),
+    [allSelectedChannels]
+  )
+
+  // Clean up legend states only for hotels that are completely deselected
+  // useEffect(() => {
+  //   if (!allSelectedChannels || allSelectedChannels.length === 0) return
+  //   const allSelectedKeys = allSelectedChannels.map(channel => channel?.key).filter(Boolean)
+
+
+  //   setLegendVisibility(prev => {
+  //     const updated = { ...prev }
+  //     let needsUpdate = false
+
+  //     // Only clean up legend states for hotels that are completely deselected from dropdown
+  //     for (const key in updated) {
+  //       if (!allSelectedKeys.includes(key as any) && updated[key] === true) {
+
+  //         updated[key] = false
+  //         needsUpdate = true
+  //       }
+  //     }
+
+  //     return needsUpdate ? updated : prev
+  //   })
+  // }, [allSelectedChannels])
+
   // Note: Error messages are managed by timeout only. Auto-clearing removed to prevent immediate dismissal.
+
+  // Toggle channel visibility - allow all selections, but limit chart visibility to first 8
 
   // Toggle channel visibility - no limit, dropdown selection should always work
   const toggleChannelVisibility = useCallback((channelKey: string) => {
@@ -1110,12 +1005,12 @@ export function RTRateTrendsChart({ rateData, rateCompData }: any) {
 
   const cardRef = useRef<HTMLDivElement>(null);
   const handleDownloadImageRate = () => {
-    console.log("upgrading the a Sum Insured", data);
+    console.log("Downloading chart image with static data", data);
     if (cardRef.current) {
       toPng(cardRef.current, { cacheBust: true })
         .then((dataUrl) => {
           const link = document.createElement("a");
-          link.download = 'RateShopping_Rate_' + selectedProperty?.sid + '_' + new Date().getTime() + ".png"; // File name
+          link.download = 'RateTrends_Chart_' + (selectedProperty?.sid || 'static') + '_' + new Date().getTime() + ".png";
           link.href = dataUrl;
           link.click();
         })
@@ -1180,7 +1075,7 @@ export function RTRateTrendsChart({ rateData, rateCompData }: any) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", 'RateShopping_Rate_' + selectedProperty?.sid + '_' + new Date().getTime() + ".csv");
+    link.setAttribute("download", 'RateTrends_Data_' + (selectedProperty?.sid || 'static') + '_' + new Date().getTime() + ".csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1350,14 +1245,12 @@ export function RTRateTrendsChart({ rateData, rateCompData }: any) {
                     tickLine={false}
                     domain={[0, 'dataMax']}
                     label={{
-                      value: 'Rate (USD)',
+                      value: `Rate (\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E)`,
                       angle: -90,
                       position: 'insideLeft',
                       style: { textAnchor: 'middle' }
                     }}
-                    tickFormatter={(value: number) => {
-                      return `$${value}`
-                    }}
+                    tickFormatter={formatYAxis}
                     width={50}
                   />
                   <RechartsTooltip

@@ -15,6 +15,8 @@ export class Constants {
     public static readonly DemandAPI_GET_DemandAI = "DemandAI/getOptimaDemandData";
     public static readonly API_GET_GetAllEvents = "Events/GetAllEvents";
     public static readonly API_GetRateTrend = "RateTrend/GetPricePositioning"
+    public static readonly API_POST_PPExcelDownload = "DownloadReport/PPExcelDownload"; 
+    public static readonly API_POST_CachePage = "RateTrend/SetCachePageDataToRedish";
     public static readonly API_GET_GetAllHoliday = "Events/GetALLHolidayList";
     public static readonly API_AddEvents = "Events/AddEvents";
     public static readonly API_UpdateEvents = "Events/UpdateEvents";
@@ -36,9 +38,9 @@ export class Constants {
     public static readonly API_GET_AllSubscriberHistoryCompSet = "Compset/GetSubscriberHistoryCompSets";
     public static readonly API_GET_UpdateSubscriberCompSet = "Compset/UpdateSubscriberCompSets";
     public static readonly API_GET_AddSubscriberCompSet = "Compset/AddSubscriberCompSets";
-    public static readonly API_GET_BRGCalculationSetting = "BRG/GetBRGCalculationSetting";
     public static readonly API_GET_BRGCalculationHistory = "BRG/GetBRGHistory";
     public static readonly API_SET_UpdateBRGCalculation = "BRG/UpdateBRGCalculation";
+    public static readonly API_GetRateEvalution = "PaceView/GetPaceView"
     public static readonly API_GET_AllChannelList = "Channel/GetChannelList";
     public static readonly API_GET_ChannelHistory = "Channel/GetChannelHistory";
     public static readonly API_DeleteChannel = "Channel/DeleteChannel";
@@ -48,7 +50,10 @@ export class Constants {
     public static readonly API_SET_AddProfilePhoto = "GCSUploadOps/AddProfilePhoto";
     public static readonly API_RTRRCHANNEL = "RTRR/GetRTRRChannel";
     public static readonly API_RRTRVALIDATION = "RTRR/GetRTRRValidation";
-
+    public static readonly API_RRTRSTATUS = "RTRR/GetRTRRReportStatusbySID";
+    public static readonly API_RRTRREPORT = "RTRR/GenerateRTRRReport";
+    public static readonly API_RTRRReportSTATUS = "RTRR/GetReportStatusOfRTRR";
+    public static readonly API_REGENERATERTRR = "RTRR/ReGenrateRTRRReport";
 
 
     //User Management Page
@@ -58,4 +63,14 @@ export class Constants {
     public static readonly API_AddUpdateUser = "UserRole/AddUpdateUser";
     public static readonly API_AddProfilePhoto = "GCSUploadOps/AddProfilePhoto";
 
+    public static readonly API_GenerateAndMailReportCSV = "Report/GenerateAndMailReportCSV";
+    public static readonly API_CheckMappingValidation = "Report/CheckMappingValidation";
+    public static readonly API_CheckMapping = "Report/CheckMapping";
+  public static readonly API_GetScheduleReportData = "Report/GetScheduleReportData";
+  public static readonly API_SaveReportData = "Report/SaveReportData";
+    public static readonly API_GetEditScheduleData = "Report/GetEditScheduleData";
+    public static readonly API_DeleteReport = "Report/DeleteReport";
+    public static readonly API_GenerateOndemandReport = "Report/GenerateOndemandReport";
+    public static readonly API_GET_CurrencyList = "Report/GetCurrency";
+    public static readonly API_GET_TimeZoneList = "Report/GetTimeZone";
 }
