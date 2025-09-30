@@ -47,7 +47,8 @@ interface RateTrendsTableProps {
   competitorStartIndex?: number
   digitCount?: number,
   rateData?: any,
-  rateCompData?: any
+  rateCompData?: any,
+  demandData?: any
 }
 
 // Interface for live rate data structure
@@ -267,7 +268,8 @@ export function RateTrendsTable({
   competitorStartIndex = 0,
   digitCount = 4,
   rateData,
-  rateCompData
+  rateCompData,
+  demandData
 }: RateTrendsTableProps) {
   // Screen size detection for responsive competitor count
   const screenSize = useScreenSize()
@@ -308,9 +310,9 @@ export function RateTrendsTable({
   const [selectedProperty] = useSelectedProperty()
   // Transform live data
   const transformedData = useMemo(() => {
-    if (!rateData || !rateCompData) { }
+    if (!rateData || !rateCompData || !demandData) { };
     return transformLiveDataToTableFormat(rateData)
-  }, [rateData, rateCompData]);
+  }, [rateData, rateCompData, demandData]);
 
   // Calculate dynamic column width based on rate values (further reduced for 4-competitor view)
   const calculateRateColumnWidth = (rate: number) => {
@@ -358,6 +360,13 @@ export function RateTrendsTable({
 
       const compareRate = compData?.rate ? parseFloat(compData.rate) : 0;
       const compareStatus = compData?.status
+      debugger;
+      const demandIndex = demandData?.optimaDemand.find((re: any) =>
+        isSameDay(
+          parseISO(re.checkinDate),
+          parseISO(rateEntry.checkInDateTime)
+        )
+      )?.demandIndex;
       return {
         id: index,
         date: checkInDate,
@@ -378,7 +387,8 @@ export function RateTrendsTable({
         hasLightningRefresh: false,
         rateEntry,
         compareRate,
-        compareStatus
+        compareStatus,
+        demandIndex
       }
     })
   }, [transformedData])
@@ -738,11 +748,11 @@ export function RateTrendsTable({
                   <td className="bg-white group-hover:bg-gray-50 py-2 text-center text-sm border-r border-gray-200 align-top" style={{ width: '30px', paddingLeft: '1px', paddingRight: '1px' }}>
                     {(() => {
                       // Use MSI (Market Share Index) as demand indicator
-                      const demandValue = rateEntry.msi || 0;
+                      const demandValue = row.demandIndex || 0;
                       const getDemandColor = (value: number) => {
-                        if (value <= 50) return 'text-blue-300';
-                        if (value <= 65) return 'text-blue-600';
-                        if (value <= 80) return 'text-red-400';
+                        if (value < 25) return 'text-blue-300';
+                        if (value <= 50) return 'text-blue-600';
+                        if (value <= 75) return 'text-red-400';
                         return 'text-red-600';
                       };
                       return <span className={`font-semibold ${getDemandColor(demandValue)}`}>{demandValue}</span>;
@@ -931,7 +941,7 @@ export function RateTrendsTable({
                                     </div>
                                     <div className="text-left">
                                       <span className={`text-xs font-medium ${competitor.variance > 0 ? 'text-red-600' : competitor.variance < 0 ? 'text-green-600' : 'text-gray-500'}`}>
-                                        {competitor.variance > 0 ? '+' : ''}{competitor.status === 'O' && competitor.compareStatus === 'O' ? competitor.variance : '--'}
+                                        {competitor.variance > 0 ? '+' : ''}{competitor.status === 'O' && competitor.compareStatus === 'O' ? competitor.variance : competitor.status === 'C' ? '' : '--'}
                                       </span>
                                     </div>
                                   </div>

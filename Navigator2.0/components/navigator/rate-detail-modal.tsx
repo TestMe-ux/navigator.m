@@ -10,7 +10,7 @@ import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { getRateEvalutionData } from "@/lib/parity"
 import { conevrtDateforApi } from "@/lib/utils"
 import { useComparison } from "../comparison-context"
-import { format, parseISO } from "date-fns"
+import { format, isSameDay, parseISO } from "date-fns"
 
 interface RateDetailModalProps {
   isOpen: boolean
@@ -40,16 +40,16 @@ export function RateDetailModal({ isOpen, onClose, selectedDate, onPrevDay, onNe
 
     // Transform data for CSV - only include selected properties
     const transformedData: any[] = []
-    
+
     paceData.forEach((pc: any) => {
       const shopDate = pc.shopDateTime
       const avgComRate = pc.avgComRate
-      
+
       if (pc.competitivenessEntity) {
         let csvRow: any = {
           Date: format(parseISO(shopDate), "yyyy-MM-dd")
         }
-        
+
         pc.competitivenessEntity.priceCompetitivenessRates.forEach((pcr: any) => {
           // Only include properties that are selected in the chart
           if (selectedProperties.includes(pcr.propertName)) {
@@ -83,12 +83,12 @@ export function RateDetailModal({ isOpen, onClose, selectedDate, onPrevDay, onNe
     })
 
     const headers = Array.from(allColumns)
-    const rows = transformedData.map(row => 
+    const rows = transformedData.map(row =>
       headers.map(header => {
         const value = row[header] || ""
         // Escape commas and quotes in CSV
-        return typeof value === 'string' && (value.includes(',') || value.includes('"')) 
-          ? `"${value.replace(/"/g, '""')}"` 
+        return typeof value === 'string' && (value.includes(',') || value.includes('"'))
+          ? `"${value.replace(/"/g, '""')}"`
           : value
       })
     )
@@ -180,6 +180,7 @@ export function RateDetailModal({ isOpen, onClose, selectedDate, onPrevDay, onNe
     month: "short"
   })} ${selectedDate.getFullYear()}`
 
+
   const dayName = selectedDate.toLocaleDateString("en-US", {
     weekday: "short",
   })
@@ -201,7 +202,8 @@ export function RateDetailModal({ isOpen, onClose, selectedDate, onPrevDay, onNe
                   {tooltipsEnabled ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={onPrevDay}>
+                        <Button variant="ghost" size="icon" onClick={onPrevDay}
+                          disabled={isSameDay(selectedDate, new Date())}>
                           <ChevronLeft className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
@@ -252,10 +254,10 @@ export function RateDetailModal({ isOpen, onClose, selectedDate, onPrevDay, onNe
             </div>
           </DialogHeader>
 
-          <ModalRankingChart 
-            selectedDate={selectedDate} 
-            numberOfDays={15} 
-            paceData={paceData} 
+          <ModalRankingChart
+            selectedDate={selectedDate}
+            numberOfDays={15}
+            paceData={paceData}
             isLoading={isLoading}
             onSelectedPropertiesChange={handleSelectedPropertiesChange}
           />

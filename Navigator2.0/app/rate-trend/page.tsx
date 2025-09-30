@@ -28,6 +28,7 @@ import { generateRTRRReport, getRTRRReportStatusBySID, getRTRRValidation } from 
 import { RTRRRequestModel } from "@/lib/RTRRRequestModel"
 import { usePollingContext } from "@/components/polling/polling-context"
 import { useToast } from "@/hooks/use-toast"
+import { GetDemandAIData } from "@/lib/demand"
 
 /**
  * Utility function to format dates consistently across server and client
@@ -105,6 +106,7 @@ export default function RateTrendPage() {
   // Polling context for task management
   const { startTaskPolling, isTaskPolling, resumePolling } = usePollingContext();
   const [rateCompData, setRateCompData] = useState(Object);
+  const [demandData, setDemandData] = useState<any>([])
   const [competitorCount, setCompetitorCount] = useState(0)
   // const [runningReport, setRunningReport] = useState<any>({});
   // const [lightingRefreshData, setLightingRefreshData] = useState<any>({});
@@ -472,7 +474,8 @@ export default function RateTrendPage() {
 
     Promise.all([
       getRateDate(),
-      getCompRateData()
+      getCompRateData(),
+      getDemandAIData()
     ]).finally(() => {
       clearInterval(progressInterval);
       setLoadingProgress(100);
@@ -525,7 +528,15 @@ export default function RateTrendPage() {
       return () => clearTimeout(timer);
     }
   }, [selectedProperty?.sid, userDetails?.userId, resumePolling]);
-
+  const getDemandAIData = () => {
+    return GetDemandAIData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
+      .then((res) => {
+        if (res.status) {
+          setDemandData(res.body);
+        }
+      })
+      .catch((err) => console.error(err));
+  }
   const getRateDate = () => {
     setRateData({});
     const filtersValue = {
@@ -1029,6 +1040,7 @@ export default function RateTrendPage() {
                 digitCount={selectedDigitCount}
                 rateData={rateData}
                 rateCompData={rateCompData}
+                demandData={demandData}
               />
             </div>
           ) : currentView === "chart" ? (
