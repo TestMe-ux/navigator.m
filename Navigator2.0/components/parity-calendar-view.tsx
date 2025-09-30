@@ -1304,10 +1304,10 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                         // Get rate from API - use 0 if not available, but still display it
                                         if(dayData.rate==0 && dayData.statusMessage=="Closed")
                                         {
-                                          return 'Sold Out';
+                                          return <span>Sold Out</span>;
                                         }else if(dayData.rate==0 && dayData.statusMessage!=="Closed")
                                         {
-                                          return "--";
+                                          return <span>--</span>;
                                         }
                                         const apiRate = dayData.rate || 0
                                         
@@ -1362,10 +1362,10 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                         
                                         if(dayData.rate==0 && dayData.statusMessage=="Closed")
                                         {
-                                          return 'Sold Out';
+                                          return <span>Sold Out</span>;
                                         }else if(dayData.rate==0 && dayData.statusMessage!=="Closed")
                                         {
-                                          return "--";
+                                          return <span>--</span>;
                                         }
                                         const apiRate = dayData.rate || 0
 
@@ -1493,10 +1493,10 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                         const dayOfMonth = getDayOfMonth(dayData.checkInDate)
                                        if(dayData.rate==0 && dayData.statusMessage=="Closed")
                                         {
-                                          return 'Sold Out';
+                                          return <span>Sold Out</span>;
                                         }else if(dayData.rate==0 && dayData.statusMessage!=="Closed")
                                         {
-                                          return "--";
+                                          return <span>--</span>;
                                         }
                                         const apiRate = dayData.rate || 0
                                         
@@ -1605,18 +1605,18 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                                     const dayOfMonth = getDayOfMonth(dayData.checkInDate)
                                                   if(dayData.rate==0 && dayData.statusMessage=="Closed")
                                                   {
-                                                    return 'Sold Out';
+                                                    return <span>Sold Out</span>;
                                                   }else if(dayData.rate==0 && dayData.statusMessage!=="Closed")
                                                   {
-                                                    return "--";
+                                                    return <span>--</span>;
                                                   }
                                                   const apiRate = dayData.rate || 0
                                           // Use actual rate from API response for benchmark
                                                     const benchmarkRate = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
                                                       const rateDate = new Date(rate.checkInDate)
                                                       return rateDate.getTime() === currentDate.getTime()
-                                                    })?.rate || BASE_RATE_IDR : BASE_RATE_IDR
-                                                    return formatNumber(benchmarkRate)
+                                                    })?.rate || BASE_RATE_IDR
+                                                    return <span>{formatNumber(benchmarkRate)}</span>
                                                 })()}
                                             </td>
                                             
@@ -1748,10 +1748,10 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                                     const dayOfMonth = getDayOfMonth(dayData.checkInDate)
                                                  if(dayData.rate==0 && dayData.statusMessage=="Closed")
                                                   {
-                                                    return 'Sold Out';
+                                                    return <span>Sold Out</span>;
                                                   }else if(dayData.rate==0 && dayData.statusMessage!=="Closed")
                                                   {
-                                                    return "--";
+                                                    return <span>--</span>;
                                                   }
                                        
                                                     
