@@ -22,7 +22,8 @@ import {
   DollarSign,
   Target,
   Activity,
-  Star
+  Star,
+  Network
 } from "lucide-react"
 
 interface NavigationItem {
@@ -36,6 +37,13 @@ interface NavigationItem {
 
 // Main navigation items - Core revenue management tools
 const mainNavigationItems: NavigationItem[] = [
+  {
+    id: "cluster",
+    title: "Cluster",
+    href: "/cluster",
+    icon: Network,
+    description: "Cluster management and analysis"
+  },
   {
     id: "overview",
     title: "Overview",
@@ -181,7 +189,11 @@ export function NavigationDrawer({
             </div>
           )}
           <div className="space-y-1">
-            {renderNavigationItems(mainNavigationItems)}
+            {renderNavigationItems(mainNavigationItems.slice(0, 1))}
+            {!isCollapsed && (
+              <div className="mx-3 pt-1 border-t border-dashed border-border/60"></div>
+            )}
+            {renderNavigationItems(mainNavigationItems.slice(1))}
           </div>
       </nav>
         
