@@ -133,11 +133,11 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
 
       return {
         hotelName: comp.propertName,
-        rate: compRateEntry?.status === 'O' ? `${rateValue.toLocaleString('en-US')}` : compRateEntry?.status === 'C' ? 'Closed' : '--',
+        rate: compRateEntry?.status === 'O' ? `${rateValue.toLocaleString('en-US')}` : compRateEntry?.status === 'C' ? 'Sold Out' : '--',
         rateValue,
         difference: rateDifference !== 0
           ? `${rateDifference > 0 ? '+' : ''}${rateDifference}`
-          : '--',
+          : compRateEntry?.status === 'C' ? '' : '--',
         isLowest: false, // Will be set later
         isHighest: false, // Will be set later
         hasInclusion: !!compRateEntry?.inclusion,
@@ -175,7 +175,7 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
 
     const allRates = [...competitorRates, {
       hotelName: myProperty?.propertName || 'My Hotel',
-      rate: myRateEntry?.status === 'O' ? `${myRateValue.toLocaleString('en-US')}` : myRateEntry?.status === 'C' ? 'Closed' : '--',
+      rate: myRateEntry?.status === 'O' ? `${myRateValue.toLocaleString('en-US')}` : myRateEntry?.status === 'C' ? 'Sold Out' : '--',
       rateValue: myRateValue,
       difference: myRateDifference !== 0
         ? `${myRateDifference > 0 ? '+' : ''}${myRateDifference}`
@@ -421,7 +421,7 @@ const transformLiveDataToCalendarData = (rateData: any, rateCompData: any, start
 
       // Get rate data from live data
       const rateValue = rateEntry?.status === 'O' ? parseFloat(rateEntry.rate) : 0
-      const currentPrice = rateEntry?.status === 'O' ? `${rateValue.toLocaleString('en-US')}` : rateEntry?.status === 'O' ? 'Closed' : '--';
+      const currentPrice = rateEntry?.status === 'O' ? `${rateValue.toLocaleString('en-US')}` : rateEntry?.status === 'O' ? 'Sold Out' : '--';
 
       // Calculate rate difference for comparison
       const rateDifference = rateValue && compareRate && rateEntry?.status === 'O' && compareStatus === 'O'
@@ -442,7 +442,7 @@ const transformLiveDataToCalendarData = (rateData: any, rateCompData: any, start
         isFuture,
         dayOfWeek: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][currentDate.getDay()],
         // New fields for the image layout
-        subscriberRate: rateEntry?.status === 'O' ? `${rateValue.toLocaleString('en-US')} USD` : rateEntry?.status === 'C' ? 'Closed' : '--',
+        subscriberRate: rateEntry?.status === 'O' ? `${rateValue.toLocaleString('en-US')} USD` : rateEntry?.status === 'C' ? 'Sold Out' : '--',
         hotelLowestRate: rateValue,
         rateDifference: rateDifference !== 0
           ? `${rateDifference > 0 ? '+' : ''}${rateDifference}`
@@ -473,7 +473,6 @@ const transformLiveDataToCalendarData = (rateData: any, rateCompData: any, start
 
     weeks.push(week)
   }
-
   return weeks
 }
 
@@ -573,15 +572,14 @@ function RateTrendCalendarInner({
   // Helper function to determine if we should show limited days
   const daySelectionInfo = useMemo(() => {
     if (!startDate || !endDate) return { type: 'normal', totalDays: 0 }
-
     const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
 
     if (totalDays === 7) {
       return { type: '7days', totalDays: 7 } // Show today + next 6 days (7 days total)
     } else if (totalDays === 14) {
       return { type: '14days', totalDays: 14 } // Show today + next 13 days (14 days total)
-    } else if (totalDays === 30) {
-      return { type: '30days', totalDays: 30 } // Show today + next 29 days (30 days total)
+    } else if (totalDays === 28) {
+      return { type: '28days', totalDays: 28 } // Show today + next 29 days (30 days total)
     } else {
       return { type: 'custom', totalDays } // Show custom date range
     }
@@ -627,7 +625,7 @@ function RateTrendCalendarInner({
   // Helper function to check if a date should be rendered
   const shouldRenderDate = useCallback((day: CalendarDay) => {
     if (!startDate || !endDate || daySelectionInfo.type === 'normal') return true
-
+debugger;
     const dayDate = new Date(day.year, day.month, day.date)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -643,19 +641,19 @@ function RateTrendCalendarInner({
     if (daySelectionInfo.type === '7days') {
       // For 7-day selection: show today + next 7 days (8 days total)
       const endDate7 = new Date(today)
-      endDate7.setDate(today.getDate() + 7) // Today + 7 more days = 8 days total
+      endDate7.setDate(today.getDate() + 6) // Today + 7 more days = 8 days total
 
       return dayDate >= today && dayDate <= endDate7
     } else if (daySelectionInfo.type === '14days') {
       // For 14-day selection: show today + next 14 days (15 days total)
       const endDate14 = new Date(today)
-      endDate14.setDate(today.getDate() + 14) // Today + 14 more days = 15 days total
+      endDate14.setDate(today.getDate() + 13) // Today + 14 more days = 15 days total
 
       return dayDate >= today && dayDate <= endDate14
-    } else if (daySelectionInfo.type === '30days') {
+    } else if (daySelectionInfo.type === '28days') {
       // For 30-day selection: show today + next 30 days (31 days total)
       const endDate30 = new Date(today)
-      endDate30.setDate(today.getDate() + 30) // Today + 30 more days = 31 days total
+      endDate30.setDate(today.getDate() + 27) // Today + 30 more days = 31 days total
 
       return dayDate >= today && dayDate <= endDate30
     } else if (daySelectionInfo.type === 'custom') {
@@ -899,29 +897,29 @@ function RateTrendCalendarInner({
       window.URL.revokeObjectURL(url)
     }
 
-  // Handle loading state and ensure dates are available
-  if (isLoading || !startDate || !endDate) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-sm text-gray-600">Loading calendar data...</p>
+    // Handle loading state and ensure dates are available
+    if (isLoading || !startDate || !endDate) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-sm text-gray-600">Loading calendar data...</p>
+          </div>
         </div>
-      </div>
-    )
-  }
+      )
+    }
 
-  // Handle case when no live data is available
-  if (!rateData || !rateData.pricePositioningEntites) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="text-slate-500 dark:text-slate-400 text-lg mb-2">No rate data available</div>
-          <p className="text-sm text-slate-600 dark:text-slate-400">Please check your data source and try again</p>
+    // Handle case when no live data is available
+    if (!rateData || !rateData.pricePositioningEntites) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="text-slate-500 dark:text-slate-400 text-lg mb-2">No rate data available</div>
+            <p className="text-sm text-slate-600 dark:text-slate-400">Please check your data source and try again</p>
+          </div>
         </div>
-      </div>
-    )
-  }
+      )
+    }
 
     return (
       <div className="w-full shadow-xl border border-border/50 rounded-lg bg-white dark:bg-slate-900">
