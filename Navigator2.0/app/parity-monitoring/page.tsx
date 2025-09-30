@@ -33,16 +33,15 @@ function ParityMonitoringContent() {
   const { selectedChannels } = useParityChannelContext()
   const [parityResponseData, setParityResponseData] = useState<any>(null)
   const [brgSettingData, setBrgSettingData] = useState<any>(null)
-
+  // const [violationCount, setViolationCount] = useState<any>();
   // Function to handle data from child component (if needed)
   const handleChildData = useCallback((data: any) => {
-    console.log('Data received from child:', data)
+
     // You can process data from the child component here if needed
   }, [])
 
   // Function to handle channel selection changes
   const handleChannelSelectionChange = useCallback((selectedChannels: any[]) => {
-    console.log('Channel selection changed:', selectedChannels)
     // This will trigger the useEffect that fetches parity data
   }, [])
 
@@ -223,7 +222,7 @@ function ParityMonitoringContent() {
   // Fetch parity data when dependencies change
   useEffect(() => {
     if (!selectedProperty?.sid || !startDate || !endDate || selectedChannels.length === 0) {
-      console.warn('Missing required parameters for parity data fetch')
+
       return
     }
 
@@ -263,23 +262,18 @@ function ParityMonitoringContent() {
           "qualification": null,
           "restriction": null,
         }
-
-        console.log('🔄 Fetching parity data with filters:', filtersValue)
         const response = await GetParityData(filtersValue)
 
         if (!isCancelled && response.status && response.body) {
-          console.log('✅ Parity data fetched successfully:', response.body)
           setApiParityData(response.body)
           setParityResponseData(response.body)
 
         } else if (!isCancelled) {
-          console.warn('⚠️ Parity API returned unsuccessful response:', response)
           setApiParityData(null)
           setParityResponseData(null)
         }
       } catch (error) {
         if (!isCancelled) {
-          console.error('❌ Failed to fetch parity data:', error)
           // Fallback to null to use static data
           setApiParityData(null)
         }
@@ -491,8 +485,7 @@ function ParityMonitoringContent() {
     if (apiParityData && apiParityData.otaViolationChannelRate?.violationChannelRatesCollection?.length > 0) {
       return processApiDataForChart(apiParityData, chartDates)
     } else {
-      // Always return fallback data when API data is not available or empty
-      console.log('📊 Using fallback chart data - API data not available')
+      // Always return fallback data when API data is not available or empty      
       return generateFallbackChartData(chartDates)
     }
   }, [startDate, endDate, apiParityData])
@@ -504,9 +497,24 @@ function ParityMonitoringContent() {
     }
 
     const channels = apiData.otaViolationChannelRate.violationChannelRatesCollection
+    let toatlRateViolationCount = 0;
+    let toatlAvailabilityViolationCount = 0;
+    channels.forEach((element: any) => {
+      const rateViolationCount = element?.checkInDateWiseRates.filter((x: any) => (x.rateViolation)).length;
+      const availabilityViolationCount = element?.checkInDateWiseRates.filter((x: any) => (x.availViolation)).length;
+      if (element.channelWisewinMeetLoss) {
+        toatlRateViolationCount += rateViolationCount;
+        toatlAvailabilityViolationCount += availabilityViolationCount
+      }
+    });
+    // setViolationCount({ "toatlBrandAvailabilityViolations": toatlAvailabilityViolationCount, "toatlBrandRateViolations": toatlRateViolationCount, "toatlBrandViolations": toatlAvailabilityViolationCount + toatlRateViolationCount })
     return channels.map((channel: any) => {
       // Calculate overall parity metrics from daily data
-      const dailyRates = channel.channelWisewinMeetLoss || []
+      const isBrand = channel.isBrand || false;
+      // const dailyRates = channel.channelWisewinMeetLoss || []
+      const dailyRates = isBrand
+        ? apiParityData?.otaViolationChannelRate?.overallWinMeetLoss
+        : channel.channelWisewinMeetLoss || [];
       const totalWin = dailyRates.winCount
       const totalMeet = dailyRates.meetCount
       const totalLoss = dailyRates.lossCount
@@ -530,8 +538,10 @@ function ParityMonitoringContent() {
 
       // Total violations = rate violations + availability violations
       const totalViolations = rateViolations + availabilityViolations
-
-      return {
+      const toatlBrandAvailabilityViolations = totalCheckInDates > 0 ? Math.round((toatlAvailabilityViolationCount / totalCheckInDates) * 100) : 0
+      const toatlBrandRateViolations = totalCheckInDates > 0 ? Math.round((toatlRateViolationCount / totalCheckInDates) * 100) : 0
+      const toatlBrandViolations = totalCheckInDates > 0 ? Math.round(((toatlRateViolationCount + toatlAvailabilityViolationCount) / totalCheckInDates) * 100) : 0
+      const tydata = {
         channelName: channel.channelName,
         channelIcon: channel.channelIcon,
         parityScore,
@@ -540,13 +550,13 @@ function ParityMonitoringContent() {
         winPercent,
         meetPercent,
         lossPercent,
-        totalViolations,
+        totalViolations: isBrand ? toatlBrandViolations : totalViolations,
         violationsTrend: Math.random() > 0.5 ? 'up' : 'down' as 'up' | 'down',
         violationsTrendValue: Math.round(Math.random() * 10) + 1,
-        rateViolations,
+        rateViolations: isBrand ? toatlBrandRateViolations : rateViolations,
         rateViolationsTrend: Math.random() > 0.5 ? 'up' : 'down' as 'up' | 'down',
         rateViolationsTrendValue: Math.round(Math.random() * 8) + 1,
-        availabilityViolations,
+        availabilityViolations: isBrand ? toatlBrandAvailabilityViolations : availabilityViolations,
         availabilityViolationsTrend: Math.random() > 0.5 ? 'up' : 'down' as 'up' | 'down',
         availabilityViolationsTrendValue: Math.round(Math.random() * 5) + 1,
         color: channel.isBrand ? 'blue-600' :
@@ -555,7 +565,10 @@ function ParityMonitoringContent() {
               channel.channelName?.toLowerCase().includes('agoda') ? 'purple-500' : 'gray-500',
         isBrand: channel.isBrand || false
       }
+      console.log("Testd Data " + channel.channelName, toatlAvailabilityViolationCount, toatlRateViolationCount)
+      return tydata
     })
+
   }
 
   // Get benchmark channel info
@@ -580,7 +593,6 @@ function ParityMonitoringContent() {
     }
 
     // Always return fallback data when API data is not available
-    console.log('🎯 Using fallback card data - API data not available')
     return [
       // { 
       //   channelName: "MakeMyTripBooking", 
