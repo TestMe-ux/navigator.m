@@ -368,13 +368,13 @@ export function ClusterFilterBar({ onMoreFiltersClick, setSelectedChannel, viewM
                     value="Cluster"
                     className="h-10 px-4 text-sm font-medium data-[state=on]:bg-blue-600 data-[state=on]:text-white dark:data-[state=on]:bg-blue-600 dark:data-[state=on]:text-white hover:text-black data-[state=on]:hover:text-white border-0 rounded-l-md rounded-r-none"
                   >
-                    Cluster
+                    Summary
                   </ToggleGroupItem>
                   <ToggleGroupItem
                     value="All Properties"
                     className="h-10 px-4 text-sm font-medium data-[state=on]:bg-blue-600 data-[state=on]:text-white dark:data-[state=on]:bg-blue-600 dark:data-[state=on]:text-white hover:text-black data-[state=on]:hover:text-white border-0 rounded-r-md rounded-l-none border-l border-slate-200 dark:border-slate-700"
                   >
-                    All Properties
+                    Table
                   </ToggleGroupItem>
                 </ToggleGroup>
               </div>

@@ -365,28 +365,6 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
             {/* Left Section - Primary Filters */}
             <div className="flex items-center gap-4 flex-1 min-w-0">
 
-              {/* View Toggle */}
-              <div className="shrink-0">
-                <ToggleGroup
-                  type="single"
-                  value={viewMode}
-                  onValueChange={(value) => value && setViewMode && setViewMode(value)}
-                  className="border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 shadow-sm h-10 gap-0"
-                >
-                  <ToggleGroupItem
-                    value="Cluster"
-                    className="h-10 px-4 text-sm font-medium data-[state=on]:bg-blue-600 data-[state=on]:text-white dark:data-[state=on]:bg-blue-600 dark:data-[state=on]:text-white hover:text-black data-[state=on]:hover:text-white border-0 rounded-l-md rounded-r-none"
-                  >
-                    Cluster
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="All Properties"
-                    className="h-10 px-4 text-sm font-medium data-[state=on]:bg-blue-600 data-[state=on]:text-white dark:data-[state=on]:bg-blue-600 dark:data-[state=on]:text-white hover:text-black data-[state=on]:hover:text-white border-0 rounded-r-md rounded-l-none border-l border-slate-200 dark:border-slate-700"
-                  >
-                    All Properties
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
 
               {/* Date Range Picker */}
               <div className="shrink-0">
@@ -394,7 +372,7 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
                   startDate={startDate || undefined}
                   endDate={endDate || undefined}
                   onChange={handleDateRangeChange}
-                  enableTruncation={true}
+                  enableTruncation={false}
                 />
               </div>
 
@@ -406,10 +384,10 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md min-w-0 max-w-[160px] hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
+                      className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md min-w-0 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
                     >
                       <Map className="w-4 h-4 shrink-0" />
-                  <span className="truncate max-w-[80px] font-semibold">
+                  <span className="font-semibold">
                     {getCountryDisplayText()}
                   </span>
                       <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
@@ -454,10 +432,10 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md min-w-0 max-w-[160px] hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
+                      className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md min-w-0 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
                     >
                       <MapPin className="w-4 h-4 shrink-0" />
-                  <span className="truncate max-w-[80px] font-semibold">
+                  <span className="font-semibold">
                     {getCityDisplayText()}
                   </span>
                       <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
@@ -502,10 +480,10 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md min-w-0 max-w-[160px] hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
+                      className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md min-w-0 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
                     >
                       <Globe className="w-4 h-4 shrink-0" />
-                  <span className="truncate max-w-[80px] font-semibold">
+                  <span className="font-semibold">
                     {getChannelDisplayText()}
                   </span>
                       <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
@@ -555,7 +533,7 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
                         onClick={onMoreFiltersClick}
                       >
                         <Filter className="w-4 h-4" />
-                        <span className="hidden xl-1366:inline font-semibold">More Filters</span>
+                        <span className="hidden xl-1450:inline font-semibold">More Filters</span>
                         {getActiveFilters.length > 0 && (
                           <Badge
                             className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg"
@@ -565,7 +543,7 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
                         )}
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom" className="bg-slate-800 text-white border-slate-700 xl-1366:hidden">
+                    <TooltipContent side="bottom" className="bg-slate-800 text-white border-slate-700 xl-1450:hidden">
                       <p className="text-xs">More Filters</p>
                     </TooltipContent>
                   </Tooltip>

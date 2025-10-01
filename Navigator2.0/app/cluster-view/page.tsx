@@ -167,7 +167,7 @@ function AllPropertiesPageContent() {
 
   const handleViewModeChange = (mode: string) => {
     if (mode === "Cluster") {
-      router.push("/cluster")
+      router.push("/cluster-view")
     } else {
       setViewMode(mode)
     }
@@ -211,95 +211,11 @@ function AllPropertiesPageContent() {
 
       <main className="relative flex-1 overflow-auto">
         <div
-          className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-6 mt-2"
+          className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4"
           data-coach-mark="all-properties-content"
         >
           <div className="max-w-7xl xl:max-w-none mx-auto space-y-6">
             
-            {/* Dashboard Header with Enhanced Typography */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-minimal-md mb-6">
-              <div className="space-y-1">
-                <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-foreground">
-                    Properties Analysis
-                </h1>
-                  
-                  {/* Property Selector Dropdown - copied from Cluster page */}
-                  <DropdownMenu open={isPropertySelectorOpen} onOpenChange={setIsPropertySelectorOpen}>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md min-w-0 max-w-[192px] hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
-                      >
-                  <span className="truncate max-w-[120px] font-semibold">
-                    {getPropertyDisplayText()}
-                  </span>
-                        <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-auto p-0 shadow-xl border-slate-200 dark:border-slate-700 z-[60]">
-                      <div className="flex">
-                        <div className="w-64 p-4">
-                          <h4 className="font-semibold text-sm text-gray-700 mb-3">Properties</h4>
-                          <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-800">
-                            <div className="space-y-1 pr-4">
-                              {/* All Properties Option */}
-                              <label
-                                className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
-                                onClick={() => handleSelectAllProperties()}
-                              >
-                                <input
-                                  type="checkbox"
-                                  className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
-                                  checked={selectedProperties.length === availableProperties.length}
-                                  onChange={() => {}} // Prevent default behavior
-                                  readOnly
-                                />
-                                <span 
-                                  className="font-medium text-sm flex-1 cursor-pointer"
-                                >
-                                  All Properties
-                                </span>
-                              </label>
-                              
-                              {/* Individual Properties */}
-                              {availableProperties.map((property) => (
-                                <label
-                                  key={property}
-                                  className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
-                                  onClick={() => handlePropertyToggle(property)}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
-                                    checked={selectedProperties.includes(property)}
-                                    onChange={() => {}} // Prevent default behavior
-                                    readOnly
-                                  />
-                                  <span 
-                                    className="font-medium text-sm flex-1 cursor-pointer"
-                                  >
-                                    {property}
-                                  </span>
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                  
-                  <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-xs font-medium rounded">
-                    {screenWidth}px | {resolutionInfo.category} | {resolutionInfo.columns} cols
-                          </div>
-                        </div>
-                <p className="text-sm text-muted-foreground">
-                  Comprehensive analysis and management of all properties across your portfolio
-                </p>
-              </div>
-            </div>
 
 
 
@@ -308,10 +224,89 @@ function AllPropertiesPageContent() {
             <Card className="card-elevated animate-fade-in mt-6">
               <CardHeader className="pb-0">
                 <div className="flex items-center justify-between">
-                <div>
-                  <div>
-                    <CardTitle className="text-xl font-semibold -ml-1.5">Rate Trends Analysis</CardTitle>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <CardTitle className="text-xl font-semibold -ml-1.5">Property Analysis</CardTitle>
+                    </div>
+                    
+                    {/* Property Selector Dropdown - next to heading */}
+                    <DropdownMenu open={isPropertySelectorOpen} onOpenChange={setIsPropertySelectorOpen}>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md min-w-0 max-w-[192px] hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
+                        >
+                    <span className="truncate max-w-[120px] font-semibold">
+                      {getPropertyDisplayText()}
+                    </span>
+                          <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-auto p-0 shadow-xl border-slate-200 dark:border-slate-700 z-[60]">
+                        <div className="flex">
+                          <div className="w-64 p-4">
+                            <h4 className="font-semibold text-sm text-gray-700 mb-3">Properties</h4>
+                            <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-800">
+                              <div className="space-y-1 pr-4">
+                                {/* All Properties Option */}
+                                <label
+                                  className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
+                                  onClick={() => handleSelectAllProperties()}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
+                                    checked={selectedProperties.length === availableProperties.length}
+                                    onChange={() => {}} // Prevent default behavior
+                                    readOnly
+                                  />
+                                  <span 
+                                    className="font-medium text-sm flex-1 cursor-pointer"
+                                  >
+                                    All Properties
+                                  </span>
+                                </label>
+                                
+                                {/* Individual Properties */}
+                                {availableProperties.map((property) => (
+                                  <label
+                                    key={property}
+                                    className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
+                                    onClick={() => handlePropertyToggle(property)}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
+                                      checked={selectedProperties.includes(property)}
+                                      onChange={() => {}} // Prevent default behavior
+                                      readOnly
+                                    />
+                                    <span 
+                                      className="font-medium text-sm flex-1 cursor-pointer"
+                                    >
+                                      {property}
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                    
+                    {/* Resolution Section - next to dropdown */}
+                    <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-xs font-medium rounded">
+                      {screenWidth}px | {resolutionInfo.category} | {resolutionInfo.columns} cols
+                    </div>
                   </div>
+                  
+                  {/* Helper Text - below heading and dropdown, left aligned */}
+                  <p className="text-sm text-muted-foreground mt-2 text-left -ml-1.5">
+                    Comprehensive analysis and management of properties across your portfolio
+                  </p>
                 </div>
                 <div className="flex items-center gap-6">
                   {/* Rate Legends */}

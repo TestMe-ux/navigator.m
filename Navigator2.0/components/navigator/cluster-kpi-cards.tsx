@@ -96,7 +96,7 @@ function generateClusterKPIData(startDate: Date | null, endDate: Date | null, se
     },
     {
       id: 'cluster-availability',
-      title: 'Availability',
+      title: 'Availability Performance',
       value: 100,
       previousValue: 0,
       change: 0,

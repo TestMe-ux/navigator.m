@@ -37,7 +37,7 @@ export function AllPropertiesTooltip({
 }: AllPropertiesTooltipProps) {
   // Format the date properly
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   // Tooltip positioning logic
   const tooltipSide = (rowIndex !== undefined && rowIndex < 4) ? "bottom" : "top";

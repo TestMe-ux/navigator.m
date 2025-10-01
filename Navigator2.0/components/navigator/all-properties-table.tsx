@@ -81,8 +81,8 @@ export function AllPropertiesTable({
       // Between 1352px - 1500px - show 7 dates
       return 7
     } else if (isMedium) {
-      // Between 1501px - 1800px - show 10 dates
-      return 10
+      // Between 1501px - 1800px - show 9 dates
+      return 9
     } else if (isLarge) {
       // Above 1800px - show 12 dates
       return 12
@@ -230,6 +230,35 @@ export function AllPropertiesTable({
     return rates
   }
   
+  // Property data mapping for the first 3 columns (Competitiveness, Availability, Parity Score)
+  const propertyMetricsData: Record<string, { competitiveness: number | null, availability: number | null, parityScore: number | null }> = {
+    "Chaidee Mansi Bangkok Riverside Luxury Resort & Spa": { competitiveness: 85, availability: 78, parityScore: 82 },
+    "City Hotel Gottingen Downtown Business Center": { competitiveness: 92, availability: 65, parityScore: 88 },
+    "Swiss-Belinn Singapore Marina Bay Financial District": { competitiveness: 78, availability: 88, parityScore: 76 },
+    "Grand Palace Hotel Tokyo Shibuya Premium Suites & Conference Center": { competitiveness: 95, availability: 75, parityScore: 85 },
+    "Royal Heritage Resort Mumbai Bandra Kurla Complex Business District": { competitiveness: 88, availability: 69, parityScore: 44 },
+    "Oceanfront Paradise Resort & Spa": { competitiveness: 91, availability: 74, parityScore: 48 },
+    "Metropolitan Plaza Business Hotel": { competitiveness: 87, availability: 82, parityScore: 51 },
+    "Historic Grand Hotel Downtown": { competitiveness: 89, availability: 71, parityScore: 58 },
+    "Business Center Inn & Suites": { competitiveness: 83, availability: 86, parityScore: 54 },
+    "Riverside Retreat Luxury Resort": { competitiveness: 90, availability: 77, parityScore: 67 },
+    "Downtown Business Hotel Plaza": { competitiveness: 86, availability: 73, parityScore: 62 },
+    "Garden View Resort & Conference Center": { competitiveness: 84, availability: 80, parityScore: 59 },
+    "Executive Suites Downtown": { competitiveness: 93, availability: 68, parityScore: 71 },
+    "City Center Hotel & Spa": { competitiveness: 81, availability: 85, parityScore: 46 },
+    "Luxury Business Inn & Suites": { competitiveness: 88, availability: 72, parityScore: 63 },
+    "Coastal Resort & Spa Paradise": { competitiveness: 94, availability: 66, parityScore: 69 },
+    "Urban Business Plaza Hotel": { competitiveness: 87, availability: 79, parityScore: 55 },
+    "Historic Downtown Inn & Suites": { competitiveness: 85, availability: 81, parityScore: 57 },
+    "Executive Business Center Hotel": { competitiveness: 91, availability: 70, parityScore: 65 },
+    "Premium City Hotel & Conference Center": { competitiveness: 89, availability: 76, parityScore: 61 },
+    "Seaside Resort & Spa Luxury": { competitiveness: 92, availability: 74, parityScore: 68 },
+    "City Hotel Gotland Business Center": { competitiveness: 86, availability: 78, parityScore: 52 },
+    "Grand Palace Hotel Premium Suites": { competitiveness: 90, availability: 75, parityScore: 64 },
+    "Mountain View Lodge & Resort": { competitiveness: 88, availability: 82, parityScore: 58 },
+    "Urban Business Center Plaza": { competitiveness: 84, availability: 77, parityScore: 56 }
+  }
+
   // Generate hotel data dynamically - expanded to 25 hotels
   const allHotels = [
     {
@@ -457,16 +486,27 @@ export function AllPropertiesTable({
   
   
   // Show dates based on screen resolution with consistent column count
-  const actualDates = dates.slice(currentDateIndex, currentDateIndex + datesPerPage)
-  const actualDayNames = dayNames.slice(currentDateIndex, currentDateIndex + datesPerPage)
+  // First 3 columns are blank, start showing dates from 4th column
+  const actualDates = dates.slice(currentDateIndex, currentDateIndex + datesPerPage - 3)
+  const actualDayNames = dayNames.slice(currentDateIndex, currentDateIndex + datesPerPage - 3)
   
-  // Create fixed array with datesPerPage columns, padding with empty strings for blank columns
-  const visibleDates = Array.from({ length: datesPerPage }, (_, index) => 
-    index < actualDates.length ? actualDates[index] : ''
-  )
-  const visibleDayNames = Array.from({ length: datesPerPage }, (_, index) => 
-    index < actualDayNames.length ? actualDayNames[index] : ''
-  )
+  // Create fixed array with datesPerPage columns, first 3 are blank, rest show actual dates
+  const visibleDates = Array.from({ length: datesPerPage }, (_, index) => {
+    if (index < 3) {
+      return '' // First 3 columns are blank
+    } else {
+      const dateIndex = index - 3
+      return dateIndex < actualDates.length ? actualDates[dateIndex] : ''
+    }
+  })
+  const visibleDayNames = Array.from({ length: datesPerPage }, (_, index) => {
+    if (index < 3) {
+      return '' // First 3 columns are blank
+    } else {
+      const dayIndex = index - 3
+      return dayIndex < actualDayNames.length ? actualDayNames[dayIndex] : ''
+    }
+  })
   
   // Debug logging
   console.log('AllPropertiesTable Debug:', {
@@ -474,21 +514,23 @@ export function AllPropertiesTable({
     currentDateIndex,
     totalDates: dates.length,
     visibleDates: visibleDates.length,
-    canGoNext: currentDateIndex + datesPerPage < dates.length,
+    actualDatesCount: actualDates.length,
+    blankColumns: 3,
+    canGoNext: currentDateIndex + (datesPerPage - 3) < dates.length,
     canGoPrev: currentDateIndex > 0
   })
   
   // Navigation functions
   const nextDates = () => {
-    setCurrentDateIndex(prev => prev + datesPerPage)
+    setCurrentDateIndex(prev => prev + (datesPerPage - 3))
   }
   
   const prevDates = () => {
-    setCurrentDateIndex(prev => Math.max(0, prev - datesPerPage))
+    setCurrentDateIndex(prev => Math.max(0, prev - (datesPerPage - 3)))
   }
   
   const canGoNext = () => {
-    return currentDateIndex + datesPerPage < dates.length
+    return currentDateIndex + (datesPerPage - 3) < dates.length
   }
   
   const canGoPrev = () => {
@@ -532,7 +574,11 @@ export function AllPropertiesTable({
     <div className={`w-full bg-white dark:bg-slate-900 mt-4 mb-5 border-b border-gray-200 dark:border-gray-700 ${className || ''}`}>
       <div className="relative">
         {/* Previous Arrow */}
-         <div className="absolute top-5 z-10" style={{ left: '17%' }}>
+         <div className="absolute top-5 z-10" style={{ 
+           left: screenWidth < 1352 ? '65.5%' : 
+                 screenWidth >= 1352 && screenWidth <= 1500 ? '58.5%' :
+                 screenWidth >= 1501 && screenWidth <= 1800 ? '48.5%' : '38.5%'
+         }}>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -588,10 +634,30 @@ export function AllPropertiesTable({
                 <span>Properties</span>
               </th>
                {visibleDates.map((date, index) => (
-                 <th key={date || `blank-${index}`} className={`px-2 py-3 text-center text-[10px] text-muted-foreground border-r border-gray-200 dark:border-gray-700 border-t border-gray-200 dark:border-gray-700 ${visibleDayNames[index] === 'Sat' || visibleDayNames[index] === 'Sun' ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`} style={{ width: '80px', minWidth: '50px', maxWidth: '80px' }}>
+                  <th key={date || `blank-${index}`} className={`px-2 py-3 text-center ${index < 3 ? 'text-xs' : 'text-[10px]'} text-muted-foreground ${index === 2 ? 'border-r border-gray-300 dark:border-gray-600 border-t border-gray-200 dark:border-gray-700' : 'border-r border-gray-200 dark:border-gray-700 border-t border-gray-200 dark:border-gray-700'} ${visibleDayNames[index] === 'Sat' || visibleDayNames[index] === 'Sun' ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`} style={{ width: '80px', minWidth: '50px', maxWidth: '80px' }}>
                   <div className="flex flex-col">
-                    <span>{date || ''}</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">{visibleDayNames[index] || ''}</span>
+                    {index < 3 ? (
+                      // First 3 columns show metrics headers
+                      index === 0 ? (
+                        <>
+                          <span className="leading-tight">Competi-</span>
+                          <span className="leading-tight">tiveness</span>
+                        </>
+                      ) : index === 1 ? (
+                        <span>Availability</span>
+                      ) : (
+                        <>
+                          <span className="leading-tight">Parity</span>
+                          <span className="leading-tight">Score</span>
+                        </>
+                      )
+                    ) : (
+                      // Date columns show actual dates
+                      <>
+                        <span>{date || ''}</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">{visibleDayNames[index] || ''}</span>
+                      </>
+                    )}
                   </div>
                 </th>
                ))}
@@ -660,6 +726,30 @@ export function AllPropertiesTable({
                     </div>
                   </td>
                    {visibleDates.map((date, index) => {
+                     // Handle first 3 columns (metrics data)
+                     if (index < 3) {
+                       const metricsData = propertyMetricsData[hotel.name]
+                       return (
+                         <td key={`metrics-${index}`} className={`px-2 py-3 text-center border-r ${index === 2 ? 'border-gray-400 dark:border-gray-500' : 'border-gray-200 dark:border-gray-700'} ${visibleDayNames[index] === 'Sat' || visibleDayNames[index] === 'Sun' ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`} style={{ width: '80px', minWidth: '50px', maxWidth: '80px' }}>
+                           <div className="flex flex-col gap-0.5">
+                             {index === 0 ? (
+                               <span className={`text-sm font-medium ${metricsData?.competitiveness === null ? 'text-gray-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                                 {metricsData?.competitiveness === null ? '--' : `${metricsData?.competitiveness}%`}
+                               </span>
+                             ) : index === 1 ? (
+                               <span className={`text-sm font-medium ${metricsData?.availability === null ? 'text-gray-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                                 {metricsData?.availability === null ? '--' : `${metricsData?.availability}%`}
+                               </span>
+                             ) : (
+                               <span className={`text-sm font-medium ${metricsData?.parityScore === null ? 'text-gray-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                 {metricsData?.parityScore === null ? '--' : `${metricsData?.parityScore}%`}
+                               </span>
+                             )}
+                           </div>
+                         </td>
+                       )
+                     }
+                     
                      // Handle blank columns (empty dates)
                      if (!date) {
                        return (
@@ -754,6 +844,16 @@ export function AllPropertiesTable({
                      
                      {/* Date columns with graph */}
                      {visibleDates.map((date, index) => {
+                       // Handle first 3 columns in expanded state (show --)
+                       if (index < 3) {
+                         return (
+                           <td key={`expanded-metrics-${index}`} className={`px-2 py-3 text-center border-r ${index === 2 ? 'border-gray-400 dark:border-gray-500' : 'border-gray-200 dark:border-gray-700'} bg-gray-50 dark:bg-gray-800 ${visibleDayNames[index] === 'Sat' || visibleDayNames[index] === 'Sun' ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`} style={{ width: '80px', minWidth: '50px', maxWidth: '80px' }}>
+                             <div className="flex flex-col gap-0.5">
+                               <span className="text-sm font-medium text-gray-400">--</span>
+                             </div>
+                           </td>
+                         )
+                       }
                        // Handle blank columns (empty dates)
                        if (!date) {
                          return (
@@ -774,7 +874,7 @@ export function AllPropertiesTable({
                            <div className="relative" style={{ height: '180px' }}>
                              <div className="absolute top-5 w-full" style={{ height: '140px' }}>
                              {/* Y-axis labels */}
-                             {index === 0 && (() => {
+                             {index === 3 && (() => {
                                const allRates = Object.values(hotel.rates).map(r => r.rate).filter(r => r > 0)
                                const globalMinRate = Math.min(...allRates)
                                const globalMaxRate = Math.max(...allRates)
@@ -823,7 +923,7 @@ export function AllPropertiesTable({
                              })()}
                              
                              {/* Graph area */}
-                             <div className={`relative h-full ${index === 0 ? 'ml-8' : ''}`}>
+                             <div className={`relative h-full ${index === 3 ? 'ml-3' : ''}`}>
                                {/* Range bar for this date */}
                                {(() => {
                                  const rateData = hotel.rates[date]
@@ -864,35 +964,62 @@ export function AllPropertiesTable({
                                  const barBottomOffset = Math.max(10, Math.min(110 - rangeHeight, ((rangeData.minRate - globalMinRate) / yAxisRange) * availableHeight))
                                  
                                  return rateData.status === '--' ? (
-                                   <div className="absolute left-1/2 transform -translate-x-1/2 px-1.5" style={{ bottom: `${barBottomOffset}px` }}>
-                                     {/* Thin range bar */}
-                                     <div 
-                                       className="w-0.5 bg-blue-300 dark:bg-blue-400" 
-                                       style={{ height: `${rangeHeight}px` }}
-                                     >
-                                        {/* Red cap at top (max rate) - constrained within bounds */}
-                                        <div 
-                                          className="absolute left-1/2 transform -translate-x-1/2 h-0.5 bg-red-500" 
-                                          style={{ 
-                                            width: '16px',
-                                            top: '0px'
-                                          }}
-                                        ></div>
-                                        {/* Green cap at bottom (min rate) - constrained within bounds */}
-                                        <div 
-                                          className="absolute left-1/2 transform -translate-x-1/2 h-0.5 bg-green-500" 
-                                          style={{ 
-                                            width: '16px',
-                                            bottom: '0px'
-                                          }}
-                                        ></div>
-                                        {/* Current price marker (filled blue circle) */}
-                                        <div 
-                                          className="absolute left-1/2 transform -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full"
-                                          style={{ bottom: `${currentPosition}px` }}
-                                        ></div>
-                                     </div>
-                                   </div>
+                                   <TooltipProvider delayDuration={0}>
+                                     <Tooltip delayDuration={0} disableHoverableContent>
+                                       <TooltipTrigger asChild>
+                                         <div className="absolute left-1/2 transform -translate-x-1/2 cursor-pointer px-1.5" style={{ bottom: `${barBottomOffset}px` }}>
+                                           {/* Thin range bar */}
+                                           <div 
+                                             className="w-0.5 bg-blue-300 dark:bg-blue-400" 
+                                             style={{ height: `${rangeHeight}px` }}
+                                           >
+                                              {/* Red cap at top (max rate) - constrained within bounds */}
+                                              <div 
+                                                className="absolute left-1/2 transform -translate-x-1/2 h-0.5 bg-red-500" 
+                                                style={{ 
+                                                  width: '16px',
+                                                  top: '0px'
+                                                }}
+                                              ></div>
+                                              {/* Green cap at bottom (min rate) - constrained within bounds */}
+                                              <div 
+                                                className="absolute left-1/2 transform -translate-x-1/2 h-0.5 bg-green-500" 
+                                                style={{ 
+                                                  width: '16px',
+                                                  bottom: '0px'
+                                                }}
+                                              ></div>
+                                              {/* Current price marker (filled blue circle) */}
+                                              <div 
+                                                className="absolute left-1/2 transform -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full"
+                                                style={{ bottom: `${currentPosition}px` }}
+                                              ></div>
+                                           </div>
+                                         </div>
+                                       </TooltipTrigger>
+                                       <AllPropertiesTooltip
+                                         date={new Date()}
+                                         dayName={visibleDayNames[index] || ''}
+                                         rate={rateData.rate}
+                                         variance={rateData.rate > 0 ? Math.floor(rateData.rate * 0.1) : 0}
+                                         hasEvent={index >= 3}
+                                         eventNames={index >= 3 ? ['Music Festival', 'Business Conference'] : []}
+                                         hotelName={hotel.name}
+                                         isLowestRate={rateData.rateType === 'cheapest'}
+                                         isHighestRate={rateData.rateType === 'highest'}
+                                         rowIndex={hotels.indexOf(hotel)}
+                                         rateEntry={{
+                                           productName: 'Standard Room',
+                                           abbreviation: 'STD',
+                                           propertyInfo: 'Luxury Resort & Spa',
+                                           channelName: 'Booking.com',
+                                           shortRateDescription: 'This exceptional luxury resort offers unparalleled comfort and world-class amenities including multiple swimming pools, state-of-the-art fitness center, award-winning restaurants, spa services, concierge assistance, complimentary WiFi throughout the property, valet parking, room service, business center, meeting facilities, and stunning views of the surrounding landscape. Our flexible cancellation policy allows guests to modify or cancel their reservation up to 24 hours before check-in without any penalties, ensuring peace of mind for all travelers.'
+                                         }}
+                                         currency={hotel.currency}
+                                         symbol={hotel.symbol}
+                                       />
+                                     </Tooltip>
+                                   </TooltipProvider>
                                  ) : (
                                    <TooltipProvider delayDuration={0}>
                                      <Tooltip delayDuration={0} disableHoverableContent>

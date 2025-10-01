@@ -23,7 +23,8 @@ import {
   Target,
   Activity,
   Star,
-  Network
+  Network,
+  Lightbulb
 } from "lucide-react"
 
 interface NavigationItem {
@@ -40,7 +41,7 @@ const mainNavigationItems: NavigationItem[] = [
   {
     id: "cluster",
     title: "Cluster",
-    href: "/cluster",
+    href: "/cluster-view",
     icon: Network,
     description: "Cluster management and analysis"
   },
@@ -78,6 +79,13 @@ const mainNavigationItems: NavigationItem[] = [
     href: "/ota-rankings",
     icon: Star,
     description: "Online travel agent rankings"
+  },
+  {
+    id: "business-insights",
+    title: "Business Insights",
+    href: "/business-insights",
+    icon: Lightbulb,
+    description: "Market insights and business intelligence"
   },
   {
     id: "events",
