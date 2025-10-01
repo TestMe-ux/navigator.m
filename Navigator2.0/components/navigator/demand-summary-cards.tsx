@@ -5,7 +5,7 @@ import React, { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { TrendingUp, TrendingDown, Users, BarChart3, DollarSign, Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import {LocalStorageService} from "@/lib/localstorage"
+import { LocalStorageService } from "@/lib/localstorage"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 
 
@@ -28,9 +28,10 @@ interface SummaryCardProps {
  */
 function getDemandTooltipContent(tooltipId: string): string {
   const tooltips = {
-    'avg-market-adr': 'Average Daily Rate represents the average rate charged per occupied room in the market. Calculated by dividing total room revenue by number of rooms sold.',
-    'avg-market-revpar': 'Revenue Per Available Room measures hotel performance by dividing total room revenue by total available rooms. Combines occupancy rate and average daily rate.',
-    'top-source-market': 'Primary geographic market generating the highest demand volume. Shows percentage share of total bookings and demand from this source market.'
+    'avg-demand-index': 'Represents the relative demand in the market. A higher index indicates stronger demand conditions.',
+    'avg-market-adr': 'Shows the average daily rate across the competitive market. Reflects how hotels in your market are pricing rooms over the selected period.',
+    'avg-market-revpar': 'Revenue per Available Room (RevPAR) aggregated at the market level. Combines occupancy and ADR to show overall revenue performance.',
+    'avg-market-occupancy': 'Percentage of available rooms sold across the market. Indicates how well demand is being converted into bookings in your market.',
   }
   return tooltips[tooltipId as keyof typeof tooltips] || 'Additional information not available.'
 }
@@ -79,7 +80,7 @@ function SummaryCard({
               </p>
             </div>
           </div>
- 
+
           {/* Change Indicator */}
           {trend && trend !== '0%' && (
             <div className={`flex items-center gap-2 ${trendDirection === "up"
@@ -112,12 +113,12 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
   const [mounted, setMounted] = useState(false);
   const ischatgptData = demandData?.ischatgptData ?? false;
   console.log("Filter sumarry card", filter)
-  
+
   // Ensure component is mounted to prevent hydration mismatch
   useEffect(() => {
     setMounted(true)
   }, [])
-  
+
   useEffect(() => {
     if (!avgDemand) return;
     let newTrend;
@@ -143,7 +144,7 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
 
   // Safe currency symbol that prevents hydration mismatch
   const currencySymbol = mounted ? (selectedProperty?.currencySymbol ?? '$') : '$';
-  
+
   const summaryData: SummaryCardProps[] = [
     {
       title: "Demand Index",
@@ -189,7 +190,7 @@ export function DemandSummaryCards({ filter, avgDemand, demandAIPerCountryAverag
       icon: Users,
       iconColorClass: "text-amber-600 dark:text-amber-400",
       bgColorClass: "bg-blue-50 dark:bg-blue-950",
-      tooltipId: "avg-market-revpar",
+      tooltipId: "avg-market-occupancy",
       comparetext: filter,
       isVisible: avgDemand?.AvrageOccupancy > 0 ? true : false
     },

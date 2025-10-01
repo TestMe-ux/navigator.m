@@ -318,7 +318,14 @@ export function Header() {
                 size="icon"
                 className="text-blue-100 hover:text-white hover:bg-white/10 transition-all duration-200"
               >
-                <UserCircle className="h-5 w-5" />
+                {userDetail?.imagePath ? (
+                  <img
+                    src={userDetail?.imagePath}
+                    alt="Profile"
+                    className="h-5 w-5 object-cover rounded-full group-hover:opacity-50 transition-opacity duration-200"
+                  />
+                ) : (
+                  <UserCircle className="h-5 w-5" />)}
                 <span className="sr-only">User Profile</span>
               </Button>
             </DropdownMenuTrigger>

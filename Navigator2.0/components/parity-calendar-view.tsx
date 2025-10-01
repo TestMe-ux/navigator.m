@@ -278,14 +278,14 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
     // Collect all dates from ALL channels' checkInDateWiseRates
     const allDates: Date[] = []
     parityData.forEach((channel, channelIndex) => {
-      if (channel?.checkInDateWiseRates && Array.isArray(channel.checkInDateWiseRates)) {        
+      if (channel?.checkInDateWiseRates && Array.isArray(channel.checkInDateWiseRates)) {
         const channelDates = channel.checkInDateWiseRates
           .map((rate: any) => rate.checkInDate ? new Date(rate.checkInDate) : null)
-          .filter((date: Date | null) => date && !isNaN(date.getTime()))        
+          .filter((date: Date | null) => date && !isNaN(date.getTime()))
         allDates.push(...channelDates)
       }
     })
- 
+
 
     // Sort chronologically first, then remove duplicates
     const sortedDates = allDates.sort((a: Date, b: Date) => a.getTime() - b.getTime())
@@ -300,7 +300,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
         const startTimestamp = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()).getTime()
         const endTimestamp = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate()).getTime()
 
-        const isInRange = dateTimestamp >= startTimestamp && dateTimestamp <= endTimestamp        
+        const isInRange = dateTimestamp >= startTimestamp && dateTimestamp <= endTimestamp
 
         return isInRange
       })
@@ -325,7 +325,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
     const endIndex = Math.min(startIndex + optimalColumns, allFilteredDates.length)
 
     const finalDates = allFilteredDates.slice(startIndex, endIndex)
-   
+
     return finalDates
   }
 
@@ -359,7 +359,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
 
   // Load parity data from parityDataMain prop - direct API binding
   useEffect(() => {
-   
+
     if (!parityDataMain) {
       return;
     }
@@ -376,14 +376,8 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
       
       // Debug parity scores specifically
       channels.forEach((channel: any, index: number) => {
-        console.log(`Channel ${index}: ${channel.channelName}`, {
-          channelName: channel.channelName,
-          isBrand: channel.isBrand,
-          originalCase: channel.channelName,
-          type: typeof channel.channelName,
-          length: channel.channelName?.length
-        })
-        
+
+
         // Special debugging for brand channels
         if (channel.isBrand) {
           console.log(`🔍 Brand channel name case: "${channel.channelName}"`)
@@ -1076,12 +1070,12 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                               {(() => {
                                       let overallWinMeetLoss;
                                       if (channel.isBrand) {
-                                          overallWinMeetLoss = parityDataMain?.otaViolationChannelRate?.overallWinMeetLoss
-                                          // Try to calculate parity score from win/meet/loss counts
-                                        }
-                                        else {
-                                          overallWinMeetLoss = channel.channelWisewinMeetLoss
-                                        }
+                                        overallWinMeetLoss = parityDataMain?.otaViolationChannelRate?.overallWinMeetLoss
+                                        // Try to calculate parity score from win/meet/loss counts
+                                      }
+                                      else {
+                                        overallWinMeetLoss = channel.channelWisewinMeetLoss
+                                      }
                                       const { winPercent, meetPercent, lossPercent } = calculateWinMeetLossPercentages(overallWinMeetLoss)
                                 return (
                                   <>
