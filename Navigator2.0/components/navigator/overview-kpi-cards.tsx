@@ -295,10 +295,10 @@ function getColorClasses(color: KPIMetric['color'], urgency: KPIMetric['urgency'
  */
 function getKPITooltipContent(metricId: string): string {
   const tooltips = {
-    'average-rate': 'ADR is calculated based on base rate (280) plus date range adjustments and market factors. Compared to previous period to show trend.',
-    'parity-status': 'Rate parity measures consistency across distribution channels. Score = base parity (92%) plus date range and market adjustments. >95% is excellent, 85-95% needs attention, <85% is critical.',
-    'market-position': 'Competitive ranking among local properties (1-15). Calculated using market position algorithm considering property performance and competitor analysis.',
-    'dubai-events': 'Shows major events in Dubai that impact hotel demand and pricing. Includes conferences, exhibitions, holidays and cultural events that drive occupancy.'
+    'average-rate': 'Shows the average room rate (ADR) for the selected hotel within the chosen period.',
+    'parity-status': 'Indicates how consistent your rates are across all online channels. A higher score means fewer discrepancies and stronger parity.',
+    'market-position': 'Displays your hotel’s rate rank within the competitive set. A lower rank means your pricing is more competitive.',
+    'dubai-events': 'Highlights events or holidays in your market that may impact demand.'
   }
   return tooltips[metricId as keyof typeof tooltips] || 'KPI calculation details unavailable.'
 }
