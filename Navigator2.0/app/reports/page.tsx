@@ -17,7 +17,7 @@ import { ReportsFilterBar } from "@/components/reports-filter-bar"
 import { ReportsHeader } from "@/components/navigator/reports-header"
 import { addDays, format, subDays } from "date-fns"
 import { useRef } from "react"
-import { getAllReports, getReportData, generateAndMailReportCSV, getChannelList, getCompleteCompSet, checkMappingValidation, generateOndemandReport } from "@/lib/reports"
+import { getAllReports, getReportData, generateAndMailReportCSV, getChannelList, getCompleteCompSet, checkMappingValidation, generateOndemandReport, getSummaryData } from "@/lib/reports"
 import { conevrtDateforApi } from "@/lib/utils"
 import { LocalStorageService } from "@/lib/localstorage"
 import { useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
@@ -222,7 +222,7 @@ export default function ReportsPage() {
       // Format dates for API call
       const startDateStr = format(new Date(startDate), "MM/dd/yyyy")
       const endDateStr = format(new Date(endDate), "MM/dd/yyyy")
-
+      debugger;
       // Call the API
       const response = await getAllReports({
         sid: selectedProperty?.sid,
@@ -246,7 +246,7 @@ export default function ReportsPage() {
 
         setReportsData(data)
         setFilteredReportsData(data)
-        
+
         // Log when no reports are found (this is normal, not an error)
         if (data.length === 0) {
           console.log('No reports found for the selected date range')
@@ -301,7 +301,7 @@ export default function ReportsPage() {
 
       // Call the API
 
-
+      debugger
       const response = await getAllReports({
         sid: selectedProperty?.sid,
         startdate: startDateStr,
@@ -324,7 +324,7 @@ export default function ReportsPage() {
 
         // Store the raw data - filtering will be handled by useEffect
         setReportsData(data)
-        
+
         // Log when no reports are found (this is normal, not an error)
         if (data.length === 0) {
           console.log('No reports found for the selected date range')
@@ -412,28 +412,22 @@ export default function ReportsPage() {
 
   // Load package details and credit limits from localStorage
   useEffect(() => {
-    try {
-      const packageDetailsString = localStorage.getItem('packageDetails')
-      if (packageDetailsString) {
-        const packageDetailsData = JSON.parse(packageDetailsString)
-        setPackageDetails(packageDetailsData)
+    if (!selectedProperty?.sid) return;
+    const fetchSummaryData = async () => {
+      try {
+        const response = await getSummaryData(selectedProperty?.sid?.toString() || '')
+        if (response.status) {
+          setPackageDetails(response.body)
+          setTotalShopsConsumedYearly(response.body.consumedShopsBatch + response.body.consumedShopsOnDemand + response.body.consumedShopsRTRR)
+          setTotalShopsAlloted(response.body.totalShops)
+        }
+      } catch (error) {
+        console.error('Error fetching summary data:', error)
       }
-
-      // Load credit limits (you may need to adjust these keys based on your implementation)
-      const consumedYearly = localStorage.getItem('totalShopsConsumedYearly')
-      const shopsAlloted = localStorage.getItem('totalShopsAlloted')
-      
-      if (consumedYearly) {
-        setTotalShopsConsumedYearly(parseInt(consumedYearly))
-      }
-      
-      if (shopsAlloted) {
-        setTotalShopsAlloted(parseInt(shopsAlloted))
-      }
-    } catch (error) {
-      console.error('Error loading package details:', error)
     }
-  }, [])
+    Promise.all([fetchChannelsData()
+      , fetchCompSetData(), fetchSummaryData()])
+  }, [selectedProperty?.sid])
 
   // Loading effect and initial data fetch - only when dates or filter change
   useEffect(() => {
@@ -507,9 +501,9 @@ export default function ReportsPage() {
     setStartDate(startDate)
     setEndDate(endDate)
     // Trigger API call immediately with new dates
-    if (startDate && endDate) {
-      fetchReportsDataWithDates(startDate, endDate)
-    }
+    // if (startDate && endDate) {
+    //   fetchReportsDataWithDates(startDate, endDate)
+    // }
   }
 
   const handleReportTypeChange = (newReportType: string) => {
@@ -530,7 +524,7 @@ export default function ReportsPage() {
   const fetchChannelsData = async () => {
     try {
       setIsLoadingChannels(true)
-      
+
       const response = await getChannelList({
         SID: selectedProperty?.sid,
         isMetaSite: true
@@ -540,21 +534,21 @@ export default function ReportsPage() {
         // Filter active channels
         const activeChannels = response.body.filter((x: any) => x.isActive)
         const allChannelsData = response.body
-        
+
         // Set channel data
         setChannelList(activeChannels)
         setAllChannels(allChannelsData)
-        
+
         // Extract channel names for the dropdown
         const channelNames = activeChannels.map((channel: any) => channel.name)
         setChannelsData(channelNames)
-        
+
         // Select all channels by default
         setFormData(prev => ({
           ...prev,
           selectedChannels: channelNames
         }))
-        
+
         // Check for disabled channels
         const disabledChannelsList = response.body.filter((x: any) => !x.isActive)
         setIsAnyDisabledChannel(disabledChannelsList.length > 0)
@@ -573,7 +567,7 @@ export default function ReportsPage() {
   const fetchCompSetData = async () => {
     try {
       setIsLoadingCompSet(true)
-      
+
       const response = await getCompleteCompSet({
         SID: selectedProperty?.sid,
         includesubscriber: false
@@ -583,10 +577,10 @@ export default function ReportsPage() {
         // Filter primary and secondary compsets based on isSecondary property
         const primaryCompSets = response.body.filter((x: any) => !x.isSecondary)
         const secondaryCompSets = response.body.filter((x: any) => x.isSecondary)
-        
+
         setPrimaryHotelsData(primaryCompSets)
         setSecondaryHotelsData(secondaryCompSets)
-        
+
         // Select all primary options by default
         const primaryNames = primaryCompSets.map((compSet: any) => compSet.name)
         setFormData(prev => ({
@@ -608,8 +602,6 @@ export default function ReportsPage() {
   const handleCreateOnDemand = () => {
     setIsModalOpen(true)
     // Fetch channels and compset data when modal opens
-    fetchChannelsData()
-    fetchCompSetData()
   }
 
 
@@ -624,7 +616,7 @@ export default function ReportsPage() {
         selectedSecondaryHotels: secondaryNames,
         selectedPrimaryHotels: []
       }))
-      
+
       // Clear compSet error when compSet is selected
       if (formErrors.compSet) {
         setFormErrors(prev => ({ ...prev, compSet: '' }))
@@ -638,7 +630,7 @@ export default function ReportsPage() {
         selectedPrimaryHotels: primaryNames,
         selectedSecondaryHotels: []
       }))
-      
+
       // Clear compSet error when compSet is selected
       if (formErrors.compSet) {
         setFormErrors(prev => ({ ...prev, compSet: '' }))
@@ -655,7 +647,7 @@ export default function ReportsPage() {
         recipients: [...prev.recipients, prev.newRecipient],
         newRecipient: ''
       }))
-      
+
       // Clear recipients error when a recipient is added
       if (formErrors.recipients) {
         setFormErrors(prev => ({ ...prev, recipients: '' }))
@@ -668,7 +660,7 @@ export default function ReportsPage() {
       ...prev,
       recipients: prev.recipients.filter(recipient => recipient !== email)
     }))
-    
+
     // Clear recipients error when a recipient is removed (if there are still recipients)
     if (formErrors.recipients && formData.recipients.length > 1) {
       setFormErrors(prev => ({ ...prev, recipients: '' }))
@@ -775,7 +767,7 @@ export default function ReportsPage() {
 
     // Calculate RRDs that will be used
     const rrdsUsed = (properties.length + 1) * channels.length * (diffDays + 1)
-    
+
     // Check if request exceeds credit limit
     if ((rrdsUsed + totalShopsConsumedYearly) > totalShopsAlloted) {
       return false
@@ -849,14 +841,14 @@ export default function ReportsPage() {
     try {
       // Check shops limit before calling checkMappingValidation
       const isConsumedHigher = checkShopsLimit()
-      
+      debugger;
       if (isConsumedHigher) {
         // Call CheckMappingValidation API
         const mappingResponse = await checkMappingValidation(propertyValidation)
-        
+
         // Stop loading after API response
         setIsGenerating(false)
-        
+
         if (mappingResponse.status) {
           // Show missing notification if mapping validation fails
           setMissingNotificationData(mappingResponse.body || [])
@@ -877,7 +869,7 @@ export default function ReportsPage() {
         setSnackbarType('error')
         setShowSnackbar(true)
       }
-      
+
     } catch (error) {
       console.error('Error during report generation:', error)
       setFormErrors(prev => ({ ...prev, general: 'Something went wrong, please try again!' }))
@@ -897,14 +889,14 @@ export default function ReportsPage() {
     const currentDate = new Date(startDate)
     const formattedDateToday = currentDate.toISOString().split('T')[0] + 'T00:00:00'
     const newDate = new Date(formattedDateToday)
-    
+
     // Get timezone offset
     const timezoneOffset = -newDate.getTimezoneOffset()
     const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60)
     const offsetMinutes = Math.abs(timezoneOffset) % 60
     const offsetSign = timezoneOffset > 0 ? '-' : '+'
     const formattedOffset = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`
-    
+
     const formattedDate = newDate.toISOString().split('.')[0]
     const dateStringWithTimezone = `${formattedDate}${formattedOffset}`
     const dateFirst = new Date(dateStringWithTimezone)
@@ -949,26 +941,26 @@ export default function ReportsPage() {
 
     try {
       const response = await generateOndemandReport(requestModel)
-      
+
       if (response.status) {
         if (response.body != null && response.body === 0) {
           console.log("Data is not returned from BrokerAPI")
         }
-        
+
         // Close modal and show success
         setIsModalOpen(false)
         setShowSnackbar(true)
-        
+
         // Reset form
         resetForm()
-        
+
         // Refresh reports data to show the new report
         if (startDate && endDate) {
           fetchReportsDataWithDates(startDate, endDate)
         } else {
           fetchReportsData()
         }
-        
+
       } else {
         setFormErrors(prev => ({ ...prev, general: 'Something went wrong, please try again!' }))
       }
@@ -1084,13 +1076,13 @@ export default function ReportsPage() {
 
       if (channel === 'Select All') {
         // Get currently filtered channels
-        const currentFilteredChannels = channelsData.filter(c => 
+        const currentFilteredChannels = channelsData.filter(c =>
           c.toLowerCase().includes(searchValue.toLowerCase())
         )
-        
+
         // Check if all filtered channels are selected
         const allFilteredSelected = currentFilteredChannels.every(c => newChannels.includes(c))
-        
+
         if (allFilteredSelected) {
           // If all filtered channels are selected, deselect them
           newChannels = newChannels.filter(c => !currentFilteredChannels.includes(c))
@@ -1132,12 +1124,12 @@ export default function ReportsPage() {
       if (hotel === 'Select All') {
         // Get currently filtered hotels
         const currentFilteredHotels = filteredPrimaryHotels.map(h => h.name)
-        
+
         // Check if all filtered hotels are already selected
-        const allFilteredSelected = currentFilteredHotels.every(hotelName => 
+        const allFilteredSelected = currentFilteredHotels.every(hotelName =>
           newHotels.includes(hotelName)
         )
-        
+
         if (allFilteredSelected) {
           // Deselect all filtered hotels
           newHotels = newHotels.filter(h => !currentFilteredHotels.includes(h))
@@ -1162,7 +1154,7 @@ export default function ReportsPage() {
 
       return { ...prev, selectedPrimaryHotels: newHotels }
     })
-    
+
     // Clear compSet error when primary hotels are selected
     if (formErrors.compSet) {
       setFormErrors(prev => ({ ...prev, compSet: '' }))
@@ -1177,12 +1169,12 @@ export default function ReportsPage() {
       if (hotel === 'Select All') {
         // Get currently filtered hotels
         const currentFilteredHotels = filteredSecondaryHotels.map(h => h.name)
-        
+
         // Check if all filtered hotels are already selected
-        const allFilteredSelected = currentFilteredHotels.every(hotelName => 
+        const allFilteredSelected = currentFilteredHotels.every(hotelName =>
           newHotels.includes(hotelName)
         )
-        
+
         if (allFilteredSelected) {
           // Deselect all filtered hotels
           newHotels = newHotels.filter(h => !currentFilteredHotels.includes(h))
@@ -1207,7 +1199,7 @@ export default function ReportsPage() {
 
       return { ...prev, selectedSecondaryHotels: newHotels }
     })
-    
+
     // Clear compSet error when secondary hotels are selected
     if (formErrors.compSet) {
       setFormErrors(prev => ({ ...prev, compSet: '' }))
@@ -1228,9 +1220,9 @@ export default function ReportsPage() {
   const handleSnackbarOk = () => {
     setShowSnackbar(false)
     // Show second snackbar after 4 seconds
-    setTimeout(() => {
-      setShowSecondSnackbar(true)
-    }, 4000)
+    // setTimeout(() => {
+    //   setShowSecondSnackbar(true)
+    // }, 4000)
   }
 
   const handleSecondSnackbarClose = () => {
@@ -1254,7 +1246,7 @@ export default function ReportsPage() {
       const date365 = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate())
       const calculatedMaxEndDate = new Date(date)
       calculatedMaxEndDate.setDate(calculatedMaxEndDate.getDate() + 90)
-      
+
       if (calculatedMaxEndDate > date365) {
         setMaxEndDate(date365)
       } else {
@@ -1284,7 +1276,7 @@ export default function ReportsPage() {
     }
 
     setFormData(prev => ({ ...prev, endDate: date }))
-    
+
     // Clear form error when end date is selected
     if (formErrors.endDate) {
       setFormErrors(prev => ({ ...prev, endDate: '' }))
@@ -1332,9 +1324,9 @@ export default function ReportsPage() {
 
       // Call the API
       const response = await generateAndMailReportCSV(detailData)
-      
+
       if (response.status) {
-        
+
       }
     } catch (error) {
       console.error('Error generating report CSV:', error)
@@ -1360,7 +1352,7 @@ export default function ReportsPage() {
   }
 
   // Filter channels based on search
-  const filteredChannels = channelsData.filter(channel => 
+  const filteredChannels = channelsData.filter(channel =>
     channel.toLowerCase().includes(searchValue.toLowerCase())
   )
 
@@ -1401,12 +1393,12 @@ export default function ReportsPage() {
   }
 
   // Filter primary compsets based on search
-  const filteredPrimaryHotels = primaryHotelsData.filter(hotel => 
+  const filteredPrimaryHotels = primaryHotelsData.filter(hotel =>
     hotel.name.toLowerCase().includes(primarySearchValue.toLowerCase())
   )
 
   // Filter secondary compsets based on search
-  const filteredSecondaryHotels = secondaryHotelsData.filter(hotel => 
+  const filteredSecondaryHotels = secondaryHotelsData.filter(hotel =>
     hotel.name.toLowerCase().includes(secondarySearchValue.toLowerCase())
   )
 
@@ -1730,7 +1722,7 @@ export default function ReportsPage() {
                         sortedReportsData.map((report, index) => {
                           const isExpanded = expandedRow === report.reportID.toString()
                           const isNextRowExpanded = index < sortedReportsData.length - 1 && expandedRow === sortedReportsData[index + 1].reportID.toString()
-                          const reportStatus = statusOfReport[index] || determineReportStatus(report)
+                          const reportStatus = determineReportStatus(report)
 
                           return (
                             <React.Fragment key={report.reportID}>
@@ -1752,25 +1744,25 @@ export default function ReportsPage() {
                               >
                                 <div className="col-span-2 flex items-center gap-2">
                                   <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <div
-                                          className={`flex items-center gap-2 ${report.reportID === 999999999 ? 'cursor-default' : 'cursor-pointer group'}`}
-                                          onClick={report.reportID === 999999999 ? undefined : () => onReportData(report.reportID, index)}
-                                        >
-                                          <span className={`${report.reportID === 999999999 ? 'text-gray-500' : 'text-blue-600 group-hover:text-blue-800'} font-medium`}>
-                                            {report.reportID === 999999999 ? "##" : report.reportID}
-                                          </span>
-                                          {report.reportID !== 999999999 && (
-                                            <div className="w-4 h-4 border border-blue-600 dark:border-blue-600 rounded-full flex items-center justify-center group-hover:border-blue-700 transition-colors">
-                                              {isExpanded ? (
-                                                <ChevronUp className="w-2.5 h-2.5 text-blue-600 group-hover:text-blue-700" strokeWidth="2.5" />
-                                              ) : (
-                                                <ChevronDown className="w-2.5 h-2.5 text-blue-600 group-hover:text-blue-700" strokeWidth="2.5" />
-                                              )}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </TooltipTrigger>
+                                    <TooltipTrigger asChild>
+                                      <div
+                                        className={`flex items-center gap-2 ${report.reportID === 999999999 ? 'cursor-default' : 'cursor-pointer group'}`}
+                                        onClick={report.reportID === 999999999 ? undefined : () => onReportData(report.reportID, index)}
+                                      >
+                                        <span className={`${report.reportID === 999999999 ? 'text-gray-500' : 'text-blue-600 group-hover:text-blue-800'} font-medium`}>
+                                          {report.reportID === 999999999 ? "##" : report.reportID}
+                                        </span>
+                                        {report.reportID !== 999999999 && (
+                                          <div className="w-4 h-4 border border-blue-600 dark:border-blue-600 rounded-full flex items-center justify-center group-hover:border-blue-700 transition-colors">
+                                            {isExpanded ? (
+                                              <ChevronUp className="w-2.5 h-2.5 text-blue-600 group-hover:text-blue-700" strokeWidth="2.5" />
+                                            ) : (
+                                              <ChevronDown className="w-2.5 h-2.5 text-blue-600 group-hover:text-blue-700" strokeWidth="2.5" />
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </TooltipTrigger>
                                     <TooltipContent className="bg-black text-white border-black text-xs px-2 py-1">
                                       <p>{isExpanded ? "Hide Report Details" : "Show Report Details"}</p>
                                     </TooltipContent>
@@ -1798,13 +1790,12 @@ export default function ReportsPage() {
                                 <div className="col-span-1 flex items-center -ml-2 mr-4">{report.los}</div>
                                 <div className="col-span-1 flex items-center -ml-4">{report.occupancy}</div>
                                 <div className="col-span-1 flex items-center -ml-4">
-                                  <span className={`text-sm font-medium ${
-                                    reportStatus === "Generated" 
-                                      ? "text-green-600" 
-                                      : reportStatus === "Error" 
-                                        ? "text-red-600" 
-                                        : "text-orange-500"
-                                  }`}>
+                                  <span className={`text-sm font-medium ${reportStatus === "Generated"
+                                    ? "text-green-600"
+                                    : reportStatus === "Error"
+                                      ? "text-red-600"
+                                      : "text-orange-500"
+                                    }`}>
                                     {reportStatus}
                                   </span>
                                 </div>
@@ -1872,7 +1863,7 @@ export default function ReportsPage() {
                                           </>
                                         ) : (
                                           <>
-                                        <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Schedule name</h4>
+                                            <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Schedule name</h4>
                                             <p className="text-black dark:text-black font-semibold">{report.scheduleName}</p>
                                           </>
                                         )}
@@ -1881,7 +1872,7 @@ export default function ReportsPage() {
                                       {/* Channels */}
                                       <div className="col-span-2">
                                         <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                          Channels ({report.reportData?.channels ? 
+                                          Channels ({report.reportData?.channels ?
                                             report.reportData.channels.split(',').filter((channel: string) => channel.trim() !== '').length : 0})
                                         </h4>
                                         <div className="text-black dark:text-black">
@@ -1909,7 +1900,7 @@ export default function ReportsPage() {
                                       {/* Properties */}
                                       <div className="col-span-3">
                                         <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                          Property ({report.reportData?.properties ? 
+                                          Property ({report.reportData?.properties ?
                                             report.reportData.properties.split('$#$').filter((prop: string) => prop.trim() !== '').length : 0})
                                         </h4>
                                         <div className="text-black dark:text-black">
@@ -1977,7 +1968,7 @@ export default function ReportsPage() {
 
       {/* On-Demand Report Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto z-[999]">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-black">Generate On Demand Report</DialogTitle>
           </DialogHeader>
@@ -2002,11 +1993,10 @@ export default function ReportsPage() {
                     type="button"
                     onClick={() => isChannelsOpen ? handleChannelsDropdownClose() : setIsChannelsOpen(true)}
                     disabled={isLoadingChannels}
-                    className={`w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none ${
-                      isLoadingChannels 
-                        ? 'bg-gray-100 cursor-not-allowed opacity-60' 
-                        : 'bg-white hover:bg-gray-50'
-                    }`}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none ${isLoadingChannels
+                      ? 'bg-gray-100 cursor-not-allowed opacity-60'
+                      : 'bg-white hover:bg-gray-50'
+                      }`}
                   >
                     <span className="truncate">
                       {isLoadingChannels ? (
@@ -2075,18 +2065,18 @@ export default function ReportsPage() {
 
                           {/* Channel Options */}
                           <div className="max-h-40 overflow-y-auto">
-                          {/* Select All Option */}
-                          <div className="border-b border-gray-200">
-                            <label className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={filteredChannels.length > 0 && filteredChannels.every(channel => formData.selectedChannels.includes(channel))}
-                                onChange={() => handleChannelToggle('Select All')}
-                                className="w-4 h-4 mr-3 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 flex-shrink-0"
-                              />
-                              <span className="text-sm text-gray-900 font-medium">All Channels</span>
-                            </label>
-                          </div>
+                            {/* Select All Option */}
+                            <div className="border-b border-gray-200">
+                              <label className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={filteredChannels.length > 0 && filteredChannels.every(channel => formData.selectedChannels.includes(channel))}
+                                  onChange={() => handleChannelToggle('Select All')}
+                                  className="w-4 h-4 mr-3 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 flex-shrink-0"
+                                />
+                                <span className="text-sm text-gray-900 font-medium">All Channels</span>
+                              </label>
+                            </div>
                             {filteredChannels.map((channel) => {
                               const isDisabled = disabledChannels.includes(channel)
                               return (
@@ -2137,9 +2127,8 @@ export default function ReportsPage() {
                     <RadioGroupItem value="primary" id="primary" />
                     <Label
                       htmlFor="primary"
-                      className={`flex items-center space-x-2 text-sm text-gray-700 ${
-                        isLoadingCompSet ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
-                      }`}
+                      className={`flex items-center space-x-2 text-sm text-gray-700 ${isLoadingCompSet ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                        }`}
                       onClick={isLoadingCompSet ? undefined : handlePrimaryHotelsToggle}
                     >
                       <span className="flex items-center">
@@ -2149,7 +2138,7 @@ export default function ReportsPage() {
                             Loading properties...
                           </>
                         ) : (
-                          `Primary (${primaryHotelsData.length})`
+                          `Primary (${formData.selectedPrimaryHotels.length})`
                         )}
                       </span>
                       {!isLoadingCompSet && (
@@ -2227,9 +2216,8 @@ export default function ReportsPage() {
                     <RadioGroupItem value="secondary" id="secondary" />
                     <Label
                       htmlFor="secondary"
-                      className={`flex items-center space-x-2 text-sm text-gray-700 ${
-                        isLoadingCompSet ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
-                      }`}
+                      className={`flex items-center space-x-2 text-sm text-gray-700 ${isLoadingCompSet ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                        }`}
                       onClick={isLoadingCompSet ? undefined : handleSecondaryHotelsToggle}
                     >
                       <span className="flex items-center">
@@ -2239,7 +2227,7 @@ export default function ReportsPage() {
                             Loading properties...
                           </>
                         ) : (
-                          `Secondary (${secondaryHotelsData.length})`
+                          `Secondary (${formData.selectedSecondaryHotels.length})`
                         )}
                       </span>
                       {!isLoadingCompSet && (
@@ -2418,7 +2406,7 @@ export default function ReportsPage() {
                         {formData.startDate ? format(formData.startDate, "dd MMM ''yy") : "Select start date"}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0 z-[9999]" align="start">
                       <Calendar
                         mode="single"
                         selected={formData.startDate}
@@ -2461,7 +2449,7 @@ export default function ReportsPage() {
                         {formData.endDate ? format(formData.endDate, "dd MMM ''yy") : "Select end date"}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0 z-[9999]" align="start">
                       <Calendar
                         mode="single"
                         selected={formData.endDate}
@@ -2556,14 +2544,13 @@ export default function ReportsPage() {
 
       {/* First Snackbar */}
       {showSnackbar && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div className={`px-6 py-3 rounded-lg shadow-lg flex items-center gap-4 min-w-96 ${
-            snackbarType === 'error' 
-              ? 'bg-red-600 text-white' 
-              : snackbarType === 'warning'
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[999]">
+          <div className={`px-6 py-3 rounded-lg shadow-lg flex items-center gap-4 min-w-96 ${snackbarType === 'error'
+            ? 'bg-red-600 text-white'
+            : snackbarType === 'warning'
               ? 'bg-yellow-600 text-white'
               : 'bg-blue-600 text-white'
-          }`}>
+            }`}>
             <div className="flex items-center gap-3">
               <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
                 {snackbarType === 'error' ? (
@@ -2575,9 +2562,9 @@ export default function ReportsPage() {
                     <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
                 ) : (
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
                 )}
               </div>
               <span className="text-sm font-medium">
@@ -2588,13 +2575,12 @@ export default function ReportsPage() {
               onClick={handleSnackbarOk}
               variant="outline"
               size="sm"
-              className={`px-4 py-1 h-8 text-sm font-medium ${
-                snackbarType === 'error' 
-                  ? 'bg-white text-red-600 border-white hover:bg-gray-100' 
-                  : snackbarType === 'warning'
+              className={`px-4 py-1 h-8 text-sm font-medium ${snackbarType === 'error'
+                ? 'bg-white text-red-600 border-white hover:bg-gray-100'
+                : snackbarType === 'warning'
                   ? 'bg-white text-yellow-600 border-white hover:bg-gray-100'
                   : 'bg-white text-blue-600 border-white hover:bg-gray-100'
-              }`}
+                }`}
             >
               OK
             </Button>
@@ -2604,7 +2590,7 @@ export default function ReportsPage() {
 
       {/* Second Snackbar */}
       {showSecondSnackbar && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[999]">
           <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4 min-w-[800px]">
             <div className="flex items-center gap-3">
               <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
@@ -2630,7 +2616,7 @@ export default function ReportsPage() {
 
       {/* Download Report Data Popup */}
       {showDownloadPopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999]">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
             <div className="p-6">
               <div className="row">
@@ -2640,13 +2626,13 @@ export default function ReportsPage() {
                 <br />
                 <br />
                 Your custom report is currently being prepared. Expect an email with the download
-                link within the next 15 minutes. Thank you for your patience! 
+                link within the next 15 minutes. Thank you for your patience!
                 <br />
                 <br />
               </div>
               <div className="popup_footer flex justify-center">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="btn btn-primary bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
                   onClick={handleDownloadPopupClose}
                 >
@@ -2660,7 +2646,7 @@ export default function ReportsPage() {
 
       {/* Missing Configuration Notification Popup */}
       {showMissingNotification && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999]">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4" style={{ width: '875px' }}>
             <div className="p-6">
               <div className="row mb-4">
