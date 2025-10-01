@@ -53,10 +53,10 @@ export function ReportsDatePicker({ startDate, endDate, onChange, className }: R
   // Function to determine mode based on dates
   const determineModeFromDates = (start: Date | undefined, end: Date | undefined): DateMode => {
     if (!start || !end) return "last7days"
-    
+
     const today = new Date()
     const daysDiff = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
-    
+
     // Check if it matches common patterns for "last" periods ending today
     if (isSameDay(end, today)) {
       if (daysDiff === 7 && isSameDay(start, subDays(today, 6))) {
@@ -65,14 +65,17 @@ export function ReportsDatePicker({ startDate, endDate, onChange, className }: R
       if (daysDiff === 14 && isSameDay(start, subDays(today, 13))) {
         return "last14days"
       }
+      if (daysDiff === 30 && isSameDay(start, subDays(today, 29))) {
+        return "lastmonth"
+      }
     }
-    
-    // Check if it's last month
-    const lastMonth = subMonths(today, 1)
-    if (isSameDay(start, startOfMonth(lastMonth)) && isSameDay(end, endOfMonth(lastMonth))) {
-      return "lastmonth"
-    }
-    
+    // debugger;
+    // // Check if it's last month
+    // const lastMonth = subMonths(today, 1)
+    // if (isSameDay(start, startOfMonth(lastMonth)) && isSameDay(end, endOfMonth(lastMonth))) {
+    //   return "lastmonth"
+    // }
+
     return "last7days" // Default fallback
   }
 
@@ -126,16 +129,16 @@ export function ReportsDatePicker({ startDate, endDate, onChange, className }: R
         break
       case "lastmonth":
         // Last month from first day to last day of previous month
-        const lastMonth = subMonths(today, 1)
-        newStartDate = startOfMonth(lastMonth)
-        newEndDate = endOfMonth(lastMonth)
+        newStartDate = subDays(today, 29) // 14 days including today, going backwards
+        newEndDate = today
+        break
         break
       default:
         newStartDate = undefined
         newEndDate = undefined
         break
     }
-    
+
     setSelectedStartDate(newStartDate)
     setSelectedEndDate(newEndDate)
     if (newStartDate) {
@@ -165,8 +168,7 @@ export function ReportsDatePicker({ startDate, endDate, onChange, className }: R
       case "last14days":
         return formatDateRange(subDays(today, 13), today)
       case "lastmonth":
-        const lastMonth = subMonths(today, 1)
-        return formatDateRange(startOfMonth(lastMonth), endOfMonth(lastMonth))
+         return formatDateRange(subDays(today, 29), today)
       default:
         return null
     }
@@ -195,14 +197,17 @@ export function ReportsDatePicker({ startDate, endDate, onChange, className }: R
         if (daysDiff === 14 && isSameDay(selectedStartDate, subDays(today, 13))) {
           return `Last 14 Days • ${dateRangeText}`
         }
+        if (daysDiff === 30 && isSameDay(selectedStartDate, subDays(today, 29))) {
+          return `Last Month • ${dateRangeText}`
+        }
       }
 
       // Check if it's last month
-      const lastMonth = subMonths(today, 1)
-      if (isSameDay(selectedStartDate, startOfMonth(lastMonth)) && 
-          isSameDay(selectedEndDate, endOfMonth(lastMonth))) {
-        return `Last Month • ${dateRangeText}`
-      }
+      // const lastMonth = subMonths(today, 1)
+      // if (isSameDay(selectedStartDate, startOfMonth(lastMonth)) && 
+      //     isSameDay(selectedEndDate, endOfMonth(lastMonth))) {
+      //   return `Last Month • ${dateRangeText}`
+      // }
 
       // Default to just the date range for other selections
       return dateRangeText

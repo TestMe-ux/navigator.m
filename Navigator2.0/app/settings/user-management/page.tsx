@@ -1004,7 +1004,7 @@ export default function UserManagementPage() {
                           id: index + 1,
                           name: `${change.firstName} ${change.lastName}`,
                           userType: change.userRoleText,
-                          email: change.email.replace('@', `${index + 1}@`),
+                          email: change.email,
                           emailAccess: change.pghReportEmail,
                           interfaceAccess: change.pghAccess,
                           defaultLandingPage: change.defaultLandingPageText,

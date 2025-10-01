@@ -148,18 +148,18 @@ const formatTime = (value: number): string => {
 // Function to generate delivery time options (without AM/PM)
 const generateTimeOptions = (): string[] => {
   const timeOptions: string[] = []
-  
+
   // Generate times from 12:00 to 11:45 (12-hour format without AM/PM)
   // Start with 12:00, then 1:00-11:45
   const hours = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-  
+
   for (const hour of hours) {
     for (let min = 0; min < 60; min += 15) {
       const timeValue = formatTime(hour) + ':' + formatTime(min)
       timeOptions.push(timeValue)
     }
   }
-  
+
   return timeOptions
 }
 
@@ -258,7 +258,7 @@ export default function ScheduledReportsPage() {
   const [secondaryHotelsData, setSecondaryHotelsData] = useState<any[]>([])
 
   // Timezone data state
-  const [timezonesData, setTimezonesData] = useState<Array<{id: string, displayName: string}>>([])
+  const [timezonesData, setTimezonesData] = useState<Array<{ id: string, displayName: string }>>([])
   const [isLoadingTimezone, setIsLoadingTimezone] = useState(false)
   const [timezoneSearchValue, setTimezoneSearchValue] = useState('')
   const [timezoneTooltip, setTimezoneTooltip] = useState('')
@@ -300,7 +300,7 @@ export default function ScheduledReportsPage() {
   // Modal state for mapping conflicts popup
   const [isMappingConflictsOpen, setIsMappingConflictsOpen] = useState(false)
   const [mappingConflictsData, setMappingConflictsData] = useState<any[]>([])
-  
+
   // Store form data for mapping conflicts flow
   const [pendingFormData, setPendingFormData] = useState<any>(null)
 
@@ -533,11 +533,11 @@ export default function ScheduledReportsPage() {
 
   // Days of the week
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  
+
   // Day values mapping (matching Angular implementation)
   const dayValuesMap: { [key: string]: string } = {
     'Sun': '1',
-    'Mon': '2', 
+    'Mon': '2',
     'Tue': '3',
     'Wed': '4',
     'Thu': '5',
@@ -815,7 +815,7 @@ export default function ScheduledReportsPage() {
   const fetchChannelsData = async () => {
     try {
       setIsLoadingChannels(true)
-      
+
       const response = await getChannelList({
         SID: selectedProperty?.sid
       })
@@ -837,7 +837,7 @@ export default function ScheduledReportsPage() {
   const fetchCompSetData = async () => {
     try {
       setIsLoadingCompSet(true)
-      
+
       const response = await getCompleteCompSet({
         SID: selectedProperty?.sid,
         includesubscriber: false
@@ -847,10 +847,10 @@ export default function ScheduledReportsPage() {
         // Filter primary and secondary compsets based on isSecondary property
         const primaryCompSets = response.body.filter((x: any) => !x.isSecondary)
         const secondaryCompSets = response.body.filter((x: any) => x.isSecondary)
-        
+
         setPrimaryHotelsData(primaryCompSets)
         setSecondaryHotelsData(secondaryCompSets)
-        
+
         // Select all primary options by default (store hmid instead of names)
         const primaryIds = primaryCompSets.map((compSet: any) => compSet.hmid)
         setCreateFormData(prev => ({
@@ -966,20 +966,20 @@ export default function ScheduledReportsPage() {
     }
     return fullDayNames[dayName] || 'Invalid day value'
   }
-
   const getFullDayNamesForSelectedDays = (selectedDays: string[]) => {
+    debugger;
     const fullDayNamesArray = selectedDays.map((selectedDay) => {
       // Map numeric values back to day abbreviations
       const reverseDayValuesMap: { [key: string]: string } = {
         '1': 'Sun',
-        '2': 'Mon', 
+        '2': 'Mon',
         '3': 'Tue',
         '4': 'Wed',
         '5': 'Thu',
         '6': 'Fri',
         '7': 'Sat'
       }
-      
+
       const dayAbbreviation = reverseDayValuesMap[selectedDay]
       if (dayAbbreviation) {
         return getFullDayName(dayAbbreviation)
@@ -994,7 +994,7 @@ export default function ScheduledReportsPage() {
     const dayMap: { [key: number]: string } = {
       1: 'Sun',
       2: 'Mon',
-      3: 'Tue', 
+      3: 'Tue',
       4: 'Wed',
       5: 'Thu',
       6: 'Fri',
@@ -1007,15 +1007,15 @@ export default function ScheduledReportsPage() {
   useEffect(() => {
     if (pendingEditData && channelsData.length > 0 && primaryHotelsData.length > 0 && isEditModalOpen) {
       console.log('Processing pending edit data with channels:', channelsData.length, 'and hotels:', primaryHotelsData.length)
-      
+
       // Process channels like Angular implementation
       const selectedChannelNames: string[] = []
       if (pendingEditData.channels) {
         pendingEditData.channels.split(',').forEach((channelId: string) => {
           const trimmedId = channelId.trim()
-          const filteredChannel = channelsData.find(x => 
-            x.cid == trimmedId || 
-            x.cid === parseInt(trimmedId) || 
+          const filteredChannel = channelsData.find(x =>
+            x.cid == trimmedId ||
+            x.cid === parseInt(trimmedId) ||
             x.cid.toString() === trimmedId
           )
           if (filteredChannel) {
@@ -1023,21 +1023,21 @@ export default function ScheduledReportsPage() {
           }
         })
       }
-      
+
       // Process hotel data
       let isSecondary = false
       const selectedPropertyIds: string[] = []
       const selectedPropertyNames: string[] = []
-      
+
       if (pendingEditData.propertyDataList) {
         console.log('Processing pending property data list:', pendingEditData.propertyDataList)
         console.log('Available primary hotels:', primaryHotelsData.slice(0, 3))
         console.log('Available secondary hotels:', secondaryHotelsData.slice(0, 3))
-        
+
         pendingEditData.propertyDataList.forEach((item: PropertyData) => {
           console.log('Processing pending property item:', item)
           // Find the property in our data to check if it's secondary
-          const filteredItem = [...primaryHotelsData, ...secondaryHotelsData].find(x => 
+          const filteredItem = [...primaryHotelsData, ...secondaryHotelsData].find(x =>
             x.propertyID === parseInt(item.propertyID) ||
             x.hmid === parseInt(item.propertyID) ||
             x.propertyID?.toString() === item.propertyID ||
@@ -1055,9 +1055,9 @@ export default function ScheduledReportsPage() {
           }
         })
       }
-      
+
       const compSet = isSecondary ? 'secondary' : 'primary'
-      
+
       // Process days of delivery for retry
       const retrySelectedDaysOfWeek: string[] = []
       if (pendingEditData.daysOfDelivery) {
@@ -1067,19 +1067,19 @@ export default function ScheduledReportsPage() {
           const dayName = getDayName(parseInt(dayNumber))
           console.log('Retry - Converted to day name:', dayName)
           if (dayName) {
-            retrySelectedDaysOfWeek.push(dayName)
+            retrySelectedDaysOfWeek.push(getFullDayName(dayName))
           }
         })
       }
       console.log('Retry - Selected days of week:', retrySelectedDaysOfWeek)
-      
+
       console.log('Retry - Selected channel names:', selectedChannelNames)
       console.log('Retry - Selected property IDs:', selectedPropertyIds)
       console.log('Retry - CompSet:', compSet)
       console.log('Retry - Advance shop days from API:', pendingEditData.advanceshop)
       console.log('Retry - Days of delivery from API:', pendingEditData.daysOfDelivery)
       console.log('Retry - Selected days of week:', retrySelectedDaysOfWeek)
-      
+
       // Update only the specific fields that need fixing
       setEditFormData(prev => ({
         ...prev,
@@ -1090,7 +1090,7 @@ export default function ScheduledReportsPage() {
         selectedDaysOfWeek: retrySelectedDaysOfWeek,
         advanceShopDays: pendingEditData.advanceshop !== undefined && pendingEditData.advanceshop !== null ? pendingEditData.advanceshop.toString() : '7'
       }))
-      
+
       // Clear pending data
       setPendingEditData(null)
     }
@@ -1100,15 +1100,15 @@ export default function ScheduledReportsPage() {
   const timeConvert = (time: string, modifier: string) => {
     let timeOfDelivery = time.split(':')[0]
     let minutes = time.split(':')[1]
-    
+
     if (timeOfDelivery === '12') {
       timeOfDelivery = '00'
     }
-    
+
     if (modifier === '2') { // PM
       timeOfDelivery = (parseInt(timeOfDelivery, 10) + 12).toString()
     }
-    
+
     return timeOfDelivery + ':' + minutes
   }
 
@@ -1116,7 +1116,7 @@ export default function ScheduledReportsPage() {
   const convertTo12HourFormat = (time24: string): string => {
     let time = Number(time24.split(':')[0])
     let minutes = time24.split(':')[1]
-    
+
     if (time > 12) {
       let t1 = time - 12
       let deliveryTime
@@ -1226,7 +1226,7 @@ export default function ScheduledReportsPage() {
       console.log('Refreshing schedule data with SID:', sid)
       const response = await getScheduleReportDataBySid(sid.toString())
       console.log('Refresh API response:', response)
-      
+
       if (response.status) {
         console.log('Setting schedule data:', response.body)
         setScheduleData(response.body || [])
@@ -1255,7 +1255,7 @@ export default function ScheduledReportsPage() {
       console.log('Deleting report with UniversalId:', deleteUniversalId, 'ReportId:', deleteReportId)
       const response = await deleteScheduleReport(deleteUniversalId, deleteReportId)
       console.log('Delete API response:', response)
-      
+
       if (response && response.status && response.body === "Success") {
         console.log('Delete successful, refreshing data...')
         // Close modal first
@@ -1288,32 +1288,32 @@ export default function ScheduledReportsPage() {
 
       if (channel === 'Select All') {
         // Get currently filtered channels
-        const currentFilteredChannels = channelsData.filter(c => 
+        const currentFilteredChannels = channelsData.filter(c =>
           c.name.toLowerCase().includes(createChannelsSearchValue.toLowerCase())
         ).map(c => c.name)
-        
+
         // Check if all filtered channels are selected
         const allFilteredSelected = currentFilteredChannels.every(c => newChannels.includes(c))
-        
+
         if (allFilteredSelected) {
           // If all filtered channels are selected, deselect them
           newChannels = newChannels.filter(c => !currentFilteredChannels.includes(c))
-      } else {
+        } else {
           // Select all filtered channels
           const channelsToAdd = currentFilteredChannels.filter(c => !newChannels.includes(c))
           newChannels = [...newChannels, ...channelsToAdd]
-      }
-    } else {
+        }
+      } else {
         if (newChannels.includes(channel)) {
           newChannels = newChannels.filter(c => c !== channel)
-      } else {
+        } else {
           newChannels.push(channel)
+        }
       }
-    }
 
       return { ...prev, selectedChannels: newChannels }
     })
-    
+
     // Clear channels error when a channel is selected
     if (createFormErrors.channels) {
       setCreateFormErrors(prev => ({ ...prev, channels: '' }))
@@ -1324,38 +1324,38 @@ export default function ScheduledReportsPage() {
     setCreateFormData(prev => {
       let newHotels = [...prev.selectedPrimaryHotels]
 
-    if (hotel === 'Select All') {
+      if (hotel === 'Select All') {
         // Get currently filtered hotels (use hmid)
         const currentFilteredHotels = filteredCreatePrimaryHotels.map(h => h.hmid)
-        
+
         // Check if all filtered hotels are already selected
-        const allFilteredSelected = currentFilteredHotels.every(hotelId => 
+        const allFilteredSelected = currentFilteredHotels.every(hotelId =>
           newHotels.includes(hotelId)
         )
-        
+
         if (allFilteredSelected) {
           // Deselect all filtered hotels
           newHotels = newHotels.filter(h => !currentFilteredHotels.includes(h))
-      } else {
+        } else {
           // Select all filtered hotels
           currentFilteredHotels.forEach(hotelId => {
             if (!newHotels.includes(hotelId)) {
               newHotels.push(hotelId)
             }
           })
-      }
-    } else {
+        }
+      } else {
         // Handle individual hotel selection
         if (newHotels.includes(hotel)) {
           newHotels = newHotels.filter(h => h !== hotel)
-      } else {
+        } else {
           newHotels.push(hotel)
+        }
       }
-    }
-      
+
       return { ...prev, selectedPrimaryHotels: newHotels }
     })
-    
+
     // Clear compSet error when primary hotels are selected
     if (createFormErrors.compSet) {
       setCreateFormErrors(prev => ({ ...prev, compSet: '' }))
@@ -1366,27 +1366,27 @@ export default function ScheduledReportsPage() {
     setCreateFormData(prev => {
       let newHotels = [...prev.selectedSecondaryHotels]
 
-    if (hotel === 'Select All') {
+      if (hotel === 'Select All') {
         // Get currently filtered hotels (use hmid)
         const currentFilteredHotels = filteredCreateSecondaryHotels.map(h => h.hmid)
-        
+
         // Check if all filtered hotels are already selected
-        const allFilteredSelected = currentFilteredHotels.every(hotelId => 
+        const allFilteredSelected = currentFilteredHotels.every(hotelId =>
           newHotels.includes(hotelId)
         )
-        
+
         if (allFilteredSelected) {
           // Deselect all filtered hotels
           newHotels = newHotels.filter(h => !currentFilteredHotels.includes(h))
-      } else {
+        } else {
           // Select all filtered hotels
           currentFilteredHotels.forEach(hotelId => {
             if (!newHotels.includes(hotelId)) {
               newHotels.push(hotelId)
             }
           })
-      }
-    } else {
+        }
+      } else {
         // Handle individual hotel selection
         if (newHotels.includes(hotel)) {
           newHotels = newHotels.filter(h => h !== hotel)
@@ -1394,10 +1394,10 @@ export default function ScheduledReportsPage() {
           newHotels.push(hotel)
         }
       }
-      
+
       return { ...prev, selectedSecondaryHotels: newHotels }
     })
-    
+
     // Clear compSet error when secondary hotels are selected
     if (createFormErrors.compSet) {
       setCreateFormErrors(prev => ({ ...prev, compSet: '' }))
@@ -1435,13 +1435,13 @@ export default function ScheduledReportsPage() {
     if (field === 'compSet' && value === 'secondary') {
       // When switching to secondary, select all secondary hotels by default (store hmid)
       const secondaryIds = secondaryHotelsData.map((compSet: any) => compSet.hmid)
-        setCreateFormData(prev => ({
-          ...prev,
+      setCreateFormData(prev => ({
+        ...prev,
         [field]: value,
         selectedSecondaryHotels: secondaryIds,
         selectedPrimaryHotels: []
       }))
-      
+
       // Clear compSet error when compSet is selected
       if (createFormErrors.compSet) {
         setCreateFormErrors(prev => ({ ...prev, compSet: '' }))
@@ -1449,18 +1449,18 @@ export default function ScheduledReportsPage() {
     } else if (field === 'compSet' && value === 'primary') {
       // When switching to primary, select all primary hotels by default (store hmid)
       const primaryIds = primaryHotelsData.map((compSet: any) => compSet.hmid)
-        setCreateFormData(prev => ({
-          ...prev,
+      setCreateFormData(prev => ({
+        ...prev,
         [field]: value,
         selectedPrimaryHotels: primaryIds,
         selectedSecondaryHotels: []
-        }))
-    
+      }))
+
       // Clear compSet error when compSet is selected
-    if (createFormErrors.compSet) {
-      setCreateFormErrors(prev => ({ ...prev, compSet: '' }))
+      if (createFormErrors.compSet) {
+        setCreateFormErrors(prev => ({ ...prev, compSet: '' }))
       }
-      } else {
+    } else {
       setCreateFormData(prev => ({ ...prev, [field]: value }))
     }
   }
@@ -1527,7 +1527,7 @@ export default function ScheduledReportsPage() {
       console.log('Updated form data:', newData)
       return newData
     })
-    
+
     // Clear errors when start date is selected
     if (createFormErrors.startDate) {
       setCreateFormErrors(prev => ({ ...prev, startDate: '' }))
@@ -1552,7 +1552,7 @@ export default function ScheduledReportsPage() {
       return newData
     })
     setCreateDateError('')
-    
+
     // Clear form error when end date is selected
     if (createFormErrors.endDate) {
       setCreateFormErrors(prev => ({ ...prev, endDate: '' }))
@@ -1566,17 +1566,17 @@ export default function ScheduledReportsPage() {
   const handleCreateFrequencyChange = (frequency: string) => {
     setCreateFormData(prev => {
       const newData = { ...prev, frequency }
-      
+
       // Reset week selection when frequency changes (except for monthly)
       if (frequency !== '4') {
         newData.weekSelection = '1st Week'
       }
-      
+
       // Reset selectedDaysOfWeek when frequency changes to weekly or monthly
       if (frequency === '2' || frequency === '4') {
         newData.selectedDaysOfWeek = []
       }
-      
+
       return newData
     })
   }
@@ -1587,7 +1587,7 @@ export default function ScheduledReportsPage() {
     setCreateFormData(prev => {
       const currentDays = [...prev.selectedDaysOfWeek]
       const dayIndex = currentDays.indexOf(dayValue)
-      
+
       if (prev.frequency === '2' || prev.frequency === '4') {
         // For weekly and monthly, single-select behavior
         if (dayIndex > -1) {
@@ -1607,14 +1607,14 @@ export default function ScheduledReportsPage() {
           currentDays.push(dayValue)
         }
       }
-      
+
       // Sort the days numerically
       const sortedDays = currentDays.sort((a, b) => {
         const numA = parseInt(a, 10)
         const numB = parseInt(b, 10)
         return numA - numB
       })
-      
+
       return {
         ...prev,
         selectedDaysOfWeek: sortedDays
@@ -1740,17 +1740,17 @@ export default function ScheduledReportsPage() {
   }
 
   // Filter primary compsets based on search
-  const filteredCreatePrimaryHotels = primaryHotelsData.filter(hotel => 
+  const filteredCreatePrimaryHotels = primaryHotelsData.filter(hotel =>
     hotel.name.toLowerCase().includes(createPrimarySearchValue.toLowerCase())
   )
 
   // Filter secondary compsets based on search
-  const filteredCreateSecondaryHotels = secondaryHotelsData.filter(hotel => 
+  const filteredCreateSecondaryHotels = secondaryHotelsData.filter(hotel =>
     hotel.name.toLowerCase().includes(createSecondarySearchValue.toLowerCase())
   )
 
   // Filter channels based on search
-  const filteredCreateChannels = channelsData.filter(channel => 
+  const filteredCreateChannels = channelsData.filter(channel =>
     channel.name.toLowerCase().includes(createChannelsSearchValue.toLowerCase())
   )
 
@@ -1770,31 +1770,31 @@ export default function ScheduledReportsPage() {
       fetchCompSetData(),
       fetchTimezoneData()
     ])
-    
+
     console.log('All data loaded, proceeding with edit data...')
 
     // Load edit schedule data from API
     const editData = await fetchEditScheduleData(schedule.pghReportScheduleId.toString())
-    
+
     console.log('Edit data from API:', editData)
     console.log('Edit data advanceshop:', editData?.advanceshop)
     console.log('Edit data daysOfDelivery:', editData?.daysOfDelivery)
-    
+
     if (editData) {
       // Process channels like Angular implementation
       const selectedChannelNames: string[] = []
       console.log('Edit data channels:', editData.channels)
       console.log('Available channels data:', channelsData)
       console.log('First few channels:', channelsData.slice(0, 3))
-      
+
       if (editData.channels && channelsData.length > 0) {
         editData.channels.split(',').forEach((channelId: string) => {
           const trimmedId = channelId.trim()
           console.log('Looking for channel ID:', trimmedId)
           // Try to match with cid (number or string)
-          const filteredChannel = channelsData.find(x => 
-            x.cid == trimmedId || 
-            x.cid === parseInt(trimmedId) || 
+          const filteredChannel = channelsData.find(x =>
+            x.cid == trimmedId ||
+            x.cid === parseInt(trimmedId) ||
             x.cid.toString() === trimmedId
           )
           console.log('Found channel:', filteredChannel)
@@ -1806,31 +1806,31 @@ export default function ScheduledReportsPage() {
         console.log('Channels data not ready, storing for retry...')
         setPendingEditData(editData)
       }
-      
+
       // Check if hotel data is ready
       if (editData.propertyDataList && primaryHotelsData.length === 0) {
         console.log('Hotel data not ready, storing for retry...')
         setPendingEditData(editData)
         // Continue with initial form data, retry will fix it
       }
-      
+
       console.log('Selected channel names:', selectedChannelNames)
 
       // Process property data to determine if it's primary or secondary
       let isSecondary = false
       const selectedPropertyIds: string[] = []
       const selectedPropertyNames: string[] = []
-      
+
       if (editData.propertyDataList) {
         console.log('Processing property data list:', editData.propertyDataList)
         console.log('Available primary hotels:', primaryHotelsData.slice(0, 3))
         console.log('Available secondary hotels:', secondaryHotelsData.slice(0, 3))
-        
+
         editData.propertyDataList.forEach((item: PropertyData) => {
           console.log('Processing property item:', item)
           // Find the property in our data to check if it's secondary
           // Match using propertyID (string to number conversion)
-          const filteredItem = [...primaryHotelsData, ...secondaryHotelsData].find(x => 
+          const filteredItem = [...primaryHotelsData, ...secondaryHotelsData].find(x =>
             x.propertyID === parseInt(item.propertyID) ||
             x.hmid === parseInt(item.propertyID) ||
             x.propertyID?.toString() === item.propertyID ||
@@ -1851,7 +1851,7 @@ export default function ScheduledReportsPage() {
 
       // Determine compSet based on property data
       const compSet = isSecondary ? 'secondary' : 'primary'
-      
+
       console.log('Property data processing:', {
         editDataPropertyList: editData.propertyDataList,
         isSecondary,
@@ -1899,34 +1899,34 @@ export default function ScheduledReportsPage() {
         timeZone: editData.deliveryTimeZone || '',
         weekSelection: editData.weeksOfDelivery || ''
       }
-      
+
       console.log('Setting edit form data:', formData)
       console.log('Selected primary hotels:', formData.selectedPrimaryHotels)
       console.log('Selected secondary hotels:', formData.selectedSecondaryHotels)
       console.log('Advance shop days from API:', editData.advanceshop)
       console.log('Advance shop days in form:', formData.advanceShopDays)
-      
+
       setEditFormData(formData)
     } else {
       // Fallback to default values if API fails
       console.log('API failed or no edit data, using fallback values')
-    setEditFormData({
-      selectedChannels: ['Agoda', 'Booking.com', 'Expedia'],
-      compSet: 'primary',
+      setEditFormData({
+        selectedChannels: ['Agoda', 'Booking.com', 'Expedia'],
+        compSet: 'primary',
         selectedPrimaryHotels: [],
         selectedSecondaryHotels: [],
         guests: '1',
         los: ['1'] as string[],
-      advanceShopDays: '7',
-      checkInDates: '30',
-      currency: 'USD',
-      startDate: new Date(schedule.startDate),
-      endDate: new Date(schedule.endDate),
-      recipients: ['rahul.kumar@rategain.com', 'manager@hotel.com'],
-      newRecipient: '',
-      scheduleName: schedule.scheduleName,
+        advanceShopDays: '7',
+        checkInDates: '30',
+        currency: 'USD',
+        startDate: new Date(schedule.startDate),
+        endDate: new Date(schedule.endDate),
+        recipients: ['rahul.kumar@rategain.com', 'manager@hotel.com'],
+        newRecipient: '',
+        scheduleName: schedule.scheduleName,
         frequency: '1',
-      time: '06:00',
+        time: '06:00',
         selectedDaysOfWeek: [],
         deliveryTime: '12:00',
         amPm: '1',
@@ -1962,7 +1962,7 @@ export default function ScheduledReportsPage() {
     setEditFormData(prev => {
       const currentDays = [...prev.selectedDaysOfWeek]
       const dayIndex = currentDays.indexOf(dayValue)
-      
+
       if (prev.frequency === '2' || prev.frequency === '4') {
         // For weekly and monthly, single-select behavior
         if (dayIndex > -1) {
@@ -1970,7 +1970,7 @@ export default function ScheduledReportsPage() {
         } else {
           // Clear the previous selection and select the current day
           return {
-      ...prev,
+            ...prev,
             selectedDaysOfWeek: [dayValue]
           }
         }
@@ -1982,14 +1982,14 @@ export default function ScheduledReportsPage() {
           currentDays.push(dayValue)
         }
       }
-      
+
       // Sort the days numerically
       const sortedDays = currentDays.sort((a, b) => {
         const numA = parseInt(a, 10)
         const numB = parseInt(b, 10)
         return numA - numB
       })
-      
+
       return {
         ...prev,
         selectedDaysOfWeek: sortedDays
@@ -2067,14 +2067,14 @@ export default function ScheduledReportsPage() {
   const saveNewScheduleReport = async (forceComplete: boolean) => {
     try {
       const userDetails = LocalStorageService.getUserDetails()
-      
+
       // Use stored form data if available, otherwise use current form data
       const formDataToUse = pendingFormData || createFormData
-      
+
       // Prepare schedule report data
       // Debug date values
       console.log('Date values:', { startDate: formDataToUse.startDate, endDate: formDataToUse.endDate })
-      
+
       const scheduleReportData = {
         isAllDataMapped: false,
         ForceComplete: forceComplete,
@@ -2106,15 +2106,15 @@ export default function ScheduledReportsPage() {
           // Get channel IDs for selected channels
           console.log('Selected channels:', formDataToUse.selectedChannels)
           console.log('Available channels data:', channelsData.slice(0, 3))
-          
+
           const channelIds = formDataToUse.selectedChannels.map((channel: string) => {
             const channelData = channelsData.find(c => c.name === channel)
             console.log('Channel:', channel, 'Found data:', channelData, 'CID:', channelData?.cid, 'CID type:', typeof channelData?.cid)
             return channelData?.cid ? String(channelData.cid) : ''
           }).filter((id: string) => id !== '')
-          
+
           console.log('Channel IDs after mapping:', channelIds)
-          
+
           // Take the first channel ID as string
           const result = channelIds.length > 0 ? channelIds[0] : ''
           return result
@@ -2138,49 +2138,49 @@ export default function ScheduledReportsPage() {
         compattable: (() => {
           // Build compattable array from selected compset data
           const compattableArray: clsCompset[] = []
-          
+
           // Process selected primary hotels (using hmid)
           formDataToUse.selectedPrimaryHotels.forEach((hotelId: number) => {
             const hotelData = primaryHotelsData.find(hotel => hotel.hmid === hotelId)
             if (hotelData) {
-                compattableArray.push({
-                  Name: hotelData.name,
-                  Address: '',
-                  Country: '',
-                  City: '',
-                  property_id: hotelData.propertyID || 0,
-                  LLimit: hotelData.lowerThreshold || '0',
-                  ULimit: hotelData.higherThreshold || '0',
-                  status: 0,
-                  rank: 0,
-                  brand: '',
-                  NewPropertyID: hotelData.propertyID?.toString() || '0'
-                })
-              }
+              compattableArray.push({
+                Name: hotelData.name,
+                Address: '',
+                Country: '',
+                City: '',
+                property_id: hotelData.propertyID || 0,
+                LLimit: hotelData.lowerThreshold || '0',
+                ULimit: hotelData.higherThreshold || '0',
+                status: 0,
+                rank: 0,
+                brand: '',
+                NewPropertyID: hotelData.propertyID?.toString() || '0'
+              })
             }
+          }
           )
-          
+
           // Process selected secondary hotels (using hmid)
           formDataToUse.selectedSecondaryHotels.forEach((hotelId: number) => {
             const hotelData = secondaryHotelsData.find(hotel => hotel.hmid === hotelId)
             if (hotelData) {
-                compattableArray.push({
-                  Name: hotelData.name,
-                  Address: '',
-                  Country: '',
-                  City: '',
-                  property_id: hotelData.propertyID || 0,
-                  LLimit: hotelData.lowerThreshold || '0',
-                  ULimit: hotelData.higherThreshold || '0',
-                  status: 0,
-                  rank: 0,
-                  brand: '',
-                  NewPropertyID: hotelData.propertyID?.toString() || '0'
-                })
-              }
+              compattableArray.push({
+                Name: hotelData.name,
+                Address: '',
+                Country: '',
+                City: '',
+                property_id: hotelData.propertyID || 0,
+                LLimit: hotelData.lowerThreshold || '0',
+                ULimit: hotelData.higherThreshold || '0',
+                status: 0,
+                rank: 0,
+                brand: '',
+                NewPropertyID: hotelData.propertyID?.toString() || '0'
+              })
             }
+          }
           )
-          
+
           return compattableArray
         })(),
         oldCompesetIds: '',
@@ -2209,21 +2209,21 @@ export default function ScheduledReportsPage() {
         })(),
         checkIsSecondary: false,
         DaysdataText: getFullDayNamesForSelectedDays(formDataToUse.selectedDaysOfWeek).join(','),
-        FrequencyText: formDataToUse.frequency === '1' ? 'Daily' : 
-                      formDataToUse.frequency === '2' ? 'Weekly' :
-                      formDataToUse.frequency === '3' ? 'Fortnightly' :
-                      formDataToUse.frequency === '4' ? 'Monthly' : ''
+        FrequencyText: formDataToUse.frequency === '1' ? 'Daily' :
+          formDataToUse.frequency === '2' ? 'Weekly' :
+            formDataToUse.frequency === '3' ? 'Fortnightly' :
+              formDataToUse.frequency === '4' ? 'Monthly' : ''
       }
 
       const response = await saveReportData(scheduleReportData)
-      
+
       if (response.status) {
         setSnackbarMessage('Report Schedule Request has been taken successfully. We will send a confirmation email, once the report is ready to download from reports page.')
         setSnackbarType('success')
         setShowSnackbar(true)
         handleCreateModalClose()
         await refreshScheduleData()
-        
+
         // Clear pending form data after successful save
         setPendingFormData(null)
       } else if (response.status === false && response.message === "A report with same competitor set, channels & parameter is already scheduled. Please check!!") {
@@ -2257,7 +2257,7 @@ export default function ScheduledReportsPage() {
         console.log('No package details found in localStorage')
         return true // Allow if no package details
       }
-      
+
       let packageDetails = JSON.parse(packageDetailsString)
       let channels: string[] = []
 
@@ -2274,7 +2274,7 @@ export default function ScheduledReportsPage() {
       selectedHotels.forEach((hotelId: string) => {
         let listToFilter = formData.compSet === 'secondary' ? secondaryHotelsData : primaryHotelsData
         const result = listToFilter.find((competitor: any) => competitor.hmid === hotelId)
-        
+
         if (result) {
           const dataObj = {
             property_id: result.propertyID || result.hmid,
@@ -2312,15 +2312,16 @@ export default function ScheduledReportsPage() {
       } else {
         // Calculate RRDs used
         let rrdsUsed = (parsedData.length) * channels.length * parseInt(formData.checkInDates) * los
-        
+
         // Get total shops consumed and allotted from package details
-        let totalShopsConsumedYearly = packageDetails.totalShopsConsumedYearly || 0
-        let totalShopsAlloted = packageDetails.totalShopsAlloted || 0
-        
+        // let totalShopsConsumedYearly = packageDetails.totalShopsConsumedYearly || 0
+        // let totalShopsAlloted = packageDetails.totalShopsAlloted || 0
+
         if ((rrdsUsed + totalShopsConsumedYearly) > totalShopsAlloted) {
           // Show error message via snackbar
           setSnackbarMessage("Your request exceeds the current credit limit. Please purchase more credits or modify the report generation criteria to proceed.")
           setSnackbarType('error')
+          setShowSnackbar(true)
           return false
         } else {
           return true
@@ -2333,6 +2334,7 @@ export default function ScheduledReportsPage() {
   }
 
   const handleEditScheduleSubmit = async () => {
+    debugger;
     // Check shops limit first
     const isConsumedHigher = checkShopsLimit(editFormData)
     if (!isConsumedHigher) {
@@ -2352,8 +2354,8 @@ export default function ScheduledReportsPage() {
     }
 
     // Check if week selection is required for fortnightly (3) or monthly (4)
-    if ((editFormData.weekSelection === '' || editFormData.weekSelection === undefined) && 
-        (editFormData.frequency === '3' || editFormData.frequency === '4')) {
+    if ((editFormData.weekSelection === '' || editFormData.weekSelection === undefined) &&
+      (editFormData.frequency === '3' || editFormData.frequency === '4')) {
       setEditFormErrors(prev => ({ ...prev, weekSelection: 'Please select a week' }))
       return
     }
@@ -2361,7 +2363,27 @@ export default function ScheduledReportsPage() {
     try {
       // Prepare the schedule report data for edit
       const scheduleReportData = {
-        ScheduleName: editFormData.scheduleName,
+        PropertyName: editFormData.scheduleName,
+        SubscriptionName: editFormData.scheduleName,
+        Occupancy: parseInt(editFormData.guests, 10),
+        LOS: editFormData.los.join(','),
+        AdvanceShop: parseInt(editFormData.advanceShopDays, 10),
+        Noofcheckindates: parseInt(editFormData.checkInDates, 10),
+        Currency: editFormData.currency,
+        ILOS: false,
+        StartDate: getDateFormat(editFormData.startDate, 'MM/DD/YYYY'),
+        Reportexpirydate: getDateFormat(editFormData.endDate, 'MM/DD/YYYY'),
+        Frequency: editFormData.frequency,
+        FrequencyText: editFormData.frequency === '1' ? 'Daily' :
+          editFormData.frequency === '2' ? 'Weekly' :
+            editFormData.frequency === '3' ? 'Fortnightly' :
+              editFormData.frequency === '4' ? 'Monthly' : '',
+        Days: editFormData.selectedDaysOfWeek.join(','),
+        DaysdataText: editFormData.selectedDaysOfWeek.join(','),
+        DeliveryTime: timeConvert(editFormData.deliveryTime, editFormData.amPm),
+        Timezone: String(editFormData.timeZone || ''),
+        TimeZoneText: timezonesData.find(tz => tz.id === editFormData.timeZone)?.displayName || '',
+        Weeks: editFormData.weekSelection || '',
         Channels: (() => {
           const channelIds = editFormData.selectedChannels.map((channel: string) => {
             const channelData = channelsData.find(c => c.name === channel)
@@ -2369,10 +2391,7 @@ export default function ScheduledReportsPage() {
           }).filter((id: string) => id !== '')
           return channelIds.join(',')
         })(),
-        Recipientlist: editFormData.recipients.join(','),
-        UniversalId: editingSchedule?.universalID || 0,
-        subscriberid: LocalStorageService.getSID(),
-        SubId: LocalStorageService.getSID(),
+        Channelsname: editFormData.selectedChannels.join(','),
         SchedulebanchmarkChannel: (() => {
           const channelIds = editFormData.selectedChannels.map((channel: string) => {
             const channelData = channelsData.find(c => c.name === channel)
@@ -2380,23 +2399,24 @@ export default function ScheduledReportsPage() {
           }).filter((id: string) => id !== '')
           return channelIds.length > 0 ? channelIds[0] : ''
         })(),
-        Credit: '100000',
-        UnMappedData: '',
+        Recipientlist: editFormData.recipients.join(','),
+        UniversalId: editingSchedule?.universalID || 0,
+        subscriberid: LocalStorageService.getSID(),
+        SubId: LocalStorageService.getSID(),
         UserName: LocalStorageService.getUserDisplayName(),
         LoginName: LocalStorageService.getUserName(),
-        StartDate: getDateFormat(editFormData.startDate, 'MM/DD/YYYY'),
-        Reportexpirydate: getDateFormat(editFormData.endDate, 'MM/DD/YYYY'),
-        Frequency: editFormData.frequency,
-        DaysdataText: getFullDayNamesForSelectedDays(editFormData.selectedDaysOfWeek),
-        DeliveryTime: timeConvert(editFormData.deliveryTime, editFormData.amPm),
-        Timezone: editFormData.timeZone,
-        TimeZoneText: timezonesData.find(tz => tz.id === editFormData.timeZone)?.displayName || '',
-        Weeks: editFormData.weekSelection || '',
+        oldCompesetIds: editFormData.selectedPrimaryHotels.join(','),
+        oldCHIds: editFormData.selectedChannels.join(','),
+        ReportStatus: 1,
+        Limittype: 0,
+        Credit: '100000',
+        checkIsSecondary: editFormData.compSet === 'secondary',
+        UnMappedData: '',
         compattable: (() => {
           const selectedHotels = editFormData.compSet === 'primary' ? editFormData.selectedPrimaryHotels : editFormData.selectedSecondaryHotels
           const hotelList = editFormData.compSet === 'primary' ? primaryHotelsData : secondaryHotelsData
           const dataArray: any[] = []
-          
+
           selectedHotels.forEach((hotel: string) => {
             const hotelData = hotelList.find((h: any) => h.hmid === hotel)
             if (hotelData) {
@@ -2412,7 +2432,6 @@ export default function ScheduledReportsPage() {
                 status: 0,
                 brand: '',
                 IsSecondary: editFormData.compSet === 'secondary',
-                rank: 0
               }
               dataArray.push(dataObj)
             }
@@ -2420,34 +2439,30 @@ export default function ScheduledReportsPage() {
           return dataArray
         })(),
         OldParameter: {
-          ScheduleName: editingSchedule?.scheduleName || '',
-          Channels: '',
-          Recipientlist: '',
-          UniversalId: editingSchedule?.universalID || 0,
-          subscriberid: LocalStorageService.getSID(),
-          SubId: LocalStorageService.getSID(),
-          SchedulebanchmarkChannel: '',
-          Credit: '100000',
-          UnMappedData: '',
-          UserName: LocalStorageService.getUserDisplayName(),
-          LoginName: LocalStorageService.getUserName(),
-          StartDate: '',
-          Reportexpirydate: '',
-          Frequency: '',
-          DaysdataText: '',
-          DeliveryTime: '',
-          Timezone: '',
-          TimeZoneText: '',
-          Weeks: '',
-          compattable: []
+          UAdvanceShop: '',
+          UNoofcheckindates: '',
+          ULOS: '',
+          UOccupancy: '',
+          UCurrency: '',
+          UFrequency: '',
+          UDays: '',
+          UWeeks: '',
+          UTimezone: '',
+          UDeliveryTime: '',
+          ExpiryDate: '',
+          URecipientlist: '',
+          UChannelName: '',
+          UPropertyname: ''
         }
       }
 
       console.log('Edit schedule report data:', scheduleReportData)
+      // const mappingFilteValue = { ...scheduleReportData, oldCompesetIds: "", "oldCHIds": "", "ReportStatus": 0, }
+
 
       // Call the checkMapping API
       const response = await checkMapping(scheduleReportData)
-      
+
       if (response.status) {
         let result: any
         try {
@@ -2455,7 +2470,7 @@ export default function ScheduledReportsPage() {
         } catch (e) {
           result = null
         }
-        
+
         if (result == null) {
           // No conflicts, save directly
           await saveEditScheduleReport(scheduleReportData)
@@ -2524,8 +2539,8 @@ export default function ScheduledReportsPage() {
     }
 
     // Check if week selection is required for fortnightly (3) or monthly (4)
-    if ((createFormData.weekSelection === '' || createFormData.weekSelection === undefined) && 
-        (createFormData.frequency === '3' || createFormData.frequency === '4')) {
+    if ((createFormData.weekSelection === '' || createFormData.weekSelection === undefined) &&
+      (createFormData.frequency === '3' || createFormData.frequency === '4')) {
       setCreateFormErrors(prev => ({ ...prev, weekSelection: 'Please select a week' }))
       return
     }
@@ -2533,7 +2548,7 @@ export default function ScheduledReportsPage() {
     // Close popup and show success message immediately
     setIsCreateModalOpen(false)
     setShowSnackbar(true)
-    
+
     // Auto-hide success snackbar after 4 seconds
     setTimeout(() => {
       setShowSnackbar(false)
@@ -2577,8 +2592,8 @@ export default function ScheduledReportsPage() {
 
       // Prepare compset data
       const dataArray: any[] = []
-      const selectedHotels = createFormData.compSet === 'primary' 
-        ? createFormData.selectedPrimaryHotels 
+      const selectedHotels = createFormData.compSet === 'primary'
+        ? createFormData.selectedPrimaryHotels
         : createFormData.selectedSecondaryHotels
       const isSecondary = createFormData.compSet === 'secondary'
       const hotelList = isSecondary ? secondaryHotelsData : primaryHotelsData
@@ -2623,7 +2638,7 @@ export default function ScheduledReportsPage() {
 
       // Call checkMapping API in background
       const response = await checkMapping(scheduleReportData)
-      
+
       if (response.status) {
         let result: any
         try {
@@ -3355,7 +3370,7 @@ export default function ScheduledReportsPage() {
 
       {/* Edit Scheduled Report Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-w-5xl h-[80vh] flex flex-col overflow-hidden">
+        <DialogContent className="max-w-5xl h-[80vh] flex flex-col overflow-hidden z-[999]" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader className="flex-shrink-0 pb-4 border-b border-gray-200">
             <DialogTitle className="text-xl font-semibold text-black">Edit Scheduled Report</DialogTitle>
           </DialogHeader>
@@ -3397,11 +3412,11 @@ export default function ScheduledReportsPage() {
                       className="w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none"
                     >
                       <span className="truncate">
-                        {editFormData.selectedChannels.length === 0 
+                        {editFormData.selectedChannels.length === 0
                           ? "0 channels selected"
                           : editFormData.selectedChannels.length === channelsData.length
                             ? "All Channels"
-                            : editFormData.selectedChannels.length === 1 
+                            : editFormData.selectedChannels.length === 1
                               ? editFormData.selectedChannels[0]
                               : `${editFormData.selectedChannels[0]} + ${editFormData.selectedChannels.length - 1}`
                         }
@@ -3430,7 +3445,7 @@ export default function ScheduledReportsPage() {
                             <span className="text-sm text-gray-900 font-medium">All Channels</span>
                           </label>
                         </div>
-                        
+
                         {channelsData.map((channel) => (
                           <label
                             key={channel.cid}
@@ -3450,12 +3465,12 @@ export default function ScheduledReportsPage() {
                                   } else {
                                     // Add channel
                                     const updatedChannels = [...newChannels, channel.name]
-                                    
+
                                     // Check if all channels are now selected
                                     if (updatedChannels.length === channelsData.length) {
                                       // All channels selected - could add "All Channels" logic here if needed
                                     }
-                                    
+
                                     return { ...prev, selectedChannels: updatedChannels }
                                   }
                                 })
@@ -3516,7 +3531,7 @@ export default function ScheduledReportsPage() {
                               <span className="text-sm text-gray-900 font-medium">All Primary Hotels</span>
                             </label>
                           </div>
-                          
+
                           {primaryHotelsData.map((hotel, index) => (
                             <label
                               key={`edit-primary-${hotel.propertyID}-${hotel.name}-${index}`}
@@ -3583,7 +3598,7 @@ export default function ScheduledReportsPage() {
                               <span className="text-sm text-gray-900 font-medium">All Secondary Hotels</span>
                             </label>
                           </div>
-                          
+
                           {secondaryHotelsData.map((hotel, index) => (
                             <label
                               key={`edit-secondary-${hotel.propertyID}-${hotel.name}-${index}`}
@@ -3828,7 +3843,7 @@ export default function ScheduledReportsPage() {
                           {editFormData.startDate ? format(editFormData.startDate, "dd MMM ''yy") : "Select start date"}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent className="w-auto p-0 z-[9999]" align="start">
                         <Calendar
                           mode="single"
                           selected={editFormData.startDate}
@@ -3864,7 +3879,7 @@ export default function ScheduledReportsPage() {
                             {editFormData.endDate ? format(editFormData.endDate, "dd MMM ''yy") : "Select end date"}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
+                        <PopoverContent className="w-auto p-0 z-[9999]" align="start">
                           <Calendar
                             mode="single"
                             selected={editFormData.endDate}
@@ -3916,9 +3931,9 @@ export default function ScheduledReportsPage() {
                       >
                         <span className="capitalize">
                           {editFormData.frequency === '1' ? 'Daily' :
-                           editFormData.frequency === '2' ? 'Weekly' :
-                           editFormData.frequency === '3' ? 'Fortnightly' :
-                           editFormData.frequency === '4' ? 'Monthly' : editFormData.frequency}
+                            editFormData.frequency === '2' ? 'Weekly' :
+                              editFormData.frequency === '3' ? 'Fortnightly' :
+                                editFormData.frequency === '4' ? 'Monthly' : editFormData.frequency}
                         </span>
                         <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isEditFrequencyOpen ? 'rotate-180' : ''}`} />
                       </button>
@@ -3967,9 +3982,9 @@ export default function ScheduledReportsPage() {
                           <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
                             {editFormData.frequency === '3'
                               ? [
-                                  { value: '1', label: '1st & 3rd Week' },
-                                  { value: '2', label: '2nd & 4th Week' }
-                                ].map((week, index, array) => (
+                                { value: '1', label: '1st & 3rd Week' },
+                                { value: '2', label: '2nd & 4th Week' }
+                              ].map((week, index, array) => (
                                 <button
                                   key={week.value}
                                   type="button"
@@ -3984,11 +3999,11 @@ export default function ScheduledReportsPage() {
                                 </button>
                               ))
                               : [
-                                  { value: '1', label: 'First' },
-                                  { value: '2', label: 'Second' },
-                                  { value: '3', label: 'Third' },
-                                  { value: '5', label: 'Fourth' }
-                                ].map((week, index, array) => (
+                                { value: '1', label: 'First' },
+                                { value: '2', label: 'Second' },
+                                { value: '3', label: 'Third' },
+                                { value: '5', label: 'Fourth' }
+                              ].map((week, index, array) => (
                                 <button
                                   key={week.value}
                                   type="button"
@@ -4017,21 +4032,21 @@ export default function ScheduledReportsPage() {
                       Days of the Week
                     </Label>
                     <div className="flex gap-2">
-                    {daysOfWeek.map((day) => (
-                      <button
+                      {daysOfWeek.map((day) => (
+                        <button
                         key={day}
-                        type="button"
+                          type="button"
                           onClick={() => handleEditDayToggle(day)}
                           className={`px-2 py-1 text-sm rounded-md border transition-colors ${editFormData.selectedDaysOfWeek.includes(day)
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                          }`}
-                      >
-                        {day}
-                      </button>
-                    ))}
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                        >
+                          {day}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
                 )}
 
                 {/* Day of the Week (Single Select) */}
@@ -4167,33 +4182,33 @@ export default function ScheduledReportsPage() {
                             ) : (
                               <>
                                 {timezonesData
-                              .filter(timezone =>
+                                  .filter(timezone =>
                                     timezone.displayName.toLowerCase().includes(timeZoneSearchTerm.toLowerCase())
-                              )
-                              .map((timezone) => (
-                                <button
+                                  )
+                                  .map((timezone) => (
+                                    <button
                                       key={timezone.id}
-                                  type="button"
-                                  onClick={() => {
+                                      type="button"
+                                      onClick={() => {
                                         setEditFormData(prev => ({ ...prev, timeZone: String(timezone.id) }))
                                         setTimezoneTooltip(timezone.displayName)
-                                    setIsEditTimeZoneOpen(false)
-                                    setTimeZoneSearchTerm('')
-                                  }}
-                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50"
-                                >
+                                        setIsEditTimeZoneOpen(false)
+                                        setTimeZoneSearchTerm('')
+                                      }}
+                                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50"
+                                    >
                                       {timezone.displayName}
-                                </button>
-                              ))}
+                                    </button>
+                                  ))}
                                 {timezonesData.filter(timezone =>
                                   timezone.displayName.toLowerCase().includes(timeZoneSearchTerm.toLowerCase())
-                            ).length === 0 && (
-                                <div className="px-3 py-2 text-sm text-gray-500">
-                                  No time zones found
-                                </div>
+                                ).length === 0 && (
+                                    <div className="px-3 py-2 text-sm text-gray-500">
+                                      No time zones found
+                                    </div>
                                   )}
                               </>
-                              )}
+                            )}
                           </div>
                         </div>
                       )}
@@ -4277,7 +4292,7 @@ export default function ScheduledReportsPage() {
 
       {/* Create Scheduled Report Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="max-w-5xl h-[80vh] flex flex-col overflow-hidden">
+        <DialogContent className="max-w-5xl h-[80vh] flex flex-col overflow-hidden" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader className="flex-shrink-0 pb-4 border-b border-gray-200">
             <DialogTitle className="text-xl font-semibold text-black">Create Scheduled Report</DialogTitle>
           </DialogHeader>
@@ -4317,11 +4332,10 @@ export default function ScheduledReportsPage() {
                       type="button"
                       onClick={() => isChannelsOpen ? handleCreateChannelsDropdownClose() : setIsChannelsOpen(true)}
                       disabled={isLoadingChannels}
-                      className={`w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none ${
-                        isLoadingChannels 
-                          ? 'bg-gray-100 cursor-not-allowed opacity-60' 
-                          : 'bg-white hover:bg-gray-50'
-                      }`}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none ${isLoadingChannels
+                        ? 'bg-gray-100 cursor-not-allowed opacity-60'
+                        : 'bg-white hover:bg-gray-50'
+                        }`}
                     >
                       <span className="truncate">
                         {isLoadingChannels ? (
@@ -4329,11 +4343,11 @@ export default function ScheduledReportsPage() {
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                             Loading channels...
                           </span>
-                        ) : createFormData.selectedChannels.length === 0 
+                        ) : createFormData.selectedChannels.length === 0
                           ? "0 channels selected"
                           : createFormData.selectedChannels.length === channelsData.length
                             ? "All Channels"
-                            : createFormData.selectedChannels.length === 1 
+                            : createFormData.selectedChannels.length === 1
                               ? createFormData.selectedChannels[0]
                               : `${createFormData.selectedChannels[0]} + ${createFormData.selectedChannels.length - 1}`
                         }
@@ -4420,9 +4434,8 @@ export default function ScheduledReportsPage() {
                       <RadioGroupItem value="primary" id="primary" />
                       <Label
                         htmlFor="primary"
-                        className={`flex items-center space-x-2 text-sm text-gray-700 ${
-                          isLoadingCompSet ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
-                        }`}
+                        className={`flex items-center space-x-2 text-sm text-gray-700 ${isLoadingCompSet ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                          }`}
                         onClick={isLoadingCompSet ? undefined : handleCreatePrimaryHotelsToggle}
                       >
                         <span className="flex items-center">
@@ -4450,13 +4463,13 @@ export default function ScheduledReportsPage() {
                             </div>
                           ) : (
                             <>
-                          {/* Search Input */}
-                          <div className="p-3 border-b border-gray-200">
-                            <div className="relative">
-                              <input
-                                type="text"
+                              {/* Search Input */}
+                              <div className="p-3 border-b border-gray-200">
+                                <div className="relative">
+                                  <input
+                                    type="text"
                                     placeholder="Search"
-                                value={createPrimarySearchValue}
+                                    value={createPrimarySearchValue}
                                     onChange={handleCreatePrimarySearch}
                                     className="w-full px-3 py-2 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     onClick={(e) => e.stopPropagation()}
@@ -4467,41 +4480,41 @@ export default function ScheduledReportsPage() {
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                     </svg>
                                   </div>
-                            </div>
-                          </div>
-                          
+                                </div>
+                              </div>
+
                               {/* Select All Option */}
-                          <div className="border-b border-gray-200">
-                            <label className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                    checked={createFormData.selectedPrimaryHotels.length === filteredCreatePrimaryHotels.length && filteredCreatePrimaryHotels.length > 0}
-                                onChange={() => handleCreatePrimaryHotelToggle('Select All')}
-                                className="w-4 h-4 mr-3 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 flex-shrink-0"
-                              />
-                              <span className="text-sm text-gray-900 font-medium">All Primary Hotels</span>
-                            </label>
-                          </div>
-                          
-                              {/* Hotel Options */}
-                          <div className="max-h-40 overflow-y-auto">
-                                {filteredCreatePrimaryHotels.map((hotel, index) => (
-                                <label
-                                    key={`primary-${hotel.propertyID}-${hotel.name}-${index}`}
-                                  className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                                >
+                              <div className="border-b border-gray-200">
+                                <label className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
                                   <input
                                     type="checkbox"
-                                      checked={isCreatePrimaryHotelSelected(hotel)}
-                                    onChange={() => handleCreatePrimaryHotelToggle(hotel.hmid)}
+                                    checked={createFormData.selectedPrimaryHotels.length === filteredCreatePrimaryHotels.length && filteredCreatePrimaryHotels.length > 0}
+                                    onChange={() => handleCreatePrimaryHotelToggle('Select All')}
                                     className="w-4 h-4 mr-3 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 flex-shrink-0"
                                   />
-                                  <span className="text-sm text-gray-900 font-medium truncate" title={hotel.name}>
-                                    {hotel.name.length > 32 ? `${hotel.name.substring(0, 32)}...` : hotel.name}
-                                  </span>
+                                  <span className="text-sm text-gray-900 font-medium">All Primary Hotels</span>
                                 </label>
-                              ))}
-                          </div>
+                              </div>
+
+                              {/* Hotel Options */}
+                              <div className="max-h-40 overflow-y-auto">
+                                {filteredCreatePrimaryHotels.map((hotel, index) => (
+                                  <label
+                                    key={`primary-${hotel.propertyID}-${hotel.name}-${index}`}
+                                    className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isCreatePrimaryHotelSelected(hotel)}
+                                      onChange={() => handleCreatePrimaryHotelToggle(hotel.hmid)}
+                                      className="w-4 h-4 mr-3 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 flex-shrink-0"
+                                    />
+                                    <span className="text-sm text-gray-900 font-medium truncate" title={hotel.name}>
+                                      {hotel.name.length > 32 ? `${hotel.name.substring(0, 32)}...` : hotel.name}
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
                             </>
                           )}
                         </div>
@@ -4511,9 +4524,8 @@ export default function ScheduledReportsPage() {
                       <RadioGroupItem value="secondary" id="secondary" />
                       <Label
                         htmlFor="secondary"
-                        className={`flex items-center space-x-2 text-sm text-gray-700 ${
-                          isLoadingCompSet ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
-                        }`}
+                        className={`flex items-center space-x-2 text-sm text-gray-700 ${isLoadingCompSet ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                          }`}
                         onClick={isLoadingCompSet ? undefined : handleCreateSecondaryHotelsToggle}
                       >
                         <span className="flex items-center">
@@ -4541,13 +4553,13 @@ export default function ScheduledReportsPage() {
                             </div>
                           ) : (
                             <>
-                          {/* Search Input */}
-                          <div className="p-3 border-b border-gray-200">
-                            <div className="relative">
-                              <input
-                                type="text"
+                              {/* Search Input */}
+                              <div className="p-3 border-b border-gray-200">
+                                <div className="relative">
+                                  <input
+                                    type="text"
                                     placeholder="Search"
-                                value={createSecondarySearchValue}
+                                    value={createSecondarySearchValue}
                                     onChange={handleCreateSecondarySearch}
                                     className="w-full px-3 py-2 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     onClick={(e) => e.stopPropagation()}
@@ -4558,41 +4570,41 @@ export default function ScheduledReportsPage() {
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                     </svg>
                                   </div>
-                            </div>
-                          </div>
-                          
+                                </div>
+                              </div>
+
                               {/* Select All Option */}
-                          <div className="border-b border-gray-200">
-                            <label className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                    checked={createFormData.selectedSecondaryHotels.length === filteredCreateSecondaryHotels.length && filteredCreateSecondaryHotels.length > 0}
-                                onChange={() => handleCreateSecondaryHotelToggle('Select All')}
-                                className="w-4 h-4 mr-3 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 flex-shrink-0"
-                              />
-                              <span className="text-sm text-gray-900 font-medium">All Secondary Hotels</span>
-                            </label>
-                          </div>
-                          
-                              {/* Hotel Options */}
-                          <div className="max-h-40 overflow-y-auto">
-                                {filteredCreateSecondaryHotels.map((hotel, index) => (
-                                <label
-                                    key={`secondary-${hotel.propertyID}-${hotel.name}-${index}`}
-                                  className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                                >
+                              <div className="border-b border-gray-200">
+                                <label className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
                                   <input
                                     type="checkbox"
-                                      checked={isCreateSecondaryHotelSelected(hotel)}
-                                    onChange={() => handleCreateSecondaryHotelToggle(hotel.hmid)}
+                                    checked={createFormData.selectedSecondaryHotels.length === filteredCreateSecondaryHotels.length && filteredCreateSecondaryHotels.length > 0}
+                                    onChange={() => handleCreateSecondaryHotelToggle('Select All')}
                                     className="w-4 h-4 mr-3 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 flex-shrink-0"
                                   />
-                                  <span className="text-sm text-gray-900 font-medium truncate" title={hotel.name}>
-                                    {hotel.name.length > 32 ? `${hotel.name.substring(0, 32)}...` : hotel.name}
-                                  </span>
+                                  <span className="text-sm text-gray-900 font-medium">All Secondary Hotels</span>
                                 </label>
-                              ))}
-                          </div>
+                              </div>
+
+                              {/* Hotel Options */}
+                              <div className="max-h-40 overflow-y-auto">
+                                {filteredCreateSecondaryHotels.map((hotel, index) => (
+                                  <label
+                                    key={`secondary-${hotel.propertyID}-${hotel.name}-${index}`}
+                                    className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isCreateSecondaryHotelSelected(hotel)}
+                                      onChange={() => handleCreateSecondaryHotelToggle(hotel.hmid)}
+                                      className="w-4 h-4 mr-3 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 flex-shrink-0"
+                                    />
+                                    <span className="text-sm text-gray-900 font-medium truncate" title={hotel.name}>
+                                      {hotel.name.length > 32 ? `${hotel.name.substring(0, 32)}...` : hotel.name}
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
                             </>
                           )}
                         </div>
@@ -4606,11 +4618,11 @@ export default function ScheduledReportsPage() {
 
                 {/* Guests and LOS */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ paddingTop: '13px' }}>
-                {/* Guests */}
-                <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">
-                    Guests<span className="text-red-500 ml-1">*</span>
-                  </Label>
+                  {/* Guests */}
+                  <div>
+                    <Label className="block text-xs font-medium text-gray-700 mb-1">
+                      Guests<span className="text-red-500 ml-1">*</span>
+                    </Label>
                     <div className="relative" ref={guestsRef}>
                       <button
                         type="button"
@@ -4639,16 +4651,16 @@ export default function ScheduledReportsPage() {
                         </div>
                       )}
                     </div>
-                  {createFormErrors.guests && (
-                    <p className="text-red-500 text-xs mt-1">{createFormErrors.guests}</p>
-                  )}
-                </div>
+                    {createFormErrors.guests && (
+                      <p className="text-red-500 text-xs mt-1">{createFormErrors.guests}</p>
+                    )}
+                  </div>
 
-                {/* LOS */}
-                <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">
-                    LOS<span className="text-red-500 ml-1">*</span>
-                  </Label>
+                  {/* LOS */}
+                  <div>
+                    <Label className="block text-xs font-medium text-gray-700 mb-1">
+                      LOS<span className="text-red-500 ml-1">*</span>
+                    </Label>
                     <div className="relative" ref={losRef}>
                       <button
                         type="button"
@@ -4678,51 +4690,51 @@ export default function ScheduledReportsPage() {
                         </div>
                       )}
                     </div>
-                  {createFormErrors.los && (
-                    <p className="text-red-500 text-xs mt-1">{createFormErrors.los}</p>
-                  )}
-                </div>
+                    {createFormErrors.los && (
+                      <p className="text-red-500 text-xs mt-1">{createFormErrors.los}</p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Advance Shop Days and Check-in Dates */}
                 <div className="grid grid-cols-2 gap-4">
-                {/* Advance Shop Days */}
-                <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">
-                    Advance Shop Days<span className="text-red-500 ml-1">*</span>
-                  </Label>
-                  <Input
+                  {/* Advance Shop Days */}
+                  <div>
+                    <Label className="block text-xs font-medium text-gray-700 mb-1">
+                      Advance Shop Days<span className="text-red-500 ml-1">*</span>
+                    </Label>
+                    <Input
                       type="number"
                       min="0"
                       max="30"
-                    value={createFormData.advanceShopDays}
-                    onChange={(e) => setCreateFormData(prev => ({ ...prev, advanceShopDays: e.target.value }))}
-                    className="w-full border border-gray-300 focus:!outline-none focus:!ring-0 focus:!border-gray-300 focus:!shadow-none"
+                      value={createFormData.advanceShopDays}
+                      onChange={(e) => setCreateFormData(prev => ({ ...prev, advanceShopDays: e.target.value }))}
+                      className="w-full border border-gray-300 focus:!outline-none focus:!ring-0 focus:!border-gray-300 focus:!shadow-none"
                       placeholder="Enter Advance shop days"
-                  />
-                  {createFormErrors.advanceShopDays && (
-                    <p className="text-red-500 text-xs mt-1">{createFormErrors.advanceShopDays}</p>
-                  )}
-                </div>
+                    />
+                    {createFormErrors.advanceShopDays && (
+                      <p className="text-red-500 text-xs mt-1">{createFormErrors.advanceShopDays}</p>
+                    )}
+                  </div>
 
-                {/* No. of Check-in Dates */}
-                <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">
-                    No. of Check-in Dates<span className="text-red-500 ml-1">*</span>
-                  </Label>
-                  <Input
+                  {/* No. of Check-in Dates */}
+                  <div>
+                    <Label className="block text-xs font-medium text-gray-700 mb-1">
+                      No. of Check-in Dates<span className="text-red-500 ml-1">*</span>
+                    </Label>
+                    <Input
                       type="number"
                       min="1"
                       max="365"
                       pattern="[0-9]*"
-                    value={createFormData.checkInDates}
-                    onChange={(e) => setCreateFormData(prev => ({ ...prev, checkInDates: e.target.value }))}
-                    className="w-full border border-gray-300 focus:!outline-none focus:!ring-0 focus:!border-gray-300 focus:!shadow-none"
+                      value={createFormData.checkInDates}
+                      onChange={(e) => setCreateFormData(prev => ({ ...prev, checkInDates: e.target.value }))}
+                      className="w-full border border-gray-300 focus:!outline-none focus:!ring-0 focus:!border-gray-300 focus:!shadow-none"
                       placeholder="Enter No. of check-in dates"
-                  />
-                  {createFormErrors.checkInDates && (
-                    <p className="text-red-500 text-xs mt-1">{createFormErrors.checkInDates}</p>
-                  )}
+                    />
+                    {createFormErrors.checkInDates && (
+                      <p className="text-red-500 text-xs mt-1">{createFormErrors.checkInDates}</p>
+                    )}
                   </div>
                 </div>
 
@@ -4735,13 +4747,12 @@ export default function ScheduledReportsPage() {
                     <button
                       type="button"
                       onClick={() => setIsCurrencyOpen(!isCurrencyOpen)}
-                    disabled={isLoadingCurrency}
-                      className={`w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none ${
-                        isLoadingCurrency 
-                          ? 'bg-gray-100 cursor-not-allowed opacity-60' 
-                          : 'bg-white hover:bg-gray-50'
-                      }`}
-                  >
+                      disabled={isLoadingCurrency}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none ${isLoadingCurrency
+                        ? 'bg-gray-100 cursor-not-allowed opacity-60'
+                        : 'bg-white hover:bg-gray-50'
+                        }`}
+                    >
                       <span className="truncate">
                         {isLoadingCurrency ? (
                           <span className="flex items-center">
@@ -4786,7 +4797,7 @@ export default function ScheduledReportsPage() {
                                 }}
                                 className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 min-h-[32px] flex items-center"
                               >
-                          {currency}
+                                {currency}
                               </button>
                             ))}
                           {currenciesData.filter(currency =>
@@ -4810,98 +4821,98 @@ export default function ScheduledReportsPage() {
               <div className="space-y-8">
                 {/* Start Date and End Date in same row */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 mb-4">
-                {/* Start Date */}
-                <div>
+                  {/* Start Date */}
+                  <div>
                     {/* Delivery of Report Heading */}
                     <h3 className="text-sm font-semibold text-gray-800 mb-1 mb-4">Delivery of Report</h3>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">
-                    Start Date<span className="text-red-500 ml-1">*</span>
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      type="text"
-                      value={createFormData.startDate ? format(createFormData.startDate, "dd MMM ''yy") : ""}
-                      disabled
-                      className="w-full border border-gray-300 rounded-md bg-gray-50 text-gray-700 cursor-not-allowed"
-                    />
-                    <CalendarIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  </div>
-                  {createFormErrors.startDate && (
-                    <p className="text-red-500 text-xs mt-1 ml-4">&nbsp;Start date required</p>
-                  )}
-                </div>
-
-                {/* End Date */}
-                  <div className="flex flex-col justify-end h-full">
-                <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">
-                    End Date<span className="text-red-500 ml-1">*</span>
-                  </Label>
-                  <Popover open={isEndDateOpen} onOpenChange={setIsEndDateOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                            className="w-full justify-start text-left font-normal border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {createFormData.endDate ? format(createFormData.endDate, "dd MMM ''yy") : "Select end date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={createFormData.endDate}
-                            onSelect={handleCreateEndDateSelect}
-                        numberOfMonths={1}
-                        initialFocus
-                        defaultMonth={createFormData.startDate || new Date()}
-                        disabled={(date) => {
-                          // Angular equivalent: [min]="startDate" - disable dates before start date
-                          if (createFormData.startDate) {
-                            const startDate = new Date(createFormData.startDate)
-                            startDate.setHours(0, 0, 0, 0)
-                            const dateToCheck = new Date(date)
-                            dateToCheck.setHours(0, 0, 0, 0)
-                            return dateToCheck < startDate
-                          }
-                          
-                          // If no start date selected, disable dates before today
-                          const today = new Date()
-                          today.setHours(0, 0, 0, 0)
-                          const dateToCheck = new Date(date)
-                          dateToCheck.setHours(0, 0, 0, 0)
-                          return dateToCheck < today
-                        }}
-                        fromDate={createFormData.startDate || new Date()}
-                        toDate={(() => {
-                          const pghEndDate = LocalStorageService.getpghEndDate();
-                          if (pghEndDate && pghEndDate !== '0') {
-                            return new Date(pghEndDate);
-                          }
-                          return undefined;
-                        })()}
+                    <Label className="block text-xs font-medium text-gray-700 mb-1">
+                      Start Date<span className="text-red-500 ml-1">*</span>
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        type="text"
+                        value={createFormData.startDate ? format(createFormData.startDate, "dd MMM ''yy") : ""}
+                        disabled
+                        className="w-full border border-gray-300 rounded-md bg-gray-50 text-gray-700 cursor-not-allowed"
                       />
+                      <CalendarIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    </div>
+                    {createFormErrors.startDate && (
+                      <p className="text-red-500 text-xs mt-1 ml-4">&nbsp;Start date required</p>
+                    )}
+                  </div>
+
+                  {/* End Date */}
+                  <div className="flex flex-col justify-end h-full">
+                    <div>
+                      <Label className="block text-xs font-medium text-gray-700 mb-1">
+                        End Date<span className="text-red-500 ml-1">*</span>
+                      </Label>
+                      <Popover open={isEndDateOpen} onOpenChange={setIsEndDateOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start text-left font-normal border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {createFormData.endDate ? format(createFormData.endDate, "dd MMM ''yy") : "Select end date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={createFormData.endDate}
+                            onSelect={handleCreateEndDateSelect}
+                            numberOfMonths={1}
+                            initialFocus
+                            defaultMonth={createFormData.startDate || new Date()}
+                            disabled={(date) => {
+                              // Angular equivalent: [min]="startDate" - disable dates before start date
+                              if (createFormData.startDate) {
+                                const startDate = new Date(createFormData.startDate)
+                                startDate.setHours(0, 0, 0, 0)
+                                const dateToCheck = new Date(date)
+                                dateToCheck.setHours(0, 0, 0, 0)
+                                return dateToCheck < startDate
+                              }
+
+                              // If no start date selected, disable dates before today
+                              const today = new Date()
+                              today.setHours(0, 0, 0, 0)
+                              const dateToCheck = new Date(date)
+                              dateToCheck.setHours(0, 0, 0, 0)
+                              return dateToCheck < today
+                            }}
+                            fromDate={createFormData.startDate || new Date()}
+                            toDate={(() => {
+                              const pghEndDate = LocalStorageService.getpghEndDate();
+                              if (pghEndDate && pghEndDate !== '0') {
+                                return new Date(pghEndDate);
+                              }
+                              return undefined;
+                            })()}
+                          />
                           {createDateError && (
                             <div className="p-3 text-sm text-red-600 bg-red-50 border-t border-red-200">
                               {createDateError}
                             </div>
                           )}
-                    </PopoverContent>
-                  </Popover>
-                  {createFormErrors.endDate && (
-                    <p className="text-red-500 text-xs mt-1 ml-4">&nbsp;End date required</p>
-                  )}
+                        </PopoverContent>
+                      </Popover>
+                      {createFormErrors.endDate && (
+                        <p className="text-red-500 text-xs mt-1 ml-4">&nbsp;End date required</p>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 {/* Frequency and Week Selection */}
                 <div className="grid grid-cols-2 gap-2">
-                {/* Frequency */}
+                  {/* Frequency */}
                   <div className={createFormData.frequency === 'fortnightly' || createFormData.frequency === 'monthly' ? 'col-span-1' : 'col-span-2'}>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">
-                    Frequency<span className="text-red-500 ml-1">*</span>
-                  </Label>
+                    <Label className="block text-xs font-medium text-gray-700 mb-1">
+                      Frequency<span className="text-red-500 ml-1">*</span>
+                    </Label>
                     <div className="relative" ref={frequencyRef}>
                       <button
                         type="button"
@@ -4910,9 +4921,9 @@ export default function ScheduledReportsPage() {
                       >
                         <span className="capitalize">
                           {createFormData.frequency === '1' ? 'Daily' :
-                           createFormData.frequency === '2' ? 'Weekly' :
-                           createFormData.frequency === '3' ? 'Fortnightly' :
-                           createFormData.frequency === '4' ? 'Monthly' : createFormData.frequency}
+                            createFormData.frequency === '2' ? 'Weekly' :
+                              createFormData.frequency === '3' ? 'Fortnightly' :
+                                createFormData.frequency === '4' ? 'Monthly' : createFormData.frequency}
                         </span>
                         <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isFrequencyOpen ? 'rotate-180' : ''}`} />
                       </button>
@@ -4941,17 +4952,17 @@ export default function ScheduledReportsPage() {
                         </div>
                       )}
                     </div>
-                  {createFormErrors.frequency && (
-                    <p className="text-red-500 text-xs mt-1">{createFormErrors.frequency}</p>
-                  )}
-                </div>
+                    {createFormErrors.frequency && (
+                      <p className="text-red-500 text-xs mt-1">{createFormErrors.frequency}</p>
+                    )}
+                  </div>
 
                   {/* Week Selection - Conditional */}
                   {(createFormData.frequency === '3' || createFormData.frequency === '4') && (
-                  <div>
-                    <Label className="block text-xs font-medium text-gray-700 mb-1">
+                    <div>
+                      <Label className="block text-xs font-medium text-gray-700 mb-1">
                         {createFormData.frequency === '3' ? 'Weeks' : 'Week'}<span className="text-red-500 ml-1">*</span>
-                    </Label>
+                      </Label>
                       <div className="relative" ref={weekSelectionRef}>
                         <button
                           type="button"
@@ -4959,12 +4970,12 @@ export default function ScheduledReportsPage() {
                           className="w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none"
                         >
                           <span className="text-sm">
-                            {createFormData.frequency === '3' 
+                            {createFormData.frequency === '3'
                               ? (createFormData.weekSelection === '1' ? '1st & 3rd Week' : '2nd & 4th Week')
                               : (createFormData.weekSelection === '1' ? 'First' :
-                                 createFormData.weekSelection === '2' ? 'Second' :
-                                 createFormData.weekSelection === '3' ? 'Third' :
-                                 createFormData.weekSelection === '5' ? 'Fourth' : createFormData.weekSelection)
+                                createFormData.weekSelection === '2' ? 'Second' :
+                                  createFormData.weekSelection === '3' ? 'Third' :
+                                    createFormData.weekSelection === '5' ? 'Fourth' : createFormData.weekSelection)
                             }
                           </span>
                           <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isWeekSelectionOpen ? 'rotate-180' : ''}`} />
@@ -4974,9 +4985,9 @@ export default function ScheduledReportsPage() {
                           <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
                             {createFormData.frequency === '3'
                               ? [
-                                  { value: '1', label: '1st & 3rd Week' },
-                                  { value: '2', label: '2nd & 4th Week' }
-                                ].map((week, index, array) => (
+                                { value: '1', label: '1st & 3rd Week' },
+                                { value: '2', label: '2nd & 4th Week' }
+                              ].map((week, index, array) => (
                                 <button
                                   key={week.value}
                                   type="button"
@@ -4991,11 +5002,11 @@ export default function ScheduledReportsPage() {
                                 </button>
                               ))
                               : [
-                                  { value: '1', label: 'First' },
-                                  { value: '2', label: 'Second' },
-                                  { value: '3', label: 'Third' },
-                                  { value: '5', label: 'Fourth' }
-                                ].map((week, index, array) => (
+                                { value: '1', label: 'First' },
+                                { value: '2', label: 'Second' },
+                                { value: '3', label: 'Third' },
+                                { value: '5', label: 'Fourth' }
+                              ].map((week, index, array) => (
                                 <button
                                   key={week.value}
                                   type="button"
@@ -5035,9 +5046,9 @@ export default function ScheduledReportsPage() {
                             className={`px-2 py-1 text-sm rounded-md border transition-colors ${isSelected
                               ? 'bg-blue-600 text-white border-blue-600'
                               : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          {day}
+                              }`}
+                          >
+                            {day}
                           </button>
                         )
                       })}
@@ -5062,8 +5073,8 @@ export default function ScheduledReportsPage() {
                             onClick={() => handleCreateDayToggle(day)}
                             className={`px-2 py-1 text-sm rounded-md border transition-colors ${isSelected
                               ? 'bg-blue-600 text-white border-blue-600'
-                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                            }`}
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                              }`}
                           >
                             {day}
                           </button>
@@ -5075,11 +5086,11 @@ export default function ScheduledReportsPage() {
 
                 {/* Delivery Time, AM/PM, Time Zone */}
                 <div className="grid grid-cols-3 gap-4">
-                {/* Delivery Time */}
-                <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">
-                    Delivery Time<span className="text-red-500 ml-1">*</span>
-                  </Label>
+                  {/* Delivery Time */}
+                  <div>
+                    <Label className="block text-xs font-medium text-gray-700 mb-1">
+                      Delivery Time<span className="text-red-500 ml-1">*</span>
+                    </Label>
                     <div className="relative" ref={deliveryTimeRef}>
                       <button
                         type="button"
@@ -5095,7 +5106,7 @@ export default function ScheduledReportsPage() {
                           {deliveryTimesData.map((time) => (
                             <button
                               key={time}
-                        type="button"
+                              type="button"
                               onClick={() => {
                                 setCreateFormData(prev => ({ ...prev, deliveryTime: time }))
                                 setIsDeliveryTimeOpen(false)
@@ -5105,13 +5116,13 @@ export default function ScheduledReportsPage() {
                               {time}
                             </button>
                           ))}
-                    </div>
+                        </div>
                       )}
+                    </div>
+                    {createFormErrors.deliveryTime && (
+                      <p className="text-red-500 text-xs mt-1">{createFormErrors.deliveryTime}</p>
+                    )}
                   </div>
-                  {createFormErrors.deliveryTime && (
-                    <p className="text-red-500 text-xs mt-1">{createFormErrors.deliveryTime}</p>
-                  )}
-                </div>
 
                   {/* AM/PM Toggle */}
                   <div>
@@ -5140,13 +5151,13 @@ export default function ScheduledReportsPage() {
                         PM
                       </button>
                     </div>
-                </div>
+                  </div>
 
-                {/* Time Zone */}
-                <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">
-                    Time Zone<span className="text-red-500 ml-1">*</span>
-                  </Label>
+                  {/* Time Zone */}
+                  <div>
+                    <Label className="block text-xs font-medium text-gray-700 mb-1">
+                      Time Zone<span className="text-red-500 ml-1">*</span>
+                    </Label>
                     <div className="relative" ref={timeZoneRef}>
                       <button
                         type="button"
@@ -5213,9 +5224,9 @@ export default function ScheduledReportsPage() {
                         </div>
                       )}
                     </div>
-                  {createFormErrors.timeZone && (
-                    <p className="text-red-500 text-xs mt-1">{createFormErrors.timeZone}</p>
-                  )}
+                    {createFormErrors.timeZone && (
+                      <p className="text-red-500 text-xs mt-1">{createFormErrors.timeZone}</p>
+                    )}
                   </div>
                 </div>
 
@@ -5230,8 +5241,8 @@ export default function ScheduledReportsPage() {
                         <button
                           onClick={() => {
                             setCreateFormData(prev => ({
-                            ...prev,
-                            recipients: prev.recipients.filter((_, i) => i !== index)
+                              ...prev,
+                              recipients: prev.recipients.filter((_, i) => i !== index)
                             }))
                           }}
                           className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
@@ -5297,13 +5308,12 @@ export default function ScheduledReportsPage() {
       {/* First Snackbar */}
       {showSnackbar && (
         <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div className={`px-6 py-3 rounded-lg shadow-lg flex items-center gap-4 min-w-96 ${
-            snackbarType === 'error' 
-              ? 'bg-red-600 text-white' 
-              : snackbarType === 'warning'
+          <div className={`px-6 py-3 rounded-lg shadow-lg flex items-center gap-4 min-w-96 ${snackbarType === 'error'
+            ? 'bg-red-600 text-white'
+            : snackbarType === 'warning'
               ? 'bg-yellow-600 text-white'
               : 'bg-blue-600 text-white'
-          }`}>
+            }`}>
             <div className="flex items-center gap-3">
               <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
                 {snackbarType === 'error' ? (
@@ -5328,13 +5338,12 @@ export default function ScheduledReportsPage() {
               onClick={handleSnackbarOk}
               variant="outline"
               size="sm"
-              className={`px-4 py-1 h-8 text-sm font-medium ${
-                snackbarType === 'error' 
-                  ? 'bg-white text-red-600 border-white hover:bg-gray-100' 
-                  : snackbarType === 'warning'
+              className={`px-4 py-1 h-8 text-sm font-medium ${snackbarType === 'error'
+                ? 'bg-white text-red-600 border-white hover:bg-gray-100'
+                : snackbarType === 'warning'
                   ? 'bg-white text-yellow-600 border-white hover:bg-gray-100'
                   : 'bg-white text-blue-600 border-white hover:bg-gray-100'
-              }`}
+                }`}
             >
               OK
             </Button>
