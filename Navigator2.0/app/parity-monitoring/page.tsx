@@ -526,7 +526,7 @@ function ParityMonitoringContent() {
 
       // Calculate violations from checkInDateWiseRates
       const checkInDateWiseRates = channel.checkInDateWiseRates || []
-      const totalCheckInDates = checkInDateWiseRates.length
+      const totalCheckInDates = total
 
       // Count rate violations (true rateViolation values)
       const rateViolationCount = checkInDateWiseRates.filter((rate: any) => rate.rateViolation === true).length
@@ -572,11 +572,21 @@ function ParityMonitoringContent() {
   }
 
   // Get benchmark channel info
+  // Helper function to convert to PascalCase (Title Case)
+  const toPascalCase = (str: string) => {
+    if (!str) return str;
+    // Split by common separators and convert each word to title case
+    return str
+      .split(/[-_\s]+/) // Split by hyphens, underscores, or spaces
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join('');
+  }
+
   const benchmarkChannel = useMemo(() => {
     if (brgSettingData != null) {
       return {
         channelId: brgSettingData?.otaBench,
-        channelName: brgSettingData?.otaBenchName,
+        channelName: toPascalCase(brgSettingData?.otaBenchName),
         isBrand: true
       }
     }
