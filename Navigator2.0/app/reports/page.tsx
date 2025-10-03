@@ -1749,11 +1749,11 @@ export default function ReportsPage() {
                                         className={`flex items-center gap-2 ${report.reportID === 999999999 ? 'cursor-default' : 'cursor-pointer group'}`}
                                         onClick={report.reportID === 999999999 ? undefined : () => onReportData(report.reportID, index)}
                                       >
-                                        <span className={`${report.reportID === 999999999 ? 'text-gray-500' : 'text-blue-600 group-hover:text-blue-800'} font-medium`}>
+                                        <span className={`${report.reportID === 999999999 ? 'text-gray-500' : 'text-blue-600 group-hover:text-blue-800'} font-medium inline-block min-w-[60px]`}>
                                           {report.reportID === 999999999 ? "##" : report.reportID}
                                         </span>
                                         {report.reportID !== 999999999 && (
-                                          <div className="w-4 h-4 border border-blue-600 dark:border-blue-600 rounded-full flex items-center justify-center group-hover:border-blue-700 transition-colors">
+                                          <div className="w-4 h-4 border border-blue-600 dark:border-blue-600 rounded-full flex items-center justify-center group-hover:border-blue-700 transition-colors flex-shrink-0">
                                             {isExpanded ? (
                                               <ChevronUp className="w-2.5 h-2.5 text-blue-600 group-hover:text-blue-700" strokeWidth="2.5" />
                                             ) : (
