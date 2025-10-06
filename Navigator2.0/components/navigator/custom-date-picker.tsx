@@ -10,18 +10,20 @@ interface CustomDatePickerProps {
   onChange: (date: string) => void
   placeholder?: string
   className?: string
+  minDate?: string
+  maxDate?: string
 }
 
-export function CustomDatePicker({ value, onChange, placeholder = "Select start date", className }: CustomDatePickerProps) {
+export function CustomDatePicker({ value, onChange, placeholder = "Select start date", className, minDate, maxDate }: CustomDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [currentMonth, setCurrentMonth] = useState(new Date())
   
   const today = new Date()
   const selectedDate = value ? new Date(value) : null
   
-  // Calculate maximum date (1 year from today)
-  const maxDate = new Date(today)
-  maxDate.setFullYear(today.getFullYear() + 1)
+  // Use provided minDate/maxDate or default to today and 1 year from today
+  const minDateObj = minDate ? new Date(minDate) : today
+  const maxDateObj = maxDate ? new Date(maxDate) : new Date(today.getFullYear() + 1, today.getMonth(), today.getDate())
   
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
@@ -62,8 +64,8 @@ export function CustomDatePicker({ value, onChange, placeholder = "Select start 
   
   const handlePreviousMonth = () => {
     const previousMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1)
-    // Don't allow navigation to months before current month
-    if (previousMonth >= new Date(today.getFullYear(), today.getMonth())) {
+    // Don't allow navigation to months before min date month
+    if (previousMonth >= new Date(minDateObj.getFullYear(), minDateObj.getMonth())) {
       setCurrentMonth(previousMonth)
     }
   }
@@ -71,7 +73,7 @@ export function CustomDatePicker({ value, onChange, placeholder = "Select start 
   const handleNextMonth = () => {
     const nextMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1)
     // Don't allow navigation beyond the month containing the max date
-    if (nextMonth <= new Date(maxDate.getFullYear(), maxDate.getMonth())) {
+    if (nextMonth <= new Date(maxDateObj.getFullYear(), maxDateObj.getMonth())) {
       setCurrentMonth(nextMonth)
     }
   }
@@ -90,15 +92,15 @@ export function CustomDatePicker({ value, onChange, placeholder = "Select start 
   }
   
   const isPastDate = (date: Date) => {
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+    const minDateStart = new Date(minDateObj.getFullYear(), minDateObj.getMonth(), minDateObj.getDate())
     const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-    return dateStart < todayStart
+    return dateStart < minDateStart
   }
   
   const isFutureDate = (date: Date) => {
-    const maxDateStart = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate())
+    const maxDateStart = new Date(maxDateObj.getFullYear(), maxDateObj.getMonth(), maxDateObj.getDate())
     const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-    return dateStart >= maxDateStart
+    return dateStart > maxDateStart
   }
   
   const isDateDisabled = (date: Date) => {
@@ -134,10 +136,10 @@ export function CustomDatePicker({ value, onChange, placeholder = "Select start 
           <div className="flex items-center justify-between mb-4">
             <button
               onClick={handlePreviousMonth}
-              disabled={currentMonth <= new Date(today.getFullYear(), today.getMonth())}
+              disabled={currentMonth <= new Date(minDateObj.getFullYear(), minDateObj.getMonth())}
               className={cn(
                 "p-1 rounded transition-colors",
-                currentMonth <= new Date(today.getFullYear(), today.getMonth())
+                currentMonth <= new Date(minDateObj.getFullYear(), minDateObj.getMonth())
                   ? "cursor-not-allowed opacity-50"
                   : "hover:bg-gray-100 dark:hover:bg-gray-800"
               )}
@@ -151,10 +153,10 @@ export function CustomDatePicker({ value, onChange, placeholder = "Select start 
             
             <button
               onClick={handleNextMonth}
-              disabled={currentMonth >= new Date(maxDate.getFullYear(), maxDate.getMonth())}
+              disabled={currentMonth >= new Date(maxDateObj.getFullYear(), maxDateObj.getMonth())}
               className={cn(
                 "p-1 rounded transition-colors",
-                currentMonth >= new Date(maxDate.getFullYear(), maxDate.getMonth())
+                currentMonth >= new Date(maxDateObj.getFullYear(), maxDateObj.getMonth())
                   ? "cursor-not-allowed opacity-50"
                   : "hover:bg-gray-100 dark:hover:bg-gray-800"
               )}
