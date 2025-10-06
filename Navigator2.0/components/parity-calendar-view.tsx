@@ -367,7 +367,6 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
     setIsLoading(true)
 
     try {
-      debugger;
       // Work directly with API response structure
       const channels = parityDataMain?.otaViolationChannelRate?.violationChannelRatesCollection || []
       setParityData(channels)
@@ -488,7 +487,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
     switch (status) {
       case 'L': return 'bg-red-100 text-red-800 border-red-300' // Loss - Red
       case 'W': return 'bg-orange-100 text-orange-800 border-orange-300' // Win - Orange  
-      case 'M': return 'bg-blue-100 text-blue-800 border-blue-300' // Meet - Blue (default)
+      case 'M': return 'bg-green-100 text-green-800 border-green-300' // Meet - Blue (default)
       default: return 'bg-blue-100 text-blue-800 border-blue-300'
     }
   }
@@ -515,56 +514,32 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
   // Get benchmark cell color based on special rules
   const getBenchmarkCellColor = (dateString: string | Date, defaultResult: string, defaultScore?: number, isBrand?: boolean) => {
     const dateObj = dateString instanceof Date ? dateString : new Date(dateString)
-
-    // Get all channel results for this specific date
-    const allResults: string[] = []
-
-    if (parityData && Array.isArray(parityData)) {
-      parityData.forEach((channel, index) => {
-        // Skip the benchmark channel itself
-        if (channel.isBrand) return
-
-        if (channel && channel.checkInDateWiseRates && Array.isArray(channel.checkInDateWiseRates)) {
-          const dayData = channel.checkInDateWiseRates.find((day: ApiDailyData) => {
-            if (!day || !day.checkInDate) return false
-            const dayDate = new Date(day.checkInDate)
-            return !isNaN(dayDate.getTime()) && dayDate.getTime() === dateObj.getTime()
-          })
-          if (dayData) {
-            const result = getChannelResult(channel.channelWisewinMeetLoss)
-            allResults.push(result)
-          }
-        }
-      })
-    }
-
+   debugger;
+    const allResults = parityScoreData.find(x => format(x.checkInDate, 'dd/MM/yyyy') === format(dateObj, 'dd/MM/yyyy'))
     // Apply benchmark row rules
     if (allResults.length === 0) {
-      return getStatusColorClass("M") // Default to Meet if no data
+      return getStatusColorClass("") // Default to Meet if no data
     }
 
     // Rule 1: If any channel shows Loss → benchmark cell = Red (Loss)
-    if (allResults.includes('L')) {
+    if (allResults?.lossCount>0) {
       return getStatusColorClass("L")
     }
 
     // Rule 2: If all channels show Win → benchmark cell = Orange (Win)
-    if (allResults.every(result => result === 'W')) {
-      return getStatusColorClass("W")
-    }
-
-    // Rule 3: If all channels show Meet → benchmark cell = Green (Meet)
-    if (allResults.every(result => result === 'M')) {
+    if (allResults?.meetCount>0) {
       return getStatusColorClass("M")
     }
 
-    // Rule 4: If mix of Win & Meet → benchmark cell = Orange (Win)
-    if (allResults.includes('W') && allResults.includes('M') && !allResults.includes('L')) {
+    // Rule 3: If all channels show Meet → benchmark cell = Green (Meet)
+    if (allResults?.winCount>0) {
       return getStatusColorClass("W")
     }
 
+    // Rule 4: If mix of Win & Meet → benchmark cell = Orange (Win)
+   
     // Default fallback
-    return getStatusColorClass("M")
+    return getStatusColorClass("")
   }
 
   const getResultColor = (result: string, score?: number, isHotel?: boolean, date?: string | Date, channelIndex?: number) => {
@@ -1216,7 +1191,6 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                 }}
                               >
                                 {(() => {
-                                  debugger;
                                   let score = channel.channelWisewinMeetLoss?.parityScore || 0
 
                                   // Special handling for brand channels that might have different data structure
