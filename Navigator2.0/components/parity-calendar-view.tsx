@@ -774,20 +774,20 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
           violationText = 'R'
         }
 
-        // Get room type and inclusions - EXACT same logic as UI
+        // Get room type and inclusions - no default values
         const roomType = dayData.toolTipProductName || ''
-        const formattedRoom = roomType ? formatRoomText(roomType) : '--'
-        const inclusion = dayData.inclusion || 'WiFi+Breakfast'
+        const formattedRoom = roomType ? formatRoomText(roomType) : ''
+        const inclusion = dayData.inclusion || ''
 
-        // Get benchmark room type and inclusions
+        // Get benchmark room type and inclusions - no default values
         const benchmarkRoomType = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
           const rateDate = new Date(rate.checkInDate)
           return rateDate.getTime() === currentDate.getTime()
-        })?.toolTipProductName || 'DLX'
+        })?.toolTipProductName || ''
         const benchmarkInclusion = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
           const rateDate = new Date(rate.checkInDate)
           return rateDate.getTime() === currentDate.getTime()
-        })?.inclusion || 'WiFi+Breakfast'
+        })?.inclusion || ''
 
         // Get result status (Win/Meet/Loss) - EXACT same logic as UI
         // UI uses: dayData.parityVsBaseLine for date-specific W/M/L
@@ -795,13 +795,27 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
         const resultText = result === 'W' ? 'Win' : result === 'L' ? 'Loss' : 'Meet'
 
         // Build the detailed format: Benchmark: rate (room, inclusion) | OTA: rate (room, inclusion) | Diff: difference | Violation | Result
-        const benchmarkPart = `Benchmark: ${formatNumber(benchmarkRate)} (${benchmarkRoomType}, ${benchmarkInclusion})`
-        const otaPart = `OTA: ${truncatedRate} (${formattedRoom}, ${inclusion})`
+        // Only include room and inclusion if data is available
+        const benchmarkRoomInclusion = (benchmarkRoomType || benchmarkInclusion) 
+          ? ` (${benchmarkRoomType}${benchmarkRoomType && benchmarkInclusion ? ', ' : ''}${benchmarkInclusion})`
+          : ''
+        const benchmarkPart = `Benchmark: ${formatNumber(benchmarkRate)}${benchmarkRoomInclusion}`
+        
+        const otaRoomInclusion = (formattedRoom || inclusion) 
+          ? ` (${formattedRoom}${formattedRoom && inclusion ? ', ' : ''}${inclusion})`
+          : ''
+        const otaPart = `OTA: ${truncatedRate}${otaRoomInclusion}`
+        
         const diffPart = `Diff: ${differenceText}`
         const violationPart = violationText ? `${violationText} |` : ''
         const resultPart = resultText
 
-        return `${benchmarkPart} | ${otaPart} | ${diffPart} | ${violationPart} ${resultPart}`
+        // For benchmark channels, don't include OTA part
+        if (isBenchmark) {
+          return `${benchmarkPart} | ${diffPart} | ${violationPart} ${resultPart}`
+        } else {
+          return `${benchmarkPart} | ${otaPart} | ${diffPart} | ${violationPart} ${resultPart}`
+        }
       })
 
       return [
