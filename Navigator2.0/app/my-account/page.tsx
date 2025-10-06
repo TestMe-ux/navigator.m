@@ -92,6 +92,17 @@ export default function MyAccountPage() {
         e.target.value = ""; // Clear the file input
         return;
       }
+      const maxSizeMB = 10;
+      const maxSizeBytes = maxSizeMB * 1024 * 1024;
+      if (ProfilePic.size > maxSizeBytes) {
+        toast({
+          description: `File size too large. Maximum allowed size is 10 MB.`,
+          variant: "error",
+          duration: 3000,
+        });
+        e.target.value = "";
+        return;
+      }
       try {
         var form_data = new FormData();
         form_data.append("flag", "1");
@@ -108,13 +119,13 @@ export default function MyAccountPage() {
           console.log("Image uploaded successfully:", imageResponse.body);
         } else {
           toast({
-            description: "Image upload failed!!",
+            description: "Unable to upload profile picture. Please try again later.",
             variant: "error",
             duration: 3000,
           });
         }
       } catch (error) {
-        console.error("Image upload failed:", error);
+        console.error("Unable to upload profile picture. Please try again later.", error);
       } finally {
         e.target.value = "";
       }
