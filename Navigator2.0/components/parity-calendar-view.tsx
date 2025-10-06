@@ -776,20 +776,20 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
           : ''
         const benchmarkPart = `Benchmark: ${formatNumber(benchmarkRate)}${benchmarkRoomInclusion}`
         
-        const otaRoomInclusion = (formattedRoom || inclusion) 
+        const channelRoomInclusion = (formattedRoom || inclusion) 
           ? ` (${formattedRoom}${formattedRoom && inclusion ? ', ' : ''}${inclusion})`
           : ''
-        const otaPart = `OTA: ${truncatedRate}${otaRoomInclusion}`
+        const channelPart = `${channel.channelName}: ${truncatedRate}${channelRoomInclusion}`
         
         const diffPart = `Diff: ${differenceText}`
         const violationPart = violationText ? `${violationText} |` : ''
         const resultPart = resultText
 
-        // For benchmark channels, don't include OTA part
+        // For benchmark channels, don't include channel part
         if (isBenchmark) {
           return `${benchmarkPart} | ${diffPart} | ${violationPart} ${resultPart}`
         } else {
-          return `${benchmarkPart} | ${otaPart} | ${diffPart} | ${violationPart} ${resultPart}`
+          return `${benchmarkPart} | ${channelPart} | ${diffPart} | ${violationPart} ${resultPart}`
         }
       })
 
