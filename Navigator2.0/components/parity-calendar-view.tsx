@@ -1891,21 +1891,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                                           return rateDate.getTime() === new Date(dayData.checkInDate).getTime()
                                                         })?.rate || 0
 
-                                                              // Check if benchmark rate is "--" (sold out or no data)
-                                                              const isBenchmarkRateUnavailable = benchmarkRate === 0 && (
-                                                                benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
-                                                                  const rateDate = new Date(rate.checkInDate)
-                                                                  return rateDate.getTime() === new Date(dayData.checkInDate).getTime()
-                                                                })?.statusMessage === "Closed" ||
-                                                                benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
-                                                                  const rateDate = new Date(rate.checkInDate)
-                                                                  return rateDate.getTime() === new Date(dayData.checkInDate).getTime()
-                                                                })?.statusMessage !== "Closed"
-                                                              )
-
-                                                              // Hide difference if benchmark rate is unavailable
-                                                              if (isBenchmarkRateUnavailable) return ''
-                                                        
+                                                        // Always show difference section, even for sold out rates
                                                         const channelRate = dayData.rate || 0
                                                         const difference = benchmarkRate - channelRate
                                                         
@@ -1961,21 +1947,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                                           return rateDate.getTime() === new Date(dayData.checkInDate).getTime()
                                                         })?.rate || 0
 
-                                                              // Check if benchmark rate is "--" (sold out or no data)
-                                                              const isBenchmarkRateUnavailable = benchmarkRate === 0 && (
-                                                                benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
-                                                                  const rateDate = new Date(rate.checkInDate)
-                                                                  return rateDate.getTime() === new Date(dayData.checkInDate).getTime()
-                                                                })?.statusMessage === "Closed" ||
-                                                                benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
-                                                                  const rateDate = new Date(rate.checkInDate)
-                                                                  return rateDate.getTime() === new Date(dayData.checkInDate).getTime()
-                                                                })?.statusMessage !== "Closed"
-                                                              )
-
-                                                              // Hide difference if benchmark rate is unavailable
-                                                              if (isBenchmarkRateUnavailable) return ''
-                                                        
+                                                        // Always show difference section, even for sold out rates
                                                         const channelRate = dayData.rate || 0
                                                         const difference = benchmarkRate - channelRate  // Benchmark rate - Channel rate
                                                         
