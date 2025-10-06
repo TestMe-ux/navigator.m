@@ -93,7 +93,7 @@ export default function MyAccountPage() {
         return;
       }
       const maxSizeMB = 10;
-      const maxSizeBytes = maxSizeMB * 1024 * 1024;
+      const maxSizeBytes = maxSizeMB * 1000 * 1000;
       if (ProfilePic.size > maxSizeBytes) {
         toast({
           description: `File size too large. Maximum allowed size is 10 MB.`,
