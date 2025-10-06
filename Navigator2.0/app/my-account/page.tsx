@@ -82,6 +82,16 @@ export default function MyAccountPage() {
         console.warn("No file selected");
         return;
       }
+      const allowedTypes = ["image/jpeg", "image/png"];
+      if (!allowedTypes.includes(ProfilePic.type)) {
+        toast({
+          description: "Invalid file format. Please upload a JPG or PNG image.",
+          variant: "error",
+          duration: 3000,
+        });
+        e.target.value = ""; // Clear the file input
+        return;
+      }
       try {
         var form_data = new FormData();
         form_data.append("flag", "1");
@@ -109,18 +119,6 @@ export default function MyAccountPage() {
         e.target.value = "";
       }
     }
-    // const file = event.target.files?.[0]
-    // if (file) {
-    //   // For demo purposes, set the dummy image instantly
-    //   setProfileImage(dummyGirlImage)
-
-    //   // Also process the actual file (commented out for now to use dummy)
-    //   // const reader = new FileReader()
-    //   // reader.onload = (e) => {
-    //   //   setProfileImage(e.target?.result as string)
-    //   // }
-    //   // reader.readAsDataURL(file)
-    // }
   }
   const handleRemoveImage = () => {
     handleAddUser(undefined);
@@ -537,7 +535,7 @@ export default function MyAccountPage() {
                         <input
                           id="profile-image-input"
                           type="file"
-                          accept="image/*"
+                          accept="image/jpeg,image/png"
                           onChange={handleImageUpload}
                           className="hidden"
                         />

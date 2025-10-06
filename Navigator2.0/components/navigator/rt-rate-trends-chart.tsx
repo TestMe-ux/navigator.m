@@ -618,7 +618,7 @@ function CustomXAxisTick({ x, y, payload, data }: CustomXAxisTickProps) {
               <Star className="w-3 h-3 text-amber-500 fill-current" />
             </div>
           </foreignObject>
-          <title>{(() => {
+          {/* <title>{(() => {
             // Generate event name based on date
             const date = new Date(payload.value)
             const dayOfMonth = date.getDate()
@@ -631,7 +631,7 @@ function CustomXAxisTick({ x, y, payload, data }: CustomXAxisTickProps) {
             if (dayOfMonth % 3 === 0) return "Regular Event    +2"
 
             return "Special Event    +2"
-          })()}</title>
+          })()}</title> */}
         </g>
       )}
     </g>
