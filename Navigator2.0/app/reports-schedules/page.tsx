@@ -102,43 +102,7 @@ interface EditScheduleModel {
   universalId: number
 }
 
-// Mock data for channels (independent copy)
-const scheduledChannelsData = [
-  "All Channels",
-  "Agoda",
-  "AgodaID",
-  "AgodaIN",
-  "AgodaUS",
-  "Booking_Member",
-  "Booking.com",
-  "BookingAE",
-  "Expedia",
-  "Hotels.com",
-  "Priceline",
-  "Travelocity"
-]
 
-// Mock data for hotels (independent copy)
-const scheduledPrimaryHotelsData = [
-  'All Primary Hotels', 'Marriott Executive Apartments Mayfair', 'Chaidee Mansion',
-  'Sukhumvit 12 Bangkok Hotel', 'Holiday Inn Bangkok Silom', 'Marriott Executive Apartments Sukhumvit Park',
-  'Grand Palace Hotel', 'Bangkok Marriott Hotel Sukhumvit', 'The Peninsula Bangkok',
-  'Mandarin Oriental Bangkok', 'Shangri-La Hotel Bangkok'
-]
-
-const scheduledSecondaryHotelsData = [
-  'All Secondary Hotels', 'Anantara Siam Bangkok Hotel', 'The St. Regis Bangkok',
-  'Four Seasons Hotel Bangkok', 'InterContinental Bangkok', 'Hilton Bangkok',
-  'Hyatt Regency Bangkok', 'Novotel Bangkok Sukhumvit', 'Pullman Bangkok King Power',
-  'Centara Grand at CentralWorld', 'Amari Watergate Bangkok'
-]
-
-// Mock data for currencies
-const currenciesData = [
-  'THB', 'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'HKD',
-  'SGD', 'KRW', 'INR', 'MYR', 'PHP', 'VND', 'IDR', 'TWD', 'NZD', 'SEK',
-  'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'RUB', 'ZAR', 'BRL', 'MXN', 'AED'
-]
 
 // Function to format time with leading zero
 const formatTime = (value: number): string => {
@@ -421,6 +385,7 @@ export default function ScheduledReportsPage() {
     deliveryTime: '',
     timeZone: '',
     frequency: '',
+    daysOfWeek: '',
     weekSelection: '',
     recipients: ''
   })
@@ -440,6 +405,7 @@ export default function ScheduledReportsPage() {
     deliveryTime: '',
     timeZone: '',
     frequency: '',
+    daysOfWeek: '',
     weekSelection: '',
     recipients: ''
   })
@@ -632,6 +598,10 @@ export default function ScheduledReportsPage() {
       }
       if (losRef.current && !losRef.current.contains(event.target as Node)) {
         setIsLosOpen(false)
+      }
+      if (currencyRef.current && !currencyRef.current.contains(event.target as Node)) {
+        setIsCurrencyOpen(false)
+        setCurrencySearchTerm('')
       }
       if (frequencyRef.current && !frequencyRef.current.contains(event.target as Node)) {
         setIsFrequencyOpen(false)
@@ -948,6 +918,7 @@ export default function ScheduledReportsPage() {
       deliveryTime: '',
       timeZone: '',
       frequency: '',
+      daysOfWeek: '',
       weekSelection: '',
       recipients: ''
     })
@@ -1064,10 +1035,9 @@ export default function ScheduledReportsPage() {
         console.log('Retry - Days of delivery from API:', pendingEditData.daysOfDelivery)
         pendingEditData.daysOfDelivery.split(',').forEach((dayNumber: string) => {
           console.log('Retry - Processing day number:', dayNumber)
-          const dayName = getDayName(parseInt(dayNumber))
-          console.log('Retry - Converted to day name:', dayName)
-          if (dayName) {
-            retrySelectedDaysOfWeek.push(getFullDayName(dayName))
+          // Store the numeric value directly instead of converting to day name
+          if (dayNumber.trim()) {
+            retrySelectedDaysOfWeek.push(dayNumber.trim())
           }
         })
       }
@@ -1096,6 +1066,13 @@ export default function ScheduledReportsPage() {
     }
   }, [channelsData, primaryHotelsData, secondaryHotelsData, pendingEditData, isEditModalOpen])
 
+  // Keep pendingFormData in sync with createFormData when mapping conflicts popup is open
+  useEffect(() => {
+    if (isMappingConflictsOpen && pendingFormData) {
+      setPendingFormData(createFormData)
+    }
+  }, [createFormData, isMappingConflictsOpen])
+
   // Time conversion function for DeliveryTime
   const timeConvert = (time: string, modifier: string) => {
     let timeOfDelivery = time.split(':')[0]
@@ -1110,6 +1087,19 @@ export default function ScheduledReportsPage() {
     }
 
     return timeOfDelivery + ':' + minutes
+  }
+
+  // Convert 24-hour format to 12-hour format without AM/PM (like Angular logic)
+  const convertTo12HourFormatWithoutAmPm = (time: string): string => {
+    const [hourStr, minuteStr] = time.split(':')
+    let hour = parseInt(hourStr, 10)
+
+    if (hour === 0) {
+      hour = 12 // Convert 00 to 12
+    }
+
+    const hourFormatted = hour < 10 ? '0' + hour : hour
+    return `${hourFormatted}:${minuteStr}`
   }
 
   // Convert 24-hour format to 12-hour format (like Angular logic)
@@ -1127,7 +1117,7 @@ export default function ScheduledReportsPage() {
       }
       return deliveryTime
     } else {
-      return time24 // Already in 12-hour format or midnight
+      return convertTo12HourFormatWithoutAmPm(time24)
     }
   }
 
@@ -1567,9 +1557,42 @@ export default function ScheduledReportsPage() {
     setCreateFormData(prev => {
       const newData = { ...prev, frequency }
 
-      // Reset week selection when frequency changes (except for monthly)
-      if (frequency !== '4') {
-        newData.weekSelection = '1st Week'
+      // Reset week selection when frequency changes
+      if (frequency === '3') {
+        // Fortnightly - set default to first option
+        newData.weekSelection = '1'
+      } else if (frequency === '4') {
+        // Monthly - set default to first option
+        newData.weekSelection = '1'
+      } else {
+        // Daily or Weekly - clear week selection
+        newData.weekSelection = ''
+      }
+
+      // Reset selectedDaysOfWeek when frequency changes to weekly or monthly
+      if (frequency === '2' || frequency === '4') {
+        newData.selectedDaysOfWeek = []
+      }
+
+      return newData
+    })
+  }
+
+  // Handle frequency change for edit modal (matching Angular logic)
+  const handleEditFrequencyChange = (frequency: string) => {
+    setEditFormData(prev => {
+      const newData = { ...prev, frequency }
+
+      // Reset week selection when frequency changes
+      if (frequency === '3') {
+        // Fortnightly - set default to first option
+        newData.weekSelection = '1'
+      } else if (frequency === '4') {
+        // Monthly - set default to first option
+        newData.weekSelection = '1'
+      } else {
+        // Daily or Weekly - clear week selection
+        newData.weekSelection = ''
       }
 
       // Reset selectedDaysOfWeek when frequency changes to weekly or monthly
@@ -1620,6 +1643,11 @@ export default function ScheduledReportsPage() {
         selectedDaysOfWeek: sortedDays
       }
     })
+    
+    // Clear days of week error when a day is selected
+    if (createFormErrors.daysOfWeek) {
+      setCreateFormErrors(prev => ({ ...prev, daysOfWeek: '' }))
+    }
   }
 
   // Create form validation function
@@ -1638,6 +1666,7 @@ export default function ScheduledReportsPage() {
       deliveryTime: '',
       timeZone: '',
       frequency: '',
+      daysOfWeek: '',
       weekSelection: '',
       recipients: ''
     }
@@ -1866,10 +1895,9 @@ export default function ScheduledReportsPage() {
       if (editData.daysOfDelivery) {
         editData.daysOfDelivery.split(',').forEach((dayNumber: string) => {
           console.log('Processing day number:', dayNumber)
-          const dayName = getDayName(parseInt(dayNumber))
-          console.log('Converted to day name:', dayName)
-          if (dayName) {
-            selectedDaysOfWeek.push(dayName)
+          // Store the numeric value directly instead of converting to day name
+          if (dayNumber.trim()) {
+            selectedDaysOfWeek.push(dayNumber.trim())
           }
         })
       }
@@ -1949,6 +1977,7 @@ export default function ScheduledReportsPage() {
       deliveryTime: '',
       timeZone: '',
       frequency: '',
+      daysOfWeek: '',
       weekSelection: '',
       recipients: ''
     })
@@ -1995,6 +2024,11 @@ export default function ScheduledReportsPage() {
         selectedDaysOfWeek: sortedDays
       }
     })
+    
+    // Clear days of week error when a day is selected
+    if (editFormErrors.daysOfWeek) {
+      setEditFormErrors(prev => ({ ...prev, daysOfWeek: '' }))
+    }
   }
 
   // Form handling functions
@@ -2115,11 +2149,15 @@ export default function ScheduledReportsPage() {
 
           console.log('Channel IDs after mapping:', channelIds)
 
-          // Take the first channel ID as string
-          const result = channelIds.length > 0 ? channelIds[0] : ''
+          // Sort channel IDs alphabetically and take the first one
+          const sortedChannelIds = channelIds.sort((a: string, b: string) => a.localeCompare(b))
+          const result = sortedChannelIds.length > 0 ? sortedChannelIds[0] : ''
           return result
         })(),
         Credit: '100000',
+        isLimitOver: false,
+        CrawlBeforeTime: 480,
+        ScheduleType: 0,
         UnMappedData: (() => {
           // Convert mapping conflicts data to JSON string or empty string
           if (mappingConflictsData && mappingConflictsData.length > 0) {
@@ -2208,7 +2246,11 @@ export default function ScheduledReportsPage() {
           return repParameter
         })(),
         checkIsSecondary: false,
-        DaysdataText: getFullDayNamesForSelectedDays(formDataToUse.selectedDaysOfWeek).join(','),
+        DaysdataText: (() => {
+          const result = getFullDayNamesForSelectedDays(formDataToUse.selectedDaysOfWeek).join(',')
+          console.log('Create Schedule - DaysdataText:', result, 'selectedDaysOfWeek:', formDataToUse.selectedDaysOfWeek)
+          return result
+        })(),
         FrequencyText: formDataToUse.frequency === '1' ? 'Daily' :
           formDataToUse.frequency === '2' ? 'Weekly' :
             formDataToUse.frequency === '3' ? 'Fortnightly' :
@@ -2333,8 +2375,7 @@ export default function ScheduledReportsPage() {
     }
   }
 
-  const handleEditScheduleSubmit = async () => {
-    debugger;
+  const handleEditScheduleSubmit = async (forceCompleted: boolean = true) => {
     // Check shops limit first
     const isConsumedHigher = checkShopsLimit(editFormData)
     if (!isConsumedHigher) {
@@ -2349,7 +2390,7 @@ export default function ScheduledReportsPage() {
 
     // Check if days of week are selected
     if (editFormData.selectedDaysOfWeek.length === 0) {
-      setEditFormErrors(prev => ({ ...prev, frequency: 'Please select at least one day' }))
+      setEditFormErrors(prev => ({ ...prev, daysOfWeek: 'Please select at least one day' }))
       return
     }
 
@@ -2363,6 +2404,8 @@ export default function ScheduledReportsPage() {
     try {
       // Prepare the schedule report data for edit
       const scheduleReportData = {
+        isAllDataMapped: false,
+        ForceComplete: forceCompleted,
         PropertyName: editFormData.scheduleName,
         SubscriptionName: editFormData.scheduleName,
         Occupancy: parseInt(editFormData.guests, 10),
@@ -2371,19 +2414,23 @@ export default function ScheduledReportsPage() {
         Noofcheckindates: parseInt(editFormData.checkInDates, 10),
         Currency: editFormData.currency,
         ILOS: false,
-        StartDate: getDateFormat(editFormData.startDate, 'MM/DD/YYYY'),
-        Reportexpirydate: getDateFormat(editFormData.endDate, 'MM/DD/YYYY'),
-        Frequency: editFormData.frequency,
+        StartDate: getDateFormat(editFormData.startDate, 'MM/dd/yyyy'),
+        Reportexpirydate: getDateFormat(editFormData.endDate, 'MM/dd/yyyy'),
+        Frequency: parseInt(editFormData.frequency),
         FrequencyText: editFormData.frequency === '1' ? 'Daily' :
           editFormData.frequency === '2' ? 'Weekly' :
             editFormData.frequency === '3' ? 'Fortnightly' :
               editFormData.frequency === '4' ? 'Monthly' : '',
         Days: editFormData.selectedDaysOfWeek.join(','),
-        DaysdataText: editFormData.selectedDaysOfWeek.join(','),
+        DaysdataText: (() => {
+          const result = getFullDayNamesForSelectedDays(editFormData.selectedDaysOfWeek).join(',')
+          console.log('Edit Schedule - DaysdataText:', result, 'selectedDaysOfWeek:', editFormData.selectedDaysOfWeek)
+          return result
+        })(),
         DeliveryTime: timeConvert(editFormData.deliveryTime, editFormData.amPm),
         Timezone: String(editFormData.timeZone || ''),
         TimeZoneText: timezonesData.find(tz => tz.id === editFormData.timeZone)?.displayName || '',
-        Weeks: editFormData.weekSelection || '',
+        Weeks: editFormData.weekSelection && editFormData.weekSelection.trim() !== '' ? parseInt(editFormData.weekSelection) : null,
         Channels: (() => {
           const channelIds = editFormData.selectedChannels.map((channel: string) => {
             const channelData = channelsData.find(c => c.name === channel)
@@ -2392,13 +2439,7 @@ export default function ScheduledReportsPage() {
           return channelIds.join(',')
         })(),
         Channelsname: editFormData.selectedChannels.join(','),
-        SchedulebanchmarkChannel: (() => {
-          const channelIds = editFormData.selectedChannels.map((channel: string) => {
-            const channelData = channelsData.find(c => c.name === channel)
-            return channelData?.cid ? String(channelData.cid) : ''
-          }).filter((id: string) => id !== '')
-          return channelIds.length > 0 ? channelIds[0] : ''
-        })(),
+        SchedulebanchmarkChannel: "-1" ,
         Recipientlist: editFormData.recipients.join(','),
         UniversalId: editingSchedule?.universalID || 0,
         subscriberid: LocalStorageService.getSID(),
@@ -2406,12 +2447,25 @@ export default function ScheduledReportsPage() {
         UserName: LocalStorageService.getUserDisplayName(),
         LoginName: LocalStorageService.getUserName(),
         oldCompesetIds: editFormData.selectedPrimaryHotels.join(','),
-        oldCHIds: editFormData.selectedChannels.join(','),
+        oldCHIds: (() => {
+          const channelIds = editFormData.selectedChannels.map((channel: string) => {
+            const channelData = channelsData.find(c => c.name === channel)
+            return channelData?.cid ? String(channelData.cid) : ''
+          }).filter((id: string) => id !== '')
+          console.log('Edit Schedule - oldCHIds conversion:', {
+            selectedChannels: editFormData.selectedChannels,
+            channelIds: channelIds,
+            result: channelIds.join(',')
+          })
+          return channelIds.join(',')
+        })(),
         ReportStatus: 1,
         Limittype: 0,
         Credit: '100000',
+        isLimitOver: false,
+        CrawlBeforeTime: 480,
+        ScheduleType: 0,
         checkIsSecondary: editFormData.compSet === 'secondary',
-        UnMappedData: '',
         compattable: (() => {
           const selectedHotels = editFormData.compSet === 'primary' ? editFormData.selectedPrimaryHotels : editFormData.selectedSecondaryHotels
           const hotelList = editFormData.compSet === 'primary' ? primaryHotelsData : secondaryHotelsData
@@ -2439,20 +2493,23 @@ export default function ScheduledReportsPage() {
           return dataArray
         })(),
         OldParameter: {
-          UAdvanceShop: '',
-          UNoofcheckindates: '',
-          ULOS: '',
-          UOccupancy: '',
-          UCurrency: '',
-          UFrequency: '',
-          UDays: '',
-          UWeeks: '',
-          UTimezone: '',
-          UDeliveryTime: '',
-          ExpiryDate: '',
-          URecipientlist: '',
-          UChannelName: '',
-          UPropertyname: ''
+          ExpiryDate: getDateFormat(editFormData.endDate, 'MM/dd/yyyy'),
+          UAdvanceShop: editFormData.advanceShopDays,
+          UCurrency: editFormData.currency,
+          UDays: getFullDayNamesForSelectedDays(editFormData.selectedDaysOfWeek).join(','),
+          UDeliveryTime: timeConvert(editFormData.deliveryTime, editFormData.amPm),
+          UFrequency: editFormData.frequency === '1' ? 'Daily' :
+            editFormData.frequency === '2' ? 'Weekly' :
+              editFormData.frequency === '3' ? 'Fortnightly' :
+                editFormData.frequency === '4' ? 'Monthly' : '',
+          ULOS: editFormData.los.join(','),
+          UOccupancy: editFormData.guests,
+          UPropertyname: editFormData.scheduleName,
+          UNoofcheckindates: editFormData.checkInDates,
+          URecipientlist: editFormData.recipients.join(','),
+          UTimezone: timezonesData.find(tz => tz.id === editFormData.timeZone)?.displayName || '',
+          UWeeks: editFormData.weekSelection && editFormData.weekSelection.trim() !== '' ? editFormData.weekSelection : '',
+          UChannelName: editFormData.selectedChannels.join(',')
         }
       }
 
@@ -2497,7 +2554,7 @@ export default function ScheduledReportsPage() {
     }
   }
 
-  const saveEditScheduleReport = async (scheduleReportData: any) => {
+  const saveEditScheduleReport = async (scheduleReportData: any, forceComplete: boolean = true) => {
     try {
       const response = await saveReportData(scheduleReportData)
       if (response.status) {
@@ -2534,7 +2591,7 @@ export default function ScheduledReportsPage() {
 
     // Check if days of week are selected
     if (createFormData.selectedDaysOfWeek.length === 0) {
-      setCreateFormErrors(prev => ({ ...prev, frequency: 'Please select at least one day' }))
+      setCreateFormErrors(prev => ({ ...prev, daysOfWeek: 'Please select at least one day' }))
       return
     }
 
@@ -2714,125 +2771,14 @@ export default function ScheduledReportsPage() {
       scheduleName: ''
     })
   }
-
-  // Handle channel selection
-  const handleChannelToggle = (channel: string) => {
-    setScheduleFormData(prev => {
-      let newChannels = [...prev.selectedChannels]
-
-      if (channel === 'All Channels') {
-        if (newChannels.includes('All Channels')) {
-          newChannels = []
-        } else {
-          newChannels = [...scheduledChannelsData]
-        }
-      } else {
-        if (newChannels.includes(channel)) {
-          newChannels = newChannels.filter(c => c !== channel)
-          newChannels = newChannels.filter(c => c !== 'All Channels')
-        } else {
-          newChannels.push(channel)
-
-          const individualChannels = scheduledChannelsData.filter(c => c !== 'All Channels')
-          const selectedIndividualChannels = newChannels.filter(c => c !== 'All Channels')
-
-          if (selectedIndividualChannels.length === individualChannels.length) {
-            if (!newChannels.includes('All Channels')) {
-              newChannels.push('All Channels')
-            }
-          }
-        }
-
-        if (newChannels.length === 0) {
-          newChannels = ['All Channels']
-        }
-      }
-
-      return { ...prev, selectedChannels: newChannels }
-    })
-  }
-
+  
   // Check if a channel should be checked
   const isChannelSelected = (channel: string) => {
     if (scheduleFormData.selectedChannels.includes('All Channels')) {
       return true
     }
     return scheduleFormData.selectedChannels.includes(channel)
-  }
-
-  // Handle primary hotel selection
-  const handlePrimaryHotelToggle = (hotel: string) => {
-    setScheduleFormData(prev => {
-      let newHotels = [...prev.selectedPrimaryHotels]
-
-      if (hotel === 'All Primary Hotels') {
-        if (newHotels.includes('All Primary Hotels')) {
-          newHotels = []
-        } else {
-          newHotels = [...scheduledPrimaryHotelsData]
-        }
-      } else {
-        if (newHotels.includes(hotel)) {
-          newHotels = newHotels.filter(h => h !== hotel)
-          newHotels = newHotels.filter(h => h !== 'All Primary Hotels')
-        } else {
-          newHotels.push(hotel)
-
-          const individualHotels = scheduledPrimaryHotelsData.filter(h => h !== 'All Primary Hotels')
-          const selectedIndividualHotels = newHotels.filter(h => h !== 'All Primary Hotels')
-
-          if (selectedIndividualHotels.length === individualHotels.length) {
-            if (!newHotels.includes('All Primary Hotels')) {
-              newHotels.push('All Primary Hotels')
-            }
-          }
-        }
-
-        if (newHotels.length === 0) {
-          newHotels = ['All Primary Hotels']
-        }
-      }
-
-      return { ...prev, selectedPrimaryHotels: newHotels }
-    })
-  }
-
-  // Handle secondary hotel selection
-  const handleSecondaryHotelToggle = (hotel: string) => {
-    setScheduleFormData(prev => {
-      let newHotels = [...prev.selectedSecondaryHotels]
-
-      if (hotel === 'All Secondary Hotels') {
-        if (newHotels.includes('All Secondary Hotels')) {
-          newHotels = []
-        } else {
-          newHotels = [...scheduledSecondaryHotelsData]
-        }
-      } else {
-        if (newHotels.includes(hotel)) {
-          newHotels = newHotels.filter(h => h !== hotel)
-          newHotels = newHotels.filter(h => h !== 'All Secondary Hotels')
-        } else {
-          newHotels.push(hotel)
-
-          const individualHotels = scheduledSecondaryHotelsData.filter(h => h !== 'All Secondary Hotels')
-          const selectedIndividualHotels = newHotels.filter(h => h !== 'All Secondary Hotels')
-
-          if (selectedIndividualHotels.length === individualHotels.length) {
-            if (!newHotels.includes('All Secondary Hotels')) {
-              newHotels.push('All Secondary Hotels')
-            }
-          }
-        }
-
-        if (newHotels.length === 0) {
-          newHotels = ['All Secondary Hotels']
-        }
-      }
-
-      return { ...prev, selectedSecondaryHotels: newHotels }
-    })
-  }
+  }  
 
   // Check if a primary hotel should be checked
   const isPrimaryHotelSelected = (hotel: string) => {
@@ -2871,6 +2817,7 @@ export default function ScheduledReportsPage() {
       deliveryTime: '',
       timeZone: '',
       frequency: '',
+      daysOfWeek: '',
       weekSelection: '',
       recipients: ''
     }
@@ -3787,7 +3734,7 @@ export default function ScheduledReportsPage() {
 
                         {/* Currency List */}
                         <div className="max-h-[160px] overflow-y-auto" style={{ maxHeight: '160px' }}>
-                          {currenciesData
+                          {currencyData
                             .filter(currency =>
                               currency.toLowerCase().includes(currencySearchTerm.toLowerCase())
                             )
@@ -3805,7 +3752,7 @@ export default function ScheduledReportsPage() {
                                 {currency}
                               </button>
                             ))}
-                          {currenciesData.filter(currency =>
+                          {currencyData.filter(currency =>
                             currency.toLowerCase().includes(currencySearchTerm.toLowerCase())
                           ).length === 0 && (
                               <div className="px-3 py-2 text-sm text-gray-500">
@@ -3940,18 +3887,23 @@ export default function ScheduledReportsPage() {
 
                       {isEditFrequencyOpen && (
                         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
-                          {['daily', 'weekly', 'fortnightly', 'monthly'].map((freq, index, array) => (
+                          {[
+                            { value: '1', label: 'Daily' },
+                            { value: '2', label: 'Weekly' },
+                            { value: '3', label: 'Fortnightly' },
+                            { value: '4', label: 'Monthly' }
+                          ].map((freq, index, array) => (
                             <button
-                              key={freq}
+                              key={freq.value}
                               type="button"
                               onClick={() => {
-                                setEditFormData(prev => ({ ...prev, frequency: freq }))
+                                handleEditFrequencyChange(freq.value)
                                 setIsEditFrequencyOpen(false)
                               }}
-                              className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 capitalize ${index === 0 ? 'rounded-tl-md rounded-tr-md' : index === array.length - 1 ? 'rounded-bl-md rounded-br-md' : ''
+                              className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 ${index === 0 ? 'rounded-tl-md rounded-tr-md' : index === array.length - 1 ? 'rounded-bl-md rounded-br-md' : ''
                                 }`}
                             >
-                              {freq}
+                              {freq.label}
                             </button>
                           ))}
                         </div>
@@ -3974,7 +3926,15 @@ export default function ScheduledReportsPage() {
                           onClick={() => setIsEditWeekSelectionOpen(!isEditWeekSelectionOpen)}
                           className="w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none"
                         >
-                          <span className="text-sm">{editFormData.weekSelection}</span>
+                          <span className="text-sm">
+                            {editFormData.frequency === '3'
+                              ? (editFormData.weekSelection === '1' ? '1st & 3rd Week' : '2nd & 4th Week')
+                              : (editFormData.weekSelection === '1' ? 'First' :
+                                editFormData.weekSelection === '2' ? 'Second' :
+                                  editFormData.weekSelection === '3' ? 'Third' :
+                                    editFormData.weekSelection === '5' ? 'Fourth' : editFormData.weekSelection)
+                            }
+                          </span>
                           <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isEditWeekSelectionOpen ? 'rotate-180' : ''}`} />
                         </button>
 
@@ -4032,20 +3992,28 @@ export default function ScheduledReportsPage() {
                       Days of the Week
                     </Label>
                     <div className="flex gap-2">
-                      {daysOfWeek.map((day) => (
-                        <button
-                        key={day}
-                          type="button"
-                          onClick={() => handleEditDayToggle(day)}
-                          className={`px-2 py-1 text-sm rounded-md border transition-colors ${editFormData.selectedDaysOfWeek.includes(day)
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      {daysOfWeek.map((day) => {
+                        const dayValue = dayValuesMap[day]
+                        const isSelected = editFormData.selectedDaysOfWeek.includes(dayValue)
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => handleEditDayToggle(day)}
+                            className={`px-2 py-1 text-sm rounded-md border transition-colors ${
+                              isSelected
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                             }`}
-                        >
-                          {day}
-                        </button>
-                      ))}
+                          >
+                            {day}
+                          </button>
+                        )
+                      })}
                     </div>
+                    {editFormErrors.daysOfWeek && (
+                      <p className="text-red-500 text-xs mt-1">{editFormErrors.daysOfWeek}</p>
+                    )}
                   </div>
                 )}
 
@@ -4056,20 +4024,28 @@ export default function ScheduledReportsPage() {
                       Day of the Week
                     </Label>
                     <div className="flex gap-2">
-                      {daysOfWeek.map((day) => (
-                        <button
-                          key={day}
-                          type="button"
-                          onClick={() => handleEditDayToggle(day)}
-                          className={`px-2 py-1 text-sm rounded-md border transition-colors ${editFormData.selectedDaysOfWeek.includes(day)
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      {daysOfWeek.map((day) => {
+                        const dayValue = dayValuesMap[day]
+                        const isSelected = editFormData.selectedDaysOfWeek.includes(dayValue)
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => handleEditDayToggle(day)}
+                            className={`px-2 py-1 text-sm rounded-md border transition-colors ${
+                              isSelected
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                             }`}
-                        >
-                          {day}
-                        </button>
-                      ))}
+                          >
+                            {day}
+                          </button>
+                        )
+                      })}
                     </div>
+                    {editFormErrors.daysOfWeek && (
+                      <p className="text-red-500 text-xs mt-1">{editFormErrors.daysOfWeek}</p>
+                    )}
                   </div>
                 )}
 
@@ -4280,7 +4256,7 @@ export default function ScheduledReportsPage() {
             </Button>
             {packageType === 'Pay-As-You-Go' && (
               <Button
-                onClick={handleEditScheduleSubmit}
+                onClick={() => handleEditScheduleSubmit(false)}
                 className="h-9 px-4 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
               >
                 Schedule
@@ -4782,7 +4758,7 @@ export default function ScheduledReportsPage() {
 
                         {/* Currency List */}
                         <div className="max-h-[160px] overflow-y-auto" style={{ maxHeight: '160px' }}>
-                          {currenciesData
+                          {currencyData
                             .filter(currency =>
                               currency.toLowerCase().includes(currencySearchTerm.toLowerCase())
                             )
@@ -4800,7 +4776,7 @@ export default function ScheduledReportsPage() {
                                 {currency}
                               </button>
                             ))}
-                          {currenciesData.filter(currency =>
+                          {currencyData.filter(currency =>
                             currency.toLowerCase().includes(currencySearchTerm.toLowerCase())
                           ).length === 0 && (
                               <div className="px-3 py-2 text-sm text-gray-500">
@@ -5053,6 +5029,9 @@ export default function ScheduledReportsPage() {
                         )
                       })}
                     </div>
+                    {createFormErrors.daysOfWeek && (
+                      <p className="text-red-500 text-xs mt-1">{createFormErrors.daysOfWeek}</p>
+                    )}
                   </div>
                 )}
 
@@ -5081,6 +5060,9 @@ export default function ScheduledReportsPage() {
                         )
                       })}
                     </div>
+                    {createFormErrors.daysOfWeek && (
+                      <p className="text-red-500 text-xs mt-1">{createFormErrors.daysOfWeek}</p>
+                    )}
                   </div>
                 )}
 
