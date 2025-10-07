@@ -156,7 +156,11 @@ export default function BusinessInsightsPage() {
       <main className="relative z-10">
         <div className="px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-2 md:py-4 lg:py-6 max-w-7xl xl:max-w-none mx-auto">
           {/* Business Insights Table */}
-          <BusinessInsightsTable />
+          <BusinessInsightsTable 
+            startDate={startDate}
+            endDate={endDate}
+            selectedChannels={selectedChannels}
+          />
         </div>
       </main>
       

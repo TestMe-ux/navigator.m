@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { ChevronDown, ChevronUp, Download, FileText, CheckCircle, Star, ArrowDown, ArrowUp } from "lucide-react"
+import { ChevronDown, ChevronUp, Download, FileText, CheckCircle, Star, ArrowDown, ArrowUp, Info, ArrowUpDown } from "lucide-react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, ReferenceLine } from "recharts"
 import { format, addDays, subDays } from "date-fns"
 
@@ -12,11 +12,14 @@ import { format, addDays, subDays } from "date-fns"
 const businessInsightsData = [
   {
     id: "BI-001",
-    date: "05 Oct",
+    date: "21 Oct",
     messages: [
       <>Your <strong>rate is 47% lower</strong> than average compset.</>,
       <>You are <strong>losing on parity</strong> with current score as <strong>0%</strong>.</>,
-      <>Your <strong>city demand</strong> is medium <strong>(63)</strong>.</>
+      <>Your <strong>city demand</strong> is medium <strong>(63)</strong>.</>,
+      <>Your <strong>competitor pricing</strong> has <strong>increased by 12%</strong> this week.</>,
+      <>Your <strong>booking window</strong> is showing <strong>early booking trends</strong>.</>,
+      <>Your <strong>revenue potential</strong> is <strong>15% higher</strong> than last month.</>
     ],
     subscriberAdr: "48%",
     subscriberAdrVariance: "down",
@@ -33,11 +36,14 @@ const businessInsightsData = [
   },
   {
     id: "BI-002", 
-    date: "04 Oct",
+    date: "20 Oct",
     messages: [
       <>Your <strong>rate is 52% higher</strong> than average compset.</>,
       <>You are <strong>winning on parity</strong> with current score as <strong>15%</strong>.</>,
-      <>Your <strong>city demand</strong> is high <strong>(78)</strong>.</>
+      <>Your <strong>city demand</strong> is high <strong>(78)</strong>.</>,
+      <>Your <strong>market share</strong> has <strong>grown by 8%</strong> this quarter.</>,
+      <>Your <strong>occupancy rate</strong> is <strong>above target</strong> by 5%.</>,
+      <>Your <strong>guest satisfaction</strong> score is <strong>excellent (4.8/5)</strong>.</>
     ],
     subscriberAdr: "47%",
     subscriberAdrVariance: "down",
@@ -54,7 +60,7 @@ const businessInsightsData = [
   },
   {
     id: "BI-003",
-    date: "03 Oct",
+    date: "19 Oct",
     messages: [
       <>Your <strong>rate is 38% lower</strong> than average compset.</>,
       <>You are <strong>losing on parity</strong> with current score as <strong>0%</strong>.</>,
@@ -75,7 +81,7 @@ const businessInsightsData = [
   },
   {
     id: "BI-004",
-    date: "02 Oct",
+    date: "18 Oct",
     messages: [
       <>Your <strong>rate is 25% higher</strong> than average compset.</>,
       <>You are <strong>winning on parity</strong> with current score as <strong>8%</strong>.</>,
@@ -96,7 +102,7 @@ const businessInsightsData = [
   },
   {
     id: "BI-005",
-    date: "01 Oct",
+    date: "17 Oct",
     messages: [
       <>Your <strong>rate is 15% lower</strong> than average compset.</>,
       <>You are <strong>losing on parity</strong> with current score as <strong>0%</strong>.</>,
@@ -117,7 +123,7 @@ const businessInsightsData = [
   },
   {
     id: "BI-006",
-    date: "30 Sep",
+    date: "16 Oct",
     messages: [
       <>Your <strong>rate is 35% higher</strong> than average compset.</>,
       <>You are <strong>losing on parity</strong> with current score as <strong>0%</strong>.</>,
@@ -138,7 +144,7 @@ const businessInsightsData = [
   },
   {
     id: "BI-007",
-    date: "29 Sep",
+    date: "15 Oct",
     messages: [
       <>Your <strong>rate is 22% lower</strong> than average compset.</>,
       <>You are <strong>winning on parity</strong> with current score as <strong>12%</strong>.</>,
@@ -159,7 +165,7 @@ const businessInsightsData = [
   },
   {
     id: "BI-008",
-    date: "28 Sep",
+    date: "14 Oct",
     messages: [
       <>Your <strong>rate is 18% higher</strong> than average compset.</>,
       <>You are <strong>losing on parity</strong> with current score as <strong>0%</strong>.</>,
@@ -177,40 +183,293 @@ const businessInsightsData = [
     parity: "0%",
     generatedBy: "System",
     createdDate: "2025-09-12"
+  },
+  {
+    id: "BI-009",
+    date: "13 Oct",
+    messages: [
+      <>Your <strong>rate is 25% lower</strong> than average compset.</>,
+      <>You are <strong>winning on parity</strong> with current score as <strong>8%</strong>.</>,
+      <>Your <strong>city demand</strong> is medium <strong>(65)</strong>.</>,
+      <>Your <strong>competitor analysis</strong> shows <strong>price gaps</strong> in the market.</>,
+      <>Your <strong>booking patterns</strong> indicate <strong>strong weekend demand</strong>.</>
+    ],
+    subscriberAdr: "53%",
+    subscriberAdrVariance: "up",
+    compRank: "3/5",
+    holidays: "--",
+    events: ["Business Conference", "Tech Meetup"],
+    airline: 19850,
+    demand: 52,
+    otaRank: "14",
+    otaRankVariance: "+1",
+    parity: "0%",
+    generatedBy: "System",
+    createdDate: "2025-09-10"
+  },
+  {
+    id: "BI-010",
+    date: "07 Oct",
+    messages: [
+      <>Your <strong>rate is 32% higher</strong> than average compset.</>,
+      <>You are <strong>losing on parity</strong> with current score as <strong>0%</strong>.</>,
+      <>Your <strong>city demand</strong> is low <strong>(38)</strong>.</>,
+      <>Your <strong>market positioning</strong> needs <strong>strategic adjustment</strong>.</>,
+      <>Your <strong>revenue optimization</strong> opportunities are <strong>limited</strong>.</>,
+      <>Your <strong>competitive advantage</strong> is <strong>declining</strong> this quarter.</>
+    ],
+    subscriberAdr: "41%",
+    subscriberAdrVariance: "down",
+    compRank: "5/5",
+    holidays: "--",
+    events: [],
+    airline: 21200,
+    demand: 48,
+    otaRank: "22",
+    otaRankVariance: "+4",
+    parity: "0%",
+    generatedBy: "System",
+    createdDate: "2025-09-08"
+  },
+  {
+    id: "BI-011",
+    date: "08 Oct",
+    messages: [
+      <>Your <strong>rate is 15% lower</strong> than average compset.</>,
+      <>You are <strong>winning on parity</strong> with current score as <strong>12%</strong>.</>,
+      <>Your <strong>city demand</strong> is high <strong>(82)</strong>.</>,
+      <>Your <strong>market share</strong> is <strong>expanding rapidly</strong> this month.</>,
+      <>Your <strong>booking velocity</strong> shows <strong>positive trends</strong>.</>
+    ],
+    subscriberAdr: "58%",
+    subscriberAdrVariance: "up",
+    compRank: "2/5",
+    holidays: "--",
+    events: ["Music Festival", "Food Expo"],
+    airline: 18500,
+    demand: 61,
+    otaRank: "11",
+    otaRankVariance: "-1",
+    parity: "0%",
+    generatedBy: "System",
+    createdDate: "2025-09-06"
+  },
+  {
+    id: "BI-012",
+    date: "09 Oct",
+    messages: [
+      <>Your <strong>rate is 28% higher</strong> than average compset.</>,
+      <>You are <strong>losing on parity</strong> with current score as <strong>0%</strong>.</>,
+      <>Your <strong>city demand</strong> is medium <strong>(55)</strong>.</>,
+      <>Your <strong>competitive pressure</strong> is <strong>increasing</strong> significantly.</>,
+      <>Your <strong>revenue management</strong> needs <strong>immediate attention</strong>.</>
+    ],
+    subscriberAdr: "45%",
+    subscriberAdrVariance: "down",
+    compRank: "4/5",
+    holidays: "--",
+    events: [],
+    airline: 20800,
+    demand: 50,
+    otaRank: "18",
+    otaRankVariance: "+3",
+    parity: "0%",
+    generatedBy: "System",
+    createdDate: "2025-09-04"
   }
 ]
 
 interface BusinessInsightsTableProps {
   className?: string
+  startDate?: Date
+  endDate?: Date
+  selectedChannels?: number[]
 }
 
-export function BusinessInsightsTable({ className }: BusinessInsightsTableProps) {
+export function BusinessInsightsTable({ className, startDate, endDate, selectedChannels }: BusinessInsightsTableProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
+  const [expandedInsights, setExpandedInsights] = useState<Set<string>>(new Set())
+  const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' | null }>({ key: null, direction: null })
+  const [displayedDatesCount, setDisplayedDatesCount] = useState(10)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+
+  // Generate dates based on "Next 14 days" default selection
+  const generateNext14DaysDates = () => {
+    const dates = []
+    const today = new Date()
+    
+    // Generate next 14 days starting from today
+    for (let i = 0; i < 14; i++) {
+      const date = new Date(today)
+      date.setDate(today.getDate() + i)
+      dates.push(format(date, "dd MMM"))
+    }
+    
+    return dates
+  }
+
+  // Get the next 14 days dates
+  const next14DaysDates = generateNext14DaysDates()
+
+  // Update businessInsightsData with next 14 days dates
+  const updatedBusinessInsightsData = businessInsightsData.map((item, index) => ({
+    ...item,
+    date: next14DaysDates[index] || item.date
+  }))
 
   const handleInsightExpand = (insightDate: string) => {
     setExpandedRow(expandedRow === insightDate ? null : insightDate)
   }
 
-  // Generate 7-day trend data (3 days past + expanded date + 3 days future)
+  const handleInsightsToggle = (insightDate: string) => {
+    setExpandedInsights(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(insightDate)) {
+        newSet.delete(insightDate)
+      } else {
+        newSet.add(insightDate)
+      }
+      return newSet
+    })
+  }
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' | null = null
+    let sortKey: string | null = key
+    
+    if (sortConfig.key === key) {
+      // Currently sorting this column - cycle through states
+      if (sortConfig.direction === 'asc') {
+        direction = 'desc'
+      } else if (sortConfig.direction === 'desc') {
+        // After descending, go back to default (no sorting)
+        direction = null
+        sortKey = null
+      }
+    } else {
+      // Different column or no sorting - start with ascending
+      direction = 'asc'
+    }
+    
+    setSortConfig({ key: sortKey, direction })
+  }
+
+  const getSortIcon = (key: string) => {
+    // Default state (grey) - when no sorting is applied to this column
+    if (sortConfig.key !== key) {
+      return <ArrowUpDown className="w-3 h-3 font-bold text-gray-500 dark:text-gray-400" strokeWidth={2.5} />
+    }
+    
+    // Ascending state (blue up arrow)
+    if (sortConfig.direction === 'asc') {
+      return <ArrowUp className="w-3 h-3 font-bold text-blue-600" strokeWidth={2.5} />
+    } 
+    
+    // Descending state (blue down arrow)
+    if (sortConfig.direction === 'desc') {
+      return <ArrowDown className="w-3 h-3 font-bold text-blue-600" strokeWidth={2.5} />
+    }
+    
+    // Fallback to default state
+    return <ArrowUpDown className="w-3 h-3 font-bold text-gray-500 dark:text-gray-400" strokeWidth={2.5} />
+  }
+
+  const getHoverIcon = (key: string) => {
+    if (sortConfig.key === key) {
+      return null
+    }
+    return <ArrowUpDown className="w-3 h-3 font-bold text-gray-500 dark:text-gray-400" strokeWidth={2.5} />
+  }
+
+  // Load more dates handler
+  const handleLoadMoreDates = async () => {
+    setIsLoadingMore(true)
+    
+    // Simulate loading delay
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    
+    setDisplayedDatesCount(prev => Math.min(prev + 10, updatedBusinessInsightsData.length))
+    setIsLoadingMore(false)
+  }
+
+  const getSortedData = () => {
+    if (!sortConfig.key || !sortConfig.direction) {
+      return updatedBusinessInsightsData.slice(0, displayedDatesCount)
+    }
+
+    return [...updatedBusinessInsightsData].sort((a, b) => {
+      let aValue: number
+      let bValue: number
+
+      if (sortConfig.key === 'subscriberAdr') {
+        // Extract percentage value from strings like "48%", "47%", etc.
+        aValue = parseFloat(a.subscriberAdr.replace('%', ''))
+        bValue = parseFloat(b.subscriberAdr.replace('%', ''))
+      } else {
+        return 0
+      }
+
+      if (sortConfig.direction === 'asc') {
+        return aValue - bValue
+      } else {
+        return bValue - aValue
+      }
+    }).slice(0, displayedDatesCount)
+  }
+
+  // Generate trend data based on selected date range from date picker
   const generateTrendData = (expandedDate: string) => {
-    // Parse the expanded date (format: "05 Oct")
-    const currentYear = new Date().getFullYear()
-    const expandedDateObj = new Date(`${expandedDate} ${currentYear}`)
+    if (!startDate || !endDate) {
+      // Fallback to first 90 dates if no date range is selected
+      const allDates = updatedBusinessInsightsData.map(item => item.date)
+      const maxDates = Math.min(90, allDates.length)
+      const selectedDates = allDates.slice(0, maxDates)
+      
+      return selectedDates.map((date, i) => {
+        const isExpandedDate = date === expandedDate
+        const compAvgRate = Math.round(180 + Math.sin(i * 0.5) * 30 + (Math.random() - 0.5) * 20)
+        const subscriberLowestRate = Math.round(160 + Math.sin(i * 0.3) * 25 + (Math.random() - 0.5) * 15)
+        
+        return {
+          date: date,
+          "Comp Avg Rate": compAvgRate,
+          "Subscriber Lowest Rate": subscriberLowestRate,
+          isExpandedDate: isExpandedDate
+        }
+      })
+    }
+
+    // Generate dates based on selected date range
+    const dates = []
+    const currentDate = new Date(startDate)
+    const endDateObj = new Date(endDate)
+    
+    // Generate all dates in the selected range
+    while (currentDate <= endDateObj) {
+      dates.push(format(currentDate, "dd MMM"))
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
+    
+    // Limit to maximum 90 dates to prevent overcrowding
+    const maxDates = Math.min(90, dates.length)
+    const selectedDates = dates.slice(0, maxDates)
     
     const trendData = []
     
-    // Generate 7 days of data
-    for (let i = -3; i <= 3; i++) {
-      const date = addDays(expandedDateObj, i)
+    // Generate data for selected dates
+    for (let i = 0; i < selectedDates.length; i++) {
+      const date = selectedDates[i]
+      const isExpandedDate = date === expandedDate
       
       // Generate realistic rate data with some variation
       const compAvgRate = Math.round(180 + Math.sin(i * 0.5) * 30 + (Math.random() - 0.5) * 20)
       const subscriberLowestRate = Math.round(160 + Math.sin(i * 0.3) * 25 + (Math.random() - 0.5) * 15)
       
       trendData.push({
-        date: format(date, "dd MMM"),
+        date: date,
         "Comp Avg Rate": compAvgRate,
-        "Subscriber Lowest Rate": subscriberLowestRate
+        "Subscriber Lowest Rate": subscriberLowestRate,
+        isExpandedDate: isExpandedDate
       })
     }
     
@@ -248,16 +507,29 @@ export function BusinessInsightsTable({ className }: BusinessInsightsTableProps)
   }
 
   return (
-    <div className={`bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 ${className}`}>
-      {/* Table Heading */}
-      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-        <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-1">
-          Market Insights
-        </h3>
-      <p className="text-sm text-slate-600 dark:text-slate-400">
-        Market trends, rate performance, and competitive insights for data-driven decisions
-      </p>
-      </div>
+    <TooltipProvider>
+      <div className={`bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 ${className}`}>
+        {/* Table Heading */}
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+              Market Edge
+            </h3>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="w-5 h-5 text-muted-foreground hover:text-foreground cursor-help transition-colors" />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-sm bg-slate-800 text-white border-slate-700">
+                <p className="text-sm">
+                  Comprehensive market analysis providing actionable insights on rate performance, competitive positioning, demand patterns, and revenue optimization opportunities for strategic decision-making.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Market trends, rate performance, and competitive insights for data-driven decisions
+          </p>
+        </div>
       
       {/* Table Header */}
       <div className="bg-gray-100 dark:bg-gray-800">
@@ -265,7 +537,15 @@ export function BusinessInsightsTable({ className }: BusinessInsightsTableProps)
           <div className="flex items-start w-[9.5%] mr-3 pl-2">Date</div>
           <div className="flex items-start w-[39%] mr-3">Insights</div>
           <div className="flex flex-col items-start w-[11%] mr-3">
-            <div>Subscriber ADR</div>
+            <div 
+              className="flex items-center gap-1 cursor-pointer"
+              onClick={() => handleSort('subscriberAdr')}
+            >
+              <span>Subscriber ADR</span>
+              <span className="ml-1 mt-0.5">
+                {getSortIcon('subscriberAdr')}
+              </span>
+            </div>
             <div className="text-gray-500 dark:text-gray-400 text-xs font-normal">(vs Avg Comp)</div>
           </div>
           <div className="flex flex-col items-start w-[6.5%] mr-3">
@@ -299,9 +579,10 @@ export function BusinessInsightsTable({ className }: BusinessInsightsTableProps)
             </div>
           </div>
         ) : (
-          businessInsightsData.map((report, index) => {
+          getSortedData().map((report, index) => {
             const isExpanded = expandedRow === report.date
-            const isNextRowExpanded = index < businessInsightsData.length - 1 && expandedRow === businessInsightsData[index + 1].date
+            const sortedData = getSortedData()
+            const isNextRowExpanded = index < sortedData.length - 1 && expandedRow === sortedData[index + 1].date
 
             return (
               <div key={report.id}>
@@ -347,11 +628,29 @@ export function BusinessInsightsTable({ className }: BusinessInsightsTableProps)
                     {/* Messages Column */}
                     <div className="flex-1">
                       <div className="space-y-1">
-                        {report.messages.map((message, msgIndex) => (
-                          <div key={msgIndex} className="text-sm text-gray-700 dark:text-gray-300 break-words overflow-wrap-anywhere">
-                            • {message}
-                          </div>
-                        ))}
+                        {(() => {
+                          const isExpanded = expandedInsights.has(report.date)
+                          const shouldShowMore = report.messages.length > 3
+                          const messagesToShow = shouldShowMore && !isExpanded ? report.messages.slice(0, 3) : report.messages
+                          
+                          return (
+                            <>
+                              {messagesToShow.map((message, msgIndex) => (
+                                <div key={msgIndex} className="text-sm text-gray-700 dark:text-gray-300 break-words overflow-wrap-anywhere">
+                                  • {message}
+                                </div>
+                              ))}
+                              {shouldShowMore && (
+                                <button
+                                  onClick={() => handleInsightsToggle(report.date)}
+                                  className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors ml-[14px] pt-1"
+                                >
+                                  {isExpanded ? 'Show less' : 'Show more'}
+                                </button>
+                              )}
+                            </>
+                          )
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -430,7 +729,7 @@ export function BusinessInsightsTable({ className }: BusinessInsightsTableProps)
                       {/* 7-Day Trend Chart */}
                       <div className="bg-white dark:bg-slate-900 p-4">
             <h4 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-4 ml-2">
-              7-Day Rate Trend Analysis
+              Rate Trend Analysis
             </h4>
                         
                         <div className="h-64 w-full">
@@ -455,7 +754,7 @@ export function BusinessInsightsTable({ className }: BusinessInsightsTableProps)
                                         y={0}
                                         dy={16}
                                         textAnchor="middle"
-                                        fill="#666"
+                                        fill={isExpandedDate ? "#000000" : "#666"}
                                         fontSize={11}
                                         fontWeight={isExpandedDate ? "bold" : "normal"}
                                       >
@@ -535,16 +834,42 @@ export function BusinessInsightsTable({ className }: BusinessInsightsTableProps)
                     stroke="#ef4444" 
                     strokeWidth={2} 
                     strokeDasharray="3 3"
-                    dot={{ r: 3 }} 
-                    activeDot={{ r: 4, stroke: "#ef4444", strokeWidth: 2 }} 
+                     dot={(props) => {
+                       const { cx, cy, payload } = props
+                       const isExpandedDate = payload?.isExpandedDate
+                       return (
+                         <circle
+                           cx={cx}
+                           cy={cy}
+                           r={3}
+                           fill={isExpandedDate ? "#dc2626" : "#ef4444"}
+                           stroke={isExpandedDate ? "#dc2626" : "#ef4444"}
+                           strokeWidth={isExpandedDate ? 3 : 2}
+                         />
+                       )
+                     }}
+                    activeDot={{ r: 5, stroke: "#ef4444", strokeWidth: 2 }} 
                     name="Compset Avg. Rate" 
                   />
                               <Line 
                                 dataKey="Subscriber Lowest Rate" 
                                 stroke="#3b82f6" 
                                 strokeWidth={2} 
-                                dot={{ r: 3 }} 
-                                activeDot={{ r: 4, stroke: "#3b82f6", strokeWidth: 2 }} 
+                                 dot={(props) => {
+                                   const { cx, cy, payload } = props
+                                   const isExpandedDate = payload?.isExpandedDate
+                                   return (
+                                     <circle
+                                       cx={cx}
+                                       cy={cy}
+                                       r={3}
+                                       fill={isExpandedDate ? "#2563eb" : "#3b82f6"}
+                                       stroke={isExpandedDate ? "#2563eb" : "#3b82f6"}
+                                       strokeWidth={isExpandedDate ? 3 : 2}
+                                     />
+                                   )
+                                 }}
+                                activeDot={{ r: 5, stroke: "#3b82f6", strokeWidth: 2 }} 
                                 name="Subscriber Lowest Rate" 
                               />
                             </LineChart>
@@ -581,7 +906,32 @@ export function BusinessInsightsTable({ className }: BusinessInsightsTableProps)
           })
         )}
       </div>
-    </div>
+      
+      {/* Load More Dates Button */}
+            {updatedBusinessInsightsData.length > displayedDatesCount && (
+        <div className="px-4 py-4">
+          <div className="flex items-center justify-center">
+            {isLoadingMore ? (
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+                <span className="text-blue-600 dark:text-blue-400 font-medium">Loading dates...</span>
+              </div>
+            ) : (
+              <button
+                onClick={handleLoadMoreDates}
+                className="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors duration-200 text-sm bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/50 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md w-full"
+              >
+                      <span>Show {Math.min(10, updatedBusinessInsightsData.length - displayedDatesCount)} more dates</span>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      </div>
+    </TooltipProvider>
   )
 }
 
