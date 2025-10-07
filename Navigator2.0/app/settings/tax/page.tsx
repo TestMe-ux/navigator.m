@@ -15,97 +15,72 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Search, Plus, History, MoreVertical, Trash2, Edit, CheckCircle, X, ArrowUp, ArrowDown, ArrowUpDown, ChevronDown } from "lucide-react"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
-
-// Mock tax data
-const mockTaxes = [
-  {
-    id: 1,
-    tax: "5%",
-    subscriberCompetitor: "Chaidee Mansion (+14)",
-    channels: "Booking.com, Brand (+7)",
-    lastActivity: "Update",
-    lastModifiedBy: "Aditi Sharma",
-    createdOn: "28 May'24",
-    status: true,
-  },
-  {
-    id: 2,
-    tax: "2%",
-    subscriberCompetitor: "Central Hotel",
-    channels: "Booking.com",
-    lastActivity: "Create",
-    lastModifiedBy: "Current User",
-    createdOn: "25 May'24",
-    status: true,
-  },
-  {
-    id: 3,
-    tax: "1.5%",
-    subscriberCompetitor: "Holiday Inn",
-    channels: "Agoda",
-    lastActivity: "Update",
-    lastModifiedBy: "Current User",
-    createdOn: "20 May'24",
-    status: true,
-  },
-  {
-    id: 4,
-    tax: "3%",
-    subscriberCompetitor: "Taj Mahal",
-    channels: "Expedia",
-    lastActivity: "Create",
-    lastModifiedBy: "Current User",
-    createdOn: "15 May'24",
-    status: true,
-  },
-  {
-    id: 5,
-    tax: "5%",
-    subscriberCompetitor: "Alhambra Hotel",
-    channels: "Hotels.com",
-    lastActivity: "Update",
-    lastModifiedBy: "Current User",
-    createdOn: "10 May'24",
-    status: true,
-  },
-]
-
-const mockHotels = [
-  "Central Hotel",
-  "Holiday Inn",
-  "Taj Mahal",
-  "Alhambra Hotel",
-  "Ocean Breeze",
-  "Macdonald Windsor",
-]
-
-const mockChannels = [
-  "Booking.com",
-  "Agoda",
-  "Expedia",
-  "Hotels.com",
-  "Priceline",
-  "Travelocity",
-]
+import { 
+  getTaxPreference, 
+  setTaxPreference as setTaxPreferenceAPI, 
+  getTaxData, 
+  getHotelsData, 
+  getChannelsData,
+  getTaxSettingHistory,
+  getCompleteCompSet,
+  getTaxSetting,
+  getCurrencyCode,
+  saveTaxSettings,
+  deleteTaxSetting,
+  PreferenceValue,
+  type TaxData,
+  type HotelData,
+  type ChannelData,
+  type PropertyData,
+  type TaxSetting
+} from "@/lib/tax"
+import { LocalStorageService } from "@/lib/localstorage"
+import { useSelectedProperty } from "@/hooks/use-local-storage"
 
 export default function TaxSettingsPage() {
-  const [taxes, setTaxes] = useState(mockTaxes)
+  console.log('🏗️ TaxSettingsPage component rendering')
+  const [taxes, setTaxes] = useState<TaxData[]>([])
+  const [hotels, setHotels] = useState<HotelData[]>([])
+  const [channels, setChannels] = useState<ChannelData[]>([])
+  const [properties, setProperties] = useState<PropertyData[]>([])
+  const [taxSettings, setTaxSettings] = useState<TaxSetting[]>([])
+  const [taxSettingHistory, setTaxSettingHistory] = useState<any[]>([])
+  const [currencyCode, setCurrencyCode] = useState<string>("")
   const [searchTerm, setSearchTerm] = useState("")
   const [showAddTax, setShowAddTax] = useState(false)
   const [showChangeHistory, setShowChangeHistory] = useState(false)
   const [showSnackbar, setShowSnackbar] = useState(false)
   const [showDeleteSnackbar, setShowDeleteSnackbar] = useState(false)
   const [showAddTaxSnackbar, setShowAddTaxSnackbar] = useState(false)
+  const [snackbarMessage, setSnackbarMessage] = useState("")
+  const [snackbarType, setSnackbarType] = useState<"success" | "error" | "info">("success")
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [taxToDelete, setTaxToDelete] = useState<number | null>(null)
   const [isEditMode, setIsEditMode] = useState(false)
   const [editingTaxId, setEditingTaxId] = useState<number | null>(null)
   const [showSearch, setShowSearch] = useState(false)
   const [searchValue, setSearchValue] = useState("")
+  const [isSearch, setIsSearch] = useState(false)
   const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' | null }>({ key: null, direction: null })
   const [isLoading, setIsLoading] = useState(true)
+  const hasLoadedTaxPreferenceRef = useRef(false)
   const [showGlobalTaxModal, setShowGlobalTaxModal] = useState(false)
-  const [globalTaxPreference, setGlobalTaxPreference] = useState("exclusive")
+  
+  // Tax preference states matching Angular implementation
+  const [taxPreference, setTaxPreference] = useState<string>("NotSet")
+  const [previousTaxPreference, setPreviousTaxPreference] = useState<string>("NotSet")
+  const [isTaxInclusive, setIsTaxInclusive] = useState(false)
+  const [isTaxExclusive, setIsTaxExclusive] = useState(false)
+  const [isTaxNotSet, setIsTaxNotSet] = useState(true)
+  const [selectedProperty] = useSelectedProperty()
+  
+  // State for modal preference selection (not saved yet)
+  const [modalTaxPreference, setModalTaxPreference] = useState<string>("NotSet")
+  const [showTaxPreferenceSnackbar, setShowTaxPreferenceSnackbar] = useState(false)
+  const [taxPreferenceSnackbarMessage, setTaxPreferenceSnackbarMessage] = useState("")
+  const [taxPreferenceSnackbarType, setTaxPreferenceSnackbarType] = useState<"success" | "error">("success")
+  const isDataLoadedRef = useRef(false)
+  const isLoadingRef = useRef(false)
   const [newTax, setNewTax] = useState({
     subscriberCompetitor: "Central Hotel",
     channels: "Booking.com",
@@ -116,6 +91,21 @@ export default function TaxSettingsPage() {
   const [taxInputs, setTaxInputs] = useState([
     { id: 1, name: "", percentage: "", checked: false }
   ])
+  
+  // Tax properties state for the dynamic tax fields
+  const [taxProperties, setTaxProperties] = useState([
+    { id: 1, TaxName: "", Tax: "", isPercentage: false }
+  ])
+  
+  // Additional state for tax settings
+  const [isAllFieldFilled, setIsAllFieldFilled] = useState(false)
+  const [taxSettingId, setTaxSettingId] = useState<number>(0)
+  const [activity, setActivity] = useState<string>("Create")
+  
+  // Original values for edit mode comparison
+  const [originalSelectedSubscribers, setOriginalSelectedSubscribers] = useState<string[]>([])
+  const [originalSelectedChannels, setOriginalSelectedChannels] = useState<string[]>([])
+  const [originalTaxInputs, setOriginalTaxInputs] = useState<Array<{id: number, name: string, percentage: string, checked: boolean}>>([])
   
   // Multiselect dropdown states
   const [isSubscriberDropdownOpen, setIsSubscriberDropdownOpen] = useState(false)
@@ -156,6 +146,23 @@ export default function TaxSettingsPage() {
       return () => clearTimeout(timer)
     }
   }, [showAddTaxSnackbar])
+
+  // Auto-hide tax preference snackbar after 5 seconds
+  useEffect(() => {
+    if (showTaxPreferenceSnackbar) {
+      const timer = setTimeout(() => {
+        setShowTaxPreferenceSnackbar(false)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [showTaxPreferenceSnackbar])
+
+  // Initialize modal state when opening
+  useEffect(() => {
+    if (showGlobalTaxModal) {
+      setModalTaxPreference(taxPreference)
+    }
+  }, [showGlobalTaxModal])
   
   // Simulate loading effect on component mount
   useEffect(() => {
@@ -165,15 +172,187 @@ export default function TaxSettingsPage() {
 
     return () => clearTimeout(timer)
   }, [])
+
+  // Load all data on component mount - using ref to prevent multiple calls
+  useEffect(() => { 
+
+    if (!selectedProperty?.sid) return;
+    if (hasLoadedTaxPreferenceRef.current) {
+      console.log('⏭️ Skipping tax preference load - already loaded')
+      return
+    }
+    
+    console.log('🚀 Loading tax preference for the first time')
+    hasLoadedTaxPreferenceRef.current = true
+    
+    const loadData = async () => {
+      try {
+        const sid = selectedProperty?.sid
+        const [taxPreferenceRes, propertiesRes, channelsRes, taxSettingsRes, taxHistoryRes, currencyCodeRes] = await Promise.all([
+          getTaxPreference({ SID: sid, bCacheRefresh: false }),
+          getCompleteCompSet({ SID: sid, includesubscriber: true }),
+          getChannelsData({ SID: sid, isMetaSite: true }),
+          getTaxSetting({ sid: sid }),
+          getTaxSettingHistory({ SID: sid }),
+          getCurrencyCode({ SID: sid })
+        ])
+
+        if (taxPreferenceRes.status) {
+          const preference = taxPreferenceRes.body.preference
+          switch (preference) {
+            case PreferenceValue.Inclusive:
+              setIsTaxNotSet(false)
+              setIsTaxExclusive(false)
+              setIsTaxInclusive(true)
+              setTaxPreference("Inclusive")
+              break
+            case PreferenceValue.Exclusive:
+              setIsTaxInclusive(false)
+              setIsTaxNotSet(false)
+              setIsTaxExclusive(true)
+              setTaxPreference("Exclusive")
+              break
+            default:
+              setIsTaxInclusive(false)
+              setIsTaxExclusive(false)
+              setIsTaxNotSet(true)
+              setTaxPreference("NotSet")
+              break
+          }
+        }
+
+        // Set properties data
+        if (propertiesRes.status) {
+          setProperties(propertiesRes.body || [])
+        }
+
+        // Set channels data
+        if (channelsRes.status) {
+          setChannels(channelsRes.body || [])
+        }
+
+        // Set tax settings data
+        if (taxSettingsRes.status) {
+          setTaxSettings(taxSettingsRes.body || [])
+        }
+
+        // Set tax setting history data
+        if (taxHistoryRes.status) {
+          // Process the data like in Angular - remove trailing commas and spaces
+          const processedHistory = (taxHistoryRes.body || []).map((value: any) => ({
+            ...value,
+            taxValue: value.taxValue.replace(/(\s*,?\s*)*$/, "")
+          }))
+          setTaxSettingHistory(processedHistory)
+        }
+
+        // Set currency code data
+        if (currencyCodeRes.status) {
+          setCurrencyCode(currencyCodeRes.body || "")
+        }
+      } catch (error) {
+        console.error('Error loading data:', error)
+      }
+    }
+    loadData()
+  }, [selectedProperty?.sid]) // Empty dependency array - only run once on mount
+
+  // Reset ref when component unmounts
+  useEffect(() => {
+    return () => {
+      hasLoadedTaxPreferenceRef.current = false
+    }
+  }, [])
+
+  // onChangeTaxPreference function for modal (not saved yet)
+  const onChangeTaxPreference = (value: number) => {
+    switch (value) {
+      case PreferenceValue.Inclusive:
+        setModalTaxPreference("Inclusive")
+        break
+      case PreferenceValue.Exclusive:
+        setModalTaxPreference("Exclusive")
+        break
+      default:
+        setModalTaxPreference("NotSet")
+        break
+    }
+  }
+
+
+  // Save tax preference function matching Angular implementation
+  const onclickSaveTaxPreference = async () => {
+    try {
+      const preferenceValue = modalTaxPreference === "Inclusive" ? PreferenceValue.Inclusive : 
+                            modalTaxPreference === "Exclusive" ? PreferenceValue.Exclusive : 
+                            PreferenceValue.NotSet
+
+      const response = await setTaxPreferenceAPI({
+        SID: selectedProperty?.sid,
+        Preference: preferenceValue,
+        UpdatedBy: LocalStorageService.getUserDetails()?.userId || ""
+      })
+
+      if (response.status && response.body) {
+        // Refresh tax preference
+        console.log('🔄 onclickSaveTaxPreference - calling getTaxPreference to refresh')
+        const taxPreferenceRes = await getTaxPreference({ SID: selectedProperty?.sid, bCacheRefresh: false })
+        if (taxPreferenceRes.status) {
+          const preference = taxPreferenceRes.body.preference
+          switch (preference) {
+            case PreferenceValue.Inclusive:
+              setIsTaxNotSet(false)
+              setIsTaxExclusive(false)
+              setIsTaxInclusive(true)
+              setTaxPreference("Inclusive")
+              break
+            case PreferenceValue.Exclusive:
+              setIsTaxInclusive(false)
+              setIsTaxNotSet(false)
+              setIsTaxExclusive(true)
+              setTaxPreference("Exclusive")
+              break
+            default:
+              setIsTaxInclusive(false)
+              setIsTaxExclusive(false)
+              setIsTaxNotSet(true)
+              setTaxPreference("NotSet")
+              break
+          }
+        }
+
+        // Get tax setting history
+        await getTaxSettingHistory({ SID: selectedProperty?.sid })
+
+        // Show success snackbar
+        setTaxPreferenceSnackbarMessage("TaxPreference Updated successfully!!")
+        setTaxPreferenceSnackbarType("success")
+        setShowTaxPreferenceSnackbar(true)
+        setShowGlobalTaxModal(false)
+      } else {
+        // Show error snackbar
+        setTaxPreferenceSnackbarMessage("Something went wrong please try again!")
+        setTaxPreferenceSnackbarType("error")
+        setShowTaxPreferenceSnackbar(true)
+      }
+    } catch (error) {
+      console.error('Error saving tax preference:', error)
+      setTaxPreferenceSnackbarMessage("Something went wrong please try again!")
+      setTaxPreferenceSnackbarType("error")
+      setShowTaxPreferenceSnackbar(true)
+    }
+  }
   
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (subscriberDropdownRef.current && !subscriberDropdownRef.current.contains(event.target as Node)) {
         setIsSubscriberDropdownOpen(false)
+        setSubscriberSearchTerm('') // Clear search when clicking outside
       }
       if (channelsDropdownRef.current && !channelsDropdownRef.current.contains(event.target as Node)) {
         setIsChannelsDropdownOpen(false)
+        setChannelsSearchTerm('') // Clear search when clicking outside
       }
     }
 
@@ -183,22 +362,80 @@ export default function TaxSettingsPage() {
     }
   }, [])
 
-  const filteredTaxes = taxes.filter(
-    (tax) => {
-      const matchesSearch = tax.tax.toLowerCase().includes((searchValue || searchTerm).toLowerCase()) ||
-        tax.subscriberCompetitor.toLowerCase().includes((searchValue || searchTerm).toLowerCase()) ||
-        tax.channels.toLowerCase().includes((searchValue || searchTerm).toLowerCase())
-      
-      return matchesSearch
-    }
-  ).sort((a, b) => {
+  // Filter tax settings based on search term
+  const filteredTaxSettings = taxSettings.filter(tax => {
+    if (!searchTerm) return true
+    
+    const searchLower = searchTerm.toLowerCase()
+    return (
+      tax.taxValue?.toLowerCase().includes(searchLower) ||
+      tax.taxName?.toLowerCase().includes(searchLower) ||
+      tax.propertiesText?.toLowerCase().includes(searchLower) ||
+      tax.channelsText?.toLowerCase().includes(searchLower) ||
+      tax.activity?.toLowerCase().includes(searchLower) ||
+      tax.updatedByName?.toLowerCase().includes(searchLower)
+    )
+  })
+
+  const filteredTaxes = filteredTaxSettings.sort((a, b) => {
     if (!sortConfig.key || !sortConfig.direction) return 0
     
-    const aValue = a[sortConfig.key as keyof typeof a]
-    const bValue = b[sortConfig.key as keyof typeof b]
+    let aValue: any
+    let bValue: any
     
-    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
-    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
+    // Handle different field types for proper sorting
+    switch (sortConfig.key) {
+      case 'tax':
+        // Sort by tax value only
+        aValue = (a.taxValue || '').toLowerCase()
+        bValue = (b.taxValue || '').toLowerCase()
+        break
+      case 'subscriberCompetitor':
+        // Sort by properties text
+        aValue = (a.propertiesText || '').toLowerCase()
+        bValue = (b.propertiesText || '').toLowerCase()
+        break
+      case 'channels':
+        // Sort by channels text
+        aValue = (a.channelsText || '').toLowerCase()
+        bValue = (b.channelsText || '').toLowerCase()
+        break
+      case 'lastActivity':
+        // Sort by activity
+        aValue = (a.activity || '').toLowerCase()
+        bValue = (b.activity || '').toLowerCase()
+        break
+      case 'lastModifiedBy':
+        // Sort by updated by name
+        aValue = (a.updatedByName || '').toLowerCase()
+        bValue = (b.updatedByName || '').toLowerCase()
+        break
+      case 'action':
+        // Sort by action field
+        aValue = (a.action || '').toLowerCase()
+        bValue = (b.action || '').toLowerCase()
+        break
+      case 'createdOn':
+        // Sort by action (assuming this contains date info)
+        aValue = (a.action || '').toLowerCase()
+        bValue = (b.action || '').toLowerCase()
+        break
+      default:
+        // Fallback to direct field access
+        aValue = a[sortConfig.key as keyof typeof a] || ''
+        bValue = b[sortConfig.key as keyof typeof b] || ''
+    }
+    
+    // Handle null/undefined values
+    if (aValue === null || aValue === undefined) aValue = ''
+    if (bValue === null || bValue === undefined) bValue = ''
+    
+    // Convert to strings for comparison
+    const aStr = String(aValue).toLowerCase()
+    const bStr = String(bValue).toLowerCase()
+    
+    if (aStr < bStr) return sortConfig.direction === 'asc' ? -1 : 1
+    if (aStr > bStr) return sortConfig.direction === 'asc' ? 1 : -1
     return 0
   })
 
@@ -207,55 +444,40 @@ export default function TaxSettingsPage() {
   }
 
   const handleAddTax = () => {
-    if (newTax.subscriberCompetitor && newTax.channels && newTax.tax) {
-      if (isEditMode && editingTaxId) {
-        // Update existing tax
-        setTaxes((prev) => prev.map(tax => 
-          tax.id === editingTaxId 
-            ? {
-                ...tax,
-                tax: newTax.tax,
-                subscriberCompetitor: newTax.subscriberCompetitor,
-                channels: newTax.channels,
-                lastActivity: "Updated",
-                lastModifiedBy: "Current User",
-                createdOn: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }),
-              }
-            : tax
-        ))
-      } else {
-        // Add new tax
-        const tax = {
-          id: taxes.length + 1,
-          tax: newTax.tax,
-          subscriberCompetitor: newTax.subscriberCompetitor,
-          channels: newTax.channels,
-          lastActivity: "Create",
-          lastModifiedBy: "Current User",
-          createdOn: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }),
-          status: true,
-        }
-        setTaxes((prev) => [...prev, tax])
-      }
-      
-      // Reset form
-      setNewTax({
-        subscriberCompetitor: "Central Hotel",
-        channels: "Booking.com",
-        tax: "",
-      })
-      setTaxInputs([{ id: 1, name: "", percentage: "", checked: false }])
+    // Call the new save tax settings function
+    saveTaxSettingsFunction()
+  }
+
+  const openAddTaxModal = () => {
+    // Reset form for create mode
+    setTaxSettingId(0)
+    setActivity("Create")
       setSelectedSubscribers([])
       setSelectedChannels([])
-      setSubscriberSearchTerm("")
-      setChannelsSearchTerm("")
-      setIsSubscriberDropdownOpen(false)
-      setIsChannelsDropdownOpen(false)
-      setIsEditMode(false)
-      setEditingTaxId(null)
-      setShowAddTax(false)
-      setShowAddTaxSnackbar(true)
-    }
+    setTaxInputs([
+      { id: 1, name: "", percentage: "", checked: false }
+    ])
+    // Clear original values for create mode
+    setOriginalSelectedSubscribers([])
+    setOriginalSelectedChannels([])
+    setOriginalTaxInputs([])
+    setShowAddTax(true)
+  }
+
+  // Check if there are any changes from original values
+  const hasChanges = () => {
+    if (activity === "Create") return true // Always enabled for create mode
+    
+    // Compare selected subscribers
+    const subscribersChanged = JSON.stringify(selectedSubscribers.sort()) !== JSON.stringify(originalSelectedSubscribers.sort())
+    
+    // Compare selected channels
+    const channelsChanged = JSON.stringify(selectedChannels.sort()) !== JSON.stringify(originalSelectedChannels.sort())
+    
+    // Compare tax inputs
+    const taxInputsChanged = JSON.stringify(taxInputs) !== JSON.stringify(originalTaxInputs)
+    
+    return subscribersChanged || channelsChanged || taxInputsChanged
   }
 
   const handleCancelAddTax = () => {
@@ -276,23 +498,73 @@ export default function TaxSettingsPage() {
     setShowAddTax(false)
   }
 
-  const handleEditTax = (taxId: number) => {
-    const taxToEdit = taxes.find(tax => tax.id === taxId)
+  const handleEditTax = (taxSettingId: number) => {
+    const taxToEdit = taxSettings.find(tax => tax.taxSettingId === taxSettingId)
     if (taxToEdit) {
-      setIsEditMode(true)
-      setEditingTaxId(taxId)
-      setNewTax({
-        subscriberCompetitor: taxToEdit.subscriberCompetitor,
-        channels: taxToEdit.channels,
-        tax: taxToEdit.tax,
+      // Set the tax setting ID and activity
+      setTaxSettingId(taxSettingId)
+      setActivity("Update")
+      
+      // Find matching properties and channels from available lists (matching Angular logic)
+      // Use word boundary matching to avoid partial matches like "Agoda" matching "AgodaUS"
+      const editedProperties = properties.filter(prop => {
+        const propertiesText = taxToEdit.propertiesText?.toLowerCase() || ""
+        const propName = prop.name.toLowerCase()
+        // Use regex to match complete words only
+        const regex = new RegExp(`\\b${propName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`)
+        return regex.test(propertiesText)
       })
-      // Pre-fill tax inputs with sample data for edit
-      setTaxInputs([
-        { id: 1, name: "Service Tax", percentage: "5", checked: true },
-        { id: 2, name: "City Tax", percentage: "10", checked: false }
-      ])
-      setSelectedSubscribers([taxToEdit.subscriberCompetitor])
-      setSelectedChannels([taxToEdit.channels])
+      
+      const editedChannels = channels.filter(channel => {
+        const channelsText = taxToEdit.channelsText?.toLowerCase() || ""
+        const channelName = channel.name.toLowerCase()
+        // Use regex to match complete words only
+        const regex = new RegExp(`\\b${channelName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`)
+        return regex.test(channelsText)
+      })
+      
+      // Set selected properties and channels using the found matches
+      setSelectedSubscribers(editedProperties.map(prop => prop.name))
+      setSelectedChannels(editedChannels.map(channel => channel.name))
+      
+      // Parse tax values and names
+      const taxValues = taxToEdit.taxValue?.split(",").map(v => v.trim()).filter(Boolean) || []
+      const taxNames = taxToEdit.taxName?.split(",").map(n => n.trim()).filter(Boolean) || []
+      
+      // Create tax inputs from the parsed data
+      const newTaxInputs = []
+      for (let i = 0; i < Math.max(taxValues.length, taxNames.length); i++) {
+        const taxValue = taxValues[i] || ""
+        const taxName = taxNames[i] || `Tax${i + 1}`
+        const isPercentage = taxValue.includes('%')
+        const percentage = isPercentage ? taxValue.replace('%', '') : taxValue
+        
+        newTaxInputs.push({
+          id: i + 1,
+          name: taxName,
+          percentage: percentage,
+          checked: isPercentage
+        })
+      }
+      
+      // If no tax inputs, add one empty one
+      if (newTaxInputs.length === 0) {
+        newTaxInputs.push({
+          id: 1,
+          name: "",
+          percentage: "",
+          checked: false
+        })
+      }
+      
+      setTaxInputs(newTaxInputs)
+      
+      // Store original values for comparison
+      setOriginalSelectedSubscribers(editedProperties.map(prop => prop.name))
+      setOriginalSelectedChannels(editedChannels.map(channel => channel.name))
+      setOriginalTaxInputs([...newTaxInputs])
+      
+      // Open the Add Tax modal
       setShowAddTax(true)
     }
   }
@@ -302,18 +574,194 @@ export default function TaxSettingsPage() {
     setShowDeleteConfirm(true)
   }
 
-  const confirmDeleteTax = () => {
-    if (taxToDelete) {
-      setTaxes((prev) => prev.filter((tax) => tax.id !== taxToDelete))
+  const confirmDeleteTax = async () => {
+    if (!taxToDelete) return
+
+    try {
+      const sid = selectedProperty?.sid
+      const deleteParams = {
+        taxSettingId: taxToDelete,
+        SID: sid
+      }
+      
+      console.log('🗑️ Delete Tax Request:', deleteParams)
+      const response = await deleteTaxSetting(deleteParams)
+      console.log('🗑️ Delete Tax Response:', response)
+
+      if (response.status && response.body) {
+        // Refresh data
+        await loadTaxSettingsData()
+        
+        // Show success message
+        setSnackbarMessage("Tax Settings Deleted Successfully!!")
+        setSnackbarType("success")
+        setShowSnackbar(true)
+      } else {
+        // Show error message
+        setSnackbarMessage("Something went wrong please try again!")
+        setSnackbarType("error")
+        setShowSnackbar(true)
+      }
+    } catch (error) {
+      console.error('Error deleting tax setting:', error)
+      setSnackbarMessage("Something went wrong please try again!")
+      setSnackbarType("error")
+      setShowSnackbar(true)
+    } finally {
       setShowDeleteConfirm(false)
       setTaxToDelete(null)
-      setShowDeleteSnackbar(true)
     }
   }
 
   const cancelDeleteTax = () => {
     setShowDeleteConfirm(false)
     setTaxToDelete(null)
+  }
+
+  // Save tax settings function matching Angular implementation
+  const saveTaxSettingsFunction = async () => {
+    setIsAllFieldFilled(false)
+    
+    // Validate tax inputs - check if any field is partially filled
+    for (const item of taxInputs) {
+      if ((item.name !== '' && item.percentage === '') || (item.percentage !== '' && item.name === '')) {
+        setSnackbarMessage("Please fill all the tax fields")
+        setSnackbarType("error")
+        setShowSnackbar(true)
+        setIsAllFieldFilled(true)
+        return
+      }
+    }
+    
+    if (isAllFieldFilled) return
+
+    // Map selected names to proper objects with IDs (matching Angular implementation)
+    const selectedPropertyObjects = selectedSubscribers.map(selectedName => {
+      const property = properties.find(p => p.name === selectedName)
+      return property ? {
+        PropertyId: property.propertyID,
+        PropertyName: property.name
+      } : null
+    }).filter(Boolean)
+
+    const selectedChannelObjects = selectedChannels.map(selectedName => {
+      const channel = channels.find(c => c.name === selectedName)
+      return channel ? {
+        ChannelId: channel.cid,
+        ChannelName: channel.name
+      } : null
+    }).filter(Boolean)
+
+    // Prepare tax model
+    const taxModel = {
+      SID: selectedProperty?.sid,
+      TaxSettingId: taxSettingId,
+      Channels: selectedChannelObjects,
+      Properties: selectedPropertyObjects,
+      Currency: currencyCode,
+      CreatedById: LocalStorageService.getUserDetails()?.userId || "",
+      CreatedByName: LocalStorageService.getUserDisplayName(),
+      CreatedOn: new Date(),
+      Activity: activity,
+      UpdatedById: LocalStorageService.getUserDetails()?.userId || "",
+      TaxValue: taxInputs
+        .map(item => {
+          return item.checked && item.percentage ? item.percentage + "%" : item.percentage
+        })
+        .filter(value => value !== '')
+        .join(","),
+      TaxName: taxInputs
+        .map(item => item.name)
+        .filter(value => value !== '')
+        .join(",")
+    }
+
+    try {
+      const response = await saveTaxSettings(taxModel)
+      
+      if (!response.status && response.message === 'Few Combinations are Existing') {
+        setSnackbarMessage("The Tax settings has not been added. Maybe this combination already exists")
+        setSnackbarType("error")
+        setShowSnackbar(true)
+      } else {
+        setSnackbarMessage(`The Tax settings has been ${activity.toLowerCase() === "update" ? "updated" : "saved"}!!`)
+        setSnackbarType("success")
+        setShowSnackbar(true)
+        
+        // Refresh data
+        await loadTaxSettingsData()
+        
+        // Reset form
+        setSelectedChannels([])
+        setSelectedSubscribers([])
+        setTaxInputs([{ id: 1, name: "", percentage: "", checked: false }])
+        setShowAddTax(false)
+      }
+    } catch (error) {
+      console.error('Error saving tax settings:', error)
+      setSnackbarMessage("Error saving tax settings")
+      setSnackbarType("error")
+      setShowSnackbar(true)
+    }
+  }
+
+  // Load tax settings data
+  const loadTaxSettingsData = async () => {
+    try {
+      const sid = selectedProperty?.sid
+      const [taxSettingsRes, taxHistoryRes] = await Promise.all([
+        getTaxSetting({ sid: sid }),
+        getTaxSettingHistory({ SID: sid })
+      ])
+
+      if (taxSettingsRes.status) {
+        setTaxSettings(taxSettingsRes.body || [])
+      }
+
+      if (taxHistoryRes.status) {
+        const processedHistory = (taxHistoryRes.body || []).map((value: any) => ({
+          ...value,
+          taxValue: value.taxValue.replace(/(\s*,?\s*)*$/, "")
+        }))
+        setTaxSettingHistory(processedHistory)
+      }
+    } catch (error) {
+      console.error('Error loading tax settings data:', error)
+    }
+  }
+
+
+  // Tax properties management functions
+  const addTaxRow = (index: number) => {
+    if (taxProperties.length < 5) {
+      const newId = Math.max(...taxProperties.map(tp => tp.id)) + 1
+      const newTaxProperty = { id: newId, TaxName: "", Tax: "", isPercentage: false }
+      setTaxProperties(prev => [...prev, newTaxProperty])
+    }
+  }
+
+  const deleteTaxRow = (index: number) => {
+    if (taxProperties.length > 1) {
+      setTaxProperties(prev => prev.filter((_, i) => i !== index))
+    }
+  }
+
+  const updateTaxProperty = (index: number, field: string, value: any) => {
+    setTaxProperties(prev => prev.map((item, i) => 
+      i === index ? { ...item, [field]: value } : item
+    ))
+  }
+
+  const callSample = (taxProps: any[], index: number) => {
+    // This function would handle the sample preview calculation
+    // For now, we'll just log the current tax properties
+    console.log('Sample calculation for tax properties:', taxProps)
+  }
+
+  const onEdited = (index: number) => {
+    // This function would handle the edited state
+    // For now, we'll just log the edit
+    console.log('Tax property edited at index:', index)
   }
 
   const toggleSearch = () => {
@@ -329,13 +777,53 @@ export default function TaxSettingsPage() {
     setShowSearch(false)
   }
 
+  // Search functionality matching Angular implementation
+  const applyFilter = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const filterValue = event.target.value
+    setSearchTerm(filterValue)
+  }
+
+  const closeSearch = () => {
+    setIsSearch(false)
+    setSearchTerm("")
+  }
+
+  const openSearch = () => {
+    setIsSearch(true)
+  }
+
   // Multiselect dropdown handlers
   const handleSubscriberToggle = (subscriber: string) => {
     if (subscriber === 'All Hotels') {
-      if (selectedSubscribers.includes('All Hotels')) {
-        setSelectedSubscribers([])
+      // Get filtered properties based on search term
+      const filteredProperties = properties.filter(property =>
+        property.name.toLowerCase().includes(subscriberSearchTerm.toLowerCase())
+      )
+      
+      // Check if all filtered properties are selected
+      const allFilteredSelected = filteredProperties.every(property => 
+        selectedSubscribers.includes(property.name)
+      )
+      
+      if (allFilteredSelected) {
+        // All filtered are selected, so deselect all filtered
+        setSelectedSubscribers(prev => 
+          prev.filter(selected => 
+            !filteredProperties.some(filtered => filtered.name === selected)
+          )
+        )
       } else {
-        setSelectedSubscribers(mockHotels)
+        // Not all filtered are selected, so select all filtered
+        const filteredNames = filteredProperties.map(property => property.name)
+        setSelectedSubscribers(prev => {
+          const newSelection = [...prev]
+          filteredNames.forEach(name => {
+            if (!newSelection.includes(name)) {
+              newSelection.push(name)
+            }
+          })
+          return newSelection
+        })
       }
     } else {
       setSelectedSubscribers(prev => 
@@ -348,10 +836,35 @@ export default function TaxSettingsPage() {
 
   const handleChannelToggle = (channel: string) => {
     if (channel === 'All Channels') {
-      if (selectedChannels.includes('All Channels')) {
-        setSelectedChannels([])
+      // Get filtered channels based on search term
+      const filteredChannels = channels.filter(channel =>
+        channel.name.toLowerCase().includes(channelsSearchTerm.toLowerCase())
+      )
+      
+      // Check if all filtered channels are selected
+      const allFilteredSelected = filteredChannels.every(channel => 
+        selectedChannels.includes(channel.name)
+      )
+      
+      if (allFilteredSelected) {
+        // All filtered are selected, so deselect all filtered
+        setSelectedChannels(prev => 
+          prev.filter(selected => 
+            !filteredChannels.some(filtered => filtered.name === selected)
+          )
+        )
       } else {
-        setSelectedChannels(mockChannels)
+        // Not all filtered are selected, so select all filtered
+        const filteredNames = filteredChannels.map(channel => channel.name)
+        setSelectedChannels(prev => {
+          const newSelection = [...prev]
+          filteredNames.forEach(name => {
+            if (!newSelection.includes(name)) {
+              newSelection.push(name)
+            }
+          })
+          return newSelection
+        })
       }
     } else {
       setSelectedChannels(prev => 
@@ -363,13 +876,14 @@ export default function TaxSettingsPage() {
   }
 
   // Filter functions for search
-  const filteredSubscribers = mockHotels.filter(hotel =>
-    hotel.toLowerCase().includes(subscriberSearchTerm.toLowerCase())
+  const filteredSubscribers = properties.filter(property =>
+    property.name.toLowerCase().includes(subscriberSearchTerm.toLowerCase())
   )
 
-  const filteredChannels = mockChannels.filter(channel =>
-    channel.toLowerCase().includes(channelsSearchTerm.toLowerCase())
+  const filteredChannels = channels.filter(channel =>
+    channel.name.toLowerCase().includes(channelsSearchTerm.toLowerCase())
   )
+
 
   // Tax input handlers
   const addTaxInput = () => {
@@ -386,6 +900,15 @@ export default function TaxSettingsPage() {
   }
 
   const updateTaxInput = (id: number, field: 'name' | 'percentage' | 'checked', value: string | boolean) => {
+    // Add validation for percentage field to prevent negative values and 0
+    if (field === 'percentage' && typeof value === 'string') {
+      const numericValue = parseFloat(value)
+      // If the value is negative or 0, don't update it
+      if (numericValue <= 0) {
+        return
+      }
+    }
+    
     setTaxInputs(taxInputs.map(tax => 
       tax.id === id ? { ...tax, [field]: value } : tax
     ))
@@ -546,12 +1069,12 @@ export default function TaxSettingsPage() {
         <div className="flex items-center gap-8">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <span className="text-xl font-semibold text-foreground">Global Tax Preference</span>
+              <span className="text-xl font-semibold text-foreground">Global Tax Preference:</span>
               <button
                 onClick={() => setShowGlobalTaxModal(true)}
                 className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer"
               >
-                Exclusive
+                {taxPreference}
               </button>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -559,16 +1082,18 @@ export default function TaxSettingsPage() {
             </p>
           </div>
         </div>
+        
+        {/* Search and Actions Bar - Moved back to header right side */}
         <div className="flex items-center gap-3">
           {/* Search Icon/Field */}
           <div className="flex items-center gap-2">
-            {!showSearch ? (
+            {!isSearch ? (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       variant="outline"
-                      onClick={toggleSearch}
+                      onClick={openSearch}
                       className="flex items-center gap-2"
                     >
                       <Search className="w-4 h-4" />
@@ -582,15 +1107,15 @@ export default function TaxSettingsPage() {
             ) : (
               <div className="relative">
                 <Input
-                  value={searchValue}
-                  onChange={(e) => setSearchValue(e.target.value)}
-                  placeholder="Search..."
+                  value={searchTerm}
+                  onChange={applyFilter}
+                  placeholder="Type here"
                   className="w-[120px] h-9 px-3 pr-8 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
                   autoFocus
                 />
                 <Button
                   variant="ghost"
-                  onClick={clearSearch}
+                  onClick={closeSearch}
                   className="absolute right-1 top-1/2 transform -translate-y-1/2 p-1 h-6 w-6 hover:bg-gray-100"
                 >
                   <X className="w-3 h-3" />
@@ -598,6 +1123,7 @@ export default function TaxSettingsPage() {
               </div>
             )}
           </div>
+
 
           <Button
             variant="outline"
@@ -608,7 +1134,7 @@ export default function TaxSettingsPage() {
             Change History
           </Button>
           <Button
-            onClick={() => setShowAddTax(true)}
+            onClick={openAddTaxModal}
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             <Plus className="w-4 h-4" />
@@ -695,7 +1221,18 @@ export default function TaxSettingsPage() {
                 </div>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tr-lg">
-                    &nbsp;&nbsp;&nbsp;Action
+                    <div 
+                      className="flex items-center gap-1 cursor-pointer group"
+                      onClick={() => handleSort('action')}
+                    >
+                      &nbsp;&nbsp;&nbsp;Action
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                        {getHoverIcon('action')}
+                      </span>
+                      <span className="opacity-100 mt-0.5">
+                        {getSortIcon('action')}
+                      </span>
+                    </div>
                   </th>
                 </tr>
               </thead>
@@ -703,50 +1240,78 @@ export default function TaxSettingsPage() {
                 {filteredTaxes.map((tax, index) => {
                   const isLastRow = index === filteredTaxes.length - 1;
                   return (
-                    <tr key={tax.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800/50 ${index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-800'}`}>
+                    <tr key={tax.taxSettingId} className={`hover:bg-gray-50 dark:hover:bg-slate-800/50 ${index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-800'}`}>
                       <td className={`px-4 py-2 whitespace-nowrap ${isLastRow ? 'rounded-bl-lg' : ''}`}>
                         <div className="flex items-center">
                           <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                             <TruncatedTooltip 
-                              content={tax.tax}
+                              content={tax.taxValue.trim().split(',').length > 1 && tax.taxValue.trim().split(',')[1] != '' ? tax.taxValue : tax.taxValue.trim().split(',')[0]}
                               className="truncate max-w-xs"
                             >
-                              {tax.tax}
+                              {tax.taxValue.trim().split(',').length > 1 && tax.taxValue.trim().split(',')[1] != '' ? tax.taxValue : tax.taxValue.trim().split(',')[0]}
                             </TruncatedTooltip>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         <TruncatedTooltip 
-                          content={tax.subscriberCompetitor}
+                          content={(() => {
+                            const properties = tax.propertiesText.split(',').map(prop => prop.trim())
+                            if (properties.length > 1) {
+                              // Show the visible text + count of remaining hidden items
+                              // Assuming 2-3 items are visible in the truncated text
+                              const visibleCount = Math.min(2, properties.length)
+                              const visibleProperties = properties.slice(0, visibleCount)
+                              const remainingCount = properties.length - visibleCount
+                              if (remainingCount > 0) {
+                                return `${visibleProperties.join(', ')} (+${remainingCount})`
+                              }
+                              return visibleProperties.join(', ')
+                            }
+                            return tax.propertiesText
+                          })()}
                           className="truncate max-w-32"
                         >
-                          {tax.subscriberCompetitor}
+                          {tax.propertiesText}
                         </TruncatedTooltip>
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         <TruncatedTooltip 
-                          content={tax.channels}
+                          content={(() => {
+                            const channels = tax.channelsText.split(',').map(ch => ch.trim())
+                            if (channels.length > 1) {
+                              // Show the visible text + count of remaining hidden items
+                              // Assuming 2-3 items are visible in the truncated text
+                              const visibleCount = Math.min(2, channels.length)
+                              const visibleChannels = channels.slice(0, visibleCount)
+                              const remainingCount = channels.length - visibleCount
+                              if (remainingCount > 0) {
+                                return `${visibleChannels.join(', ')} (+${remainingCount})`
+                              }
+                              return visibleChannels.join(', ')
+                            }
+                            return tax.channelsText
+                          })()}
                           className="truncate max-w-32"
                         >
-                          {tax.channels}
+                          {tax.channelsText}
                         </TruncatedTooltip>
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          tax.lastActivity === 'Create' || tax.lastActivity === 'Added'
+                          tax.activity === 'Create' || tax.activity === 'Added'
                             ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
                             : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
                         }`}>
-                          {tax.lastActivity === 'Create' ? 'Added' : tax.lastActivity === 'Update' ? 'Updated' : tax.lastActivity}
+                          {tax.activity === 'Create' ? 'Added' : tax.activity === 'Update' ? 'Updated' : tax.activity}
                         </span>
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         <TruncatedTooltip 
-                          content={tax.lastModifiedBy}
+                          content={tax.updatedByName}
                           className="truncate max-w-32"
                         >
-                          {tax.lastModifiedBy}
+                          {tax.updatedByName}
                         </TruncatedTooltip>
                       </td>
                       <td className={`px-4 py-2 whitespace-nowrap text-left ${isLastRow ? 'rounded-br-lg' : ''}`}>
@@ -759,7 +1324,7 @@ export default function TaxSettingsPage() {
                                   size="sm"
                                   className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 text-xs"
                                 >
-                                  Show Current ADR
+                                  {tax.action ?? "Show Current ADR"}
                   </Button>
                               </TooltipTrigger>
                               <TooltipContent 
@@ -822,7 +1387,7 @@ export default function TaxSettingsPage() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleEditTax(tax.id)}
+                                  onClick={() => handleEditTax(tax.taxSettingId)}
                                   className="text-gray-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 h-6 w-6 p-0"
                                 >
                                   <Edit className="w-3 h-3" />
@@ -839,7 +1404,7 @@ export default function TaxSettingsPage() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleDeleteTax(tax.id)}
+                                  onClick={() => handleDeleteTax(tax.taxSettingId)}
                                   className="text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 h-6 w-6 p-0"
                                 >
                                   <Trash2 className="w-3 h-3" />
@@ -892,9 +1457,20 @@ export default function TaxSettingsPage() {
                     <span className="text-gray-900">
                       {selectedSubscribers.length === 0 
                         ? "Select hotels..." 
-                        : selectedSubscribers.length === 1 
+                        : (() => {
+                            const filteredProperties = properties.filter(property =>
+                              property.name.toLowerCase().includes(subscriberSearchTerm.toLowerCase())
+                            )
+                            const allFilteredSelected = filteredProperties.length > 0 && filteredProperties.every(property => 
+                              selectedSubscribers.includes(property.name)
+                            )
+                            return allFilteredSelected ? "All" : 
+                              selectedSubscribers.length === 1 
                           ? selectedSubscribers[0]
-                          : `${selectedSubscribers.length} hotels selected`
+                                : selectedSubscribers.length > 1 
+                          ? `${selectedSubscribers[0]} + ${selectedSubscribers.length - 1}`
+                                : "Select hotels..."
+                          })()
                       }
                     </span>
                     <ChevronDown className="w-4 h-4 text-gray-400" />
@@ -920,25 +1496,32 @@ export default function TaxSettingsPage() {
                         <label className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
                           <input
                             type="checkbox"
-                            checked={selectedSubscribers.length === mockHotels.length}
+                            checked={(() => {
+                              const filteredProperties = properties.filter(property =>
+                                property.name.toLowerCase().includes(subscriberSearchTerm.toLowerCase())
+                              )
+                              return filteredProperties.length > 0 && filteredProperties.every(property => 
+                                selectedSubscribers.includes(property.name)
+                              )
+                            })()}
                             onChange={() => handleSubscriberToggle('All Hotels')}
                             className="w-4 h-4 mr-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                           />
                           <span className="text-sm font-medium text-gray-900">All Hotels</span>
                         </label>
-                        {filteredSubscribers.map((hotel) => (
+                        {filteredSubscribers.map((property, index) => (
                           <label
-                            key={hotel}
+                            key={property.propertyID || `property-${index}`}
                             className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
                           >
                             <input
                               type="checkbox"
-                              checked={selectedSubscribers.includes(hotel)}
-                              onChange={() => handleSubscriberToggle(hotel)}
+                              checked={selectedSubscribers.includes(property.name)}
+                              onChange={() => handleSubscriberToggle(property.name)}
                               className="w-4 h-4 mr-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                             />
-                            <span className="text-sm text-gray-900 truncate" title={hotel}>
-                              {hotel.length > 32 ? `${hotel.substring(0, 32)}...` : hotel}
+                            <span className="text-sm text-gray-900" title={property.name}>
+                              {property.name}
                             </span>
                           </label>
                         ))}
@@ -985,6 +1568,8 @@ export default function TaxSettingsPage() {
                         <div className="w-32 flex items-center gap-2">
                           <Input
                             type="number"
+                            min="0.1"
+                            step="0.1"
                             value={tax.percentage}
                             onChange={(e) => updateTaxInput(tax.id, 'percentage', e.target.value)}
                             className="w-16 px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
@@ -1057,9 +1642,20 @@ export default function TaxSettingsPage() {
                     <span className="text-gray-900">
                       {selectedChannels.length === 0 
                         ? "Select channels..." 
-                        : selectedChannels.length === 1 
+                        : (() => {
+                            const filteredChannels = channels.filter(channel =>
+                              channel.name.toLowerCase().includes(channelsSearchTerm.toLowerCase())
+                            )
+                            const allFilteredSelected = filteredChannels.length > 0 && filteredChannels.every(channel => 
+                              selectedChannels.includes(channel.name)
+                            )
+                            return allFilteredSelected ? "All" : 
+                              selectedChannels.length === 1 
                           ? selectedChannels[0]
-                          : `${selectedChannels.length} channels selected`
+                                : selectedChannels.length > 1 
+                          ? `${selectedChannels[0]} + ${selectedChannels.length - 1}`
+                                : "Select channels..."
+                          })()
                       }
                     </span>
                     <ChevronDown className="w-4 h-4 text-gray-400" />
@@ -1085,25 +1681,32 @@ export default function TaxSettingsPage() {
                         <label className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
                           <input
                             type="checkbox"
-                            checked={selectedChannels.length === mockChannels.length}
+                            checked={(() => {
+                              const filteredChannels = channels.filter(channel =>
+                                channel.name.toLowerCase().includes(channelsSearchTerm.toLowerCase())
+                              )
+                              return filteredChannels.length > 0 && filteredChannels.every(channel => 
+                                selectedChannels.includes(channel.name)
+                              )
+                            })()}
                             onChange={() => handleChannelToggle('All Channels')}
                             className="w-4 h-4 mr-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                           />
                           <span className="text-sm font-medium text-gray-900">All Channels</span>
                         </label>
-                        {filteredChannels.map((channel) => (
+                        {filteredChannels.map((channel, index) => (
                           <label
-                            key={channel}
+                            key={channel.cid || `channel-${index}`}
                             className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
                           >
                             <input
                               type="checkbox"
-                              checked={selectedChannels.includes(channel)}
-                              onChange={() => handleChannelToggle(channel)}
+                              checked={selectedChannels.includes(channel.name)}
+                              onChange={() => handleChannelToggle(channel.name)}
                               className="w-4 h-4 mr-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                             />
-                            <span className="text-sm text-gray-900 truncate" title={channel}>
-                              {channel.length > 32 ? `${channel.substring(0, 32)}...` : channel}
+                            <span className="text-sm text-gray-900" title={channel.name}>
+                              {channel.name}
                             </span>
                           </label>
                         ))}
@@ -1214,13 +1817,15 @@ export default function TaxSettingsPage() {
             <Button
               onClick={handleAddTax}
               disabled={
+                !hasChanges() ||
                 selectedSubscribers.length === 0 ||
                 selectedChannels.length === 0 ||
-                taxInputs.some(tax => !tax.name || !tax.percentage)
+                taxInputs.some(tax => !tax.name || !tax.percentage) ||
+                taxInputs.some(tax => parseFloat(tax.percentage) <= 0)
               }
               className="px-6 bg-blue-600 hover:bg-blue-700 text-white"
             >
-              {isEditMode ? 'Update Tax' : 'Add Tax'}
+              {activity === 'Update' ? 'Update Tax' : 'Add Tax'}
             </Button>
             </div>
           </div>
@@ -1314,138 +1919,88 @@ export default function TaxSettingsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-slate-900">
-                  {(() => {
-                    const baseData = [
-                      {
-                        channel: "Booking.com, Expedia (+6)",
-                        property: "Aranta Suvarnabh... (+14)",
-                        taxValue: "5%",
-                        activity: "Update",
-                        createdOn: "03 Jun'25",
-                        lastModifiedBy: "Aditi Sharma"
-                      },
-                      {
-                        channel: "Booking.com, Expedia (+5)",
-                        property: "Aranta Suvarnabh... (+15)",
-                        taxValue: "5%",
-                        activity: "Create",
-                        createdOn: "12 Feb'25",
-                        lastModifiedBy: "Renu Gupta"
-                      },
-                      {
-                        channel: "Booking.com, Expedia (+4)",
-                        property: "Aranta Suvarnabh... (+16)",
-                        taxValue: "5%",
-                        activity: "Delete",
-                        createdOn: "19 Dec'24",
-                        lastModifiedBy: "Aditi Sharma"
-                      }
-                    ];
-
-                    // Generate all data first
-                    let allData = Array.from({ length: 50 }, (_, index) => {
-                      const change = baseData[index % baseData.length];
-                      return {
-                        ...change,
-                        id: index + 1,
-                        channel: `${change.channel} ${index + 1}`,
-                        property: `${change.property} ${index + 1}`,
-                        createdOn: change.createdOn,
-                        lastModifiedBy: `${change.lastModifiedBy} ${index + 1}`
-                      };
-                    });
-
-                    // Apply sorting to change history data
-                    const sortedData = allData.sort((a, b) => {
-                      if (!sortConfig.key || !sortConfig.direction) return 0
-                      
-                      let aValue, bValue;
-                      
-                      switch (sortConfig.key) {
-                        case 'createdOn':
-                          aValue = a.createdOn
-                          bValue = b.createdOn
-                          break
-                        case 'lastModifiedBy':
-                          aValue = a.lastModifiedBy
-                          bValue = b.lastModifiedBy
-                          break
-                        default:
-                          return 0
-                      }
-                      
-                      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
-                      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
-                      return 0
-                    })
-
-                    return sortedData.map((changeWithId, index) => {
-                      const isLastRow = index === 49;
+                  {taxSettingHistory.map((historyItem, index) => {
+                    const isLastRow = index === taxSettingHistory.length - 1;
                       return (
-                      <tr key={changeWithId.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800/50 ${index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-800'}`}>
+                      <tr key={index} className={`hover:bg-gray-50 dark:hover:bg-slate-800/50 ${index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-800'}`}>
                         <td className={`px-4 py-2 whitespace-nowrap border-b border-gray-200 dark:border-gray-700 ${isLastRow ? 'rounded-bl-lg' : ''} w-32`}>
                           <TruncatedTooltip 
-                            content={changeWithId.channel}
+                            content={(() => {
+                              const channels = historyItem.channels.split(',').map((ch: string) => ch.trim())
+                              if (channels.length > 2) {
+                                const visibleChannels = channels.slice(0, 2)
+                                const remainingCount = channels.length - 2
+                                return `${visibleChannels.join(', ')} (+${remainingCount})`
+                              }
+                              return historyItem.channels
+                            })()}
                             className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate"
                           >
-                            {changeWithId.channel}
+                            {historyItem.channels}
                           </TruncatedTooltip>
                         </td>
                         <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-32">
                           <TruncatedTooltip 
-                            content={changeWithId.property}
+                            content={(() => {
+                              const properties = historyItem.properties.split(',').map((prop: string) => prop.trim())
+                              if (properties.length > 2) {
+                                const visibleProperties = properties.slice(0, 2)
+                                const remainingCount = properties.length - 2
+                                return `${visibleProperties.join(', ')} (+${remainingCount})`
+                              }
+                              return historyItem.properties
+                            })()}
                             className="truncate"
                           >
-                            {changeWithId.property}
+                            {historyItem.properties}
                           </TruncatedTooltip>
                         </td>
                         <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-20">
                           <TruncatedTooltip 
-                            content={changeWithId.taxValue}
+                            content={historyItem.taxValue}
                             className="truncate"
                           >
-                            {changeWithId.taxValue}
+                            {historyItem.taxValue.length > 8 ? `${historyItem.taxValue.slice(0, 8)}...` : historyItem.taxValue}
                           </TruncatedTooltip>
                         </td>
                         <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-20">
                           <TruncatedTooltip 
-                            content={changeWithId.createdOn}
+                            content={historyItem.createdOn}
                             className="truncate"
                           >
-                            {changeWithId.createdOn}
+                            {historyItem.createdOn}
                           </TruncatedTooltip>
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-32">
                           <TruncatedTooltip 
-                            content={changeWithId.lastModifiedBy}
+                            content={historyItem.createdByName}
                             className="truncate"
                           >
-                            {changeWithId.lastModifiedBy}
+                            {historyItem.createdByName}
                           </TruncatedTooltip>
                         </td>
                         <td className={`px-4 py-2 text-center text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 ${isLastRow ? 'rounded-br-lg' : ''} w-20`}>
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            changeWithId.activity === 'Create' 
+                            historyItem.action === 'Create' 
                               ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
-                              : changeWithId.activity === 'Update'
+                              : historyItem.action === 'Update'
                               ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
                               : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                           }`}>
-                            {changeWithId.activity === 'Create' ? 'Added' : changeWithId.activity === 'Update' ? 'Updated' : changeWithId.activity}
+                            {historyItem.action}
                           </span>
                         </td>
                       </tr>
                       );
-                    });
-                  })()}
+                  })}
                   {/* Add padding to ensure last row is visible */}
                   <tr>
                     <td colSpan={6} className="h-4"></td>
                   </tr>
                 </tbody>
+                </table>
                 {/* Add blank space after table */}
                 <div className="h-2.5"></div>
-                </table>
               </div>
             </div>
           </div>
@@ -1464,16 +2019,16 @@ export default function TaxSettingsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Success Snackbar */}
+      {/* Dynamic Snackbar */}
       {showSnackbar && (
         <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4">
+          <div className={`${snackbarType === 'success' ? 'bg-green-600' : snackbarType === 'error' ? 'bg-red-600' : 'bg-blue-600'} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4`}>
             <div className="flex items-center gap-3">
               <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
                 <CheckCircle className="w-4 h-4" />
     </div>
               <span className="text-sm font-medium">
-                Tax added successfully
+                {snackbarMessage}
               </span>
             </div>
           </div>
@@ -1512,6 +2067,22 @@ export default function TaxSettingsPage() {
         </div>
       )}
 
+      {/* Tax Preference Snackbar */}
+      {showTaxPreferenceSnackbar && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+          <div className={`${taxPreferenceSnackbarType === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4`}>
+            <div className="flex items-center gap-3">
+              <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-4 h-4" />
+              </div>
+              <span className="text-sm font-medium">
+                {taxPreferenceSnackbarMessage}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Global Tax Setting Modal */}
       <Dialog open={showGlobalTaxModal} onOpenChange={setShowGlobalTaxModal}>
         <DialogContent className="max-w-2xl">
@@ -1525,13 +2096,13 @@ export default function TaxSettingsPage() {
           <div className="space-y-6 mt-2">
             <div className="space-y-4">
               <RadioGroup
-                value={globalTaxPreference}
-                onValueChange={setGlobalTaxPreference}
+                value={modalTaxPreference === "Inclusive" ? "1" : modalTaxPreference === "Exclusive" ? "2" : "0"}
+                onValueChange={(value) => onChangeTaxPreference(parseInt(value))}
                 className="space-y-4"
               >
                 <div className="space-y-2">
                   <div className="flex items-start space-x-3">
-                    <RadioGroupItem value="inclusive" id="inclusive" className="mt-1.5" />
+                    <RadioGroupItem value="1" id="inclusive" className="mt-1.5" />
                     <div className="space-y-1">
                       <Label htmlFor="inclusive" className="text-sm font-medium text-gray-900 dark:text-gray-100">
                         Inclusive of Taxes
@@ -1545,7 +2116,7 @@ export default function TaxSettingsPage() {
 
                 <div className="space-y-2">
                   <div className="flex items-start space-x-3">
-                    <RadioGroupItem value="exclusive" id="exclusive" className="mt-1.5" />
+                    <RadioGroupItem value="2" id="exclusive" className="mt-1.5" />
                     <div className="space-y-1">
                       <Label htmlFor="exclusive" className="text-sm font-medium text-gray-900 dark:text-gray-100">
                         Exclusive of Taxes
@@ -1559,7 +2130,7 @@ export default function TaxSettingsPage() {
 
                 <div className="space-y-2">
                   <div className="flex items-start space-x-3">
-                    <RadioGroupItem value="not-configured" id="not-configured" className="mt-1.5" />
+                    <RadioGroupItem value="0" id="not-configured" className="mt-1.5" />
                     <div className="space-y-1">
                       <Label htmlFor="not-configured" className="text-sm font-medium text-gray-900 dark:text-gray-100">
                         Tax Not Configured
@@ -1579,7 +2150,7 @@ export default function TaxSettingsPage() {
               variant="ghost"
               onClick={() => {
                 setShowGlobalTaxModal(false)
-                setShowAddTax(true)
+                openAddTaxModal()
               }}
               className="h-9 px-4 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
             >
@@ -1593,8 +2164,9 @@ export default function TaxSettingsPage() {
               Cancel
             </Button>
             <Button
-              onClick={() => setShowGlobalTaxModal(false)}
-              className="h-9 px-4 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              onClick={onclickSaveTaxPreference}
+              disabled={modalTaxPreference === taxPreference}
+              className="h-9 px-4 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               Save
             </Button>

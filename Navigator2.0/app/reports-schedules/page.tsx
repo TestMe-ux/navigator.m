@@ -3452,7 +3452,7 @@ export default function ScheduledReportsPage() {
                         className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer"
                         onClick={() => setIsEditPrimaryHotelsOpen(!isEditPrimaryHotelsOpen)}
                       >
-                        <span>Primary ({primaryHotelsData.length})</span>
+                        <span>Primary ({editFormData.selectedPrimaryHotels.length})</span>
                         <ChevronDown className="w-4 h-4 text-gray-400" />
                       </Label>
 
@@ -3519,7 +3519,7 @@ export default function ScheduledReportsPage() {
                         className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer"
                         onClick={() => setIsEditSecondaryHotelsOpen(!isEditSecondaryHotelsOpen)}
                       >
-                        <span>Secondary ({secondaryHotelsData.length})</span>
+                        <span>Secondary ({editFormData.selectedSecondaryHotels.length})</span>
                         <ChevronDown className="w-4 h-4 text-gray-400" />
                       </Label>
 
@@ -4421,7 +4421,7 @@ export default function ScheduledReportsPage() {
                               Loading properties...
                             </>
                           ) : (
-                            `Primary (${primaryHotelsData.length})`
+                            `Primary (${createFormData.selectedPrimaryHotels.length})`
                           )}
                         </span>
                         {!isLoadingCompSet && (
@@ -4511,7 +4511,7 @@ export default function ScheduledReportsPage() {
                               Loading properties...
                             </>
                           ) : (
-                            `Secondary (${secondaryHotelsData.length})`
+                            `Secondary (${createFormData.selectedSecondaryHotels.length})`
                           )}
                         </span>
                         {!isLoadingCompSet && (
