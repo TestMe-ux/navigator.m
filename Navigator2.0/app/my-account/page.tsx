@@ -148,8 +148,8 @@ export default function MyAccountPage() {
     filtersValues.firstName = userDetail?.firstName;
     filtersValues.lastName = userDetail?.lastName;
     filtersValues.email = userDetail?.email;
-    // filtersValues.pghAccess = sele?.interfaceAccess;
-    // filtersValues.pghReportEmail = userDetail?.emailAccess;
+    filtersValues.pghAccess = true;
+    filtersValues.pghReportEmail = true;
     // filtersValues.defaultLandingPage = selectedProperty?.defaultLandingPage;
     filtersValues.createdBy = userDetail?.userId;
     filtersValues.sID = selectedProperty?.sid;
@@ -516,9 +516,11 @@ export default function MyAccountPage() {
                               {profileImage?.imagePath ? (
                                 <img
                                   src={profileImage?.imagePath}
+                                  srcSet={`${profileImage?.imagePath} 1x, ${profileImage?.imagePath} 2x`}
                                   alt="Profile"
                                   className="w-full h-full object-cover rounded-full group-hover:opacity-50 transition-opacity duration-200"
                                 />
+
                               ) : (
                                 <UserCircle className="w-10 h-10 text-muted-foreground group-hover:opacity-50 transition-opacity duration-200" />
                               )}

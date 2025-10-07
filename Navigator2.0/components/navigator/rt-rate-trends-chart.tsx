@@ -43,7 +43,7 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate, digitCount = 
   }
   if (active && payload && payload.length) {
     const data = payload[0]?.payload
-    
+
     // Check if any rate has more than 4 digits
     const ratesLength =
       payload.find((entry: any) => entry?.value != null && entry.value !== '')?.value
@@ -65,7 +65,7 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate, digitCount = 
     // Dynamic width classes based on date and rate size
     // const date = new Date(data.date)
     // const dayOfMonth = date.getDate()
-debugger
+    debugger
     let widthClasses
     if (ratesLength < 6) {
       // Jan 2: Width for 4-digit values (Rate: +8px, Variance: +8px = +16px total)
@@ -1196,11 +1196,10 @@ export function RTRateTrendsChart({ rateData, digitCount = 4, rateCompData }: an
 
             {!hasData ? (
               <div className="h-full bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse flex items-center justify-center">
-                <div className="text-center">
-                  <div className="text-gray-500 dark:text-gray-400 mb-2">No rate data available</div>
-                  <div className="text-xs text-gray-400 dark:text-gray-500">
-                    Please check your data source
-                  </div>
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                  <div className="text-sm text-muted-foreground">Preparing your Rate Trends Analysis...</div>
+                  <div className="text-sm text-muted-foreground">Hang tight — your data will appear shortly.</div>
                 </div>
               </div>
             ) : data.length === 0 ? (

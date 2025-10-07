@@ -83,7 +83,11 @@ function OTARankView({
         </CardHeader>
         <CardContent>
           <div className="h-64 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
-            <span className="text-gray-500">Loading ranking trends...</span>
+              <div className="flex flex-col items-center space-y-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <div className="text-sm text-muted-foreground">Preparing your Ota Data Analysis...</div>
+                <div className="text-sm text-muted-foreground">Hang tight — your data will appear shortly.</div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -327,9 +331,11 @@ function OTARankView({
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">No ranking data available for the selected date range.</p>
+              <div className="h-full bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse flex items-center justify-center">
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                  <div className="text-sm text-muted-foreground">Preparing your Ota Data Analysis...</div>
+                  <div className="text-sm text-muted-foreground">Hang tight — your data will appear shortly.</div>
                 </div>
               </div>
             )}
