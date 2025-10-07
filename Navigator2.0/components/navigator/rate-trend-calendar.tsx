@@ -625,7 +625,6 @@ function RateTrendCalendarInner({
   // Helper function to check if a date should be rendered
   const shouldRenderDate = useCallback((day: CalendarDay) => {
     if (!startDate || !endDate || daySelectionInfo.type === 'normal') return true
-debugger;
     const dayDate = new Date(day.year, day.month, day.date)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
