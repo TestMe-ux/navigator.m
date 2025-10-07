@@ -1149,12 +1149,13 @@ function RateTrendCalendarInner({
 
 
   // Show loading state when date range is changing
-  if (isLoading) {
+  if (isLoading || visibleWeeks.length <= 0) {
     return (
-      <div className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 rounded-lg p-8">
-        <div className="text-center space-y-4">
+      <div className="h-[400px] bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 rounded-lg p-8 flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
-          <p className="text-slate-600 dark:text-slate-400">Loading calendar data...</p>
+          <div className="text-sm text-muted-foreground">Preparing your Rate Trend Analysis...</div>
+          <div className="text-sm text-muted-foreground">Hang tight — your data will appear shortly.</div>
         </div>
       </div>
     )

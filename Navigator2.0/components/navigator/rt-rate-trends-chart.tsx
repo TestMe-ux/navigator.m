@@ -1197,7 +1197,7 @@ export function RTRateTrendsChart({ rateData, digitCount = 4, rateCompData }: an
             {!hasData ? (
               <div className="h-full bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse flex items-center justify-center">
                 <div className="flex flex-col items-center space-y-4">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
                   <div className="text-sm text-muted-foreground">Preparing your Rate Trends Analysis...</div>
                   <div className="text-sm text-muted-foreground">Hang tight — your data will appear shortly.</div>
                 </div>
