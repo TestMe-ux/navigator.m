@@ -28,7 +28,7 @@ export function ReportsHeader({ handleRefresh, handleCreateOnDemand, reportsCoun
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-sm bg-slate-800 text-white border-slate-700">
               <p className="text-sm">
-                Comprehensive reports dashboard for viewing, managing, and downloading generated reports including scheduled, on-demand, and historical report data.
+                Comprehensive dashboard for viewing, managing, and downloading generated reports — including scheduled and on-demand reports.
               </p>
             </TooltipContent>
           </Tooltip>

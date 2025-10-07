@@ -26,7 +26,7 @@ export function ScheduledReportsHeader({ onCreateSchedule, packageType }: Schedu
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-sm bg-slate-800 text-white border-slate-700">
                 <p className="text-sm">
-                  Comprehensive reports dashboard for viewing, managing, and downloading generated reports including scheduled, on-demand, and historical report data.
+                  View and manage all automatically generated reports with download capabilities, created based on predefined schedules.
                 </p>
               </TooltipContent>
             </Tooltip>

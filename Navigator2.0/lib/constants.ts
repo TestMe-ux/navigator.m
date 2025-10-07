@@ -73,4 +73,12 @@ export class Constants {
     public static readonly API_GenerateOndemandReport = "Report/GenerateOndemandReport";
     public static readonly API_GET_CurrencyList = "Report/GetCurrency";
     public static readonly API_GET_TimeZoneList = "Report/GetTimeZone";
+    
+  // Tax Settings APIs
+  public static readonly API_GET_TaxPreference = "Tax/GetTaxPreference";
+  public static readonly API_SET_TaxPreference = "Tax/SetTaxPreference";
+  public static readonly API_GET_TaxSetting = "Tax/GetTaxSetting";
+  public static readonly API_GET_CurrencyCode = "Tax/GetCurrencyCodeForSID";
+  public static readonly API_SET_TaxSetting = "Tax/SetTaxSetting";
+  public static readonly API_DELETE_TaxSetting = "Tax/DeleteTaxSetting";
 }
