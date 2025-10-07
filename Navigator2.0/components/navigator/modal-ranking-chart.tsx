@@ -241,7 +241,7 @@ export function ModalRankingChart({ selectedDate, numberOfDays = 15, paceData = 
     // Use transformed data from paceData
     const baseData = transformedData.map((dataPoint, index) => {
       const currentDate = new Date(dataPoint.shopDate)
-      const daysBeforeCheckIn = differenceInDays(selectedDate, currentDate);// numberOfDays - 1 - index
+      const daysBeforeCheckIn = differenceInDays(new Date(), currentDate);// numberOfDays - 1 - index
       debugger;
       const chartDataPoint: any = {
         date: format(currentDate, 'dd MMM'),
