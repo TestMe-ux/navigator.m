@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 
 interface LoadingSkeletonProps {
-  type?: "demand" | "events" | "widget" | "parity" | "rate-trend"
+  type?: "demand" | "events" | "widget" | "parity" | "rate-trend" | "cluster" | "all-properties"
   className?: string
   showCycleCounter?: boolean
 }
@@ -432,6 +432,239 @@ export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({
             </div>
           </CardContent>
         </Card>
+
+        {showCycleCounter && (
+          <div className="fixed top-4 right-4 bg-blue-500/90 text-white px-3 py-1 rounded-md text-sm font-medium z-50">
+            Cycle: {loadingCycle}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (type === "cluster") {
+    return (
+      <div className={cn("space-y-6", className)}>
+        {/* Filter Bar */}
+        <Card className="relative overflow-hidden">
+          <WidgetProgress />
+          <CardContent className="pt-6">
+            <div className="flex flex-wrap gap-4">
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 w-40" />
+              <Skeleton className="h-10 w-36" />
+              <Skeleton className="h-10 w-28" />
+              <Skeleton className="h-10 w-32" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Header Section */}
+        <Card className="relative overflow-hidden">
+          <WidgetProgress />
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-4 w-80" />
+              </div>
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-8 w-32" />
+                <Skeleton className="h-8 w-36" />
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 xl:gap-6">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} className="relative overflow-hidden">
+              <WidgetProgress />
+              <CardContent className="px-6 pt-6 pb-4">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Skeleton className="h-5 w-32" />
+                      <Skeleton className="h-4 w-4 rounded" />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-3 mb-3">
+                  <Skeleton className="h-8 w-16" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
+          {/* Performance Trends Chart */}
+          <div className="lg:col-span-8">
+            <Card className="relative overflow-hidden h-[450px]">
+              <WidgetProgress />
+              <CardHeader>
+                <Skeleton className="h-6 w-40" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-80 w-full" />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Property Selector */}
+          <div className="lg:col-span-4">
+            <Card className="relative overflow-hidden h-[450px]">
+              <WidgetProgress />
+              <CardHeader>
+                <Skeleton className="h-6 w-36" />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="flex items-center space-x-3">
+                    <Skeleton className="h-4 w-4 rounded" />
+                    <Skeleton className="h-4 w-full" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Cluster Analysis Table */}
+        <Card className="relative overflow-hidden">
+          <WidgetProgress />
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-6 w-40" />
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-8 w-8 rounded" />
+                <Skeleton className="h-8 w-8 rounded" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {/* Table skeleton */}
+            <div className="space-y-3">
+              {/* Table header */}
+              <div className="flex space-x-4">
+                <Skeleton className="h-8 w-32" />
+                <Skeleton className="h-8 w-20" />
+                <Skeleton className="h-8 w-16" />
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-8 w-20" />
+                ))}
+              </div>
+              {/* Table rows */}
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex space-x-4">
+                  <Skeleton className="h-12 w-32" />
+                  <Skeleton className="h-12 w-20" />
+                  <Skeleton className="h-12 w-16" />
+                  {Array.from({ length: 6 }).map((_, j) => (
+                    <Skeleton key={j} className="h-12 w-20" />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {showCycleCounter && (
+          <div className="fixed top-4 right-4 bg-blue-500/90 text-white px-3 py-1 rounded-md text-sm font-medium z-50">
+            Cycle: {loadingCycle}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (type === "all-properties") {
+    return (
+      <div className={cn("space-y-6", className)}>
+        {/* Filter Bar */}
+        <Card className="relative overflow-hidden">
+          <WidgetProgress />
+          <CardContent className="pt-6">
+            <div className="flex flex-wrap gap-4">
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 w-40" />
+              <Skeleton className="h-10 w-36" />
+              <Skeleton className="h-10 w-28" />
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 w-24" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Header Section */}
+        <Card className="relative overflow-hidden">
+          <WidgetProgress />
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-4 w-80" />
+              </div>
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-8 w-32" />
+                <Skeleton className="h-8 w-36" />
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+
+        {/* Properties Analysis Table */}
+        <Card className="relative overflow-hidden">
+          <WidgetProgress />
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-40" />
+                <div className="flex items-center gap-6">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-8 w-8 rounded" />
+                <Skeleton className="h-8 w-8 rounded" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {/* Table skeleton */}
+            <div className="space-y-3 p-6">
+              {/* Table header */}
+              <div className="flex space-x-4">
+                <Skeleton className="h-8 w-32" />
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-8 w-20" />
+                ))}
+              </div>
+              {/* Table rows */}
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div key={i} className="flex space-x-4">
+                  <Skeleton className="h-12 w-32" />
+                  {Array.from({ length: 6 }).map((_, j) => (
+                    <Skeleton key={j} className="h-12 w-20" />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Load More Button */}
+        <div className="px-6 pb-6">
+          <div className="flex items-center justify-center">
+            <Skeleton className="h-10 w-48" />
+          </div>
+        </div>
 
         {showCycleCounter && (
           <div className="fixed top-4 right-4 bg-blue-500/90 text-white px-3 py-1 rounded-md text-sm font-medium z-50">

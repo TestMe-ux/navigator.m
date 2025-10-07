@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts"
-import { BarChart3, Table, Download, ChevronLeft, ChevronRight, Info } from "lucide-react"
+import { BarChart3, Table, Download, ChevronLeft, ChevronRight, Info, Triangle } from "lucide-react"
 import { toPng } from "html-to-image"
 import { cn } from "@/lib/utils"
 import { OTARankingTooltip } from "./ota-ranking-tooltip"
@@ -349,44 +349,50 @@ function OTARankView({
                           Check-in Date
                         </th>
                         {/* Sticky My Hotel Column */}
-                        <th className="sticky left-24 z-30 bg-blue-50 text-right py-1.5 pl-2 pr-4 font-semibold text-xs text-muted-foreground border-r border-gray-200">
+                        <th className="sticky left-24 z-30 bg-blue-50 text-center py-1.5 pl-2 pr-4 font-semibold text-xs text-muted-foreground border-r border-gray-200">
                           {selectedProperty?.name}
-                          <div className="text-xs text-muted-foreground font-normal mt-0.5">Rank</div>
+                          <div className="flex items-center justify-center space-x-6">
+                            <div className="text-xs text-muted-foreground font-normal mt-0.5">Rank</div>
+                            <span className="text-gray-500 text-xs px-1 py-0.5 rounded text-center" style={{ width: '30px', display: 'inline-block' }}><Triangle className="h-3 w-3" /></span>
+                          </div>
                         </th>
                         {/* Competitor Columns */}
                         {(() => {
                           const allCompetitors = availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel');
                           const competitorSlice = allCompetitors.slice(competitorPage * 4, (competitorPage + 1) * 4);
-                          
+
                           return Array.from({ length: 4 }, (_, index) => {
                             const hotel = competitorSlice[index];
 
-                          if (hotel) {
-                            return (
-                              <th key={hotel.dataKey} className="text-right py-1.5 px-0 font-semibold text-xs text-muted-foreground min-w-32" style={{ marginLeft: '-20px' }}>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div className="truncate cursor-pointer">{hotel.name.length > 15 ? `${hotel.name.substring(0, 15)}...` : hotel.name}</div>
-                                    </TooltipTrigger>
-                                    {hotel.name.length > 15 && (
-                                      <TooltipContent className="bg-black text-white border-black font-normal">
-                                        <p>{hotel.name}</p>
-                                      </TooltipContent>
-                                    )}
-                                  </Tooltip>
-                                </TooltipProvider>
-                                <div className="text-xs text-muted-foreground font-normal mt-0.5">Rank</div>
-                              </th>
-                            );
-                          } else {
-                            return (
-                              <th key={`empty-${index}`} className="text-right py-1.5 px-0 font-semibold text-xs text-muted-foreground min-w-32" style={{ marginLeft: '-20px' }}>
-                                <div className="text-xs text-muted-foreground font-normal mt-0.5 opacity-0">-</div>
-                              </th>
-                            );
-                          }
-                        });
+                            if (hotel) {
+                              return (
+                                <th key={hotel.dataKey} className={`text-center py-1.5 px-0 font-semibold text-xs text-muted-foreground min-w-32 ${index !== 3 ? 'border-r' : ''}`} style={{ marginLeft: '-20px' }}>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="truncate cursor-pointer">{hotel.name.length > 20 ? `${hotel.name.substring(0, 20)}...` : hotel.name}</div>
+                                      </TooltipTrigger>
+                                      {hotel.name.length > 20 && (
+                                        <TooltipContent className="bg-black text-white border-black font-normal">
+                                          <p>{hotel.name}</p>
+                                        </TooltipContent>
+                                      )}
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                  <div className="flex items-center justify-center space-x-6">
+                                    <div className="text-xs text-muted-foreground font-normal mt-0.5">Rank</div>
+                                    <span className="text-gray-500 text-xs px-1 py-0.5 rounded text-center" style={{ width: '30px', display: 'inline-block' }}><Triangle className="h-3 w-3" /></span>
+                                  </div>
+                                </th>
+                              );
+                            } else {
+                              return (
+                                <th key={`empty-${index}`} className="text-right py-1.5 px-0 font-semibold text-xs text-muted-foreground min-w-32" style={{ marginLeft: '-20px' }}>
+                                  <div className="text-xs text-muted-foreground font-normal mt-0.5 opacity-0">-</div>
+                                </th>
+                              );
+                            }
+                          });
                         })()}
                         {/* Navigation Column */}
                         {availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel').length > 0 && (
@@ -457,11 +463,11 @@ function OTARankView({
                             </td>
                             {/* Sticky My Hotel Rank */}
                             <td className="sticky left-24 z-10 bg-blue-50 group-hover:bg-blue-100 py-2 pl-2 pr-4 text-right border-r border-gray-200 border-b border-gray-200">
-                              <div className="flex items-center justify-end space-x-6">
+                              <div className="flex items-center justify-center space-x-6">
                                 {/* <span className="font-semibold text-sm">{dataPoint[myHotelData?.dataKey || 'myHotel'] ?? '500+'}</span> */}
                                 {
                                   dataPoint[myHotelData?.dataKey || 'myHotel'] === null || dataPoint[myHotelData?.dataKey || 'myHotel'] === undefined || dataPoint[myHotelData?.dataKey || 'myHotel'] > 500 ?
-                                    (<div className="flex items-center justify-end space-x-1">
+                                    (<div className="flex items-center justify-center space-x-1">
                                       <TooltipProvider>
                                         <Tooltip>
                                           <TooltipTrigger asChild>
@@ -507,12 +513,12 @@ function OTARankView({
 
                               if (hotel) {
                                 return (
-                                  <td key={hotel.dataKey} className="py-2 px-0 text-right group-hover:bg-gray-50" style={{ marginLeft: '-20px' }}>
-                                    <div className="flex items-center justify-end space-x-6">
+                                  <td key={hotel.dataKey} className={`py-2 px-0 text-right group-hover:bg-gray-50 ${index !== 3 ? 'border-r' : ''}`} style={{ marginLeft: '-20px' }}>
+                                    <div className="flex items-center justify-center space-x-6">
 
                                       {
                                         dataPoint[hotel.dataKey] === null || dataPoint[hotel.dataKey] === undefined || dataPoint[hotel.dataKey] > 500 ?
-                                          (<div className="flex items-center justify-end space-x-1">
+                                          (<div className="flex items-center justify-center space-x-1">
                                             <TooltipProvider>
                                               <Tooltip>
                                                 <TooltipTrigger asChild>

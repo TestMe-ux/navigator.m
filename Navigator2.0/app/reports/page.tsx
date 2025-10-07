@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -17,15 +17,12 @@ import { ReportsFilterBar } from "@/components/reports-filter-bar"
 import { ReportsHeader } from "@/components/navigator/reports-header"
 import { addDays, format, subDays } from "date-fns"
 import { useRef } from "react"
-import { getAllReports, getReportData } from "@/lib/reports"
+import { getAllReports, getReportData, generateAndMailReportCSV, getChannelList, getCompleteCompSet, checkMappingValidation, generateOndemandReport, getSummaryData } from "@/lib/reports"
 import { conevrtDateforApi } from "@/lib/utils"
 import { LocalStorageService } from "@/lib/localstorage"
-import { useSelectedProperty } from "@/hooks/use-local-storage"
+import { useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
 
 // Dynamic data arrays - will be populated from API
-const channelsData: string[] = []
-const primaryHotelsData: string[] = []
-const secondaryHotelsData: string[] = []
 
 // Define types for the report data
 interface ReportData {
@@ -75,6 +72,7 @@ export default function ReportsPage() {
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [loadingCycle, setLoadingCycle] = useState(1)
   const [selectedProperty] = useSelectedProperty()
+  const [userDetails] = useUserDetail()
   // Reports data states
   const [reportsData, setReportsData] = useState<ReportData[]>([])
   const [filteredReportsData, setFilteredReportsData] = useState<ReportData[]>([])
@@ -94,6 +92,12 @@ export default function ReportsPage() {
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+
+  // Package and credit limit states
+  const [packageDetails, setPackageDetails] = useState<any>(null)
+  const [totalShopsConsumedYearly, setTotalShopsConsumedYearly] = useState<number>(0)
+  const [totalShopsAlloted, setTotalShopsAlloted] = useState<number>(0)
 
   // Form data state
   const [formData, setFormData] = useState({
@@ -110,20 +114,46 @@ export default function ReportsPage() {
   })
 
   // Date validation state
-  const [dateError, setDateError] = useState('')
 
   // Form validation state
   const [formErrors, setFormErrors] = useState({
     channels: '',
+    compSet: '',
     guests: '',
     los: '',
     startDate: '',
-    endDate: ''
+    endDate: '',
+    recipients: '',
+    general: ''
   })
 
   // Snackbar state
   const [showSnackbar, setShowSnackbar] = useState(false)
   const [showSecondSnackbar, setShowSecondSnackbar] = useState(false)
+  const [snackbarMessage, setSnackbarMessage] = useState('')
+  const [snackbarType, setSnackbarType] = useState<'success' | 'error' | 'warning'>('success')
+  const [showMissingNotification, setShowMissingNotification] = useState(false)
+  const [missingNotificationData, setMissingNotificationData] = useState<any[]>([])
+
+  // Download report data popup state
+  const [showDownloadPopup, setShowDownloadPopup] = useState(false)
+  const [downloadingReportId, setDownloadingReportId] = useState<number | null>(null)
+
+  // Channels data state
+  const [channelsData, setChannelsData] = useState<string[]>([])
+  const [isLoadingChannels, setIsLoadingChannels] = useState(false)
+  const [channelList, setChannelList] = useState<any[]>([])
+  const [allChannels, setAllChannels] = useState<any[]>([])
+  const [isAnyDisabledChannel, setIsAnyDisabledChannel] = useState(false)
+  const [disabledChannels, setDisabledChannels] = useState<string[]>([])
+  const [searchValue, setSearchValue] = useState('')
+
+  // CompSet data state
+  const [primaryHotelsData, setPrimaryHotelsData] = useState<any[]>([])
+  const [secondaryHotelsData, setSecondaryHotelsData] = useState<any[]>([])
+  const [isLoadingCompSet, setIsLoadingCompSet] = useState(false)
+  const [primarySearchValue, setPrimarySearchValue] = useState('')
+  const [secondarySearchValue, setSecondarySearchValue] = useState('')
 
   // State for dropdowns
   const [isChannelsOpen, setIsChannelsOpen] = useState(false)
@@ -135,6 +165,11 @@ export default function ReportsPage() {
   // State for calendar popovers
   const [isStartDateOpen, setIsStartDateOpen] = useState(false)
   const [isEndDateOpen, setIsEndDateOpen] = useState(false)
+
+  // Date validation states
+  const [maxEndDate, setMaxEndDate] = useState<Date | undefined>(undefined)
+  const [maxDate, setMaxDate] = useState<Date | undefined>(undefined)
+  const today = new Date()
   const channelsRef = useRef<HTMLDivElement>(null)
   const primaryHotelsRef = useRef<HTMLDivElement>(null)
   const secondaryHotelsRef = useRef<HTMLDivElement>(null)
@@ -159,6 +194,82 @@ export default function ReportsPage() {
     }
   }
 
+  // Function to fetch reports data with specific dates
+  const fetchReportsDataWithDates = async (startDate: Date, endDate: Date) => {
+    let progressInterval: NodeJS.Timeout | undefined = undefined
+    try {
+      setIsLoading(true)
+      setLoadingProgress(0)
+
+      // Progress interval
+      progressInterval = setInterval(() => {
+        setLoadingProgress((prev) => {
+          const increment = Math.floor(Math.random() * 9) + 3 // 3-11% increment
+          const newProgress = prev + increment
+
+          if (newProgress >= 100) {
+            setLoadingCycle(prevCycle => prevCycle + 1)
+            return 0
+          }
+
+          return newProgress
+        })
+      }, 80)
+
+      // Get SID from localStorage (you may need to adjust this based on your auth implementation)
+      const sid = selectedProperty?.sid ?? 0
+
+      // Format dates for API call
+      const startDateStr = format(new Date(startDate), "MM/dd/yyyy")
+      const endDateStr = format(new Date(endDate), "MM/dd/yyyy")
+      debugger;
+      // Call the API
+      const response = await getAllReports({
+        sid: selectedProperty?.sid,
+        startdate: startDateStr,
+        enddate: endDateStr
+      })
+
+      // Handle response - check if response exists and has data
+      if (response && (response.status || response.body !== undefined)) {
+        let data = response.body || []
+
+        // Apply filtering logic based on your previous implementation
+        data = data.filter((item: ReportData) => {
+          if (filter === 'ondemand' && item.requestType !== 'Batch') {
+            return item
+          } else if (filter !== 'ondemand') {
+            return item
+          }
+          return false
+        })
+
+        setReportsData(data)
+        setFilteredReportsData(data)
+
+        // Log when no reports are found (this is normal, not an error)
+        if (data.length === 0) {
+          console.log('No reports found for the selected date range')
+        }
+      } else {
+        // Only log as error if there's an actual API error
+        console.error('API error:', response)
+        setReportsData([])
+        setFilteredReportsData([])
+      }
+    } catch (error) {
+      console.error('Error fetching reports:', error)
+      setReportsData([])
+      setFilteredReportsData([])
+    } finally {
+      setIsLoading(false)
+      setLoadingProgress(100)
+      if (progressInterval) {
+        clearInterval(progressInterval)
+      }
+    }
+  }
+
   // Function to fetch reports data
   const fetchReportsData = async () => {
     try {
@@ -179,7 +290,6 @@ export default function ReportsPage() {
           return newProgress
         })
       }, 80)
-      debugger
       // Get SID from localStorage (you may need to adjust this based on your auth implementation)
       const sid = selectedProperty?.sid ?? 0
 
@@ -191,14 +301,15 @@ export default function ReportsPage() {
 
       // Call the API
 
-
+      debugger
       const response = await getAllReports({
         sid: selectedProperty?.sid,
         startdate: startDateStr,
         enddate: endDateStr
       })
 
-      if (response.status) {
+      // Handle response - check if response exists and has data
+      if (response && (response.status || response.body !== undefined)) {
         let data = response.body || []
 
         // Apply filtering logic based on your previous implementation
@@ -213,6 +324,15 @@ export default function ReportsPage() {
 
         // Store the raw data - filtering will be handled by useEffect
         setReportsData(data)
+
+        // Log when no reports are found (this is normal, not an error)
+        if (data.length === 0) {
+          console.log('No reports found for the selected date range')
+        }
+      } else {
+        // Only log as error if there's an actual API error
+        console.error('API error:', response)
+        setReportsData([])
       }
 
       // Clear progress and finish loading
@@ -273,7 +393,41 @@ export default function ReportsPage() {
       setStartDate(defaultStartDate)
       setEndDate(defaultEndDate)
     }
+
+    // Initialize maxDate to 1 year from today
+    const nextYear = new Date()
+    nextYear.setFullYear(nextYear.getFullYear() + 1)
+    setMaxDate(nextYear)
   }, [])
+
+  // Set default user email as recipient when userDetails becomes available
+  useEffect(() => {
+    if (userDetails?.email && formData.recipients.length === 0) {
+      setFormData(prev => ({
+        ...prev,
+        recipients: [userDetails.email]
+      }))
+    }
+  }, [userDetails?.email])
+
+  // Load package details and credit limits from localStorage
+  useEffect(() => {
+    if (!selectedProperty?.sid) return;
+    const fetchSummaryData = async () => {
+      try {
+        const response = await getSummaryData(selectedProperty?.sid?.toString() || '')
+        if (response.status) {
+          setPackageDetails(response.body)
+          setTotalShopsConsumedYearly(response.body.consumedShopsBatch + response.body.consumedShopsOnDemand + response.body.consumedShopsRTRR)
+          setTotalShopsAlloted(response.body.totalShops)
+        }
+      } catch (error) {
+        console.error('Error fetching summary data:', error)
+      }
+    }
+    Promise.all([fetchChannelsData()
+      , fetchCompSetData(), fetchSummaryData()])
+  }, [selectedProperty?.sid])
 
   // Loading effect and initial data fetch - only when dates or filter change
   useEffect(() => {
@@ -312,17 +466,20 @@ export default function ReportsPage() {
     return Object.values(statusOfReport).some(status => status === 'In Progress')
   }, [statusOfReport])
 
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (channelsRef.current && !channelsRef.current.contains(event.target as Node)) {
-        setIsChannelsOpen(false)
+        handleChannelsDropdownClose()
       }
       if (primaryHotelsRef.current && !primaryHotelsRef.current.contains(event.target as Node)) {
         setIsPrimaryHotelsOpen(false)
+        setPrimarySearchValue('') // Clear search when closing
       }
       if (secondaryHotelsRef.current && !secondaryHotelsRef.current.contains(event.target as Node)) {
         setIsSecondaryHotelsOpen(false)
+        setSecondarySearchValue('') // Clear search when closing
       }
       if (guestsRef.current && !guestsRef.current.contains(event.target as Node)) {
         setIsGuestsOpen(false)
@@ -343,7 +500,10 @@ export default function ReportsPage() {
   const handleDateRangeChange = (startDate: Date | undefined, endDate: Date | undefined) => {
     setStartDate(startDate)
     setEndDate(endDate)
-    // The useEffect will handle the API call
+    // Trigger API call immediately with new dates
+    // if (startDate && endDate) {
+    //   fetchReportsDataWithDates(startDate, endDate)
+    // }
   }
 
   const handleReportTypeChange = (newReportType: string) => {
@@ -353,17 +513,131 @@ export default function ReportsPage() {
 
 
   const handleRefresh = () => {
-    fetchReportsData()
+    if (startDate && endDate) {
+      fetchReportsDataWithDates(startDate, endDate)
+    } else {
+      fetchReportsData()
+    }
+  }
+
+  // Function to fetch channels data
+  const fetchChannelsData = async () => {
+    try {
+      setIsLoadingChannels(true)
+
+      const response = await getChannelList({
+        SID: selectedProperty?.sid,
+        isMetaSite: true
+      })
+
+      if (response.status && response.body) {
+        // Filter active channels
+        const activeChannels = response.body.filter((x: any) => x.isActive)
+        const allChannelsData = response.body
+
+        // Set channel data
+        setChannelList(activeChannels)
+        setAllChannels(allChannelsData)
+
+        // Extract channel names for the dropdown
+        const channelNames = activeChannels.map((channel: any) => channel.name)
+        setChannelsData(channelNames)
+
+        // Select all channels by default
+        setFormData(prev => ({
+          ...prev,
+          selectedChannels: channelNames
+        }))
+
+        // Check for disabled channels
+        const disabledChannelsList = response.body.filter((x: any) => !x.isActive)
+        setIsAnyDisabledChannel(disabledChannelsList.length > 0)
+        setDisabledChannels(disabledChannelsList.map((channel: any) => channel.name))
+      }
+    } catch (error) {
+      console.error('Error fetching channels:', error)
+      // Set default channels if API fails
+      setChannelsData([])
+    } finally {
+      setIsLoadingChannels(false)
+    }
+  }
+
+  // Function to fetch compset data
+  const fetchCompSetData = async () => {
+    try {
+      setIsLoadingCompSet(true)
+
+      const response = await getCompleteCompSet({
+        SID: selectedProperty?.sid,
+        includesubscriber: false
+      })
+
+      if (response.status && response.body) {
+        // Filter primary and secondary compsets based on isSecondary property
+        const primaryCompSets = response.body.filter((x: any) => !x.isSecondary)
+        const secondaryCompSets = response.body.filter((x: any) => x.isSecondary)
+
+        setPrimaryHotelsData(primaryCompSets)
+        setSecondaryHotelsData(secondaryCompSets)
+
+        // Select all primary options by default
+        const primaryNames = primaryCompSets.map((compSet: any) => compSet.name)
+        setFormData(prev => ({
+          ...prev,
+          selectedPrimaryHotels: primaryNames,
+          selectedSecondaryHotels: []
+        }))
+      }
+    } catch (error) {
+      console.error('Error fetching compset data:', error)
+      // Set default data if API fails
+      setPrimaryHotelsData([])
+      setSecondaryHotelsData([])
+    } finally {
+      setIsLoadingCompSet(false)
+    }
   }
 
   const handleCreateOnDemand = () => {
     setIsModalOpen(true)
+    // Fetch channels and compset data when modal opens
   }
 
 
   // Form handling functions
   const handleFormChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    if (field === 'compSet' && value === 'secondary') {
+      // When switching to secondary, select all secondary hotels by default
+      const secondaryNames = secondaryHotelsData.map((compSet: any) => compSet.name)
+      setFormData(prev => ({
+        ...prev,
+        [field]: value,
+        selectedSecondaryHotels: secondaryNames,
+        selectedPrimaryHotels: []
+      }))
+
+      // Clear compSet error when compSet is selected
+      if (formErrors.compSet) {
+        setFormErrors(prev => ({ ...prev, compSet: '' }))
+      }
+    } else if (field === 'compSet' && value === 'primary') {
+      // When switching to primary, select all primary hotels by default
+      const primaryNames = primaryHotelsData.map((compSet: any) => compSet.name)
+      setFormData(prev => ({
+        ...prev,
+        [field]: value,
+        selectedPrimaryHotels: primaryNames,
+        selectedSecondaryHotels: []
+      }))
+
+      // Clear compSet error when compSet is selected
+      if (formErrors.compSet) {
+        setFormErrors(prev => ({ ...prev, compSet: '' }))
+      }
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }))
+    }
   }
 
   const handleAddRecipient = () => {
@@ -373,6 +647,11 @@ export default function ReportsPage() {
         recipients: [...prev.recipients, prev.newRecipient],
         newRecipient: ''
       }))
+
+      // Clear recipients error when a recipient is added
+      if (formErrors.recipients) {
+        setFormErrors(prev => ({ ...prev, recipients: '' }))
+      }
     }
   }
 
@@ -381,16 +660,24 @@ export default function ReportsPage() {
       ...prev,
       recipients: prev.recipients.filter(recipient => recipient !== email)
     }))
+
+    // Clear recipients error when a recipient is removed (if there are still recipients)
+    if (formErrors.recipients && formData.recipients.length > 1) {
+      setFormErrors(prev => ({ ...prev, recipients: '' }))
+    }
   }
 
   // Form validation function
   const validateForm = () => {
     const errors = {
       channels: '',
+      compSet: '',
       guests: '',
       los: '',
       startDate: '',
-      endDate: ''
+      endDate: '',
+      recipients: '',
+      general: ''
     }
 
     // Validate channels
@@ -418,21 +705,272 @@ export default function ReportsPage() {
       errors.endDate = 'Please select check-in end date'
     }
 
+    // Validate primary hotels selection
+    if (formData.compSet === 'primary' && (!formData.selectedPrimaryHotels || formData.selectedPrimaryHotels.length === 0)) {
+      errors.compSet = 'Please select at least one primary hotel'
+    }
+
+    // Validate secondary hotels selection
+    if (formData.compSet === 'secondary' && (!formData.selectedSecondaryHotels || formData.selectedSecondaryHotels.length === 0)) {
+      errors.compSet = 'Please select at least one secondary hotel'
+    }
+
     setFormErrors(errors)
 
     // Return true if no errors
     return Object.values(errors).every(error => error === '')
   }
 
-  const handleGenerate = () => {
+  // Check shops limit function
+  const checkShopsLimit = (): boolean => {
+    if (!packageDetails) {
+      console.warn('Package details not available')
+      return true // Allow generation if package details are not available
+    }
+
+    // Calculate date difference
+    if (!formData.startDate || !formData.endDate) {
+      return true // Allow if dates are not set (should be caught by validation)
+    }
+
+    const startDate = new Date(formData.startDate)
+    const endDate = new Date(formData.endDate)
+    const timeDiff = Math.abs(endDate.getTime() - startDate.getTime())
+    const diffDays = Math.ceil(timeDiff / (1000 * 3600 * 24))
+
+    // Get properties count
+    let properties: number[] = []
+    if (formData.compSet === 'primary') {
+      const primaryPropertyIds = primaryHotelsData
+        .filter(hotel => formData.selectedPrimaryHotels.includes(hotel.name))
+        .map(hotel => hotel.propertyID)
+      properties.push(...primaryPropertyIds)
+    } else {
+      const secondaryPropertyIds = secondaryHotelsData
+        .filter(hotel => formData.selectedSecondaryHotels.includes(hotel.name))
+        .map(hotel => hotel.propertyID)
+      properties.push(...secondaryPropertyIds)
+    }
+
+    // Add selected property
+    if (selectedProperty?.hmid) {
+      properties.push(selectedProperty.hmid)
+    }
+
+    // Get channels
+    const channels = [...formData.selectedChannels]
+
+    // Check if user has monthly package or is existing user
+    if (packageDetails.displayName === 'Monthly' || packageDetails.isExistingUser) {
+      return true
+    }
+
+    // Calculate RRDs that will be used
+    const rrdsUsed = (properties.length + 1) * channels.length * (diffDays + 1)
+
+    // Check if request exceeds credit limit
+    if ((rrdsUsed + totalShopsConsumedYearly) > totalShopsAlloted) {
+      return false
+    }
+
+    return true
+  }
+
+  const handleGenerate = async () => {
     // Validate form before proceeding
     if (!validateForm()) {
       return // Don't proceed if validation fails
     }
 
-    setIsModalOpen(false)
-    setShowSnackbar(true)
-    // Reset form
+    // Email validation
+    if (formData.recipients.length === 0) {
+      setFormErrors(prev => ({ ...prev, recipients: 'Please add at least one recipient email' }))
+      return
+    }
+
+    // Calculate date difference
+    if (!formData.startDate || !formData.endDate) {
+      return
+    }
+
+    // Start loading
+    setIsGenerating(true)
+
+    const startDate = new Date(formData.startDate)
+    const endDate = new Date(formData.endDate)
+    const timeDiff = Math.abs(endDate.getTime() - startDate.getTime())
+    const diffDays = Math.ceil(timeDiff / (1000 * 3600 * 24))
+
+    // Prepare property validation object
+    const propertyValidation = {
+      Properties: [] as number[],
+      Channel: [] as string[],
+      SID: selectedProperty?.sid,
+      SelectedHMID: selectedProperty?.hmid,
+      SelectedName: selectedProperty?.name
+    }
+
+    // Add selected properties based on compSet
+    if (formData.compSet === 'primary') {
+      const primaryPropertyIds = primaryHotelsData
+        .filter(hotel => formData.selectedPrimaryHotels.includes(hotel.name))
+        .map(hotel => hotel.propertyID)
+      propertyValidation.Properties.push(...primaryPropertyIds)
+    } else {
+      const secondaryPropertyIds = secondaryHotelsData
+        .filter(hotel => formData.selectedSecondaryHotels.includes(hotel.name))
+        .map(hotel => hotel.propertyID)
+      propertyValidation.Properties.push(...secondaryPropertyIds)
+    }
+
+    // Add selected property
+    if (selectedProperty?.hmid) {
+      propertyValidation.Properties.push(selectedProperty.hmid)
+    }
+
+    // Add selected channels
+    propertyValidation.Channel = [...formData.selectedChannels]
+
+    // Validate that at least one compset is selected
+    if (propertyValidation.Properties.length === 0) {
+      setFormErrors(prev => ({ ...prev, compSet: 'Select at least one compset!' }))
+      setIsGenerating(false)
+      return
+    }
+
+    try {
+      // Check shops limit before calling checkMappingValidation
+      const isConsumedHigher = checkShopsLimit()
+      debugger;
+      if (isConsumedHigher) {
+        // Call CheckMappingValidation API
+        const mappingResponse = await checkMappingValidation(propertyValidation)
+
+        // Stop loading after API response
+        setIsGenerating(false)
+
+        if (mappingResponse.status) {
+          // Show missing notification if mapping validation fails
+          setMissingNotificationData(mappingResponse.body || [])
+          setShowMissingNotification(true)
+          // Close the modal so user can see the missing notification
+          setIsModalOpen(false)
+          return
+        }
+
+        // If mapping validation passes, proceed with report generation
+        await generateOnDemandReport(diffDays)
+        // Close the modal after successful report generation
+        setIsModalOpen(false)
+      } else {
+        // Credit limit exceeded - show snackbar and stop loading
+        setIsGenerating(false)
+        setSnackbarMessage("Your request exceeds the current credit limit. Please purchase more credits or modify the report generation criteria to proceed.")
+        setSnackbarType('error')
+        setShowSnackbar(true)
+      }
+
+    } catch (error) {
+      console.error('Error during report generation:', error)
+      setFormErrors(prev => ({ ...prev, general: 'Something went wrong, please try again!' }))
+      setIsGenerating(false)
+    }
+  }
+
+  const generateOnDemandReport = async (diffDays: number) => {
+    if (!formData.startDate || !formData.endDate || !userDetails) {
+      return
+    }
+
+    const startDate = new Date(formData.startDate)
+    const endDate = new Date(formData.endDate)
+
+    // Format start date with timezone
+    const currentDate = new Date(startDate)
+    const formattedDateToday = currentDate.toISOString().split('T')[0] + 'T00:00:00'
+    const newDate = new Date(formattedDateToday)
+
+    // Get timezone offset
+    const timezoneOffset = -newDate.getTimezoneOffset()
+    const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60)
+    const offsetMinutes = Math.abs(timezoneOffset) % 60
+    const offsetSign = timezoneOffset > 0 ? '-' : '+'
+    const formattedOffset = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`
+
+    const formattedDate = newDate.toISOString().split('.')[0]
+    const dateStringWithTimezone = `${formattedDate}${formattedOffset}`
+    const dateFirst = new Date(dateStringWithTimezone)
+
+    // Prepare request model
+    const requestModel = {
+      SID: selectedProperty?.sid,
+      ContactId: userDetails.userId,
+      ContactName: userDetails.firstName + ' ' + userDetails.lastName,
+      Name: userDetails.firstName + ' ' + userDetails.lastName,
+      FirstCheckInDate: dateFirst,
+      LOS: parseInt(formData.los),
+      Occupancy: parseInt(formData.guests),
+      EmailIds: formData.recipients,
+      Properties: [] as number[],
+      Sources: [] as string[],
+      ReportSource: 'DownloadReport',
+      IsILOSApplicable: false, // Set based on your business logic
+      DaysOfData: diffDays + 1
+    }
+
+    // Add selected properties
+    if (formData.compSet === 'primary') {
+      const primaryPropertyIds = primaryHotelsData
+        .filter(hotel => formData.selectedPrimaryHotels.includes(hotel.name))
+        .map(hotel => hotel.propertyID)
+      requestModel.Properties.push(...primaryPropertyIds)
+    } else {
+      const secondaryPropertyIds = secondaryHotelsData
+        .filter(hotel => formData.selectedSecondaryHotels.includes(hotel.name))
+        .map(hotel => hotel.propertyID)
+      requestModel.Properties.push(...secondaryPropertyIds)
+    }
+
+    // Add selected property
+    if (selectedProperty?.hmid) {
+      requestModel.Properties.push(selectedProperty.hmid)
+    }
+
+    // Add selected channels
+    requestModel.Sources = [...formData.selectedChannels]
+
+    try {
+      const response = await generateOndemandReport(requestModel)
+
+      if (response.status) {
+        if (response.body != null && response.body === 0) {
+          console.log("Data is not returned from BrokerAPI")
+        }
+
+        // Close modal and show success
+        setIsModalOpen(false)
+        setShowSnackbar(true)
+
+        // Reset form
+        resetForm()
+
+        // Refresh reports data to show the new report
+        if (startDate && endDate) {
+          fetchReportsDataWithDates(startDate, endDate)
+        } else {
+          fetchReportsData()
+        }
+
+      } else {
+        setFormErrors(prev => ({ ...prev, general: 'Something went wrong, please try again!' }))
+      }
+    } catch (error) {
+      console.error('Error generating report:', error)
+      setFormErrors(prev => ({ ...prev, general: 'Something went wrong, please try again!' }))
+    }
+  }
+
+  const resetForm = () => {
     setFormData({
       selectedChannels: [] as string[],
       compSet: 'primary',
@@ -442,7 +980,7 @@ export default function ReportsPage() {
       los: '1',
       startDate: undefined,
       endDate: undefined,
-      recipients: [] as string[],
+      recipients: userDetails?.email ? [userDetails.email] : [] as string[],
       newRecipient: ''
     })
     setIsChannelsOpen(false)
@@ -452,11 +990,53 @@ export default function ReportsPage() {
     setIsLosOpen(false)
     setIsStartDateOpen(false)
     setIsEndDateOpen(false)
-    setDateError('')
+    setFormErrors({
+      channels: '',
+      compSet: '',
+      guests: '',
+      los: '',
+      startDate: '',
+      endDate: '',
+      recipients: '',
+      general: ''
+    })
+  }
+
+  // Handle missing notification back button
+  const handleMissingNotificationBack = () => {
+    setShowMissingNotification(false)
+    setMissingNotificationData([])
+    // Reopen the modal with previous values
+    setIsModalOpen(true)
+  }
+
+  // Handle missing notification submit button
+  const handleMissingNotificationSubmit = async () => {
+    if (!formData.startDate || !formData.endDate) {
+      return
+    }
+
+    const startDate = new Date(formData.startDate)
+    const endDate = new Date(formData.endDate)
+    const timeDiff = Math.abs(endDate.getTime() - startDate.getTime())
+    const diffDays = Math.ceil(timeDiff / (1000 * 3600 * 24))
+
+    try {
+      await generateOnDemandReport(diffDays)
+      setShowMissingNotification(false)
+      setMissingNotificationData([])
+    } catch (error) {
+      console.error('Error generating report:', error)
+      setFormErrors(prev => ({ ...prev, general: 'Something went wrong, please try again!' }))
+    }
   }
 
   const handleCancel = () => {
     setIsModalOpen(false)
+    // Clear all search values
+    setSearchValue('')
+    setPrimarySearchValue('')
+    setSecondarySearchValue('')
     // Reset form
     setFormData({
       selectedChannels: [] as string[],
@@ -467,7 +1047,7 @@ export default function ReportsPage() {
       los: '1',
       startDate: undefined,
       endDate: undefined,
-      recipients: [] as string[],
+      recipients: userDetails?.email ? [userDetails.email] : [] as string[],
       newRecipient: ''
     })
     setIsChannelsOpen(false)
@@ -477,13 +1057,15 @@ export default function ReportsPage() {
     setIsLosOpen(false)
     setIsStartDateOpen(false)
     setIsEndDateOpen(false)
-    setDateError('')
     setFormErrors({
       channels: '',
+      compSet: '',
       guests: '',
       los: '',
       startDate: '',
-      endDate: ''
+      endDate: '',
+      recipients: '',
+      general: ''
     })
   }
 
@@ -492,54 +1074,45 @@ export default function ReportsPage() {
     setFormData(prev => {
       let newChannels = [...prev.selectedChannels]
 
-      if (channel === 'All Channels') {
-        // If "All Channels" is selected, select all channels
-        if (newChannels.includes('All Channels')) {
-          // If already selected, deselect all
-          newChannels = []
+      if (channel === 'Select All') {
+        // Get currently filtered channels
+        const currentFilteredChannels = channelsData.filter(c =>
+          c.toLowerCase().includes(searchValue.toLowerCase())
+        )
+
+        // Check if all filtered channels are selected
+        const allFilteredSelected = currentFilteredChannels.every(c => newChannels.includes(c))
+
+        if (allFilteredSelected) {
+          // If all filtered channels are selected, deselect them
+          newChannels = newChannels.filter(c => !currentFilteredChannels.includes(c))
         } else {
-          // Select all channels including "All Channels"
-          newChannels = [...channelsData]
+          // Select all filtered channels
+          const channelsToAdd = currentFilteredChannels.filter(c => !newChannels.includes(c))
+          newChannels = [...newChannels, ...channelsToAdd]
         }
       } else {
         // Handle individual channel selection
         if (newChannels.includes(channel)) {
           // Remove channel if already selected
           newChannels = newChannels.filter(c => c !== channel)
-          // Also remove "All Channels" since not all are selected now
-          newChannels = newChannels.filter(c => c !== 'All Channels')
         } else {
           // Add channel if not selected
           newChannels.push(channel)
-
-          // Check if all individual channels are now selected
-          const individualChannels = channelsData.filter(c => c !== 'All Channels')
-          const selectedIndividualChannels = newChannels.filter(c => c !== 'All Channels')
-
-          if (selectedIndividualChannels.length === individualChannels.length) {
-            // If all individual channels are selected, also select "All Channels"
-            if (!newChannels.includes('All Channels')) {
-              newChannels.push('All Channels')
-            }
-          }
-        }
-
-        // If no channels selected, default to "All Channels"
-        if (newChannels.length === 0) {
-          newChannels = ['All Channels']
         }
       }
 
       return { ...prev, selectedChannels: newChannels }
     })
+
+    // Clear channels error when a channel is selected
+    if (formErrors.channels) {
+      setFormErrors(prev => ({ ...prev, channels: '' }))
+    }
   }
 
   // Check if a channel should be checked
   const isChannelSelected = (channel: string) => {
-    if (formData.selectedChannels.includes('All Channels')) {
-      // If "All Channels" is selected, show all channels as selected
-      return true
-    }
     return formData.selectedChannels.includes(channel)
   }
 
@@ -548,46 +1121,44 @@ export default function ReportsPage() {
     setFormData(prev => {
       let newHotels = [...prev.selectedPrimaryHotels]
 
-      if (hotel === 'All Primary Hotels') {
-        // If "All Primary Hotels" is selected, select all hotels
-        if (newHotels.includes('All Primary Hotels')) {
-          // If already selected, deselect all
-          newHotels = []
+      if (hotel === 'Select All') {
+        // Get currently filtered hotels
+        const currentFilteredHotels = filteredPrimaryHotels.map(h => h.name)
+
+        // Check if all filtered hotels are already selected
+        const allFilteredSelected = currentFilteredHotels.every(hotelName =>
+          newHotels.includes(hotelName)
+        )
+
+        if (allFilteredSelected) {
+          // Deselect all filtered hotels
+          newHotels = newHotels.filter(h => !currentFilteredHotels.includes(h))
         } else {
-          // Select all hotels including "All Primary Hotels"
-          newHotels = [...primaryHotelsData]
+          // Select all filtered hotels
+          currentFilteredHotels.forEach(hotelName => {
+            if (!newHotels.includes(hotelName)) {
+              newHotels.push(hotelName)
+            }
+          })
         }
       } else {
         // Handle individual hotel selection
         if (newHotels.includes(hotel)) {
           // Remove hotel if already selected
           newHotels = newHotels.filter(h => h !== hotel)
-          // Also remove "All Primary Hotels" since not all are selected now
-          newHotels = newHotels.filter(h => h !== 'All Primary Hotels')
         } else {
           // Add hotel if not selected
           newHotels.push(hotel)
-
-          // Check if all individual hotels are now selected
-          const individualHotels = primaryHotelsData.filter(h => h !== 'All Primary Hotels')
-          const selectedIndividualHotels = newHotels.filter(h => h !== 'All Primary Hotels')
-
-          if (selectedIndividualHotels.length === individualHotels.length) {
-            // If all individual hotels are selected, also select "All Primary Hotels"
-            if (!newHotels.includes('All Primary Hotels')) {
-              newHotels.push('All Primary Hotels')
-            }
-          }
-        }
-
-        // If no hotels selected, default to "All Primary Hotels"
-        if (newHotels.length === 0) {
-          newHotels = ['All Primary Hotels']
         }
       }
 
       return { ...prev, selectedPrimaryHotels: newHotels }
     })
+
+    // Clear compSet error when primary hotels are selected
+    if (formErrors.compSet) {
+      setFormErrors(prev => ({ ...prev, compSet: '' }))
+    }
   }
 
   // Handle secondary hotel selection
@@ -595,63 +1166,53 @@ export default function ReportsPage() {
     setFormData(prev => {
       let newHotels = [...prev.selectedSecondaryHotels]
 
-      if (hotel === 'All Secondary Hotels') {
-        // If "All Secondary Hotels" is selected, select all hotels
-        if (newHotels.includes('All Secondary Hotels')) {
-          // If already selected, deselect all
-          newHotels = []
+      if (hotel === 'Select All') {
+        // Get currently filtered hotels
+        const currentFilteredHotels = filteredSecondaryHotels.map(h => h.name)
+
+        // Check if all filtered hotels are already selected
+        const allFilteredSelected = currentFilteredHotels.every(hotelName =>
+          newHotels.includes(hotelName)
+        )
+
+        if (allFilteredSelected) {
+          // Deselect all filtered hotels
+          newHotels = newHotels.filter(h => !currentFilteredHotels.includes(h))
         } else {
-          // Select all hotels including "All Secondary Hotels"
-          newHotels = [...secondaryHotelsData]
+          // Select all filtered hotels
+          currentFilteredHotels.forEach(hotelName => {
+            if (!newHotels.includes(hotelName)) {
+              newHotels.push(hotelName)
+            }
+          })
         }
       } else {
         // Handle individual hotel selection
         if (newHotels.includes(hotel)) {
           // Remove hotel if already selected
           newHotels = newHotels.filter(h => h !== hotel)
-          // Also remove "All Secondary Hotels" since not all are selected now
-          newHotels = newHotels.filter(h => h !== 'All Secondary Hotels')
         } else {
           // Add hotel if not selected
           newHotels.push(hotel)
-
-          // Check if all individual hotels are now selected
-          const individualHotels = secondaryHotelsData.filter(h => h !== 'All Secondary Hotels')
-          const selectedIndividualHotels = newHotels.filter(h => h !== 'All Secondary Hotels')
-
-          if (selectedIndividualHotels.length === individualHotels.length) {
-            // If all individual hotels are selected, also select "All Secondary Hotels"
-            if (!newHotels.includes('All Secondary Hotels')) {
-              newHotels.push('All Secondary Hotels')
-            }
-          }
-        }
-
-        // If no hotels selected, default to "All Secondary Hotels"
-        if (newHotels.length === 0) {
-          newHotels = ['All Secondary Hotels']
         }
       }
 
       return { ...prev, selectedSecondaryHotels: newHotels }
     })
+
+    // Clear compSet error when secondary hotels are selected
+    if (formErrors.compSet) {
+      setFormErrors(prev => ({ ...prev, compSet: '' }))
+    }
   }
 
   // Check if a primary hotel should be checked
   const isPrimaryHotelSelected = (hotel: string) => {
-    if (formData.selectedPrimaryHotels.includes('All Primary Hotels')) {
-      // If "All Primary Hotels" is selected, show all hotels as selected
-      return true
-    }
     return formData.selectedPrimaryHotels.includes(hotel)
   }
 
   // Check if a secondary hotel should be checked
   const isSecondaryHotelSelected = (hotel: string) => {
-    if (formData.selectedSecondaryHotels.includes('All Secondary Hotels')) {
-      // If "All Secondary Hotels" is selected, show all hotels as selected
-      return true
-    }
     return formData.selectedSecondaryHotels.includes(hotel)
   }
 
@@ -659,9 +1220,9 @@ export default function ReportsPage() {
   const handleSnackbarOk = () => {
     setShowSnackbar(false)
     // Show second snackbar after 4 seconds
-    setTimeout(() => {
-      setShowSecondSnackbar(true)
-    }, 4000)
+    // setTimeout(() => {
+    //   setShowSecondSnackbar(true)
+    // }, 4000)
   }
 
   const handleSecondSnackbarClose = () => {
@@ -675,27 +1236,56 @@ export default function ReportsPage() {
     // Close the calendar popover
     setIsStartDateOpen(false)
 
-    // Clear error when start date is selected
-    if (dateError) {
-      setDateError('')
+    // Clear errors when start date is selected
+    if (formErrors.startDate) {
+      setFormErrors(prev => ({ ...prev, startDate: '' }))
     }
+
+    // Implement Angular logic for maxEndDate calculation
+    if (date) {
+      const date365 = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate())
+      const calculatedMaxEndDate = new Date(date)
+      calculatedMaxEndDate.setDate(calculatedMaxEndDate.getDate() + 90)
+
+      if (calculatedMaxEndDate > date365) {
+        setMaxEndDate(date365)
+      } else {
+        setMaxEndDate(calculatedMaxEndDate)
+      }
+    } else {
+      const nextYear = new Date(today)
+      nextYear.setFullYear(nextYear.getFullYear() + 1)
+      setMaxEndDate(nextYear)
+    }
+
+    // Set maxDate to 1 year from today for start date selection
+    const nextYear = new Date(today)
+    nextYear.setFullYear(nextYear.getFullYear() + 1)
+    setMaxDate(nextYear)
 
     // If end date exists and is before the new start date, clear end date
     if (date && formData.endDate && formData.endDate < date) {
       setFormData(prev => ({ ...prev, endDate: undefined }))
-      setDateError('End date cannot be before start date. Please select a new end date.')
     }
   }
 
   const handleEndDateSelect = (date: Date | undefined) => {
     // Validate that end date is not before start date
     if (date && formData.startDate && date < formData.startDate) {
-      setDateError('End date cannot be before start date')
       return
     }
 
     setFormData(prev => ({ ...prev, endDate: date }))
-    setDateError('')
+
+    // Clear form error when end date is selected
+    if (formErrors.endDate) {
+      setFormErrors(prev => ({ ...prev, endDate: '' }))
+    }
+
+    // Set maxDate to 1 year from today for start date selection
+    const nextYear = new Date(today)
+    nextYear.setFullYear(nextYear.getFullYear() + 1)
+    setMaxDate(nextYear)
 
     // Close the calendar popover
     setIsEndDateOpen(false)
@@ -718,6 +1308,99 @@ export default function ReportsPage() {
     toggleRowExpansion(reportId.toString())
     fetchReportData(reportId, index)
   }
+
+  // Handle download report data
+  const handleDownloadReportData = async (reportId: number) => {
+    try {
+      setDownloadingReportId(reportId)
+      setShowDownloadPopup(true)
+      // Get user data from hooks
+      const detailData = {
+        reportId: reportId,
+        recipientEmail: userDetails?.email || '',
+        propertyName: selectedProperty?.name || '',
+        userName: userDetails ? `${userDetails.firstName} ${userDetails.lastName}` : ''
+      }
+
+      // Call the API
+      const response = await generateAndMailReportCSV(detailData)
+
+      if (response.status) {
+
+      }
+    } catch (error) {
+      console.error('Error generating report CSV:', error)
+    } finally {
+      setDownloadingReportId(null)
+    }
+  }
+
+  // Handle download popup close
+  const handleDownloadPopupClose = () => {
+    setShowDownloadPopup(false)
+  }
+
+  // Handle channel search
+  const handleChannelSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchValue(event.target.value)
+  }
+
+  // Clear search when dropdown closes
+  const handleChannelsDropdownClose = () => {
+    setIsChannelsOpen(false)
+    setSearchValue('')
+  }
+
+  // Filter channels based on search
+  const filteredChannels = channelsData.filter(channel =>
+    channel.toLowerCase().includes(searchValue.toLowerCase())
+  )
+
+  // Handle primary compset search
+  const handlePrimarySearch = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setPrimarySearchValue(event.target.value)
+  }
+
+  // Handle secondary compset search
+  const handleSecondarySearch = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSecondarySearchValue(event.target.value)
+  }
+
+  // Handle primary hotels dropdown toggle
+  const handlePrimaryHotelsToggle = () => {
+    if (isPrimaryHotelsOpen) {
+      // Closing - clear search
+      setIsPrimaryHotelsOpen(false)
+      setPrimarySearchValue('')
+    } else {
+      // Opening - clear search and open
+      setPrimarySearchValue('')
+      setIsPrimaryHotelsOpen(true)
+    }
+  }
+
+  // Handle secondary hotels dropdown toggle
+  const handleSecondaryHotelsToggle = () => {
+    if (isSecondaryHotelsOpen) {
+      // Closing - clear search
+      setIsSecondaryHotelsOpen(false)
+      setSecondarySearchValue('')
+    } else {
+      // Opening - clear search and open
+      setSecondarySearchValue('')
+      setIsSecondaryHotelsOpen(true)
+    }
+  }
+
+  // Filter primary compsets based on search
+  const filteredPrimaryHotels = primaryHotelsData.filter(hotel =>
+    hotel.name.toLowerCase().includes(primarySearchValue.toLowerCase())
+  )
+
+  // Filter secondary compsets based on search
+  const filteredSecondaryHotels = secondaryHotelsData.filter(hotel =>
+    hotel.name.toLowerCase().includes(secondarySearchValue.toLowerCase())
+  )
 
 
   // Sorting logic
@@ -1039,12 +1722,11 @@ export default function ReportsPage() {
                         sortedReportsData.map((report, index) => {
                           const isExpanded = expandedRow === report.reportID.toString()
                           const isNextRowExpanded = index < sortedReportsData.length - 1 && expandedRow === sortedReportsData[index + 1].reportID.toString()
-                          const reportStatus = statusOfReport[index] || determineReportStatus(report)
+                          const reportStatus = determineReportStatus(report)
 
                           return (
-                            <>
+                            <React.Fragment key={report.reportID}>
                               <div
-                                key={report.reportID}
                                 className={`grid grid-cols-12 gap-3 px-4 py-2 text-sm ${isNextRowExpanded
                                   ? 'border-b border-blue-200 dark:border-blue-500'
                                   : isExpanded && index === sortedReportsData.length - 1
@@ -1064,19 +1746,21 @@ export default function ReportsPage() {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <div
-                                        className="flex items-center gap-2 cursor-pointer group"
-                                        onClick={() => onReportData(report.reportID, index)}
+                                        className={`flex items-center gap-2 ${report.reportID === 999999999 ? 'cursor-default' : 'cursor-pointer group'}`}
+                                        onClick={report.reportID === 999999999 ? undefined : () => onReportData(report.reportID, index)}
                                       >
-                                        <span className="text-blue-600 group-hover:text-blue-800 font-medium">
-                                          {report.reportID}
+                                        <span className={`${report.reportID === 999999999 ? 'text-gray-500' : 'text-blue-600 group-hover:text-blue-800'} font-medium inline-block min-w-[60px]`}>
+                                          {report.reportID === 999999999 ? "##" : report.reportID}
                                         </span>
-                                        <div className="w-4 h-4 border border-blue-600 dark:border-blue-600 rounded-full flex items-center justify-center group-hover:border-blue-700 transition-colors">
-                                          {isExpanded ? (
-                                            <ChevronUp className="w-2.5 h-2.5 text-blue-600 group-hover:text-blue-700" strokeWidth="2.5" />
-                                          ) : (
-                                            <ChevronDown className="w-2.5 h-2.5 text-blue-600 group-hover:text-blue-700" strokeWidth="2.5" />
-                                          )}
-                                        </div>
+                                        {report.reportID !== 999999999 && (
+                                          <div className="w-4 h-4 border border-blue-600 dark:border-blue-600 rounded-full flex items-center justify-center group-hover:border-blue-700 transition-colors flex-shrink-0">
+                                            {isExpanded ? (
+                                              <ChevronUp className="w-2.5 h-2.5 text-blue-600 group-hover:text-blue-700" strokeWidth="2.5" />
+                                            ) : (
+                                              <ChevronDown className="w-2.5 h-2.5 text-blue-600 group-hover:text-blue-700" strokeWidth="2.5" />
+                                            )}
+                                          </div>
+                                        )}
                                       </div>
                                     </TooltipTrigger>
                                     <TooltipContent className="bg-black text-white border-black text-xs px-2 py-1">
@@ -1106,45 +1790,14 @@ export default function ReportsPage() {
                                 <div className="col-span-1 flex items-center -ml-2 mr-4">{report.los}</div>
                                 <div className="col-span-1 flex items-center -ml-4">{report.occupancy}</div>
                                 <div className="col-span-1 flex items-center -ml-4">
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div className="flex items-center justify-center">
-                                        {reportStatus === "Generated" ? (
-                                          <div className="relative">
-                                            <div className="w-4 h-4 border border-green-600 rounded-full"></div>
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                              <div className="w-3 h-3 text-green-600">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                                                  <path d="M20 6L9 17l-5-5" />
-                                                </svg>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        ) : reportStatus === "Error" ? (
-                                          <div className="relative">
-                                            <div className="w-4 h-4 border border-red-600 rounded-full"></div>
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                              <div className="w-3 h-3 text-red-600">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                                                  <path d="M18 6L6 18M6 6l12 12" />
-                                                </svg>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <Loader2 className="w-4 h-4 text-orange-500 animate-spin" />
-                                        )}
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent className={`text-white text-xs px-2 py-1 ${reportStatus === "Generated"
-                                      ? "bg-green-600 border-green-600"
-                                      : reportStatus === "Error"
-                                        ? "bg-red-600 border-red-600"
-                                        : "bg-orange-500 border-orange-500"
-                                      }`}>
-                                      <p>{reportStatus === "Generated" ? "Report Generated" : reportStatus === "Error" ? "Report Error" : "Report In Progress"}</p>
-                                    </TooltipContent>
-                                  </Tooltip>
+                                  <span className={`text-sm font-medium ${reportStatus === "Generated"
+                                    ? "text-green-600"
+                                    : reportStatus === "Error"
+                                      ? "text-red-600"
+                                      : "text-orange-500"
+                                    }`}>
+                                    {reportStatus}
+                                  </span>
                                 </div>
                                 <div className="col-span-1 flex items-center -ml-4">
                                   <div className="flex items-center gap-2">
@@ -1164,22 +1817,28 @@ export default function ReportsPage() {
                                         <p>Download Detailed View (Macros)</p>
                                       </TooltipContent>
                                     </Tooltip>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className={`h-8 w-8 ${reportStatus !== "Generated" ? "opacity-50 cursor-not-allowed" : ""}`}
-                                          disabled={reportStatus !== "Generated"}
-                                          onClick={() => window.open(report.excelLiteFilePath || report.reportFilePath, '_blank')}
-                                        >
-                                          <FileSpreadsheet className="w-4 h-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent className="bg-black text-white border-black text-xs px-2 py-1">
-                                        <p>Download Raw Data</p>
-                                      </TooltipContent>
-                                    </Tooltip>
+                                    {report.isDetailDataEnable && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className={`h-8 w-8 ${reportStatus !== "Generated" ? "opacity-50 cursor-not-allowed" : ""}`}
+                                            disabled={reportStatus !== "Generated" || downloadingReportId === report.reportID}
+                                            onClick={() => handleDownloadReportData(report.reportID)}
+                                          >
+                                            {downloadingReportId === report.reportID ? (
+                                              <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                              <FileSpreadsheet className="w-4 h-4" />
+                                            )}
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="bg-black text-white border-black text-xs px-2 py-1">
+                                          <p>Download Raw Data</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -1195,16 +1854,25 @@ export default function ReportsPage() {
                                   }`}>
                                   <div className="col-span-12">
                                     <div className="grid grid-cols-12 gap-8">
-                                      {/* Schedule Name */}
+                                      {/* Report ID / Schedule Name */}
                                       <div className="col-span-3" style={{ marginLeft: '60px' }}>
-                                        <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Schedule name</h4>
-                                        <p className="text-black dark:text-black font-semibold">{report.scheduleName || report.reportID}</p>
+                                        {report.generatedBy !== 'Batch' ? (
+                                          <>
+                                            <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Report Id</h4>
+                                            <p className="text-black dark:text-black font-semibold">{report.reportID}</p>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Schedule name</h4>
+                                            <p className="text-black dark:text-black font-semibold">{report.scheduleName}</p>
+                                          </>
+                                        )}
                                       </div>
 
                                       {/* Channels */}
                                       <div className="col-span-2">
                                         <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                          Channels ({report.reportData?.channels ? 
+                                          Channels ({report.reportData?.channels ?
                                             report.reportData.channels.split(',').filter((channel: string) => channel.trim() !== '').length : 0})
                                         </h4>
                                         <div className="text-black dark:text-black">
@@ -1232,7 +1900,7 @@ export default function ReportsPage() {
                                       {/* Properties */}
                                       <div className="col-span-3">
                                         <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                          Property ({report.reportData?.properties ? 
+                                          Property ({report.reportData?.properties ?
                                             report.reportData.properties.split('$#$').filter((prop: string) => prop.trim() !== '').length : 0})
                                         </h4>
                                         <div className="text-black dark:text-black">
@@ -1283,7 +1951,7 @@ export default function ReportsPage() {
                                   </div>
                                 </div>
                               )}
-                            </>
+                            </React.Fragment>
                           )
                         })
                       )}
@@ -1300,10 +1968,17 @@ export default function ReportsPage() {
 
       {/* On-Demand Report Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto z-[999]">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-black">Generate On Demand Report</DialogTitle>
           </DialogHeader>
+
+          {/* General Error Display */}
+          {formErrors.general && (
+            <div className="mt-4 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+              {formErrors.general}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
             {/* Configure Section */}
@@ -1316,38 +1991,122 @@ export default function ReportsPage() {
                 <div className="relative" ref={channelsRef}>
                   <button
                     type="button"
-                    onClick={() => setIsChannelsOpen(!isChannelsOpen)}
-                    className="w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none"
+                    onClick={() => isChannelsOpen ? handleChannelsDropdownClose() : setIsChannelsOpen(true)}
+                    disabled={isLoadingChannels}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none ${isLoadingChannels
+                      ? 'bg-gray-100 cursor-not-allowed opacity-60'
+                      : 'bg-white hover:bg-gray-50'
+                      }`}
                   >
                     <span className="truncate">
-                      {formData.selectedChannels.includes('All Channels')
-                        ? "All Channels"
-                        : formData.selectedChannels.length === 1
-                          ? formData.selectedChannels[0]
-                          : `${formData.selectedChannels.length} channels selected`
+                      {isLoadingChannels ? (
+                        <span className="flex items-center">
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Loading channels...
+                        </span>
+                      ) : formData.selectedChannels.length === 0
+                        ? "0 channels selected"
+                        : formData.selectedChannels.length === channelsData.length
+                          ? "All Channels"
+                          : formData.selectedChannels.length === 1
+                            ? formData.selectedChannels[0]
+                            : `${formData.selectedChannels[0]} + ${formData.selectedChannels.length - 1}`
                       }
                     </span>
-                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isChannelsOpen ? 'rotate-180' : ''}`} />
+                    {!isLoadingChannels && (
+                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isChannelsOpen ? 'rotate-180' : ''}`} />
+                    )}
                   </button>
 
                   {isChannelsOpen && (
                     <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                      {channelsData.map((channel) => (
-                        <label
-                          key={channel}
-                          className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChannelSelected(channel)}
-                            onChange={() => handleChannelToggle(channel)}
-                            className="w-4 h-4 mr-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                          />
-                          <span className="text-sm text-gray-900 truncate" title={channel}>
-                            {channel.length > 32 ? `${channel.substring(0, 32)}...` : channel}
-                          </span>
-                        </label>
-                      ))}
+                      {isLoadingChannels ? (
+                        <div className="flex items-center justify-center px-3 py-4">
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          <span className="text-sm text-gray-500">Loading channels...</span>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Search Input - Hidden for now */}
+                          <div className="p-3 border-b border-gray-200 hidden">
+                            <div className="relative">
+                              <input
+                                type="text"
+                                placeholder="Search Channel"
+                                value={searchValue}
+                                onChange={handleChannelSearch}
+                                className="w-full px-3 py-2 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => e.stopPropagation()}
+                              />
+                              <div className="absolute right-2 top-2.5">
+                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Warning for disabled channels */}
+                          {isAnyDisabledChannel && (
+                            <div className="p-3 bg-yellow-50 border-b border-yellow-200">
+                              <div className="flex items-center">
+                                <div className="w-4 h-4 mr-2">
+                                  <svg className="w-4 h-4 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                  </svg>
+                                </div>
+                                <div className="text-sm text-yellow-800">
+                                  Few channels are not available due to maintenance activity
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Channel Options */}
+                          <div className="max-h-40 overflow-y-auto">
+                            {/* Select All Option */}
+                            <div className="border-b border-gray-200">
+                              <label className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={filteredChannels.length > 0 && filteredChannels.every(channel => formData.selectedChannels.includes(channel))}
+                                  onChange={() => handleChannelToggle('Select All')}
+                                  className="w-4 h-4 mr-3 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 flex-shrink-0"
+                                />
+                                <span className="text-sm text-gray-900 font-medium">All Channels</span>
+                              </label>
+                            </div>
+                            {filteredChannels.map((channel) => {
+                              const isDisabled = disabledChannels.includes(channel)
+                              return (
+                                <label
+                                  key={channel}
+                                  className={`flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChannelSelected(channel)}
+                                    onChange={() => !isDisabled && handleChannelToggle(channel)}
+                                    disabled={isDisabled}
+                                    className="w-4 h-4 mr-3 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 flex-shrink-0"
+                                  />
+                                  <span className="text-sm text-gray-900 font-medium truncate" title={channel}>
+                                    {channel.length > 32 ? `${channel.substring(0, 32)}...` : channel}
+                                  </span>
+                                  {isDisabled && (
+                                    <div className="w-4 h-4 ml-2">
+                                      <svg className="w-4 h-4 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                      </svg>
+                                    </div>
+                                  )}
+                                </label>
+                              )
+                            })}
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1368,32 +2127,88 @@ export default function ReportsPage() {
                     <RadioGroupItem value="primary" id="primary" />
                     <Label
                       htmlFor="primary"
-                      className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer"
-                      onClick={() => setIsPrimaryHotelsOpen(!isPrimaryHotelsOpen)}
+                      className={`flex items-center space-x-2 text-sm text-gray-700 ${isLoadingCompSet ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                        }`}
+                      onClick={isLoadingCompSet ? undefined : handlePrimaryHotelsToggle}
                     >
-                      <span>Primary (10)</span>
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                      <span className="flex items-center">
+                        {isLoadingCompSet ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Loading properties...
+                          </>
+                        ) : (
+                          `Primary (${formData.selectedPrimaryHotels.length})`
+                        )}
+                      </span>
+                      {!isLoadingCompSet && (
+                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                      )}
                     </Label>
 
                     {/* Primary Hotels Dropdown */}
                     {isPrimaryHotelsOpen && (
-                      <div className="absolute z-50 top-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto min-w-80">
-                        {primaryHotelsData.map((hotel) => (
-                          <label
-                            key={hotel}
-                            className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isPrimaryHotelSelected(hotel)}
-                              onChange={() => handlePrimaryHotelToggle(hotel)}
-                              className="w-4 h-4 mr-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                            />
-                            <span className="text-sm text-gray-900 truncate" title={hotel}>
-                              {hotel.length > 32 ? `${hotel.substring(0, 32)}...` : hotel}
-                            </span>
-                          </label>
-                        ))}
+                      <div className="absolute z-50 top-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto min-w-80">
+                        {isLoadingCompSet ? (
+                          <div className="flex items-center justify-center px-3 py-4">
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            <span className="text-sm text-gray-500">Loading compsets...</span>
+                          </div>
+                        ) : (
+                          <>
+                            {/* Search Input */}
+                            <div className="p-3 border-b border-gray-200 hidden">
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  placeholder="Search"
+                                  value={primarySearchValue}
+                                  onChange={handlePrimarySearch}
+                                  className="w-full px-3 py-2 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => e.stopPropagation()}
+                                />
+                                <div className="absolute right-2 top-2.5">
+                                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                  </svg>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Hotel Options */}
+                            <div className="max-h-40 overflow-y-auto">
+                              {/* Select All Option */}
+                              <div className="border-b border-gray-200">
+                                <label className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.selectedPrimaryHotels.length === filteredPrimaryHotels.length && filteredPrimaryHotels.length > 0}
+                                    onChange={() => handlePrimaryHotelToggle('Select All')}
+                                    className="w-4 h-4 mr-3 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 flex-shrink-0"
+                                  />
+                                  <span className="text-sm text-gray-900 font-medium">All Primary Hotels</span>
+                                </label>
+                              </div>
+                              {filteredPrimaryHotels.map((hotel, index) => (
+                                <label
+                                  key={`primary-${hotel.propertyID}-${hotel.name}-${index}`}
+                                  className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isPrimaryHotelSelected(hotel.name)}
+                                    onChange={() => handlePrimaryHotelToggle(hotel.name)}
+                                    className="w-4 h-4 mr-3 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 flex-shrink-0"
+                                  />
+                                  <span className="text-sm text-gray-900 font-medium truncate" title={hotel.name}>
+                                    {hotel.name.length > 32 ? `${hotel.name.substring(0, 32)}...` : hotel.name}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1401,36 +2216,95 @@ export default function ReportsPage() {
                     <RadioGroupItem value="secondary" id="secondary" />
                     <Label
                       htmlFor="secondary"
-                      className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer"
-                      onClick={() => setIsSecondaryHotelsOpen(!isSecondaryHotelsOpen)}
+                      className={`flex items-center space-x-2 text-sm text-gray-700 ${isLoadingCompSet ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                        }`}
+                      onClick={isLoadingCompSet ? undefined : handleSecondaryHotelsToggle}
                     >
-                      <span>Secondary</span>
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                      <span className="flex items-center">
+                        {isLoadingCompSet ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Loading properties...
+                          </>
+                        ) : (
+                          `Secondary (${formData.selectedSecondaryHotels.length})`
+                        )}
+                      </span>
+                      {!isLoadingCompSet && (
+                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                      )}
                     </Label>
 
                     {/* Secondary Hotels Dropdown */}
                     {isSecondaryHotelsOpen && (
-                      <div className="absolute z-50 top-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto min-w-80">
-                        {secondaryHotelsData.map((hotel) => (
-                          <label
-                            key={hotel}
-                            className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isSecondaryHotelSelected(hotel)}
-                              onChange={() => handleSecondaryHotelToggle(hotel)}
-                              className="w-4 h-4 mr-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                            />
-                            <span className="text-sm text-gray-900 truncate" title={hotel}>
-                              {hotel.length > 32 ? `${hotel.substring(0, 32)}...` : hotel}
-                            </span>
-                          </label>
-                        ))}
+                      <div className="absolute z-50 top-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto min-w-80">
+                        {isLoadingCompSet ? (
+                          <div className="flex items-center justify-center px-3 py-4">
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            <span className="text-sm text-gray-500">Loading compsets...</span>
+                          </div>
+                        ) : (
+                          <>
+                            {/* Search Input */}
+                            <div className="p-3 border-b border-gray-200 hidden">
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  placeholder="Search"
+                                  value={secondarySearchValue}
+                                  onChange={handleSecondarySearch}
+                                  className="w-full px-3 py-2 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => e.stopPropagation()}
+                                />
+                                <div className="absolute right-2 top-2.5">
+                                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                  </svg>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Hotel Options */}
+                            <div className="max-h-40 overflow-y-auto">
+                              {/* Select All Option */}
+                              <div className="border-b border-gray-200">
+                                <label className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.selectedSecondaryHotels.length === filteredSecondaryHotels.length && filteredSecondaryHotels.length > 0}
+                                    onChange={() => handleSecondaryHotelToggle('Select All')}
+                                    className="w-4 h-4 mr-3 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 flex-shrink-0"
+                                  />
+                                  <span className="text-sm text-gray-900 font-medium">All Secondary Hotels</span>
+                                </label>
+                              </div>
+                              {filteredSecondaryHotels.map((hotel, index) => (
+                                <label
+                                  key={`secondary-${hotel.propertyID}-${hotel.name}-${index}`}
+                                  className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isSecondaryHotelSelected(hotel.name)}
+                                    onChange={() => handleSecondaryHotelToggle(hotel.name)}
+                                    className="w-4 h-4 mr-3 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 flex-shrink-0"
+                                  />
+                                  <span className="text-sm text-gray-900 font-medium truncate" title={hotel.name}>
+                                    {hotel.name.length > 32 ? `${hotel.name.substring(0, 32)}...` : hotel.name}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
                 </RadioGroup>
+                {formErrors.compSet && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.compSet}</p>
+                )}
               </div>
 
               {/* Guests and LOS */}
@@ -1452,7 +2326,7 @@ export default function ReportsPage() {
 
                     {isGuestsOpen && (
                       <div className="absolute z-50 w-full bottom-full mb-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                        {Array.from({ length: 10 }, (_, i) => i + 1).map((number) => (
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((number) => (
                           <button
                             key={number}
                             type="button"
@@ -1490,7 +2364,7 @@ export default function ReportsPage() {
 
                     {isLosOpen && (
                       <div className="absolute z-50 w-full bottom-full mb-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                        {Array.from({ length: 10 }, (_, i) => i + 1).map((number) => (
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map((number) => (
                           <button
                             key={number}
                             type="button"
@@ -1520,7 +2394,7 @@ export default function ReportsPage() {
                 {/* Start Date */}
                 <div>
                   <Label className="block text-xs font-medium text-gray-700 mb-1">
-                    Check-in Start Date<span className="text-red-500 ml-1">*</span>
+                    Start Date<span className="text-red-500 ml-1">*</span>
                   </Label>
                   <Popover open={isStartDateOpen} onOpenChange={setIsStartDateOpen}>
                     <PopoverTrigger asChild>
@@ -1532,27 +2406,38 @@ export default function ReportsPage() {
                         {formData.startDate ? format(formData.startDate, "dd MMM ''yy") : "Select start date"}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0 z-[9999]" align="start">
                       <Calendar
                         mode="single"
                         selected={formData.startDate}
                         onSelect={handleStartDateSelect}
                         numberOfMonths={1}
                         initialFocus
-                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                        fromDate={new Date()}
+                        disabled={(date) => {
+                          const todayStart = new Date()
+                          todayStart.setHours(0, 0, 0, 0)
+                          const dateToCheck = new Date(date)
+                          dateToCheck.setHours(0, 0, 0, 0)
+                          return dateToCheck < todayStart
+                        }}
+                        fromDate={(() => {
+                          const todayStart = new Date()
+                          todayStart.setHours(0, 0, 0, 0)
+                          return todayStart
+                        })()}
+                        toDate={maxDate}
                       />
                     </PopoverContent>
                   </Popover>
                   {formErrors.startDate && (
-                    <p className="text-red-500 text-xs mt-1">{formErrors.startDate}</p>
+                    <p className="text-red-500 text-xs mt-1 ml-4">&nbsp;Start date required</p>
                   )}
                 </div>
 
                 {/* End Date */}
                 <div>
                   <Label className="block text-xs font-medium text-gray-700 mb-1">
-                    Check-in End Date<span className="text-red-500 ml-1">*</span>
+                    End Date<span className="text-red-500 ml-1">*</span>
                   </Label>
                   <Popover open={isEndDateOpen} onOpenChange={setIsEndDateOpen}>
                     <PopoverTrigger asChild>
@@ -1564,7 +2449,7 @@ export default function ReportsPage() {
                         {formData.endDate ? format(formData.endDate, "dd MMM ''yy") : "Select end date"}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0 z-[9999]" align="start">
                       <Calendar
                         mode="single"
                         selected={formData.endDate}
@@ -1572,22 +2457,25 @@ export default function ReportsPage() {
                         numberOfMonths={1}
                         initialFocus
                         disabled={(date) => {
-                          const today = new Date(new Date().setHours(0, 0, 0, 0))
-                          const isBeforeToday = date < today
-                          const isBeforeStartDate = formData.startDate && date < formData.startDate
+                          const todayStart = new Date()
+                          todayStart.setHours(0, 0, 0, 0)
+                          const dateToCheck = new Date(date)
+                          dateToCheck.setHours(0, 0, 0, 0)
+                          const isBeforeToday = dateToCheck < todayStart
+                          const isBeforeStartDate = formData.startDate && dateToCheck < formData.startDate
                           return Boolean(isBeforeToday || isBeforeStartDate)
                         }}
-                        fromDate={formData.startDate || new Date()}
+                        fromDate={formData.startDate || (() => {
+                          const todayStart = new Date()
+                          todayStart.setHours(0, 0, 0, 0)
+                          return todayStart
+                        })()}
+                        toDate={maxEndDate}
                       />
-                      {dateError && (
-                        <div className="p-3 text-sm text-red-600 bg-red-50 border-t border-red-200">
-                          {dateError}
-                        </div>
-                      )}
                     </PopoverContent>
                   </Popover>
                   {formErrors.endDate && (
-                    <p className="text-red-500 text-xs mt-1">{formErrors.endDate}</p>
+                    <p className="text-red-500 text-xs mt-1 ml-4">&nbsp;End date required</p>
                   )}
                 </div>
               </div>
@@ -1599,7 +2487,7 @@ export default function ReportsPage() {
                   {/* Existing Recipients */}
                   {formData.recipients.map((email, index) => (
                     <div key={index} className="flex items-center justify-between bg-gray-50 rounded-md px-3 py-2 border border-gray-200">
-                      <span className="text-sm text-gray-900 truncate">{email}</span>
+                      <span className="text-sm text-gray-900 font-medium truncate">{email}</span>
                       <button
                         onClick={() => handleRemoveRecipient(email)}
                         className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
@@ -1619,6 +2507,9 @@ export default function ReportsPage() {
                       className="w-full"
                     />
                   </div>
+                  {formErrors.recipients && (
+                    <p className="text-red-500 text-xs mt-1">{formErrors.recipients}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -1635,9 +2526,17 @@ export default function ReportsPage() {
             </Button>
             <Button
               onClick={handleGenerate}
-              className="h-9 px-4 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              disabled={isGenerating}
+              className="h-9 px-4 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Generate
+              {isGenerating ? (
+                <span className="flex items-center">
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Generating...
+                </span>
+              ) : (
+                'Generate'
+              )}
             </Button>
           </div>
         </DialogContent>
@@ -1645,23 +2544,43 @@ export default function ReportsPage() {
 
       {/* First Snackbar */}
       {showSnackbar && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4 min-w-96">
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[999]">
+          <div className={`px-6 py-3 rounded-lg shadow-lg flex items-center gap-4 min-w-96 ${snackbarType === 'error'
+            ? 'bg-red-600 text-white'
+            : snackbarType === 'warning'
+              ? 'bg-yellow-600 text-white'
+              : 'bg-blue-600 text-white'
+            }`}>
             <div className="flex items-center gap-3">
               <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
+                {snackbarType === 'error' ? (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                ) : snackbarType === 'warning' ? (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                )}
               </div>
               <span className="text-sm font-medium">
-                Preparing your report... please wait. Processing large data may take some time.
+                {snackbarMessage || 'Preparing your report... please wait. Processing large data may take some time.'}
               </span>
             </div>
             <Button
               onClick={handleSnackbarOk}
               variant="outline"
               size="sm"
-              className="bg-white text-blue-600 border-white hover:bg-gray-100 px-4 py-1 h-8 text-sm font-medium"
+              className={`px-4 py-1 h-8 text-sm font-medium ${snackbarType === 'error'
+                ? 'bg-white text-red-600 border-white hover:bg-gray-100'
+                : snackbarType === 'warning'
+                  ? 'bg-white text-yellow-600 border-white hover:bg-gray-100'
+                  : 'bg-white text-blue-600 border-white hover:bg-gray-100'
+                }`}
             >
               OK
             </Button>
@@ -1671,7 +2590,7 @@ export default function ReportsPage() {
 
       {/* Second Snackbar */}
       {showSecondSnackbar && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[999]">
           <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4 min-w-[800px]">
             <div className="flex items-center gap-3">
               <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
@@ -1691,6 +2610,95 @@ export default function ReportsPage() {
             >
               DONE
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Download Report Data Popup */}
+      {showDownloadPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999]">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="row">
+                <div className="col heading text-lg font-semibold text-gray-900 mb-4">Report Preparation Underway</div>
+              </div>
+              <div className="message text-gray-700 mb-6">
+                <br />
+                <br />
+                Your custom report is currently being prepared. Expect an email with the download
+                link within the next 15 minutes. Thank you for your patience!
+                <br />
+                <br />
+              </div>
+              <div className="popup_footer flex justify-center">
+                <button
+                  type="button"
+                  className="btn btn-primary bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                  onClick={handleDownloadPopupClose}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Missing Configuration Notification Popup */}
+      {showMissingNotification && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999]">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4" style={{ width: '875px' }}>
+            <div className="p-6">
+              <div className="row mb-4">
+                <div className="col heading text-lg font-semibold text-gray-900">Missing Configuration Notification</div>
+                <div className="salogan text-sm text-gray-700 mt-2">
+                  Please note that the rates for the below property-channel combination(s) will not be
+                  available due to missing configurations. Click on the 'Submit' button to generate an on-demand. For more
+                  details, please contact <a href="mailto:help@rategain.com" className="text-blue-600 hover:underline">help@rategain.com</a>
+                </div>
+              </div>
+
+              <div className="history_table overflow-y-auto" style={{ maxHeight: '270px' }}>
+                <table className="w-full border-collapse">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="border border-gray-300 px-4 py-2 text-left text-sm font-medium text-gray-700">Channel</th>
+                      <th className="border border-gray-300 px-4 py-2 text-left text-sm font-medium text-gray-700">Property</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {missingNotificationData.map((item, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="border border-gray-300 px-4 py-2 text-sm text-gray-900">
+                          {item.brandName || item.channelName || 'N/A'}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2 text-sm text-gray-900">
+                          {item.name || item.propertyName || 'N/A'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="popup_footer flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleMissingNotificationBack}
+                  className="h-9 px-4 text-sm font-medium text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                >
+                  Back
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleMissingNotificationSubmit}
+                  className="h-9 px-4 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                >
+                  Submit
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}

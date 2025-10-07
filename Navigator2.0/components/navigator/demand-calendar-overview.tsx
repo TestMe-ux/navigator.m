@@ -653,7 +653,7 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
                                         : "flex-1 truncate"
                                         }`}
                                     >
-                                      {day.eventName}
+                                      {day.eventName?.substring(0,16)+'...'}
                                     </span>
                                   </div>
                                   {day.eventDateRange && (
@@ -756,7 +756,7 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
                                         : "flex-1 truncate"
                                         }`}
                                     >
-                                      {day.eventName}
+                                      {day.eventName?.substring(0,16)+'...'}
                                     </span>
                                   </div>
                                   {day.eventDateRange && (
@@ -876,7 +876,7 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
                                         : "flex-1 truncate"
                                         }`}
                                     >
-                                      {day.eventName}
+                                      {day.eventName?.substring(0,16)+'...'}
                                     </span>
                                   </div>
                                   {day.eventDateRange && (

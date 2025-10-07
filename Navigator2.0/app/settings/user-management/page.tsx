@@ -165,7 +165,14 @@ export default function UserManagementPage() {
     setUsersDetails((prev) => prev.map((user) => (Number(user.userId) === userId ?
       { ...user, [accessType]: !user[accessType] } : user)))
   }
+  function isRateGainMail(email: any) {
+    const domain = "rategain.com";
+    if (email != undefined && email != null && email.indexOf(domain) != -1) {
+      return true;
+    }
+    return false;
 
+  }
   const handleAddUser = async () => {
     debugger
     if (newUser.firstName && newUser.lastName && newUser.userRole && newUser.emailId && newUser.defaultLandingPageText) {
@@ -176,16 +183,18 @@ export default function UserManagementPage() {
             return 2;
           case "Property User":
             return 1;
-          // case "Manager":
-          //   return 3;
-          // case "Viewer":
-          //   return 4;
           default:
             return 0; // fallback if role not found
         }
       };
-
-
+      if (isRateGainMail(newUser.emailId)) {
+        toast({
+          description: "Email having rategain.com is invalid.",
+          variant: "default",
+          duration: 3000,
+        })
+        return;
+      }
       const filtersValues: any = {}
       if (profileImage?.imagePath != undefined) {
         filtersValues.imagePath = profileImage?.imagePath;
@@ -661,7 +670,7 @@ export default function UserManagementPage() {
                               <img
                                 src={userValue.imagePath}
                                 alt="User"
-                                className="w-3 h-3 rounded-full profileImage"
+                                className="w-6 h-6 rounded-full profileImage"
                               />
                             )}
 
@@ -1008,7 +1017,7 @@ export default function UserManagementPage() {
                           id: index + 1,
                           name: `${change.firstName} ${change.lastName}`,
                           userType: change.userRoleText,
-                          email: change.email.replace('@', `${index + 1}@`),
+                          email: change.email,
                           emailAccess: change.pghReportEmail,
                           interfaceAccess: change.pghAccess,
                           defaultLandingPage: change.defaultLandingPageText,
@@ -1196,7 +1205,7 @@ export default function UserManagementPage() {
                 <Label className="block text-xs font-medium text-gray-700 mb-1">
                   User Role<span className="text-red-500 ml-1">*</span>
                 </Label>
-                <Select disabled
+                <Select disabled={userDetails?.userRoletext !== 'Admin' || newUser.userRole === 'Admin'}
                   value={newUser.userRole}
                   onValueChange={(value) => setNewUser((prev) => ({ ...prev, userRole: value }))}
                 >
@@ -1217,6 +1226,7 @@ export default function UserManagementPage() {
                   Email ID<span className="text-red-500 ml-1">*</span>
                 </Label>
                 <Input
+                  disabled
                   type="email"
                   value={newUser.emailId}
                   onChange={(e) => setNewUser((prev) => ({ ...prev, emailId: e.target.value }))}

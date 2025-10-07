@@ -173,34 +173,43 @@ export function CompactParityView({ className, parityDataMain }: CompactParityVi
   const getBenchmarkChannel = () => {
     return parityData.find((channel: any) => channel.isBrand === true)
   }
-  
+
   const benchmarkChannel = parityData.length > 0 ? getBenchmarkChannel() : null
 
   // Load parity data from parityDataMain prop
   React.useEffect(() => {
     if (!parityDataMain) return
-    
+
     try {
       const channels = parityDataMain?.otaViolationChannelRate?.violationChannelRatesCollection || []
       setParityData(channels)
-      
+
       // Transform API data to ChannelData format
-      const transformedChannels = channels.map((channel: any, index: number) => ({
-        id: channel.channelId || `channel-${index}`,
-        name: channel.channelName || `Channel ${index + 1}`,
-        channelIcon: channel.channelIcon,
-        winPercent: channel.channelWisewinMeetLoss?.winPercent || 0,
-        meetPercent: channel.channelWisewinMeetLoss?.meetPercent || 0,
-        lossPercent: channel.channelWisewinMeetLoss?.lossPercent || 0,
-        parityScore: channel.channelWisewinMeetLoss?.parityScore || 0,
-        dailyScores: channel.checkInDateWiseRates?.map((rate: any) => rate.parityScore || 0) || [],
-        isBrand: channel.isBrand || false,
-        expanded: false,
-        trend: "stable" as const,
-        trendValue: 0,
-        gradientClass: "bg-gradient-to-r from-blue-500 to-teal-500",
-      }))
-      
+      const transformedChannels = channels.map((channel: any, index: number) => {
+        const isBrand = channel.isBrand || false;
+
+        // Use brand-level or channel-level win/meet/loss data
+        const overallWinMeetLoss = isBrand
+          ? parityDataMain?.otaViolationChannelRate?.overallWinMeetLoss
+          : channel.channelWisewinMeetLoss;
+        console.log("Data test +" + isBrand, overallWinMeetLoss)
+        return {
+          id: channel.channelId || `channel-${index}`,
+          name: channel.channelName || `Channel ${index + 1}`,
+          channelIcon: channel.channelIcon,
+          winPercent: overallWinMeetLoss?.winPercent || 0,
+          meetPercent: overallWinMeetLoss?.meetPercent || 0,
+          lossPercent: overallWinMeetLoss?.lossPercent || 0,
+          parityScore: overallWinMeetLoss?.parityScore || 0,
+          dailyScores: channel.checkInDateWiseRates?.map((rate: any) => rate.parityScore || 0) || [],
+          isBrand: channel.isBrand || false,
+          expanded: false,
+          trend: "stable" as const,
+          trendValue: 0,
+          gradientClass: "bg-gradient-to-r from-blue-500 to-teal-500",
+        }
+      })
+
       setChannels(transformedChannels)
     } catch (error) {
       console.error('Error loading parity data:', error)
@@ -299,244 +308,244 @@ export function CompactParityView({ className, parityDataMain }: CompactParityVi
                       // Benchmark channel (isBrand: true) comes first
                       if (a.isBrand && !b.isBrand) return -1
                       if (!a.isBrand && b.isBrand) return 1
-                      
+
                       // For non-benchmark channels, sort alphabetically by channel name
                       return a.name?.localeCompare(b.name || '') || 0
                     })
-                    
-                    return sortedChannels.map((channel) => {
-                    const isBenchmark = channel.isBrand === true
-                    return (
-                    <React.Fragment key={channel.id}>
-                      {/* Main Channel Row */}
-                      <tr className={cn(
-                        "border-b border-gray-100 transition-colors",
-                        isBenchmark 
-                          ? "bg-blue-50 dark:bg-blue-950/30 cursor-default" 
-                          : "hover:bg-gray-50"
-                      )}>
-                        <td className="py-2 px-3">
-                          <div className="flex items-center gap-2">
-                            {channel.hotels && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-4 w-4 p-0 hover:bg-gray-200 rounded"
-                                onClick={() => toggleChannelExpansion(channel.id)}
-                              >
-                                {channel.expanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
-                              </Button>
-                            )}
-                            <div className="flex items-center gap-1.5">
-                              <div className={cn("w-2 h-2 rounded-full", channel.gradientClass)}></div>
-                              <span className={cn("text-xs font-medium", isBenchmark ? "text-blue-900" : "text-gray-900")}>
-                                {channel.name}
-                              </span>
-                              {isBenchmark && (
-                                <span className="bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 rounded font-medium">
-                                  Benchmark
-                                </span>
-                              )}
-                            </div>
-                            {channel.trend && (
-                              <div className="flex items-center">
-                                {channel.trend === "up" ? (
-                                  <TrendingUp className="h-3 w-3 text-green-600" />
-                                ) : channel.trend === "down" ? (
-                                  <TrendingDown className="h-3 w-3 text-red-600" />
-                                ) : null}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-2 px-3">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="flex items-center h-4 bg-gray-100 rounded overflow-hidden border border-gray-200 cursor-help">
-                                <div
-                                  className="h-full bg-green-400 flex items-center justify-center"
-                                  style={{ width: `${channel.winPercent}%` }}
-                                >
-                                  {channel.winPercent > 20 && (
-                                    <span className="text-[10px] font-bold text-white">{channel.winPercent}%</span>
-                                  )}
-                                </div>
-                                <div
-                                  className="h-full bg-orange-400 flex items-center justify-center"
-                                  style={{ width: `${channel.meetPercent}%` }}
-                                >
-                                  {channel.meetPercent > 20 && (
-                                    <span className="text-[10px] font-bold text-white">{channel.meetPercent}%</span>
-                                  )}
-                                </div>
-                                <div
-                                  className="h-full bg-red-400 flex items-center justify-center"
-                                  style={{ width: `${channel.lossPercent}%` }}
-                                >
-                                  {channel.lossPercent > 20 && (
-                                    <span className="text-[10px] font-bold text-white">{channel.lossPercent}%</span>
-                                  )}
-                                </div>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <div className="text-sm">
-                                <div className="font-semibold mb-1">{channel.name}</div>
-                                <div className="space-y-1 text-xs">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 bg-green-500 rounded-sm"></div>
-                                    <span>Win: {channel.winPercent}%</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 bg-orange-500 rounded-sm"></div>
-                                    <span>Meet: {channel.meetPercent}%</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 bg-red-500 rounded-sm"></div>
-                                    <span>Loss: {channel.lossPercent}%</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        </td>
-                        <td className="py-2 px-3">
-                          <div className="flex items-center gap-1">
-                            <span
-                              className={cn(
-                                "text-sm font-bold",
-                                channel.parityScore >= 70
-                                  ? "text-green-600"
-                                  : channel.parityScore >= 50
-                                    ? "text-orange-600"
-                                    : "text-red-600",
-                              )}
-                            >
-                              {channel.parityScore}%
-                            </span>
-                            {channel.trend && (
-                              <span
-                                className={cn(
-                                  "text-[10px] font-medium",
-                                  channel.trend === "up"
-                                    ? "text-green-600"
-                                    : channel.trend === "down"
-                                      ? "text-red-600"
-                                      : "text-gray-600",
-                                )}
-                              >
-                                ({channel.trendValue && channel.trendValue > 0 ? "+" : ""}
-                                {channel.trendValue}%)
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        {channel.dailyScores.map((score, index) => (
-                          <td key={index} className="py-1 px-0.5 text-center">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div
-                                  className={cn(
-                                    "w-10 h-6 flex items-center justify-center rounded text-[10px] font-bold border cursor-help transition-all hover:scale-105",
-                                    getScoreColor(score),
-                                    shouldHighlight(score) && "ring-1 ring-red-500 ring-offset-1",
-                                  )}
-                                >
-                                  {score}%
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <div className="text-xs">
-                                  <div className="font-semibold">{channel.name}</div>
-                                  <div>
-                                    {dates[index].day} {dates[index].month}: {score}%
-                                  </div>
-                                  {shouldHighlight(score) && (
-                                    <div className="text-red-600 font-semibold mt-1">⚠️ Below threshold</div>
-                                  )}
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          </td>
-                        ))}
-                      </tr>
 
-                      {/* Hotel Breakdown */}
-                      {channel.expanded && channel.hotels && (
-                        <>
-                          <tr>
-                            <td
-                              colSpan={18}
-                              className={cn("py-1 px-3 border-b border-blue-200", channel.gradientClass)}
-                            >
-                              <div className="text-xs font-medium text-white">
-                                📊 Hotel Breakdown for {channel.name}
+                    return sortedChannels.map((channel) => {
+                      const isBenchmark = channel.isBrand === true
+                      return (
+                        <React.Fragment key={channel.id}>
+                          {/* Main Channel Row */}
+                          <tr className={cn(
+                            "border-b border-gray-100 transition-colors",
+                            isBenchmark
+                              ? "bg-blue-50 dark:bg-blue-950/30 cursor-default"
+                              : "hover:bg-gray-50"
+                          )}>
+                            <td className="py-2 px-3">
+                              <div className="flex items-center gap-2">
+                                {channel.hotels && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-4 w-4 p-0 hover:bg-gray-200 rounded"
+                                    onClick={() => toggleChannelExpansion(channel.id)}
+                                  >
+                                    {channel.expanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                                  </Button>
+                                )}
+                                <div className="flex items-center gap-1.5">
+                                  <div className={cn("w-2 h-2 rounded-full", channel.gradientClass)}></div>
+                                  <span className={cn("text-xs font-medium", isBenchmark ? "text-blue-900" : "text-gray-900")}>
+                                    {channel.name}
+                                  </span>
+                                  {isBenchmark && (
+                                    <span className="bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 rounded font-medium">
+                                      Benchmark
+                                    </span>
+                                  )}
+                                </div>
+                                {channel.trend && (
+                                  <div className="flex items-center">
+                                    {channel.trend === "up" ? (
+                                      <TrendingUp className="h-3 w-3 text-green-600" />
+                                    ) : channel.trend === "down" ? (
+                                      <TrendingDown className="h-3 w-3 text-red-600" />
+                                    ) : null}
+                                  </div>
+                                )}
                               </div>
                             </td>
-                          </tr>
-                          {channel.hotels.map((hotel) => (
-                            <tr key={hotel.id} className="border-b border-gray-100 bg-blue-50/30 hover:bg-blue-50/50">
-                              <td className="py-1.5 px-3 pl-8">
-                                <div className="flex items-center gap-1.5">
-                                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                                  <span className="text-xs text-gray-700">{hotel.name}</span>
-                                </div>
-                              </td>
-                              <td className="py-1.5 px-3">
-                                <div className="flex items-center h-4 bg-gray-100 rounded overflow-hidden border border-gray-200">
-                                  <div className="h-full bg-green-500" style={{ width: `${hotel.winPercent}%` }}></div>
-                                  <div
-                                    className="h-full bg-orange-500"
-                                    style={{ width: `${hotel.meetPercent}%` }}
-                                  ></div>
-                                  <div className="h-full bg-red-500" style={{ width: `${hotel.lossPercent}%` }}></div>
-                                </div>
-                              </td>
-                              <td className="py-1.5 px-3">
+                            <td className="py-2 px-3">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex items-center h-4 bg-gray-100 rounded overflow-hidden border border-gray-200 cursor-help">
+                                    <div
+                                      className="h-full bg-green-400 flex items-center justify-center"
+                                      style={{ width: `${channel.winPercent}%` }}
+                                    >
+                                      {channel.winPercent > 20 && (
+                                        <span className="text-[10px] font-bold text-white">{channel.winPercent}%</span>
+                                      )}
+                                    </div>
+                                    <div
+                                      className="h-full bg-orange-400 flex items-center justify-center"
+                                      style={{ width: `${channel.meetPercent}%` }}
+                                    >
+                                      {channel.meetPercent > 20 && (
+                                        <span className="text-[10px] font-bold text-white">{channel.meetPercent}%</span>
+                                      )}
+                                    </div>
+                                    <div
+                                      className="h-full bg-red-400 flex items-center justify-center"
+                                      style={{ width: `${channel.lossPercent}%` }}
+                                    >
+                                      {channel.lossPercent > 20 && (
+                                        <span className="text-[10px] font-bold text-white">{channel.lossPercent}%</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <div className="text-sm">
+                                    <div className="font-semibold mb-1">{channel.name}</div>
+                                    <div className="space-y-1 text-xs">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-green-500 rounded-sm"></div>
+                                        <span>Win: {channel.winPercent}%</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-orange-500 rounded-sm"></div>
+                                        <span>Meet: {channel.meetPercent}%</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-red-500 rounded-sm"></div>
+                                        <span>Loss: {channel.lossPercent}%</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </td>
+                            <td className="py-2 px-3">
+                              <div className="flex items-center gap-1">
                                 <span
                                   className={cn(
-                                    "text-xs font-bold",
-                                    hotel.parityScore >= 70
+                                    "text-sm font-bold",
+                                    channel.parityScore >= 70
                                       ? "text-green-600"
-                                      : hotel.parityScore >= 50
+                                      : channel.parityScore >= 50
                                         ? "text-orange-600"
                                         : "text-red-600",
                                   )}
                                 >
-                                  {hotel.parityScore}%
+                                  {channel.parityScore}%
                                 </span>
+                                {channel.trend && (
+                                  <span
+                                    className={cn(
+                                      "text-[10px] font-medium",
+                                      channel.trend === "up"
+                                        ? "text-green-600"
+                                        : channel.trend === "down"
+                                          ? "text-red-600"
+                                          : "text-gray-600",
+                                    )}
+                                  >
+                                    ({channel.trendValue && channel.trendValue > 0 ? "+" : ""}
+                                    {channel.trendValue}%)
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            {channel.dailyScores.map((score, index) => (
+                              <td key={index} className="py-1 px-0.5 text-center">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      className={cn(
+                                        "w-10 h-6 flex items-center justify-center rounded text-[10px] font-bold border cursor-help transition-all hover:scale-105",
+                                        getScoreColor(score),
+                                        shouldHighlight(score) && "ring-1 ring-red-500 ring-offset-1",
+                                      )}
+                                    >
+                                      {score}%
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <div className="text-xs">
+                                      <div className="font-semibold">{channel.name}</div>
+                                      <div>
+                                        {dates[index].day} {dates[index].month}: {score}%
+                                      </div>
+                                      {shouldHighlight(score) && (
+                                        <div className="text-red-600 font-semibold mt-1">⚠️ Below threshold</div>
+                                      )}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
                               </td>
-                              {hotel.dailyResults.map((result, index) => (
-                                <td key={index} className="py-1 px-0.5 text-center">
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div
-                                        className={cn(
-                                          "w-10 h-6 flex items-center justify-center rounded text-[10px] font-bold border cursor-help transition-all hover:scale-105",
-                                          getResultColor(result),
-                                        )}
-                                      >
-                                        {result}
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <div className="text-xs">
-                                        <div className="font-semibold">{hotel.name}</div>
-                                        <div>
-                                          {dates[index].day} {dates[index].month}:{" "}
-                                          {result === "W" ? "Win" : result === "M" ? "Meet" : "Loss"}
-                                        </div>
-                                      </div>
-                                    </TooltipContent>
-                                  </Tooltip>
+                            ))}
+                          </tr>
+
+                          {/* Hotel Breakdown */}
+                          {channel.expanded && channel.hotels && (
+                            <>
+                              <tr>
+                                <td
+                                  colSpan={18}
+                                  className={cn("py-1 px-3 border-b border-blue-200", channel.gradientClass)}
+                                >
+                                  <div className="text-xs font-medium text-white">
+                                    📊 Hotel Breakdown for {channel.name}
+                                  </div>
                                 </td>
+                              </tr>
+                              {channel.hotels.map((hotel) => (
+                                <tr key={hotel.id} className="border-b border-gray-100 bg-blue-50/30 hover:bg-blue-50/50">
+                                  <td className="py-1.5 px-3 pl-8">
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                                      <span className="text-xs text-gray-700">{hotel.name}</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-1.5 px-3">
+                                    <div className="flex items-center h-4 bg-gray-100 rounded overflow-hidden border border-gray-200">
+                                      <div className="h-full bg-green-500" style={{ width: `${hotel.winPercent}%` }}></div>
+                                      <div
+                                        className="h-full bg-orange-500"
+                                        style={{ width: `${hotel.meetPercent}%` }}
+                                      ></div>
+                                      <div className="h-full bg-red-500" style={{ width: `${hotel.lossPercent}%` }}></div>
+                                    </div>
+                                  </td>
+                                  <td className="py-1.5 px-3">
+                                    <span
+                                      className={cn(
+                                        "text-xs font-bold",
+                                        hotel.parityScore >= 70
+                                          ? "text-green-600"
+                                          : hotel.parityScore >= 50
+                                            ? "text-orange-600"
+                                            : "text-red-600",
+                                      )}
+                                    >
+                                      {hotel.parityScore}%
+                                    </span>
+                                  </td>
+                                  {hotel.dailyResults.map((result, index) => (
+                                    <td key={index} className="py-1 px-0.5 text-center">
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <div
+                                            className={cn(
+                                              "w-10 h-6 flex items-center justify-center rounded text-[10px] font-bold border cursor-help transition-all hover:scale-105",
+                                              getResultColor(result),
+                                            )}
+                                          >
+                                            {result}
+                                          </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <div className="text-xs">
+                                            <div className="font-semibold">{hotel.name}</div>
+                                            <div>
+                                              {dates[index].day} {dates[index].month}:{" "}
+                                              {result === "W" ? "Win" : result === "M" ? "Meet" : "Loss"}
+                                            </div>
+                                          </div>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </td>
+                                  ))}
+                                </tr>
                               ))}
-                            </tr>
-                          ))}
-                        </>
-                      )}
-                    </React.Fragment>
-                    )
+                            </>
+                          )}
+                        </React.Fragment>
+                      )
                     })
                   })()}
                 </tbody>
@@ -577,108 +586,108 @@ export function CompactParityView({ className, parityDataMain }: CompactParityVi
               {channels.slice(0, 6).map((channel) => {
                 const isBenchmark = channel.isBrand === true
                 return (
-                <div
-                  key={channel.id}
-                  className={cn(
-                    "p-3 border rounded transition-all duration-200 overflow-hidden relative",
-                    isBenchmark 
-                      ? "border-blue-300 bg-blue-50 hover:bg-blue-100 cursor-default" 
-                      : "border-gray-200 bg-white hover:shadow-md hover:border-gray-300"
-                  )}
-                >
-                  {/* Gradient accent bar */}
-                  <div className={cn("absolute top-0 left-0 right-0 h-0.5", channel.gradientClass)}></div>
+                  <div
+                    key={channel.id}
+                    className={cn(
+                      "p-3 border rounded transition-all duration-200 overflow-hidden relative",
+                      isBenchmark
+                        ? "border-blue-300 bg-blue-50 hover:bg-blue-100 cursor-default"
+                        : "border-gray-200 bg-white hover:shadow-md hover:border-gray-300"
+                    )}
+                  >
+                    {/* Gradient accent bar */}
+                    <div className={cn("absolute top-0 left-0 right-0 h-0.5", channel.gradientClass)}></div>
 
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      {/* Channel Icon with Fallback */}
-                      {channel.channelIcon ? (
-                        <img
-                          src={channel.channelIcon}
-                          alt={channel.name}
-                          className="w-4 h-4 rounded"
-                          onError={(e) => {
-                            // Hide the image and show fallback on error
-                            e.currentTarget.style.display = 'none'
-                            e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                          }}
-                        />
-                      ) : null}
-                      {/* Fallback: First letter of channel name */}
-                      <div className={cn(
-                        "w-4 h-4 rounded flex items-center justify-center text-xs font-bold text-white bg-blue-600",
-                        channel.channelIcon ? "hidden" : "block"
-                      )}>
-                        {channel.name.charAt(0).toUpperCase()}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        {/* Channel Icon with Fallback */}
+                        {channel.channelIcon ? (
+                          <img
+                            src={channel.channelIcon}
+                            alt={channel.name}
+                            className="w-4 h-4 rounded"
+                            onError={(e) => {
+                              // Hide the image and show fallback on error
+                              e.currentTarget.style.display = 'none'
+                              e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                            }}
+                          />
+                        ) : null}
+                        {/* Fallback: First letter of channel name */}
+                        <div className={cn(
+                          "w-4 h-4 rounded flex items-center justify-center text-xs font-bold text-white bg-blue-600",
+                          channel.channelIcon ? "hidden" : "block"
+                        )}>
+                          {channel.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <h4 className={cn("text-xs font-semibold", isBenchmark ? "text-blue-900" : "text-gray-900")}>
+                            {channel.name}
+                          </h4>
+                          {isBenchmark && (
+                            <span className="bg-blue-100 text-blue-800 text-[8px] px-1 py-0.5 rounded font-medium">
+                              Benchmark
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-1">
-                        <h4 className={cn("text-xs font-semibold", isBenchmark ? "text-blue-900" : "text-gray-900")}>
-                          {channel.name}
-                        </h4>
-                        {isBenchmark && (
-                          <span className="bg-blue-100 text-blue-800 text-[8px] px-1 py-0.5 rounded font-medium">
-                            Benchmark
-                          </span>
+                        {channel.trend === "up" ? (
+                          <TrendingUp className="h-3 w-3 text-green-600" />
+                        ) : channel.trend === "down" ? (
+                          <TrendingDown className="h-3 w-3 text-red-600" />
+                        ) : (
+                          <div className="h-3 w-3" />
                         )}
+                        <span
+                          className={cn(
+                            "text-[10px] font-semibold",
+                            channel.trend === "up"
+                              ? "text-green-600"
+                              : channel.trend === "down"
+                                ? "text-red-600"
+                                : "text-gray-600",
+                          )}
+                        >
+                          {channel.trendValue && channel.trendValue > 0 ? "+" : ""}
+                          {channel.trendValue}%
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      {channel.trend === "up" ? (
-                        <TrendingUp className="h-3 w-3 text-green-600" />
-                      ) : channel.trend === "down" ? (
-                        <TrendingDown className="h-3 w-3 text-red-600" />
-                      ) : (
-                        <div className="h-3 w-3" />
-                      )}
-                      <span
+
+                    <div className="mb-3">
+                      <div
                         className={cn(
-                          "text-[10px] font-semibold",
-                          channel.trend === "up"
-                            ? "text-green-600"
-                            : channel.trend === "down"
-                              ? "text-red-600"
-                              : "text-gray-600",
+                          "text-lg font-bold",
+                          isBenchmark
+                            ? "text-blue-900"
+                            : channel.parityScore >= 70
+                              ? "text-green-600"
+                              : channel.parityScore >= 50
+                                ? "text-orange-600"
+                                : "text-red-600",
                         )}
                       >
-                        {channel.trendValue && channel.trendValue > 0 ? "+" : ""}
-                        {channel.trendValue}%
-                      </span>
+                        {channel.parityScore}%
+                      </div>
+                      <div className={cn("text-[10px] font-medium", isBenchmark ? "text-blue-700" : "text-gray-500")}>
+                        Parity Score
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="mb-3">
-                    <div
-                      className={cn(
-                        "text-lg font-bold",
-                        isBenchmark 
-                          ? "text-blue-900"
-                          : channel.parityScore >= 70
-                          ? "text-green-600"
-                          : channel.parityScore >= 50
-                            ? "text-orange-600"
-                            : "text-red-600",
-                      )}
-                    >
-                      {channel.parityScore}%
-                    </div>
-                    <div className={cn("text-[10px] font-medium", isBenchmark ? "text-blue-700" : "text-gray-500")}>
-                      Parity Score
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-[10px] font-medium">
+                        <span className="text-green-600">Win: {channel.winPercent}%</span>
+                        <span className="text-orange-600">Meet: {channel.meetPercent}%</span>
+                        <span className="text-red-600">Loss: {channel.lossPercent}%</span>
+                      </div>
+                      <div className="flex h-2 bg-gray-100 rounded overflow-hidden border border-gray-200">
+                        <div className="bg-green-400" style={{ width: `${channel.winPercent}%` }}></div>
+                        <div className="bg-orange-400" style={{ width: `${channel.meetPercent}%` }}></div>
+                        <div className="bg-red-400" style={{ width: `${channel.lossPercent}%` }}></div>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-[10px] font-medium">
-                      <span className="text-green-600">Win: {channel.winPercent}%</span>
-                      <span className="text-orange-600">Meet: {channel.meetPercent}%</span>
-                      <span className="text-red-600">Loss: {channel.lossPercent}%</span>
-                    </div>
-                    <div className="flex h-2 bg-gray-100 rounded overflow-hidden border border-gray-200">
-                      <div className="bg-green-400" style={{ width: `${channel.winPercent}%` }}></div>
-                      <div className="bg-orange-400" style={{ width: `${channel.meetPercent}%` }}></div>
-                      <div className="bg-red-400" style={{ width: `${channel.lossPercent}%` }}></div>
-                    </div>
-                  </div>
-                </div>
                 )
               })}
             </div>
