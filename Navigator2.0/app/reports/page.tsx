@@ -954,12 +954,8 @@ export default function ReportsPage() {
         // Reset form
         resetForm()
 
-        // Refresh reports data to show the new report
-        if (startDate && endDate) {
-          fetchReportsDataWithDates(startDate, endDate)
-        } else {
-          fetchReportsData()
-        }
+        fetchReportsData()
+        
 
       } else {
         setFormErrors(prev => ({ ...prev, general: 'Something went wrong, please try again!' }))
