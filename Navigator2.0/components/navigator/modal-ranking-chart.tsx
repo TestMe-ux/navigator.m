@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts"
-import { format, addDays, parseISO } from "date-fns"
+import { format, addDays, parseISO, differenceInDays } from "date-fns"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 
 interface ModalRankingChartProps {
@@ -203,12 +203,13 @@ export function ModalRankingChart({ selectedDate, numberOfDays = 15, paceData = 
   // Generate ranking data for the modal chart
   const modalRankingData = useMemo(() => {
     if (transformedData.length === 0) {
+      debugger;
       // Fallback to static data if no paceData available
       const baseDate = selectedDate
       const baseData = Array.from({ length: numberOfDays }, (_, index) => {
         const currentDate = addDays(baseDate, -(numberOfDays - 1 - index))
         const daysBeforeCheckIn = numberOfDays - 1 - index
-
+        debugger;
         const dataPoint: any = {
           date: format(currentDate, 'dd MMM'),
           fullDate: format(currentDate, 'yyyy-MM-dd'),
@@ -240,8 +241,8 @@ export function ModalRankingChart({ selectedDate, numberOfDays = 15, paceData = 
     // Use transformed data from paceData
     const baseData = transformedData.map((dataPoint, index) => {
       const currentDate = new Date(dataPoint.shopDate)
-      const daysBeforeCheckIn = numberOfDays - 1 - index
-
+      const daysBeforeCheckIn = differenceInDays(new Date(), currentDate);// numberOfDays - 1 - index
+      debugger;
       const chartDataPoint: any = {
         date: format(currentDate, 'dd MMM'),
         fullDate: format(currentDate, 'yyyy-MM-dd'),
@@ -405,7 +406,8 @@ export function ModalRankingChart({ selectedDate, numberOfDays = 15, paceData = 
     <div style={{ height: '420px', minHeight: '420px', maxHeight: '420px' }} className="flex items-center justify-center">
       <div className="flex flex-col items-center space-y-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <div className="text-sm text-muted-foreground">Loading rate evolution data...</div>
+        <div className="text-sm text-muted-foreground">Preparing your Data Analysis...</div>
+        <div className="text-sm text-muted-foreground">Hang tight — your data will appear shortly.</div>
       </div>
     </div>
   )

@@ -165,7 +165,14 @@ export default function UserManagementPage() {
     setUsersDetails((prev) => prev.map((user) => (Number(user.userId) === userId ?
       { ...user, [accessType]: !user[accessType] } : user)))
   }
+  function isRateGainMail(email: any) {
+    const domain = "rategain.com";
+    if (email != undefined && email != null && email.indexOf(domain) != -1) {
+      return true;
+    }
+    return false;
 
+  }
   const handleAddUser = async () => {
     debugger
     if (newUser.firstName && newUser.lastName && newUser.userRole && newUser.emailId && newUser.defaultLandingPageText) {
@@ -180,8 +187,14 @@ export default function UserManagementPage() {
             return 0; // fallback if role not found
         }
       };
-
-
+      if (isRateGainMail(newUser.emailId)) {
+        toast({
+          description: "Email having rategain.com is invalid.",
+          variant: "default",
+          duration: 3000,
+        })
+        return;
+      }
       const filtersValues: any = {}
       if (profileImage?.imagePath != undefined) {
         filtersValues.imagePath = profileImage?.imagePath;

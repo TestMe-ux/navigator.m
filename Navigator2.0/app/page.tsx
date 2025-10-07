@@ -226,7 +226,7 @@ export default function Home() {
   const [csatClosed, setCSATClosed] = useState(false)
   const { startDate, endDate, setDateRange } = useDateContext()
   const [selectedProperty] = useSelectedProperty()
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [loadingCycle, setLoadingCycle] = useState(1)
   // Scroll detection for CSAT card

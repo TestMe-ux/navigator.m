@@ -14,6 +14,7 @@ import { FilterBar } from "@/components/navigator/filter-bar"
 import { RateTrendHeader } from "@/components/navigator/rate-trend-header"
 import { FilterSidebar } from "@/components/filter-sidebar"
 import { LightningRefreshModal } from "@/components/navigator/generate-report-modal"
+import { DownloadLiteReportModal } from "@/components/navigator/download-lite-report-modal"
 import { Snackbar } from "@/components/ui/snackbar"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
 import { DateProvider, useDateContext } from "@/components/date-context"
@@ -135,6 +136,9 @@ export default function RateTrendPage() {
 
   // State for Lightning Refresh Modal
   const [isLightningRefreshModalOpen, setIsLightningRefreshModalOpen] = useState(false)
+
+  // State for Download Lite Report Modal
+  const [isDownloadLiteReportModalOpen, setIsDownloadLiteReportModalOpen] = useState(false)
 
   // State for Snackbar
   const [isSnackbarOpen, setIsSnackbarOpen] = useState(false)
@@ -857,7 +861,7 @@ export default function RateTrendPage() {
                     <DropdownMenuItem
                       onClick={() => {
                         console.log('📥 Download Lite Report clicked');
-                        // Add lite report download logic here
+                        setIsDownloadLiteReportModalOpen(true);
                       }}
                       className="whitespace-nowrap px-3 py-2"
                     >
@@ -1093,6 +1097,13 @@ export default function RateTrendPage() {
         isOpen={isLightningRefreshModalOpen}
         onClose={() => setIsLightningRefreshModalOpen(false)}
         onRefresh={handleLightningRefresh}
+      />
+
+      {/* Download Lite Report Modal */}
+      <DownloadLiteReportModal
+        isOpen={isDownloadLiteReportModalOpen}
+        onClose={() => setIsDownloadLiteReportModalOpen(false)}
+        objForExcel={objForExcel}
       />
 
       {/* Snackbar */}

@@ -82,6 +82,27 @@ export default function MyAccountPage() {
         console.warn("No file selected");
         return;
       }
+      const allowedTypes = ["image/jpeg", "image/png"];
+      if (!allowedTypes.includes(ProfilePic.type)) {
+        toast({
+          description: "Invalid file format. Please upload a JPG or PNG image.",
+          variant: "error",
+          duration: 3000,
+        });
+        e.target.value = ""; // Clear the file input
+        return;
+      }
+      const maxSizeMB = 10;
+      const maxSizeBytes = maxSizeMB * 1000 * 1000;
+      if (ProfilePic.size > maxSizeBytes) {
+        toast({
+          description: `File size too large. Maximum allowed size is 10 MB.`,
+          variant: "error",
+          duration: 3000,
+        });
+        e.target.value = "";
+        return;
+      }
       try {
         var form_data = new FormData();
         form_data.append("flag", "1");
@@ -98,29 +119,17 @@ export default function MyAccountPage() {
           console.log("Image uploaded successfully:", imageResponse.body);
         } else {
           toast({
-            description: "Image upload failed!!",
+            description: "Unable to upload profile picture. Please try again later.",
             variant: "error",
             duration: 3000,
           });
         }
       } catch (error) {
-        console.error("Image upload failed:", error);
+        console.error("Unable to upload profile picture. Please try again later.", error);
       } finally {
         e.target.value = "";
       }
     }
-    // const file = event.target.files?.[0]
-    // if (file) {
-    //   // For demo purposes, set the dummy image instantly
-    //   setProfileImage(dummyGirlImage)
-
-    //   // Also process the actual file (commented out for now to use dummy)
-    //   // const reader = new FileReader()
-    //   // reader.onload = (e) => {
-    //   //   setProfileImage(e.target?.result as string)
-    //   // }
-    //   // reader.readAsDataURL(file)
-    // }
   }
   const handleRemoveImage = () => {
     handleAddUser(undefined);
@@ -139,8 +148,8 @@ export default function MyAccountPage() {
     filtersValues.firstName = userDetail?.firstName;
     filtersValues.lastName = userDetail?.lastName;
     filtersValues.email = userDetail?.email;
-    // filtersValues.pghAccess = sele?.interfaceAccess;
-    // filtersValues.pghReportEmail = userDetail?.emailAccess;
+    filtersValues.pghAccess = true;
+    filtersValues.pghReportEmail = true;
     // filtersValues.defaultLandingPage = selectedProperty?.defaultLandingPage;
     filtersValues.createdBy = userDetail?.userId;
     filtersValues.sID = selectedProperty?.sid;
@@ -507,9 +516,11 @@ export default function MyAccountPage() {
                               {profileImage?.imagePath ? (
                                 <img
                                   src={profileImage?.imagePath}
+                                  srcSet={`${profileImage?.imagePath} 1x, ${profileImage?.imagePath} 2x`}
                                   alt="Profile"
                                   className="w-full h-full object-cover rounded-full group-hover:opacity-50 transition-opacity duration-200"
                                 />
+
                               ) : (
                                 <UserCircle className="w-10 h-10 text-muted-foreground group-hover:opacity-50 transition-opacity duration-200" />
                               )}
@@ -537,7 +548,7 @@ export default function MyAccountPage() {
                         <input
                           id="profile-image-input"
                           type="file"
-                          accept="image/*"
+                          accept="image/jpeg,image/png"
                           onChange={handleImageUpload}
                           className="hidden"
                         />
