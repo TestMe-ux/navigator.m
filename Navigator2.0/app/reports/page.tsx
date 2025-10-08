@@ -792,6 +792,11 @@ export default function ReportsPage() {
   }
 
   const handleGenerate = async () => {
+    // Prevent multiple submissions
+    if (isGenerating) {
+      return
+    }
+
     // Validate form before proceeding
     if (!validateForm()) {
       return // Don't proceed if validation fails
@@ -883,12 +888,14 @@ export default function ReportsPage() {
         setSnackbarMessage("Your request exceeds the current credit limit. Please purchase more credits or modify the report generation criteria to proceed.")
         setSnackbarType('error')
         setShowSnackbar(true)
+        setIsModalOpen(false) // Close modal on error
       }
 
     } catch (error) {
       console.error('Error during report generation:', error)
       setFormErrors(prev => ({ ...prev, general: 'Something went wrong, please try again!' }))
       setIsGenerating(false)
+      setIsModalOpen(false) // Close modal on error
     }
   }
 
@@ -900,21 +907,37 @@ export default function ReportsPage() {
     const startDate = new Date(formData.startDate)
     const endDate = new Date(formData.endDate)
 
-    // Format start date with timezone
+    // Format start date with timezone - replicate Angular logic exactly
     const currentDate = new Date(startDate)
-    const formattedDateToday = currentDate.toISOString().split('T')[0] + 'T00:00:00'
-    const newDate = new Date(formattedDateToday)
 
-    // Get timezone offset
-    const timezoneOffset = -newDate.getTimezoneOffset()
+    // This is equivalent to moment().format('YYYY-MM-DD') which preserves local date
+    const year = currentDate.getFullYear()
+    const month = String(currentDate.getMonth() + 1).padStart(2, '0')
+    const day = String(currentDate.getDate()).padStart(2, '0')
+    const formattedDateToday = `${year}-${month}-${day}T00:00:00`
+    const newDate = new Date(formattedDateToday)
+    const startDateObj = new Date(newDate)
+
+    // Get the timezone offset in minutes (this will be negative for UTC- offsets)
+    const timezoneOffset = -startDateObj.getTimezoneOffset() // in minutes, reversed sign
+
+    // Convert the offset to hours and minutes
     const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60)
     const offsetMinutes = Math.abs(timezoneOffset) % 60
+
+    // Determine if the reversed offset is negative or positive
     const offsetSign = timezoneOffset > 0 ? '-' : '+'
+
+    // Format the offset as ±HH:MM
     const formattedOffset = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`
 
-    const formattedDate = newDate.toISOString().split('.')[0]
-    const dateStringWithTimezone = `${formattedDate}${formattedOffset}`
-    const dateFirst = new Date(dateStringWithTimezone)
+    // Format the date as an ISO string without the timezone part
+    const formattedDate = startDateObj.toISOString().split('.')[0]
+
+    // Combine the date string with the dynamically calculated reversed timezone offset
+    const dateStringWithDynamicReversedTimezone = `${formattedDate}${formattedOffset}`
+
+    const dateFirst = new Date(dateStringWithDynamicReversedTimezone)
 
     // Prepare request model
     const requestModel = {
