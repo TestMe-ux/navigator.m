@@ -1,5 +1,6 @@
 export class Constants {
     public static readonly API_GET_ChannelList = "Tax/GetChannelList";
+    public static readonly API_GET_GetChannelListCluster = "Tax/GetChannelListCluster";
     public static readonly API_GET_GetCompletecCompset = "Compset/GetCompletecCompset";
     public static readonly API_GET_GetTagProducts = "Mapping/GetTagProducts";
     public static readonly API_GET_GetTagInclusions = "Mapping/GetTagInclusions";
@@ -15,6 +16,7 @@ export class Constants {
     public static readonly DemandAPI_GET_DemandAI = "DemandAI/getOptimaDemandData";
     public static readonly API_GET_GetAllEvents = "Events/GetAllEvents";
     public static readonly API_GetRateTrend = "RateTrend/GetPricePositioning"
+    public static readonly API_GetPricePositioningCluster = "RateTrend/GetPricePositioningCluster";
     public static readonly API_POST_PPExcelDownload = "DownloadReport/PPExcelDownload"; 
     public static readonly API_POST_CachePage = "RateTrend/SetCachePageDataToRedish";
     public static readonly API_GET_GetAllHoliday = "Events/GetALLHolidayList";

@@ -1204,7 +1204,7 @@ export function RateTrendsChart({ rateData, rateCompData }: any) {
 
           {/* Chart Container */}
           <div className="h-[384px] w-full">
-            {!hasData ? (
+            {!hasData || Object.keys(rateCompData).length === 0 ? (
               <div className="h-full bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse flex items-center justify-center">
                 <div className="flex flex-col items-center space-y-4">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>

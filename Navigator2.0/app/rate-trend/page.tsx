@@ -84,14 +84,14 @@ const generateKPIData = () => {
  */
 export default function RateTrendPage() {
   const { selectedComparison, channelFilter, compsetFilter, setSideFilter, sideFilter } = useComparison()
-  const [currentView, setCurrentView] = useLocalStorage<"calendar" | "chart" | "table">("rate-trend-view", "table")
+  const [currentView, setCurrentView] = useLocalStorage<"calendar" | "chart" | "table">("rate-trend-view", "calendar")
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false)
   // No isClient state needed for static data
   const [losGuest, setLosGuest] = useState<{ "Los": any[], "Guest": any[] }>({ "Los": [], "Guest": [] });
   const [dataLoading, setDataLoading] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [loadingCycle, setLoadingCycle] = useState(1)
-  const [selectedValue, setSelectedValue] = useState("4,444 (4 digit)")
+  // const [selectedValue, setSelectedValue] = useState("4,444 (4 digit)")
   const [selectedDigitCount, setSelectedDigitCount] = useState(4)
   const { startDate, endDate, isLoading } = useDateContext()
   const [objForExcel, setObjForExcel] = useState<any>({})
@@ -746,34 +746,6 @@ export default function RateTrendPage() {
                 Rate Trends
               </h1>
               {/* Sample Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 px-3">
-                    {selectedValue}
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  <DropdownMenuItem onClick={() => {
-                    setSelectedValue("4,444 (4 digit)")
-                    setSelectedDigitCount(4)
-                  }}>
-                    4,444 (4 digit)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    setSelectedValue("444,400 (6 digit)")
-                    setSelectedDigitCount(6)
-                  }}>
-                    444,400 (6 digit)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    setSelectedValue("44,225,588 (8 digit)")
-                    setSelectedDigitCount(8)
-                  }}>
-                    44,225,588 (8 digit)
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
             <p className="text-sm text-muted-foreground">
               Track rate movements and competitive positioning across time periods
@@ -925,12 +897,12 @@ export default function RateTrendPage() {
 
               {/* Competitor Navigation */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-600 dark:text-gray-400">
+                {/* <span className="text-xs text-gray-600 dark:text-gray-400">
                   Competitors {competitorStartIndex + 1}-{Math.min(competitorStartIndex + competitorsPerPage, 9)} of 9
-                </span>
-                <span className="text-xs text-blue-500 bg-blue-50 px-2 py-1 rounded">
+                </span> */}
+                {/* <span className="text-xs text-blue-500 bg-blue-50 px-2 py-1 rounded">
                   {screenSize.width}px ({screenSize.isSmall ? 'Small' : screenSize.isMedium ? 'Medium' : screenSize.isLarge ? 'Large' : 'Default'}) - {competitorsPerPage} cols
-                </span>
+                </span> */}
                 <button
                   onClick={prevCompetitors}
                   disabled={!canGoPrev()}

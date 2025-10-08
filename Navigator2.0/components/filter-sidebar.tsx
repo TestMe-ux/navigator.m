@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { GetTagInclusions, GetTagProducts } from "@/lib/mapping"
 import { useEffect } from "react"
-import {LocalStorageService} from "@/lib/localstorage"
+import { LocalStorageService } from "@/lib/localstorage"
 import { set } from "date-fns"
 
 
@@ -81,6 +81,7 @@ export function FilterSidebar({ isOpen, onClose, onApply, initialFilters = {}, l
 
           // setFilters(res.body.map((inclusion: any) => (inclusion)));
           filters.inclusions = combineInclusion.map((inclusion: any) => inclusion.id);
+          defaultFilters.inclusions = combineInclusion.map((inclusion: any) => inclusion.id);
         }
       })
       .catch((err) => console.error(err));

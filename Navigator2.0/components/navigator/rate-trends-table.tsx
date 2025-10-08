@@ -532,7 +532,7 @@ export function RateTrendsTable({
   };
 
   // Show no data state when no live data is available
-  if (!rateData || !transformedData.myProperty || tableData.length === 0) {
+  if (!rateData || !transformedData.myProperty || tableData.length === 0 || Object.keys(rateCompData).length === 0) {
     return (
       <div className="h-[400px] bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 rounded-lg p-8 flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">

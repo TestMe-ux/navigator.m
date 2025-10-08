@@ -12,9 +12,9 @@ import { EnhancedDatePicker } from "@/components/enhanced-date-picker"
 import { useDateContext } from "@/components/date-context"
 import { useComparison, ComparisonOption } from "@/components/comparison-context"
 import { cn } from "@/lib/utils"
-import { getChannels } from "@/lib/channels"
+import { GetChannelListCluster } from "@/lib/channels"
 import { useState, useEffect } from "react"
-import { useSelectedProperty } from "@/hooks/use-local-storage"
+import { useSelectedProperty, useAllProperty, useUserDetail } from "@/hooks/use-local-storage"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 /**
@@ -22,7 +22,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
  * Professional filter options for all properties management
  */
 
-const visibleFiltersList = []
+const visibleFiltersList: any[] = []
 
 const moreFiltersList = [
   {
@@ -81,6 +81,8 @@ interface AllPropertiesFilterBarProps {
  */
 export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel, viewMode = "All Properties", setViewMode }: AllPropertiesFilterBarProps) {
   const [selectedProperty] = useSelectedProperty()
+  const [userDetails] = useUserDetail()
+  const [allProperties] = useAllProperty()
 
   const didFetch = React.useRef(false);
   const { startDate, endDate, setDateRange } = useDateContext()
@@ -103,11 +105,64 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
   const [isCountryOpen, setIsCountryOpen] = React.useState(false)
   const [isCityOpen, setIsCityOpen] = React.useState(false)
   const [isChannelOpen, setIsChannelOpen] = React.useState(false)
-  
-  // Selection state
-  const [selectedCountries, setSelectedCountries] = React.useState<string[]>(["All Countries"])
-  const [selectedCities, setSelectedCities] = React.useState<string[]>(["All Cities"])
-  const [selectedChannels, setSelectedChannels] = React.useState<string[]>(["All Channels"])
+
+  // Selection state - No countries or cities checked by default
+  const [selectedCountries, setSelectedCountries] = React.useState<string[]>([])
+  const [selectedCities, setSelectedCities] = React.useState<string[]>([])
+  const [selectedChannels, setSelectedChannels] = React.useState<string[]>([])
+
+  // Extract distinct countries from all properties
+  const distinctCountries = React.useMemo(() => {
+    if (!allProperties || allProperties.length === 0) {
+      return ["All Countries"]
+    }
+
+    const countries = allProperties
+      .map(property => property?.country)
+      .filter((country): country is string => Boolean(country))
+      .filter((country, index, array) => array.indexOf(country) === index) // Remove duplicates
+      .sort()
+    setSelectedCountries(["All Countries", ...countries])
+    return ["All Countries", ...countries]
+  }, [allProperties])
+
+  // Extract distinct cities filtered by selected country
+  const distinctCities = React.useMemo(() => {
+    debugger;
+    if (!allProperties || allProperties.length === 0) {
+      return ["All Cities"]
+    }
+
+    let filteredProperties = allProperties
+
+    // Filter by selected countries if not "All Countries"
+    if (!selectedCountries.includes("All Countries") && selectedCountries.length > 0) {
+      filteredProperties = allProperties.filter(property =>
+        property?.country && selectedCountries.includes(property.country)
+      )
+    }
+
+    const cities = filteredProperties
+      .map(property => property?.city)
+      .filter((city): city is string => Boolean(city))
+      .filter((city, index, array) => array.indexOf(city) === index) // Remove duplicates
+      .sort()
+    setSelectedCities(["All Cities", ...cities])
+    return ["All Cities", ...cities]
+  }, [allProperties, selectedCountries])
+
+  // Extract distinct channels from channelData
+  const distinctChannels = React.useMemo(() => {
+    if (!channelData || channelData.length === 0) {
+      return ["All Channel"]
+    }
+
+    const channels = channelData
+      .map((channel: any) => channel?.name)
+      .filter((name: any): name is string => Boolean(name))
+      .filter((name: string, index: number, array: string[]) => array.indexOf(name) === index) // Remove duplicates
+    return [...channels]
+  }, [channelData])
 
   // Dropdown handlers
   const handleCountryOpenChange = (open: boolean) => {
@@ -134,26 +189,27 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
     }
   }
 
-  // Selection handlers - copied from parity-monitoring page
+  // Selection handlers - updated to work with dynamic data
   const handleCountryToggle = (country: string) => {
+    debugger;
     if (country === "All Countries") {
       if (selectedCountries.includes("All Countries")) {
         setSelectedCountries([])
       } else {
-        setSelectedCountries(["All Countries", "Germany", "France", "Italy", "Spain", "Netherlands", "Austria", "Switzerland", "Belgium", "Poland"])
+        setSelectedCountries(distinctCountries)
       }
     } else {
-      setSelectedCountries(prev => {
-        const newSelection = prev.includes(country) 
-          ? prev.filter(c => c !== country)
+      setSelectedCountries((prev: string[]) => {
+        const newSelection = prev.includes(country)
+          ? prev.filter(c => c !== country && c !== "All Countries")
           : [...prev.filter(c => c !== "All Countries"), country]
-        
+
         // If all individual countries are selected, select "All Countries"
-        const allCountries = ["Germany", "France", "Italy", "Spain", "Netherlands", "Austria", "Switzerland", "Belgium", "Poland"]
-        if (allCountries.every(c => newSelection.includes(c))) {
-          return ["All Countries", ...allCountries]
+        const individualCountries = distinctCountries.filter(c => c !== "All Countries")
+        if (individualCountries.every(c => newSelection.includes(c))) {
+          return ["All Countries", ...individualCountries]
         }
-        
+
         return newSelection
       })
     }
@@ -164,53 +220,53 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
       if (selectedCities.includes("All Cities")) {
         setSelectedCities([])
       } else {
-        setSelectedCities(["All Cities", "Berlin", "Munich", "Hamburg", "Frankfurt", "Cologne", "Stuttgart", "Düsseldorf", "Dortmund", "Essen", "Leipzig", "Bremen", "Dresden"])
+        setSelectedCities(distinctCities)
       }
     } else {
-      setSelectedCities(prev => {
-        const newSelection = prev.includes(city) 
-          ? prev.filter(c => c !== city)
+      setSelectedCities((prev: string[]) => {
+        const newSelection = prev.includes(city)
+          ? prev.filter(c => c !== city && c !== "All Cities")
           : [...prev.filter(c => c !== "All Cities"), city]
-        
+
         // If all individual cities are selected, select "All Cities"
-        const allCities = ["Berlin", "Munich", "Hamburg", "Frankfurt", "Cologne", "Stuttgart", "Düsseldorf", "Dortmund", "Essen", "Leipzig", "Bremen", "Dresden"]
-        if (allCities.every(c => newSelection.includes(c))) {
-          return ["All Cities", ...allCities]
+        const individualCities = distinctCities.filter(c => c !== "All Cities")
+        if (individualCities.every(c => newSelection.includes(c))) {
+          return ["All Cities", ...individualCities]
         }
-        
+
         return newSelection
       })
     }
   }
 
   const handleChannelToggle = (channel: string) => {
-    if (channel === "All Channels") {
-      if (selectedChannels.includes("All Channels")) {
+    if (channel === "All Channel") {
+      if (selectedChannels.includes("All Channel")) {
         setSelectedChannels([])
       } else {
-        setSelectedChannels(["All Channels", "Booking.com", "Expedia", "Hotels.com", "Agoda", "TripAdvisor", "Direct"])
+        setSelectedChannels(distinctChannels)
       }
     } else {
-      setSelectedChannels(prev => {
-        const newSelection = prev.includes(channel) 
-          ? prev.filter(c => c !== channel)
-          : [...prev.filter(c => c !== "All Channels"), channel]
-        
-        // If all individual channels are selected, select "All Channels"
-        const allChannels = ["Booking.com", "Expedia", "Hotels.com", "Agoda", "TripAdvisor", "Direct"]
-        if (allChannels.every(c => newSelection.includes(c))) {
-          return ["All Channels", ...allChannels]
+      setSelectedChannels((prev: string[]) => {
+        const newSelection = prev.includes(channel)
+          ? prev.filter(c => c !== channel && c !== "All Channel")
+          : [...prev.filter(c => c !== "All Channel"), channel]
+
+        // If all individual channels are selected, select "All Channel"
+        const individualChannels = distinctChannels.filter(c => c !== "All Channel")
+        if (individualChannels.every(c => newSelection.includes(c))) {
+          return ["All Channel", ...individualChannels]
         }
-        
+
         return newSelection
       })
     }
   }
 
-  // Get display text for dropdowns - copied from parity-monitoring page
+  // Get display text for dropdowns - updated to handle empty selections
   const getCountryDisplayText = () => {
     if (selectedCountries.length === 0) {
-      return "All Countries"
+      return "Select Countries"
     } else if (selectedCountries.includes("All Countries")) {
       return "All Countries"
     } else if (selectedCountries.length === 1) {
@@ -222,7 +278,7 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
 
   const getCityDisplayText = () => {
     if (selectedCities.length === 0) {
-      return "All Cities"
+      return "Select Cities"
     } else if (selectedCities.includes("All Cities")) {
       return "All Cities"
     } else if (selectedCities.length === 1) {
@@ -234,9 +290,9 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
 
   const getChannelDisplayText = () => {
     if (selectedChannels.length === 0) {
-      return "All Channels"
-    } else if (selectedChannels.includes("All Channels")) {
-      return "All Channels"
+      return "All Channel"
+    } else if (selectedChannels.includes("All Channel")) {
+      return "All Channel"
     } else if (selectedChannels.length === 1) {
       return selectedChannels[0]
     } else {
@@ -249,14 +305,25 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
     didFetch.current = false;
   }, [selectedProperty?.sid]);
 
+  // Reset city selection when country selection changes - clear cities by default
+  // React.useEffect(() => {
+  //   setSelectedCities([])
+  // }, [selectedCountries]);
+
   React.useEffect(() => {
-    if (!selectedProperty?.sid || didFetch.current) return;
+    if (!userDetails?.userId || didFetch.current) return;
 
     didFetch.current = true;
-    getChannels({ SID: selectedProperty?.sid })
+    GetChannelListCluster({ userid: userDetails?.userId })
       .then((res) => {
         console.log("Channels", res.body);
-        res.body.sort((a: any, b: any) => a.name.localeCompare(b.name))
+        debugger
+        const rawChannels = res.body.flatMap((x: { channels: any[] }) => x.channels || [])
+
+        const uniqueChannelsMap = new globalThis.Map(rawChannels.map((item: any) => [item.cid, item]))
+
+        const channelListData: any[] = Array.from(uniqueChannelsMap?.values()).sort((a:any, b:any) =>a.name.localeCompare(b.name))
+        // res.body.sort((a: any, b: any) => a.name.localeCompare(b.name))
         const allChannel = {
           cid: -1,
           channelMasterId: null,
@@ -274,13 +341,14 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
           channelIcon: null
         };
 
-        const channelList = [allChannel, ...res.body];
+        const channelList = [allChannel, ...channelListData];
 
         // Set data
         setChannelData(channelList);
         if (!!setSelectedChannel)
           setSelectedChannel(channelList);
         setChannelFilter({ channelId: channelList.map(c => c.cid), channelName: channelList.map(c => c.name) })
+        setSelectedChannels(channelList.map(c => c.name))
       }
       )
       .catch((err) => console.error(err));
@@ -297,7 +365,7 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
    * Handle filter selection changes
    */
   const handleFilterChange = React.useCallback((groupName: string, option: string) => {
-    setSelectedFilters((prev) => ({ ...prev, [groupName]: option }))
+    setSelectedFilters((prev: Record<string, string>) => ({ ...prev, [groupName]: option }))
     console.log(`🔄 All Properties filter changed: ${groupName} = ${option}`)
   }, [])
 
@@ -310,7 +378,7 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
       newEndDate: newEndDate?.toLocaleDateString(),
       daysDiff: newStartDate && newEndDate ? Math.round((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1 : 'N/A'
     })
-    
+
     if (newStartDate && newEndDate) {
       setDateRange(newStartDate, newEndDate)
       console.log(`📅 All Properties date range changed: ${newStartDate.toLocaleDateString()} - ${newEndDate.toLocaleDateString()}`)
@@ -333,7 +401,7 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
   const handleResetFilter = React.useCallback((groupName: string) => {
     const filter = allFiltersList.find((f) => f.name === groupName)
     if (filter) {
-      setSelectedFilters((prev) => ({ ...prev, [groupName]: filter.defaultOption }))
+      setSelectedFilters((prev: Record<string, string>) => ({ ...prev, [groupName]: filter.defaultOption }))
       console.log(`🔄 All Properties filter reset: ${groupName}`)
     }
   }, [])
@@ -372,7 +440,6 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
                   startDate={startDate || undefined}
                   endDate={endDate || undefined}
                   onChange={handleDateRangeChange}
-                  enableTruncation={false}
                 />
               </div>
 
@@ -387,9 +454,9 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
                       className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md min-w-0 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
                     >
                       <Map className="w-4 h-4 shrink-0" />
-                  <span className="font-semibold">
-                    {getCountryDisplayText()}
-                  </span>
+                      <span className="font-semibold">
+                        {getCountryDisplayText()}
+                      </span>
                       <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -399,20 +466,20 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
                         <h4 className="font-semibold text-sm text-gray-700 mb-3">Country</h4>
                         <ScrollArea className="max-h-68 overflow-hidden h-64">
                           <div className="space-y-1 pr-4">
-                            {["All Countries", "Germany", "France", "Italy", "Spain", "Netherlands", "Austria", "Switzerland", "Belgium", "Poland"].map((option) => (
+                            {distinctCountries.map((option) => (
                               <label
                                 key={option}
                                 className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
-                                onClick={() => handleCountryToggle(option)}
+                              // onClick={() => handleCountryToggle(option)}
                               >
                                 <input
                                   type="checkbox"
                                   className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
                                   checked={selectedCountries.includes(option)}
-                                  onChange={() => {}} // Prevent default behavior
+                                  onChange={() => handleCountryToggle(option)} // Prevent default behavior
                                   readOnly
                                 />
-                                <span 
+                                <span
                                   className="font-medium text-sm flex-1 cursor-pointer"
                                 >
                                   {option}
@@ -435,9 +502,9 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
                       className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md min-w-0 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
                     >
                       <MapPin className="w-4 h-4 shrink-0" />
-                  <span className="font-semibold">
-                    {getCityDisplayText()}
-                  </span>
+                      <span className="font-semibold">
+                        {getCityDisplayText()}
+                      </span>
                       <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -447,20 +514,20 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
                         <h4 className="font-semibold text-sm text-gray-700 mb-3">City</h4>
                         <ScrollArea className="max-h-68 overflow-hidden h-64">
                           <div className="space-y-1 pr-4">
-                            {["All Cities", "Berlin", "Munich", "Hamburg", "Frankfurt", "Cologne", "Stuttgart", "Düsseldorf", "Dortmund", "Essen", "Leipzig", "Bremen", "Dresden"].map((option) => (
+                            {distinctCities.map((option) => (
                               <label
                                 key={option}
                                 className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
-                                onClick={() => handleCityToggle(option)}
+                              // onClick={() => }
                               >
                                 <input
                                   type="checkbox"
                                   className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
                                   checked={selectedCities.includes(option)}
-                                  onChange={() => {}} // Prevent default behavior
+                                  onChange={() => handleCityToggle(option)} // Prevent default behavior
                                   readOnly
                                 />
-                                <span 
+                                <span
                                   className="font-medium text-sm flex-1 cursor-pointer"
                                 >
                                   {option}
@@ -483,9 +550,9 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
                       className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md min-w-0 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
                     >
                       <Globe className="w-4 h-4 shrink-0" />
-                  <span className="font-semibold">
-                    {getChannelDisplayText()}
-                  </span>
+                      <span className="font-semibold">
+                        {getChannelDisplayText()}
+                      </span>
                       <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -495,20 +562,20 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
                         <h4 className="font-semibold text-sm text-gray-700 mb-3">Channel</h4>
                         <ScrollArea className="max-h-68 overflow-hidden h-64">
                           <div className="space-y-1 pr-4">
-                            {["All Channels", "Booking.com", "Expedia", "Hotels.com", "Agoda", "TripAdvisor", "Direct"].map((option) => (
+                            {distinctChannels.map((option) => (
                               <label
                                 key={option}
                                 className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
-                                onClick={() => handleChannelToggle(option)}
+                              // onClick={() => }
                               >
                                 <input
                                   type="checkbox"
                                   className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
                                   checked={selectedChannels.includes(option)}
-                                  onChange={() => {}} // Prevent default behavior
+                                  onChange={() => handleChannelToggle(option)} // Prevent default behavior
                                   readOnly
                                 />
-                                <span 
+                                <span
                                   className="font-medium text-sm flex-1 cursor-pointer"
                                 >
                                   {option}
@@ -599,6 +666,10 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
                           {} as Record<string, string>,
                         )
                       )
+                      // Reset dropdown selections to default checked state
+                      setSelectedCountries(["All Countries"])
+                      setSelectedCities(["All Cities"])
+                      setSelectedChannels(["All Channel"])
                       // Date range is managed by context
                       console.log("🔄 All all properties filters reset")
                     }}
