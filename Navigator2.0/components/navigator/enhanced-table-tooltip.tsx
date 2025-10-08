@@ -34,7 +34,6 @@ export function EnhancedTableTooltip({
   rateEntry,
 
 }: EnhancedTableTooltipProps) {
-  debugger;
   // Format the date properly
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

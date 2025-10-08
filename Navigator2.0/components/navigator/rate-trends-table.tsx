@@ -360,7 +360,6 @@ export function RateTrendsTable({
 
       const compareRate = compData?.rate ? parseFloat(compData.rate) : 0;
       const compareStatus = compData?.status
-      debugger;
       const demandIndex = demandData?.optimaDemand.find((re: any) =>
         isSameDay(
           parseISO(re.checkinDate),

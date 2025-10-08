@@ -25,7 +25,7 @@ import { getKPIData } from "@/lib/rate-trends-data"
 import { useLocalStorage, useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
 import { useScreenSize } from "@/hooks/use-screen-size"
 import { getRateTrends, PPExcelDownload } from "@/lib/rate"
-import { generateRTRRReport, getRTRRReportStatusBySID, getRTRRValidation } from "@/lib/reports"
+import { generateRTRRReport, getCompleteCompSet, getRTRRReportStatusBySID, getRTRRValidation } from "@/lib/reports"
 import { RTRRRequestModel } from "@/lib/RTRRRequestModel"
 import { usePollingContext } from "@/components/polling/polling-context"
 import { useToast } from "@/hooks/use-toast"
@@ -109,6 +109,8 @@ export default function RateTrendPage() {
   const [rateCompData, setRateCompData] = useState(Object);
   const [demandData, setDemandData] = useState<any>([])
   const [competitorCount, setCompetitorCount] = useState(0)
+  const [primaryHotelsData, setPrimaryHotelsData] = useState<any[]>([])
+  const [secondaryHotelsData, setSecondaryHotelsData] = useState<any[]>([])
   // const [runningReport, setRunningReport] = useState<any>({});
   // const [lightingRefreshData, setLightingRefreshData] = useState<any>({});
   const [validationObject, setValidationObject] = useState<any>({});
@@ -148,6 +150,7 @@ export default function RateTrendPage() {
   // State for Lightning Refresh progress
   const [isLightningRefreshInProgress, setIsLightningRefreshInProgress] = useState(false)
   const [isLightningRefreshEnable, setIsLightningRefreshEnable] = useState(false)
+  const [lightningRefreshMessage, setIsLightningRefreshMessage] = useState('')
   // Navigation functions for competitor scrolling
   const nextCompetitors = () => {
     setCompetitorStartIndex(prev => {
@@ -231,6 +234,34 @@ export default function RateTrendPage() {
           setSnackbarType('info')
           setIsSnackbarOpen(true)
           setIsLightningRefreshInProgress(true)
+          let filtersValue = CreatePostObjForRTRR(lightingRefreshData);
+          let channelName = filtersValue.Sources;
+          let losrtrr = filtersValue?.LOS != null ? filtersValue?.LOS : 1;
+          let guestrtrr = filtersValue?.Occupancy != null ? filtersValue?.Occupancy : 1;
+          if (selectedProperty?.sid && userDetails?.userId) {
+            const taskData = {
+              taskId: runningReport.reportId,
+              channel: Array.isArray(channelName) ? channelName.join(', ') : channelName,
+              los: losrtrr.toString(),
+              guest: guestrtrr.toString(),
+              sid: typeof selectedProperty.sid === 'string' ? parseInt(selectedProperty.sid) : selectedProperty.sid,
+              userId: userDetails.userId.toString(),
+              checkInStartDate: filtersValue.FirstCheckInDate ? new Date(filtersValue.FirstCheckInDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+              checkInEndDate: filtersValue.FirstCheckInDate ? new Date(new Date(filtersValue.FirstCheckInDate).getTime() + filtersValue.DaysOfData * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              month: filtersValue.FirstCheckInDate ? new Date(filtersValue.FirstCheckInDate).getMonth() + 1 : new Date().getMonth() + 1,
+              year: filtersValue.FirstCheckInDate ? new Date(filtersValue.FirstCheckInDate).getFullYear() : new Date().getFullYear(),
+              onTaskComplete: () => {
+                // Re-enable Lightning Refresh when task completes (success or failure, but not retry)
+                setIsLightningRefreshInProgress(false);
+                console.log('🔄 Lightning Refresh completed, re-enabling button');
+              }
+            };
+
+            startTaskPolling(taskData);
+            console.log('🔄 Started task polling for lightning refresh:', taskData);
+          } else {
+            console.warn('⚠️ Missing selectedProperty or userDetails for task polling');
+          }
         }
       }
       else {
@@ -248,7 +279,7 @@ export default function RateTrendPage() {
     var postdata: RTRRRequestModel = {
       SID: selectedProperty?.sid || 0,
       ContactId: userDetails?.userId?.toString() || '',
-      FirstCheckInDate: new Date(),
+      FirstCheckInDate: new Date().toISOString(),
       DaysOfData: 0,
       LOS: 1,
       Occupancy: 1,
@@ -293,38 +324,41 @@ export default function RateTrendPage() {
 
     sources.push(lightingRefreshData.selectedChannel);
 
-    // if (this.primarySelected) {
-    //   this.primarySubscribers.forEach(item => {
-    //     properties.push(item);
-    //   })
+    if (lightingRefreshData?.compSet === "primary") {
+      primaryHotelsData.forEach(item => {
+        properties.push(item?.hmid);
+      })
 
-    // } else {
-    //   this.secondarySubscribers.forEach(item => {
-    //     properties.push(item);
-    //   })
-    // }
+    } else {
+      secondaryHotelsData.forEach(item => {
+        properties.push(item?.hmid);
+      })
+    }
 
     properties.push(selectedProperty?.hmid);
 
     postdata.Sources = sources;
     postdata.Properties = properties;
+    debugger;
     if (new Date(lightingRefreshData?.checkInStartDate) < todaysDate || DayOfData == 0) {
-      postdata.FirstCheckInDate = todaysDate;
+      postdata.FirstCheckInDate = todaysDate.toISOString();
     } else {
       // Use date-fns to properly construct the date
+      debugger;
       const checkInDate = new Date(lightingRefreshData?.checkInStartDate);
       const day = checkInDate.getDate();
       const month = checkInDate.getMonth();
       const year = checkInDate.getFullYear();
-
+      const dateStringData = new Date(Date.UTC(year, month, day, 0, 0, 0));
       // Create a new date with the same year and month, but with the calculated day
-      postdata.FirstCheckInDate = set(new Date(year, month, 1), {
-        date: day,
-        hours: 0,
-        minutes: 0,
-        seconds: 0,
-        milliseconds: 0
-      });
+      // const dateStringData = set(new Date(year, month, 1), {
+      //   date: day,
+      //   hours: 0,
+      //   minutes: 0,
+      //   seconds: 0,
+      //   milliseconds: 0,
+      // });
+      postdata.FirstCheckInDate = dateStringData.toISOString();
     }
 
     postdata.Currency = selectedProperty?.currencyCode?.toString() ?? '';
@@ -513,12 +547,37 @@ export default function RateTrendPage() {
         SID: selectedProperty.sid,
         UserID: userDetails?.userId,
       });
-      if (response?.status) {
+      if (response) {
+        setIsLightningRefreshMessage(response.body.message)
         setIsLightningRefreshEnable(response.body.messageCode == 'M-001' ? false : true);
         setIsLightningRefreshInProgress(response.body.messageCode == 'M-002' || response.body.messageCode == 'M-003' ? true : false);
       }
     }
-    fetchRTRRChannel();
+    const fetchCompSetData = async () => {
+      try {
+        const response = await getCompleteCompSet({
+          SID: selectedProperty?.sid,
+          includesubscriber: false
+        })
+
+        if (response.status && response.body) {
+          // Filter primary and secondary compsets based on isSecondary property
+          const primaryCompSets = response.body.filter((x: any) => !x.isSecondary)
+          const secondaryCompSets = response.body.filter((x: any) => x.isSecondary)
+
+          setPrimaryHotelsData(primaryCompSets)
+          setSecondaryHotelsData(secondaryCompSets)
+        }
+      } catch (error) {
+        console.error('Error fetching compset data:', error)
+        // Set default data if API fails
+        setPrimaryHotelsData([])
+        setSecondaryHotelsData([])
+      } finally {
+        // setIsLoadingCompSet(false)
+      }
+    }
+    Promise.all([fetchRTRRChannel(), fetchCompSetData()])
   }, [selectedProperty?.sid]);
 
   // Resume polling when component mounts and has necessary data
@@ -756,7 +815,7 @@ export default function RateTrendPage() {
             <TooltipProvider>
               <div className="flex items-center gap-2">
                 {/* Lightning Refresh Button */}
-                {isLightningRefreshEnable && (
+                {isLightningRefreshEnable && !isLightningRefreshInProgress && (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -782,6 +841,36 @@ export default function RateTrendPage() {
                       {isLightningRefreshInProgress && (
                         <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
                           <p className="text-xs">Lightning refresh under progress</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>)}
+                {isLightningRefreshInProgress && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 hover:bg-blue-500 hover:text-white hover:border-blue-500 group"
+                          onClick={() => {
+                            if (!isLightningRefreshInProgress) {
+                              console.log('🔄 Lightning Refresh clicked');
+                              setIsLightningRefreshModalOpen(true);
+                            }
+                          }}
+                        // disabled={isLightningRefreshInProgress}
+                        >
+                          <Zap
+                            className={`h-4 w-4 text-gray-600 group-hover:text-white ${isLightningRefreshInProgress ? 'animate-pulse' : ''}`}
+                            style={{ marginRight: '2px' }}
+                          />
+                          {isLightningRefreshInProgress ? 'Refreshing...' : 'Lightning Refresh'}
+                        </Button>
+                      </TooltipTrigger>
+                      {isLightningRefreshInProgress && (
+                        <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                          <p className="text-xs">{!!lightningRefreshMessage ? lightningRefreshMessage : 'Lightning refresh under progress'}</p>
                         </TooltipContent>
                       )}
                     </Tooltip>

@@ -75,7 +75,7 @@ export class PollingService {
 
     // Try to resume task polling
     this.resumeTaskPolling();
-    
+
     // Try to resume report polling
     this.resumeReportPolling();
   }
@@ -86,7 +86,7 @@ export class PollingService {
   private resumeTaskPolling(): void {
     // Look for any active task polling data in localStorage
     const taskKeys = this.findLocalStorageKeys('active_task_id');
-    
+
     for (const key of taskKeys) {
       const taskId = localStorage.getItem(key);
       if (taskId) {
@@ -106,7 +106,7 @@ export class PollingService {
   private resumeReportPolling(): void {
     // Look for any active report polling data in localStorage
     const reportKeys = this.findLocalStorageKeys('active_report_id');
-    
+
     for (const key of reportKeys) {
       const reportId = localStorage.getItem(key);
       if (reportId) {
@@ -140,7 +140,7 @@ export class PollingService {
   startReportPolling(data: ReportPollingData): void {
     const key = this.getReportKey(data.sid, data.userEmail);
     this.clearPolling('report', undefined, data.reportId);
-    
+
     // Store report ID in localStorage
     localStorage.setItem(key, data.reportId);
     this.storeReportData(data);
@@ -163,7 +163,7 @@ export class PollingService {
   startTaskPolling(data: TaskPollingData): void {
     const key = this.getTaskKey(data.sid, data.userId);
     this.clearPolling('task', data.taskId);
-    
+
     // Store task ID in localStorage
     localStorage.setItem(key, data.taskId.toString());
     this.storeTaskData(data);
@@ -289,6 +289,7 @@ export class PollingService {
         }
 
         if (status === 'pending' || status === 'retry') {
+          debugger;
           // Task still processing, schedule next poll
           const retryTime = (taskStatus.requestTime ? parseInt(taskStatus.requestTime.toString()) * 1000 : 5000);
           this.scheduleNextPoll('task', retryTime, () => this.pollTaskStatus(data), data);
@@ -309,24 +310,33 @@ export class PollingService {
   /**
    * Schedule next polling attempt
    */
-  private scheduleNextPoll(type: PollingType, delay: number, callback: () => void, data: ReportPollingData | TaskPollingData): void {
-    const key = type === 'report' 
+  private scheduleNextPoll(
+    type: PollingType,
+    delay: number,
+    callback: () => void,
+    data: ReportPollingData | TaskPollingData
+  ): void {
+    const key = type === 'report'
       ? this.getReportKey((data as ReportPollingData).sid, (data as ReportPollingData).userEmail)
       : this.getTaskKey((data as TaskPollingData).sid, (data as TaskPollingData).userId);
-    
+
     // Clear existing interval
     const existingInterval = this.pollingIntervals.get(key);
     if (existingInterval) {
       clearTimeout(existingInterval);
     }
 
-    // Schedule next poll
-    const interval = setTimeout(() => {
+    const poll = () => {
       callback();
-    }, delay);
 
+      const nextInterval = setTimeout(poll, delay);
+      this.pollingIntervals.set(key, nextInterval);
+    };
+
+    const interval = setTimeout(poll, delay);
     this.pollingIntervals.set(key, interval);
   }
+
 
   /**
    * Handle polling errors
@@ -343,9 +353,9 @@ export class PollingService {
         break;
       }
     }
-    
+
     if (!key) return;
-    
+
     const state = this.pollingStates.get(key);
 
     if (state) {
@@ -358,7 +368,7 @@ export class PollingService {
     if (state && state.retryCount >= 5) {
       console.error(`❌ Too many polling errors for ${type}, stopping`);
       this.clearPolling(type, undefined, undefined);
-      
+
       // If this is a task polling error, trigger the completion callback to re-enable Lightning Refresh
       if (type === 'task' && state.onTaskComplete) {
         state.onTaskComplete();
@@ -372,7 +382,7 @@ export class PollingService {
   clearPolling(type: PollingType, taskId?: number, reportId?: string, sid?: string | number, userId?: string): void {
     // We need to find the key by searching through the polling states
     let keyToRemove: string | null = null;
-    
+
     for (const [key, state] of this.pollingStates.entries()) {
       if (type === 'report' && key.includes('active_report_id')) {
         keyToRemove = key;
@@ -382,7 +392,7 @@ export class PollingService {
         break;
       }
     }
-    
+
     if (keyToRemove) {
       // Clear interval
       const interval = this.pollingIntervals.get(keyToRemove);
@@ -397,7 +407,7 @@ export class PollingService {
       // Clear localStorage for the specific type
       if (typeof window !== 'undefined') {
         localStorage.removeItem(keyToRemove);
-        
+
         if (type === 'task' && taskId) {
           localStorage.removeItem(`task_data_${taskId}`);
           localStorage.removeItem(this.getLightningKey(taskId));
@@ -417,10 +427,10 @@ export class PollingService {
       clearTimeout(interval);
     });
     this.pollingIntervals.clear();
-    
+
     // Clear all states
     this.pollingStates.clear();
-    
+
     // Clear all localStorage items related to polling
     if (typeof window !== 'undefined') {
       // Clear all task_data_, report_data_, and active polling keys
@@ -428,8 +438,8 @@ export class PollingService {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && (
-          key.startsWith('task_data_') || 
-          key.startsWith('report_data_') || 
+          key.startsWith('task_data_') ||
+          key.startsWith('report_data_') ||
           key.startsWith('Lighting_Refresh_') ||
           key.startsWith('active_report_id_') ||
           key.startsWith('active_task_id_')
@@ -437,7 +447,7 @@ export class PollingService {
           keysToRemove.push(key);
         }
       }
-      
+
       keysToRemove.forEach(key => localStorage.removeItem(key));
     }
   }

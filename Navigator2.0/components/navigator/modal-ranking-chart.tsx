@@ -361,7 +361,7 @@ export function ModalRankingChart({ selectedDate, numberOfDays = 15, paceData = 
 
               // Get status from the data
               const status = data[`${entry.dataKey}_status`]
-              const displayStatus = status === 'Closed' ? 'Sold Out' : status
+              const displayStatus = status === 'Closed' ? 'Sold Out' : status !== 'O' ? '--' : status
               const showStatus = status && status !== 'O' && status !== 'N/A'
 
               return (
@@ -383,7 +383,7 @@ export function ModalRankingChart({ selectedDate, numberOfDays = 15, paceData = 
                   <div className="flex items-center">
                     <div className={`text-xs font-bold text-right ${isSubscriber ? 'text-blue-900 dark:text-blue-200' : 'text-gray-900 dark:text-slate-100'
                       }`}>
-                      {rate > 0 ? `\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E ${formatYAxis(rate)}` : displayStatus}
+                      {displayStatus === 'O' || rate > 0 ? `\u200E ${selectedProperty?.currencySymbol ?? '$'}\u200E ${formatYAxis(rate)}` : displayStatus}
                     </div>
                   </div>
                 </div>
