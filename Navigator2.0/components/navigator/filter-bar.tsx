@@ -100,10 +100,10 @@ export function FilterBar({ onMoreFiltersClick, setSelectedChannel }: FilterBarP
 
   // Compare dropdown state - using context now
   const [isCompareOpen, setIsCompareOpen] = React.useState(false)
-  
+
   // Dropdown state management - track which dropdown is open
   const [openDropdown, setOpenDropdown] = React.useState<string | null>(null)
-  
+
   const [selectedFilters, setSelectedFilters] = React.useState(() =>
     allFiltersList.reduce(
       (acc, group) => {
@@ -537,11 +537,11 @@ export function FilterBar({ onMoreFiltersClick, setSelectedChannel }: FilterBarP
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-10 gap-2 font-medium hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 transition-all duration-200 relative shadow-sm hover:shadow-md border-slate-200 dark:border-slate-700 xl:px-4 px-2"
+                        className="h-10 gap-2 font-medium hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 transition-all duration-200 relative shadow-sm hover:shadow-md border-slate-200 dark:border-slate-700 xl-1366:px-4 px-2"
                         onClick={onMoreFiltersClick}
                       >
                         <Filter className="w-4 h-4" />
-                        <span className="hidden xl:inline font-semibold">More Filters</span>
+                        <span className="hidden xl-1450:inline font-semibold">More Filters</span>
                         {getActiveFilters.length > 0 && (
                           <Badge
                             className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg"
@@ -551,7 +551,7 @@ export function FilterBar({ onMoreFiltersClick, setSelectedChannel }: FilterBarP
                         )}
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom" className="bg-slate-800 text-white border-slate-700 xl:hidden">
+                    <TooltipContent side="bottom" className="bg-slate-800 text-white border-slate-700 xl-1366:hidden">
                       <p className="text-xs">More Filters</p>
                     </TooltipContent>
                   </Tooltip>

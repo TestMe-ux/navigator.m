@@ -110,7 +110,6 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
       const compRateEntry = comp.subscriberPropertyRate?.find((rate: any) => {
         return isSameDay(parseISO(rate.checkInDateTime), dayDate)
       })
-
       // Get comparison data for this competitor rate entry
       const compCompData = compEntities
         ?.filter((ce: any) => ce.propertyID === compRateEntry?.propertyID)[0]
@@ -131,6 +130,7 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
         ? rateValue - compareRate
         : 0;
 
+      debugger;
       return {
         hotelName: comp.propertName,
         rate: compRateEntry?.status === 'O' ? `${rateValue.toLocaleString('en-US')}` : compRateEntry?.status === 'C' ? 'Sold Out' : '--',
@@ -192,7 +192,6 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
       channelName: myRateEntry?.channelName || '',
       rateEntry: myRateEntry // Store original rate entry for full data access
     }]
-
     // Find lowest and highest rates (only among open rates)
     const openRates = allRates.filter(r => r.rateValue > 0)
     if (openRates.length > 0) {
@@ -665,7 +664,7 @@ function RateTrendCalendarInner({
 
   // Generate calendar data based on live data
   const calendarData = useMemo(() => {
-    if (!rateData || !startDate || !endDate) {
+    if (!rateData || !startDate || !endDate || !rateCompData) {
       return []
     }
 
@@ -1149,7 +1148,7 @@ function RateTrendCalendarInner({
 
 
   // Show loading state when date range is changing
-  if (isLoading || visibleWeeks.length <= 0) {
+  if (isLoading || visibleWeeks.length <= 0 || Object.keys(rateCompData).length === 0) {
     return (
       <div className="h-[400px] bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 rounded-lg p-8 flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
@@ -1539,7 +1538,7 @@ function RateTrendCalendarInner({
                                 {/* Row 2: Hotel Lowest Rate */}
                                 <div className="text-center rounded">
                                   <div className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                                    {day.hotelLowestRate > 0 ? day.hotelLowestRate.toLocaleString('en-US') : ''}
+                                    {day.rateEntry?.status == "O" ? day.hotelLowestRate.toLocaleString('en-US') : day.rateEntry?.status == "C" ? "Sold Out" : '--'}
                                   </div>
                                 </div>
                                 {/* Row 3: Difference vs Last Period */}

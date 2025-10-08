@@ -8,79 +8,234 @@ import { AllPropertiesTable } from "@/components/navigator/all-properties-table"
 import { ComparisonProvider, useComparison } from "@/components/comparison-context"
 import { FilterSidebar } from "@/components/filter-sidebar"
 import { useDateContext } from "@/components/date-context"
-import { useSelectedProperty } from "@/hooks/use-local-storage"
+import { useSelectedProperty, useAllProperty, useUserDetail } from "@/hooks/use-local-storage"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ChevronDown } from "lucide-react"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
+import { getPricePositioningCluster, getRateTrends } from "@/lib/rate"
+import { conevrtDateforApi } from "@/lib/utils"
 
 function AllPropertiesPageContent() {
   const router = useRouter()
   const { selectedComparison, channelFilter, compsetFilter, setSideFilter, sideFilter } = useComparison()
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false)
-  const { startDate, endDate, setDateRange } = useDateContext()
+  const { startDate, endDate } = useDateContext()
   const [selectedProperty] = useSelectedProperty()
+  const [allProperties] = useAllProperty()
+  const [userDetails] = useUserDetail()
   const [selectedChannel, setSelectedChannel] = useState([])
   const [viewMode, setViewMode] = useState("All Properties")
   const [screenWidth, setScreenWidth] = useState(0)
-  
-  // Property selector state - copied from Cluster page
-  const [selectedProperties, setSelectedProperties] = useState<string[]>([
-    "Seaside Resort & Spa",
-    "City Hotel Gotland", 
-    "Grand Palace Hotel",
-    "Mountain View Lodge",
-    "Urban Business Center",
-    "Riverside Inn",
-    "Downtown Plaza",
-    "Garden Hotel",
-    "Business Tower",
-    "Luxury Suites"
-  ])
+
+  // Property selector state - will be populated dynamically
+  const [selectedProperties, setSelectedProperties] = useState<string[]>([])
+  const [clusterData, setClusterData] = useState<any[]>([]);
   const [isPropertySelectorOpen, setIsPropertySelectorOpen] = useState(false)
   const [displayedPropertiesCount, setDisplayedPropertiesCount] = useState(10)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  
-  // Available properties for selector - expanded to 25 hotels
-  const availableProperties = [
-    "Seaside Resort & Spa",
-    "City Hotel Gotland", 
-    "Grand Palace Hotel",
-    "Mountain View Lodge",
-    "Urban Business Center",
-    "Riverside Inn",
-    "Downtown Plaza",
-    "Garden Hotel",
-    "Business Tower",
-    "Luxury Suites",
-    "Oceanfront Paradise",
-    "Metropolitan Plaza",
-    "Historic Grand Hotel",
-    "Business Center Inn",
-    "Riverside Retreat",
-    "Downtown Business Hotel",
-    "Garden View Resort",
-    "Executive Suites",
-    "City Center Hotel",
-    "Luxury Business Inn",
-    "Coastal Resort & Spa",
-    "Urban Business Plaza",
-    "Historic Downtown Inn",
-    "Executive Business Center",
-    "Premium City Hotel"
-  ]
+  const [losGuest, setLosGuest] = useState<{ "Los": any[], "Guest": any[] }>({ "Los": [], "Guest": [] });
+  // Dynamic available properties from allProperties using name field
+  const availableProperties = React.useMemo(() => {
+    if (!allProperties || allProperties.length === 0) {
+      return []
+    }
+
+    const properties = allProperties
+      .map((property: any) => property?.name)
+      .filter((name: any): name is string => Boolean(name))
+      .filter((name: string, index: number, array: string[]) => array.indexOf(name) === index) // Remove duplicates
+      .sort()
+
+    return properties
+  }, [allProperties])
+
+  // Initialize selected properties when availableProperties changes
+  useEffect(() => {
+    if (availableProperties.length > 0 && selectedProperties.length === 0) {
+      // Select first 10 properties by default
+      setSelectedProperties(availableProperties.slice(0, 10))
+    }
+  }, [availableProperties, selectedProperties.length])
 
   // Track screen width for resolution indicator
   useEffect(() => {
     const updateScreenWidth = () => {
       setScreenWidth(window.innerWidth)
     }
-    
+
     updateScreenWidth()
     window.addEventListener('resize', updateScreenWidth)
     return () => window.removeEventListener('resize', updateScreenWidth)
   }, [])
+  useEffect(() => {
+
+
+    const channelIds = channelFilter?.channelId ?? [];
+    if (
+      !startDate ||
+      !endDate ||
+      !selectedProperty?.sid ||
+      !(channelIds.length > 0)
+    ) return;
+    setIsLoading(true);
+    // setLoadingProgress(0);
+
+    Promise.all([
+      getRateDate()
+    ]).finally(() => {
+      setIsLoading(false);
+    });
+
+  }, [
+    startDate,
+    endDate,
+    selectedProperty?.sid,
+    channelFilter?.channelId?.join(','),
+    sideFilter,
+    compsetFilter
+  ]);
+  const getRateDate = () => {
+    const filtersValue = {
+      "SID": selectedProperty?.sid,
+      "channels": (channelFilter?.channelId?.length ?? 0) > 0 ? channelFilter.channelId : [-1],
+      "channelsText": (channelFilter?.channelName?.length ?? 0) > 0 ? channelFilter.channelName : ["All Channel"],
+      "checkInStartDate": conevrtDateforApi(startDate?.toString()),
+      "checkInEndDate": conevrtDateforApi(endDate?.toString()),
+      "LOS": sideFilter?.lengthOfStay?.toString() || null,
+      "guest": sideFilter?.guest?.toString() || null,
+      "productTypeID": sideFilter?.roomTypes || null,
+      "productTypeIDText": sideFilter?.roomTypes || "All",
+      "inclusionID": sideFilter?.inclusions || [],
+      "inclusionIDText": sideFilter?.inclusions?.length ? sideFilter.inclusions : ["All"],
+      "properties": [],
+      "restriction": sideFilter?.rateViewBy?.Restriction,
+      "qualification": sideFilter?.rateViewBy?.Qualification,
+      "promotion": sideFilter?.rateViewBy?.Promotion,
+      "restrictionText": sideFilter?.rateViewBy?.RestrictionText || "All",
+      "promotionText": sideFilter?.rateViewBy?.PromotionText || "All",
+      "qualificationText": sideFilter?.rateViewBy?.QualificationText || "All",
+      "subscriberPropertyID": selectedProperty?.hmid,
+      "subscriberName": selectedProperty?.name,
+      "mSIRequired": false,
+      "benchmarkRequired": true,
+      "compsetRatesRequired": true,
+      "propertiesText": [],
+      "isSecondary": compsetFilter,
+      "hotelsToDisplay": [...allProperties?.filter(x => selectedProperties.includes(x?.name || ''))]
+    }
+    getPricePositioningCluster(filtersValue, userDetails?.userId)
+      .then((res) => {
+        if (res.status) {
+          const updatedVisibleProperties = addCompetitivenessToVisibleProperties(res?.body);
+          const sortedClusterData = updatedVisibleProperties.sort((a, b) => (a?.hotels?.name || '').localeCompare(b?.hotels?.name || ''));
+          console.log("ClusterData :", sortedClusterData)
+          setClusterData(sortedClusterData);
+          // setRateData(res.body);
+          setLosGuest({ "Los": res.body?.losList, "Guest": res.body?.guestList });
+          // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
+        }
+      })
+      .catch((err) => console.error(err));
+  }
+
+  function addCompetitivenessToVisibleProperties(visibleProperties: any[]): any[] {
+    if (
+      !visibleProperties.length ||
+      !visibleProperties[0].pricePositioningEntites.length
+    )
+      return visibleProperties;
+
+    const updatedProperties = visibleProperties.map((prop) => ({ ...prop }));
+
+    const totalDates =
+      visibleProperties[0].pricePositioningEntites[0].subscriberPropertyRate.map(
+        (x: any) => x.checkInDateTime
+      );
+
+    const competitivenessMap = new Map<
+      string,
+      { value: number; denominator: number }
+    >();
+
+    totalDates.forEach((checkinDate: any) => {
+      visibleProperties.forEach((prop) => {
+        const priceInner: { key: 'Subscriber' | 'Compset'; value: number }[] = [];
+
+        prop.pricePositioningEntites.forEach((positioning: any) => {
+          const rateEntry = positioning.subscriberPropertyRate.find(
+            (r: any) => r.checkInDateTime === checkinDate
+          );
+          const rate = parseInt(rateEntry?.rate || '0', 10);
+
+          if (rate > 0) {
+            if (positioning.propertyType === 0) {
+              priceInner.push({ key: 'Subscriber', value: rate });
+            } else if (positioning.propertyType === 1) {
+              priceInner.push({ key: 'Compset', value: rate });
+            }
+          }
+        });
+
+        const sorted = [...priceInner].sort((a, b) => a.value - b.value);
+        const subscriberIndex = sorted.findIndex((x) => x.key === 'Subscriber');
+
+        if (sorted.length > 1 && subscriberIndex !== -1) {
+          const percentage =
+            ((sorted.length - subscriberIndex - 1) * 100) / (sorted.length - 1);
+
+          const existing = competitivenessMap.get(prop.sid);
+          if (existing) {
+            existing.value += percentage;
+            existing.denominator += 1;
+          } else {
+            competitivenessMap.set(prop.sid, { value: percentage, denominator: 1 });
+          }
+        }
+      });
+    });
+
+    return updatedProperties.map((prop) => {
+      const comp = competitivenessMap.get(prop.sid);
+      const competitiveness =
+        comp && comp.denominator > 0
+          ? parseFloat(Math.round(comp.value / comp.denominator).toFixed(0))
+          : 0;
+
+      // === Calculate Availability ===
+      let availability = 0;
+      const matchedPriceEntity = prop.pricePositioningEntites.find(
+        (y: any) => y.propertyID === prop.hotels?.hmid
+      );
+
+      if (matchedPriceEntity && matchedPriceEntity.subscriberPropertyRate) {
+        let countAvailable = 0;
+        let countTotal = 0;
+
+        matchedPriceEntity.subscriberPropertyRate.forEach((rateObj: any) => {
+          if (rateObj.rate === 'Closed') {
+            countTotal++;
+          } else if (parseInt(rateObj.rate) > 0) {
+            countAvailable++;
+            countTotal++;
+          }
+        });
+
+        if (countTotal > 0) {
+          availability = Math.round((countAvailable * 100) / countTotal);
+        }
+      }
+
+      return {
+        ...prop,
+        competitiveness,
+        availability,
+        parityScore: 0
+      };
+    });
+  }
+
 
   // Get resolution category and column count
   const getResolutionInfo = () => {
@@ -99,8 +254,8 @@ function AllPropertiesPageContent() {
 
   // Property selector handlers - copied from Cluster page
   const handlePropertyToggle = (property: string) => {
-    setSelectedProperties(prev => 
-      prev.includes(property) 
+    setSelectedProperties(prev =>
+      prev.includes(property)
         ? prev.filter(p => p !== property)
         : [...prev, property]
     )
@@ -117,12 +272,12 @@ function AllPropertiesPageContent() {
     }
   }
 
-  // Get display text for property dropdown - updated for 25 properties
+  // Get display text for property dropdown - updated for dynamic properties
   const getPropertyDisplayText = () => {
     if (selectedProperties.length === 0) {
       return "All Properties"
     } else if (selectedProperties.length === availableProperties.length) {
-      return "25 Properties"
+      return `${availableProperties.length} Properties`
     } else if (selectedProperties.length === 1) {
       return selectedProperties[0]
     } else {
@@ -133,10 +288,10 @@ function AllPropertiesPageContent() {
   // Load more properties handler - copied from Cluster page
   const handleLoadMoreProperties = async () => {
     setIsLoadingMore(true)
-    
+
     // Simulate loading delay
     await new Promise(resolve => setTimeout(resolve, 1500))
-    
+
     setDisplayedPropertiesCount(prev => Math.min(prev + 10, selectedProperties.length))
     setIsLoadingMore(false)
   }
@@ -187,176 +342,177 @@ function AllPropertiesPageContent() {
       )}
       {!isLoading && (
         <>
-      {/* Enhanced Filter Bar with Sticky Positioning */}
-      <div className="sticky top-0 z-40 filter-bar-minimal bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
-        <AllPropertiesFilterBar 
-          onMoreFiltersClick={handleMoreFiltersClick} 
-          setSelectedChannel={setSelectedChannel}
-          viewMode={viewMode}
-          setViewMode={handleViewModeChange}
-        />
-      </div>
-      
-      <FilterSidebar
-        losGuest={{ "Los": [], "Guest": [] }}
-        isOpen={isFilterSidebarOpen}
-        onClose={() => setIsFilterSidebarOpen(false)}
-        onApply={(filters) => {
-          // Handle filter apply logic here
-          setSideFilter(filters);
-          console.log('Applied all properties filters:', filters)
-          setIsFilterSidebarOpen(false)
-        }}
-      />
-
-      <main className="relative flex-1 overflow-auto">
-        <div
-          className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4"
-          data-coach-mark="all-properties-content"
-        >
-          <div className="max-w-7xl xl:max-w-none mx-auto space-y-6">
-            
-
-
-
-
-            {/* Rate Trends Table Section */}
-            <Card className="card-elevated animate-fade-in mt-6">
-              <CardHeader className="pb-0">
-                <div className="flex items-center justify-between">
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-4">
-                    <div>
-                      <CardTitle className="text-xl font-semibold -ml-1.5">Property Analysis</CardTitle>
-                    </div>
-                    
-                    {/* Property Selector Dropdown - next to heading */}
-                    <DropdownMenu open={isPropertySelectorOpen} onOpenChange={setIsPropertySelectorOpen}>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md min-w-0 max-w-[192px] hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
-                        >
-                    <span className="truncate max-w-[120px] font-semibold">
-                      {getPropertyDisplayText()}
-                    </span>
-                          <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-auto p-0 shadow-xl border-slate-200 dark:border-slate-700 z-[60]">
-                        <div className="flex">
-                          <div className="w-64 p-4">
-                            <h4 className="font-semibold text-sm text-gray-700 mb-3">Properties</h4>
-                            <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-800">
-                              <div className="space-y-1 pr-4">
-                                {/* All Properties Option */}
-                                <label
-                                  className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
-                                  onClick={() => handleSelectAllProperties()}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
-                                    checked={selectedProperties.length === availableProperties.length}
-                                    onChange={() => {}} // Prevent default behavior
-                                    readOnly
-                                  />
-                                  <span 
-                                    className="font-medium text-sm flex-1 cursor-pointer"
-                                  >
-                                    All Properties
-                                  </span>
-                                </label>
-                                
-                                {/* Individual Properties */}
-                                {availableProperties.map((property) => (
-                                  <label
-                                    key={property}
-                                    className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
-                                    onClick={() => handlePropertyToggle(property)}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
-                                      checked={selectedProperties.includes(property)}
-                                      onChange={() => {}} // Prevent default behavior
-                                      readOnly
-                                    />
-                                    <span 
-                                      className="font-medium text-sm flex-1 cursor-pointer"
-                                    >
-                                      {property}
-                                    </span>
-                                  </label>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                    
-                    {/* Resolution Section - next to dropdown */}
-                    <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-xs font-medium rounded">
-                      {screenWidth}px | {resolutionInfo.category} | {resolutionInfo.columns} cols
-                    </div>
-                  </div>
-                  
-                  {/* Helper Text - below heading and dropdown, left aligned */}
-                  <p className="text-sm text-muted-foreground mt-2 text-left -ml-1.5">
-                    Comprehensive analysis and management of properties across your portfolio
-                  </p>
-                </div>
-                <div className="flex items-center gap-6">
-                  {/* Rate Legends */}
-                  <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-red-600 dark:text-red-400">Highest Rate</span>
-                      </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-green-600 dark:text-green-400">Lowest Rate</span>
-                    </div>
-                  </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <AllPropertiesTable 
-                  competitorStartIndex={0}
-                  digitCount={4}
-                  selectedProperties={selectedProperties.slice(0, displayedPropertiesCount)}
-                />
-                
-                {/* Load More Properties Button */}
-                {selectedProperties.length > displayedPropertiesCount && (
-                  <div className="px-6 pb-6">
-                    <div className="flex items-center justify-center">
-                      {isLoadingMore ? (
-                        <div className="flex items-center gap-3">
-                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
-                          <span className="text-blue-600 dark:text-blue-400 font-medium">Loading properties...</span>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={handleLoadMoreProperties}
-                          className="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors duration-200 text-sm bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/50 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md w-full"
-                        >
-                          <span>Load {Math.min(10, selectedProperties.length - displayedPropertiesCount)} more properties</span>
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                      )}
-                          </div>
-                        </div>
-                )}
-              </CardContent>
-            </Card>
-
+          {/* Enhanced Filter Bar with Sticky Positioning */}
+          <div className="sticky top-0 z-40 filter-bar-minimal bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
+            <AllPropertiesFilterBar
+              onMoreFiltersClick={handleMoreFiltersClick}
+              setSelectedChannel={setSelectedChannel}
+              viewMode={viewMode}
+              setViewMode={handleViewModeChange}
+            />
           </div>
-        </div>
-      </main>
+
+          <FilterSidebar
+            losGuest={{ "Los": losGuest.Los, "Guest": losGuest.Guest }}
+            isOpen={isFilterSidebarOpen}
+            onClose={() => setIsFilterSidebarOpen(false)}
+            onApply={(filters) => {
+              // Handle filter apply logic here
+              setSideFilter(filters);
+              console.log('Applied all properties filters:', filters)
+              setIsFilterSidebarOpen(false)
+            }}
+          />
+
+          <main className="relative flex-1 overflow-auto">
+            <div
+              className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4"
+              data-coach-mark="all-properties-content"
+            >
+              <div className="max-w-7xl xl:max-w-none mx-auto space-y-6">
+
+
+
+
+
+                {/* Rate Trends Table Section */}
+                <Card className="card-elevated animate-fade-in mt-6">
+                  <CardHeader className="pb-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-4">
+                          <div>
+                            <CardTitle className="text-xl font-semibold -ml-1.5">Property Analysis</CardTitle>
+                          </div>
+
+                          {/* Property Selector Dropdown - next to heading */}
+                          <DropdownMenu open={isPropertySelectorOpen} onOpenChange={setIsPropertySelectorOpen}>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-10 gap-2 px-4 font-medium transition-all duration-200 shrink-0 shadow-sm hover:shadow-md min-w-0 max-w-[192px] hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
+                              >
+                                <span className="truncate max-w-[120px] font-semibold">
+                                  {getPropertyDisplayText()}
+                                </span>
+                                <ChevronDown className="w-4 h-4 opacity-70 shrink-0" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-auto p-0 shadow-xl border-slate-200 dark:border-slate-700 z-[60]">
+                              <div className="flex">
+                                <div className="w-64 p-4">
+                                  <h4 className="font-semibold text-sm text-gray-700 mb-3">Properties</h4>
+                                  <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-800">
+                                    <div className="space-y-1 pr-4">
+                                      {/* All Properties Option */}
+                                      <label
+                                        className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
+                                        onClick={() => handleSelectAllProperties()}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
+                                          checked={selectedProperties.length === availableProperties.length}
+                                          onChange={() => { }} // Prevent default behavior
+                                          readOnly
+                                        />
+                                        <span
+                                          className="font-medium text-sm flex-1 cursor-pointer"
+                                        >
+                                          All Properties
+                                        </span>
+                                      </label>
+
+                                      {/* Individual Properties */}
+                                      {availableProperties.map((property) => (
+                                        <label
+                                          key={property}
+                                          className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
+                                          onClick={() => handlePropertyToggle(property)}
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
+                                            checked={selectedProperties.includes(property)}
+                                            onChange={() => { }} // Prevent default behavior
+                                            readOnly
+                                          />
+                                          <span
+                                            className="font-medium text-sm flex-1 cursor-pointer"
+                                          >
+                                            {property}
+                                          </span>
+                                        </label>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+
+                          {/* Resolution Section - next to dropdown */}
+                          <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-xs font-medium rounded">
+                            {screenWidth}px | {resolutionInfo.category} | {resolutionInfo.columns} cols
+                          </div>
+                        </div>
+
+                        {/* Helper Text - below heading and dropdown, left aligned */}
+                        <p className="text-sm text-muted-foreground mt-2 text-left -ml-1.5">
+                          Comprehensive analysis and management of properties across your portfolio
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-6">
+                        {/* Rate Legends */}
+                        <div className="flex items-center gap-6">
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-red-600 dark:text-red-400">Highest Rate</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-green-600 dark:text-green-400">Lowest Rate</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <AllPropertiesTable
+                      competitorStartIndex={0}
+                      digitCount={4}
+                      selectedProperties={selectedProperties.slice(0, displayedPropertiesCount)}
+                      clusterData={clusterData}
+                    />
+
+                    {/* Load More Properties Button */}
+                    {selectedProperties.length > displayedPropertiesCount && (
+                      <div className="px-6 pb-6">
+                        <div className="flex items-center justify-center">
+                          {isLoadingMore ? (
+                            <div className="flex items-center gap-3">
+                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+                              <span className="text-blue-600 dark:text-blue-400 font-medium">Loading properties...</span>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={handleLoadMoreProperties}
+                              className="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors duration-200 text-sm bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/50 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md w-full"
+                            >
+                              <span>Load {Math.min(10, selectedProperties.length - displayedPropertiesCount)} more properties</span>
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+              </div>
+            </div>
+          </main>
         </>
       )}
     </div>
