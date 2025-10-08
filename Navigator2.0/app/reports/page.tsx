@@ -17,7 +17,7 @@ import { ReportsFilterBar } from "@/components/reports-filter-bar"
 import { ReportsHeader } from "@/components/navigator/reports-header"
 import { addDays, format, subDays } from "date-fns"
 import { useRef } from "react"
-import { getAllReports, getReportData, generateAndMailReportCSV, getChannelList, getCompleteCompSet, checkMappingValidation, generateOndemandReport, getSummaryData } from "@/lib/reports"
+import { getAllReports, getReportData, generateAndMailReportCSV, getChannelList, getCompleteCompSet, checkMappingValidation, generateOndemandReport } from "@/lib/reports"
 import { conevrtDateforApi } from "@/lib/utils"
 import { LocalStorageService } from "@/lib/localstorage"
 import { useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
@@ -413,20 +413,24 @@ export default function ReportsPage() {
   // Load package details and credit limits from localStorage
   useEffect(() => {
     if (!selectedProperty?.sid) return;
-    const fetchSummaryData = async () => {
+    
+    // Load packageDetails from localStorage (similar to Angular implementation)
+    const loadPackageDetailsFromStorage = () => {
       try {
-        const response = await getSummaryData(selectedProperty?.sid?.toString() || '')
-        if (response.status) {
-          setPackageDetails(response.body)
-          setTotalShopsConsumedYearly(response.body.consumedShopsBatch + response.body.consumedShopsOnDemand + response.body.consumedShopsRTRR)
-          setTotalShopsAlloted(response.body.totalShops)
+        const packageDetailsString = LocalStorageService.getItem('packageDetails')
+        if (packageDetailsString) {
+          const packageDetails = JSON.parse(packageDetailsString)
+          setPackageDetails(packageDetails)
+          setTotalShopsConsumedYearly(packageDetails.consumedShopsBatch + packageDetails.consumedShopsOnDemand + packageDetails.consumedShopsRTRR)
+          setTotalShopsAlloted(packageDetails.totalShops)
         }
       } catch (error) {
-        console.error('Error fetching summary data:', error)
+        console.error('Error loading package details from localStorage:', error)
       }
     }
+    
     Promise.all([fetchChannelsData()
-      , fetchCompSetData(), fetchSummaryData()])
+      , fetchCompSetData(), loadPackageDetailsFromStorage()])
   }, [selectedProperty?.sid])
 
   // Loading effect and initial data fetch - only when dates or filter change
