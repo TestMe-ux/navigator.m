@@ -1797,7 +1797,8 @@ export default function ScheduledReportsPage() {
     await Promise.all([
       fetchChannelsData(),
       fetchCompSetData(),
-      fetchTimezoneData()
+      fetchTimezoneData(),
+      fetchCurrencyData()
     ])
 
     console.log('All data loaded, proceeding with edit data...')

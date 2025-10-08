@@ -413,20 +413,35 @@ export default function ReportsPage() {
   // Load package details and credit limits from localStorage
   useEffect(() => {
     if (!selectedProperty?.sid) return;
-    const fetchSummaryData = async () => {
+    
+    // Load packageDetails from localStorage (similar to Angular implementation)
+    const loadPackageDetailsFromStorage = () => {
+      try {
+        const packageDetailsString = LocalStorageService.getItem('packageDetails')
+        if (packageDetailsString) {
+          const packageDetails = JSON.parse(packageDetailsString)
+          setPackageDetails(packageDetails)
+        }
+      } catch (error) {
+        console.error('Error loading package details from localStorage:', error)
+      }
+    }
+    
+    // Fetch shop consumption data from API (these properties are not in localStorage)
+    const fetchShopConsumptionData = async () => {
       try {
         const response = await getSummaryData(selectedProperty?.sid?.toString() || '')
         if (response.status) {
-          setPackageDetails(response.body)
           setTotalShopsConsumedYearly(response.body.consumedShopsBatch + response.body.consumedShopsOnDemand + response.body.consumedShopsRTRR)
           setTotalShopsAlloted(response.body.totalShops)
         }
       } catch (error) {
-        console.error('Error fetching summary data:', error)
+        console.error('Error fetching shop consumption data:', error)
       }
     }
+    
     Promise.all([fetchChannelsData()
-      , fetchCompSetData(), fetchSummaryData()])
+      , fetchCompSetData(), loadPackageDetailsFromStorage(), fetchShopConsumptionData()])
   }, [selectedProperty?.sid])
 
   // Loading effect and initial data fetch - only when dates or filter change
