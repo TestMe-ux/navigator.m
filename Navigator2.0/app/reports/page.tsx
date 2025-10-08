@@ -17,7 +17,7 @@ import { ReportsFilterBar } from "@/components/reports-filter-bar"
 import { ReportsHeader } from "@/components/navigator/reports-header"
 import { addDays, format, subDays } from "date-fns"
 import { useRef } from "react"
-import { getAllReports, getReportData, generateAndMailReportCSV, getChannelList, getCompleteCompSet, checkMappingValidation, generateOndemandReport } from "@/lib/reports"
+import { getAllReports, getReportData, generateAndMailReportCSV, getChannelList, getCompleteCompSet, checkMappingValidation, generateOndemandReport, getSummaryData } from "@/lib/reports"
 import { conevrtDateforApi } from "@/lib/utils"
 import { LocalStorageService } from "@/lib/localstorage"
 import { useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
@@ -421,16 +421,27 @@ export default function ReportsPage() {
         if (packageDetailsString) {
           const packageDetails = JSON.parse(packageDetailsString)
           setPackageDetails(packageDetails)
-          setTotalShopsConsumedYearly(packageDetails.consumedShopsBatch + packageDetails.consumedShopsOnDemand + packageDetails.consumedShopsRTRR)
-          setTotalShopsAlloted(packageDetails.totalShops)
         }
       } catch (error) {
         console.error('Error loading package details from localStorage:', error)
       }
     }
     
+    // Fetch shop consumption data from API (these properties are not in localStorage)
+    const fetchShopConsumptionData = async () => {
+      try {
+        const response = await getSummaryData(selectedProperty?.sid?.toString() || '')
+        if (response.status) {
+          setTotalShopsConsumedYearly(response.body.consumedShopsBatch + response.body.consumedShopsOnDemand + response.body.consumedShopsRTRR)
+          setTotalShopsAlloted(response.body.totalShops)
+        }
+      } catch (error) {
+        console.error('Error fetching shop consumption data:', error)
+      }
+    }
+    
     Promise.all([fetchChannelsData()
-      , fetchCompSetData(), loadPackageDetailsFromStorage()])
+      , fetchCompSetData(), loadPackageDetailsFromStorage(), fetchShopConsumptionData()])
   }, [selectedProperty?.sid])
 
   // Loading effect and initial data fetch - only when dates or filter change
