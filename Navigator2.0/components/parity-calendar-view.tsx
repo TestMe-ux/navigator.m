@@ -789,10 +789,13 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
           return rateDate.getTime() === currentDate.getTime()
         })?.inclusion || ''
 
-        // Get result status (Win/Meet/Loss) - EXACT same logic as UI
-        // UI uses: dayData.parityVsBaseLine for date-specific W/M/L
-        const result = dayData.parityVsBaseLine || 'M'
-        const resultText = result === 'W' ? 'Win' : result === 'L' ? 'Loss' : 'Meet'
+        // Get result status (Win/Meet/Loss) - skip for benchmark row
+        let resultText = ''
+        if (!isBenchmark) {
+          // Use dayData.parityVsBaseLine like the UI does for non-benchmark channels
+          const result = dayData.parityVsBaseLine || 'M'
+          resultText = result === 'W' ? 'Win' : result === 'L' ? 'Loss' : 'Meet'
+        } 
 
         // Build the detailed format: Benchmark: rate (room, inclusion) | OTA: rate (room, inclusion) | Diff: difference | Violation | Result
         // Only include room and inclusion if data is available
@@ -1039,10 +1042,10 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                             ) : null}
                             {/* Fallback: First letter of channel name */}
                             <div className={cn(
-                              "w-4 h-4 rounded flex items-center justify-center text-xs font-bold text-white bg-blue-600",
+                              "w-4 h-4 rounded flex items-center justify-center text-xs font-bold",
                               channel.channelIcon ? "hidden" : "block"
                             )}>
-                              <span className="w-4 h-4 rounded flex items-center justify-center text-xs font-bold text-white bg-blue-600">
+                              <span className="w-4 h-4 rounded flex items-center justify-center text-xs font-bold">
                                 {channel.channelName?.charAt(0)?.toUpperCase() || 'C'}
                               </span>
                             </div>
@@ -1263,7 +1266,6 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                             }}
                           >
                             {(() => {
-                                  debugger;
                               let score = channel.channelWisewinMeetLoss?.parityScore || 0
                               
                               // Special handling for brand channels that might have different data structure
@@ -1900,12 +1902,21 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                                               // }
                                                         
                                                         // Get rates from API for difference calculation
-                                                        const benchmarkRate = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
+                                                        const benchmarkRateData = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
                                                           const rateDate = new Date(rate.checkInDate)
                                                           return rateDate.getTime() === new Date(dayData.checkInDate).getTime()
-                                                        })?.rate || 0
+                                                        })
+                                                        const benchmarkRate = benchmarkRateData?.rate || 0
 
-                                                        // Always show difference section, even for sold out rates
+                                                        // Check if any rate is '--' (no data, not sold out)
+                                                        const isBenchmarkNoData = benchmarkRate === 0 && benchmarkRateData?.statusMessage !== "Closed"
+                                                        const isChannelNoData = dayData.rate === 0 && dayData.statusMessage !== "Closed"
+                                                        
+                                                        // Hide difference if any rate is '--'
+                                                        if (isBenchmarkNoData || isChannelNoData) {
+                                                          return ''
+                                                        }
+
                                                         const channelRate = dayData.rate || 0
                                                         const difference = benchmarkRate - channelRate
                                                         
@@ -1956,12 +1967,21 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                                               // }
                                                         
                                                         // Get rates from API
-                                                        const benchmarkRate = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
+                                                        const benchmarkRateData = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
                                                           const rateDate = new Date(rate.checkInDate)
                                                           return rateDate.getTime() === new Date(dayData.checkInDate).getTime()
-                                                        })?.rate || 0
+                                                        })
+                                                        const benchmarkRate = benchmarkRateData?.rate || 0
 
-                                                        // Always show difference section, even for sold out rates
+                                                        // Check if any rate is '--' (no data, not sold out)
+                                                        const isBenchmarkNoData = benchmarkRate === 0 && benchmarkRateData?.statusMessage !== "Closed"
+                                                        const isChannelNoData = dayData.rate === 0 && dayData.statusMessage !== "Closed"
+                                                        
+                                                        // Hide difference if any rate is '--'
+                                                        if (isBenchmarkNoData || isChannelNoData) {
+                                                          return <span></span>
+                                                        }
+
                                                         const channelRate = dayData.rate || 0
                                                         const difference = benchmarkRate - channelRate  // Benchmark rate - Channel rate
                                                         
