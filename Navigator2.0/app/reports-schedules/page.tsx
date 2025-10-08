@@ -232,6 +232,7 @@ export default function ScheduledReportsPage() {
   const [editScheduleData, setEditScheduleData] = useState<EditScheduleModel | null>(null)
   const [isLoadingEditData, setIsLoadingEditData] = useState(false)
   const [pendingEditData, setPendingEditData] = useState<EditScheduleModel | null>(null)
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false)
 
   // Delete confirmation modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
@@ -2377,6 +2378,11 @@ export default function ScheduledReportsPage() {
   }
 
   const handleEditScheduleSubmit = async (forceCompleted: boolean = true) => {
+    // Prevent multiple submissions
+    if (isSubmittingEdit) {
+      return
+    }
+
     // Check shops limit first
     const isConsumedHigher = checkShopsLimit(editFormData)
     if (!isConsumedHigher) {
@@ -2401,6 +2407,8 @@ export default function ScheduledReportsPage() {
       setEditFormErrors(prev => ({ ...prev, weekSelection: 'Please select a week' }))
       return
     }
+
+    setIsSubmittingEdit(true)
 
     try {
       // Prepare the schedule report data for edit
@@ -2546,12 +2554,16 @@ export default function ScheduledReportsPage() {
         setSnackbarMessage('Unable to update Report Schedule Request.')
         setSnackbarType('error')
         setShowSnackbar(true)
+        setIsEditModalOpen(false) // Close modal on error
       }
     } catch (error) {
       console.error('Error updating schedule:', error)
       setSnackbarMessage('Unable to update Report Schedule Request.')
       setSnackbarType('error')
       setShowSnackbar(true)
+      setIsEditModalOpen(false) // Close modal on error
+    } finally {
+      setIsSubmittingEdit(false) // Reset loading state
     }
   }
 
@@ -4258,9 +4270,17 @@ export default function ScheduledReportsPage() {
             {packageType === 'Pay-As-You-Go' && (
               <Button
                 onClick={() => handleEditScheduleSubmit(false)}
-                className="h-9 px-4 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                disabled={isSubmittingEdit}
+                className="h-9 px-4 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Schedule
+                {isSubmittingEdit ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  'Schedule'
+                )}
               </Button>
             )}
           </div>
