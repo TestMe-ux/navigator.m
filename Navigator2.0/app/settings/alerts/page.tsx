@@ -1121,6 +1121,9 @@ export default function AlertsSettingsPage() {
   const handleEditAlert = (alertBody: any) => {
 
     if (!selectedProperty?.sid || !alertBody?.type) return;
+    
+    const isInvalid: boolean = validationMessage(activeTab);
+    if (isInvalid) return; // stop execution if validation fails
 
     const objAlertFilter = alertsIds.find(x => x.AlertId === alertBody.AlertID);
     if (!objAlertFilter) return;
