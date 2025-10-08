@@ -534,10 +534,11 @@ export function RateTrendsTable({
   // Show no data state when no live data is available
   if (!rateData || !transformedData.myProperty || tableData.length === 0) {
     return (
-      <div className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 rounded-lg p-8">
-        <div className="text-center space-y-4">
-          <div className="text-slate-500 dark:text-slate-400 text-lg">No rate data available</div>
-          <p className="text-slate-600 dark:text-slate-400">Please check your data source and try again</p>
+      <div className="h-[400px] bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 rounded-lg p-8 flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+          <div className="text-sm text-muted-foreground">Preparing your Rate Trend Analysis...</div>
+          <div className="text-sm text-muted-foreground">Hang tight — your data will appear shortly.</div>
         </div>
       </div>
     )

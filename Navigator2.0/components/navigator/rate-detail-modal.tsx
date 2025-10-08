@@ -32,83 +32,86 @@ export function RateDetailModal({ isOpen, onClose, selectedDate, onPrevDay, onNe
   const [selectedProperties, setSelectedProperties] = useState<string[]>([])
 
   // CSV Download function
-  const handleDownloadCSV = () => {
-    if (!paceData || paceData.length === 0) {
-      console.log("No data available for download")
-      return
-    }
-
-    // Transform data for CSV - only include selected properties
-    const transformedData: any[] = []
-
-    paceData.forEach((pc: any) => {
-      const shopDate = pc.shopDateTime
-      const avgComRate = pc.avgComRate
-
-      if (pc.competitivenessEntity) {
-        let csvRow: any = {
-          Date: format(parseISO(shopDate), "yyyy-MM-dd")
-        }
-
-        pc.competitivenessEntity.priceCompetitivenessRates.forEach((pcr: any) => {
-          // Only include properties that are selected in the chart
-          if (selectedProperties.includes(pcr.propertName)) {
-            if (pcr.isSubscriber) {
-              csvRow[pcr.propertName] = pcr.rate > 0 ? pcr.rate : pcr.status
-            } else if (pcr.propertyID != -1 && pcr.isSubscriber == false) {
-              csvRow[pcr.propertName] = pcr.rate > 0 ? pcr.rate : pcr.status
-            }
-          }
-        })
-
-        // Add avg compset if it's selected
-        if (selectedProperties.includes("Avg. Compset")) {
-          csvRow["Avg. Compset"] = avgComRate > 0 ? avgComRate : "N/A"
-        }
-
-        transformedData.push(csvRow)
-      }
-    })
-
-    // Generate CSV content
-    if (transformedData.length === 0) {
-      console.log("No transformed data available")
-      return
-    }
-
-    // Get all unique column names
-    const allColumns = new Set<string>()
-    transformedData.forEach(row => {
-      Object.keys(row).forEach(key => allColumns.add(key))
-    })
-
-    const headers = Array.from(allColumns)
-    const rows = transformedData.map(row =>
-      headers.map(header => {
-        const value = row[header] || ""
-        // Escape commas and quotes in CSV
-        return typeof value === 'string' && (value.includes(',') || value.includes('"'))
-          ? `"${value.replace(/"/g, '""')}"`
-          : value
-      })
-    )
-
-    const csvContent = [
-      headers.join(","),
-      ...rows.map(row => row.join(","))
-    ].join("\n")
-
-    // Download CSV
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.href = url
-    link.setAttribute("download", `Rate_Evolution_${selectedProperty?.name || 'Data'}_${format(new Date(), 'yyyyMMddHHmmss')}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+const handleDownloadCSV = () => {
+  if (!paceData || paceData.length === 0) {
+    console.log("No data available for download")
+    return
   }
+
+  const transformedData: any[] = []
+
+  paceData.forEach((pc: any) => {
+    const shopDate = pc.shopDateTime
+    const avgComRate = pc.avgComRate
+
+    if (pc.competitivenessEntity) {
+      let csvRow: any = {
+        Date: format(parseISO(shopDate), "yyyy-MM-dd")
+      }
+
+      pc.competitivenessEntity.priceCompetitivenessRates.forEach((pcr: any) => {
+        if (selectedProperties.includes(pcr.propertName)) {
+          const safePropertyName = pcr.propertName
+
+          if (pcr.isSubscriber) {
+            csvRow[safePropertyName] = pcr.rate > 0 ? pcr.rate : pcr.status
+          } else if (pcr.propertyID != -1 && pcr.isSubscriber == false) {
+            csvRow[safePropertyName] = pcr.rate > 0 ? pcr.rate : pcr.status
+          }
+        }
+      })
+
+      if (selectedProperties.includes("Avg. Compset")) {
+        csvRow["Avg. Compset"] = avgComRate > 0 ? avgComRate : "N/A"
+      }
+
+      transformedData.push(csvRow)
+    }
+  })
+
+  if (transformedData.length === 0) {
+    console.log("No transformed data available")
+    return
+  }
+
+  // Collect and escape headers
+  const allColumns = new Set<string>()
+  transformedData.forEach(row => {
+    Object.keys(row).forEach(key => allColumns.add(key))
+  })
+
+  // Escape header names if needed
+  const headers = Array.from(allColumns).map(header =>
+    header.includes(",") || header.includes('"')
+      ? `"${header.replace(/"/g, '""')}"`
+      : header
+  )
+
+  const rows = transformedData.map(row =>
+    headers.map(headerRaw => {
+      const header = headerRaw.replace(/^"|"$/g, '').replace(/""/g, '"') // unescape to match object key
+      const value = row[header] ?? ""
+      return typeof value === 'string' && (value.includes(",") || value.includes('"'))
+        ? `"${value.replace(/"/g, '""')}"`
+        : value
+    })
+  )
+
+  const csvContent = [headers.join(","), ...rows.map(row => row.join(","))].join("\n")
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.href = url
+  link.setAttribute(
+    "download",
+    `Rate_Evolution_${selectedProperty?.name || "Data"}_${format(new Date(), "yyyyMMddHHmmss")}.csv`
+  )
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
 
   // Handle selected properties change from chart
   const handleSelectedPropertiesChange = useCallback((properties: string[]) => {
