@@ -1,6 +1,6 @@
 "use client"
 import React, { useEffect, useMemo, useState } from "react"
-import { BarChart3, Calendar, Star, ChevronLeft, ChevronRight, Zap } from "lucide-react"
+import { BarChart3, Calendar, Star, ChevronLeft, ChevronRight, Zap, Check } from "lucide-react"
 // import { useDateContext } from "@/components/date-context" // Hidden for static data
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { EnhancedTableTooltip } from "./enhanced-table-tooltip"
@@ -8,9 +8,10 @@ import { RateDetailModal } from "./rate-detail-modal"
 import { useScreenSize } from "@/hooks/use-screen-size"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { useComparison } from "../comparison-context"
-import { isSameDay, parseISO, subDays } from "date-fns"
+import { isBefore, isSameDay, parseISO, subDays } from "date-fns"
 import { getInclusionIcon } from "@/lib/inclusion-icons"
 import { CachePage } from "@/lib/rate"
+import { latestShopDateTime } from "@/lib/utils"
 
 interface CalendarDay {
   date: number
@@ -383,7 +384,7 @@ export function RateTrendsTable({
         isWeekend: checkInDate.getDay() === 5 || checkInDate.getDay() === 6,
         eventInfluence: rateEntry.event?.eventDetails?.length > 0 ? rateEntry.event.eventDetails : undefined,
         confidence: undefined,
-        hasLightningRefresh: false,
+        hasLightningRefresh: isBefore(parseISO(latestShopDateTime()), parseISO(rateEntry?.shopDateTime)),
         rateEntry,
         compareRate,
         compareStatus,
@@ -579,7 +580,7 @@ export function RateTrendsTable({
               {(() => {
                 const competitorNames = transformedData.competitors.map(comp => comp.propertName);
                 const visibleCompetitors = competitorNames.slice(competitorStartIndex, competitorStartIndex + competitorsPerPage);
-
+                debugger;
                 // Always show exactly competitorsPerPage columns, fill with placeholders if needed
                 const columnsToShow = [];
                 for (let i = 0; i < competitorsPerPage; i++) {
@@ -879,7 +880,9 @@ export function RateTrendsTable({
                                 <div className="flex items-center" style={{ gap: '8px' }}>
                                   <div className="w-1.5 h-1.5 bg-green-500 rounded-full" style={{ marginLeft: '2px' }}></div>
                                   {row.hasLightningRefresh && (
-                                    <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                    <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                      <Check className="w-2 h-2 text-white stroke-4" />
+                                    </div>
                                   )}
                                 </div>
                               );
@@ -888,14 +891,18 @@ export function RateTrendsTable({
                                 <div className="flex items-center" style={{ gap: '8px' }}>
                                   <div className="w-1.5 h-1.5 bg-red-500 rounded-full" style={{ marginLeft: '2px' }}></div>
                                   {row.hasLightningRefresh && (
-                                    <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                    <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                      <Check className="w-2 h-2 text-white stroke-4" />
+                                    </div>
                                   )}
                                 </div>
                               );
                             }
                           }
                           return row.hasLightningRefresh ? (
-                            <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                            <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                              <Check className="w-2 h-2 text-white stroke-4" />
+                            </div>
                           ) : null;
                         })()}
                       </div>
@@ -998,7 +1005,9 @@ export function RateTrendsTable({
                                         <div className="flex items-center" style={{ gap: '8px' }}>
                                           <div className="w-1.5 h-1.5 bg-green-500 rounded-full" style={{ marginLeft: '2px' }}></div>
                                           {row.hasLightningRefresh && (
-                                            <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                            <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                              <Check className="w-2 h-2 text-white stroke-4" />
+                                            </div>
                                           )}
                                         </div>
                                       );
@@ -1007,14 +1016,18 @@ export function RateTrendsTable({
                                         <div className="flex items-center" style={{ gap: '8px' }}>
                                           <div className="w-1.5 h-1.5 bg-red-500 rounded-full" style={{ marginLeft: '2px' }}></div>
                                           {row.hasLightningRefresh && (
-                                            <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                            <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                              <Check className="w-2 h-2 text-white stroke-4" />
+                                            </div>
                                           )}
                                         </div>
                                       );
                                     }
                                   }
                                   return row.hasLightningRefresh ? (
-                                    <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                    <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                      <Check className="w-2 h-2 text-white stroke-4" />
+                                    </div>
                                   ) : null;
                                 })()}
                               </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AllPropertiesFilterBar } from "@/components/navigator/all-properties-filter-bar"
@@ -15,6 +15,7 @@ import { ChevronDown } from "lucide-react"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
 import { getPricePositioningCluster, getRateTrends } from "@/lib/rate"
 import { conevrtDateforApi } from "@/lib/utils"
+import { GetParityData, GetRateSummaryCluster } from "@/lib/parity"
 
 function AllPropertiesPageContent() {
   const router = useRouter()
@@ -31,8 +32,11 @@ function AllPropertiesPageContent() {
   // Property selector state - will be populated dynamically
   const [selectedProperties, setSelectedProperties] = useState<string[]>([])
   const [clusterData, setClusterData] = useState<any[]>([]);
+  const [cominedData, setCominedData] = useState<any[]>([]);
+
+  const [parityData, setparityData] = useState<any[]>([]);
   const [isPropertySelectorOpen, setIsPropertySelectorOpen] = useState(false)
-  const [displayedPropertiesCount, setDisplayedPropertiesCount] = useState(10)
+  const [displayedPropertiesCount, setDisplayedPropertiesCount] = useState(5)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [losGuest, setLosGuest] = useState<{ "Los": any[], "Guest": any[] }>({ "Los": [], "Guest": [] });
@@ -55,7 +59,7 @@ function AllPropertiesPageContent() {
   useEffect(() => {
     if (availableProperties.length > 0 && selectedProperties.length === 0) {
       // Select first 10 properties by default
-      setSelectedProperties(availableProperties.slice(0, 10))
+      setSelectedProperties(availableProperties.slice(0, 5))
     }
   }, [availableProperties, selectedProperties.length])
 
@@ -70,8 +74,6 @@ function AllPropertiesPageContent() {
     return () => window.removeEventListener('resize', updateScreenWidth)
   }, [])
   useEffect(() => {
-
-
     const channelIds = channelFilter?.channelId ?? [];
     if (
       !startDate ||
@@ -95,6 +97,21 @@ function AllPropertiesPageContent() {
     channelFilter?.channelId?.join(','),
     sideFilter,
     compsetFilter
+  ]);
+  useEffect(() => {
+    if (!startDate ||
+      !endDate ||
+      !selectedProperty?.sid ||
+      selectedChannel.length === 0) return;
+    Promise.all([
+      GetParityDatas()
+    ]);
+  }, [
+    startDate,
+    endDate,
+    selectedProperty?.sid,
+    sideFilter,
+    selectedChannel.join(',') // ✅ fixes re-render from array identity change
   ]);
   const getRateDate = () => {
     const filtersValue = {
@@ -128,10 +145,10 @@ function AllPropertiesPageContent() {
     getPricePositioningCluster(filtersValue, userDetails?.userId)
       .then((res) => {
         if (res.status) {
-          const updatedVisibleProperties = addCompetitivenessToVisibleProperties(res?.body);
-          const sortedClusterData = updatedVisibleProperties.sort((a, b) => (a?.hotels?.name || '').localeCompare(b?.hotels?.name || ''));
-          console.log("ClusterData :", sortedClusterData)
-          setClusterData(sortedClusterData);
+          // const updatedVisibleProperties = addCompetitivenessToVisibleProperties(res?.body);
+          // const sortedClusterData = updatedVisibleProperties.sort((a, b) => (a?.hotels?.name || '').localeCompare(b?.hotels?.name || ''));
+          // console.log("ClusterData :", sortedClusterData)
+          setClusterData(res?.body);
           // setRateData(res.body);
           setLosGuest({ "Los": res.body?.losList, "Guest": res.body?.guestList });
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
@@ -139,18 +156,54 @@ function AllPropertiesPageContent() {
       })
       .catch((err) => console.error(err));
   }
+  const GetParityDatas = () => {
+    const channelIds = channelFilter?.channelId ?? [];
+    if (!selectedProperty?.sid || !startDate || !endDate || channelIds.length === 0) {
+      console.warn('Missing required parameters for parity data fetch');
+      return;
+    }
 
-  function addCompetitivenessToVisibleProperties(visibleProperties: any[]): any[] {
+    // setparityData([]);
+    const filtersValue = {
+      "sid": selectedProperty?.sid,
+      "checkInStartDate": conevrtDateforApi(startDate?.toString()),
+      "checkInEndDate": conevrtDateforApi(endDate?.toString()),
+      "channelName": selectedChannel.map((x: any) => x.cid),
+      "guest": sideFilter?.guest || null,
+      "los": sideFilter?.lengthOfStay || null,
+      "promotion": sideFilter?.rateViewBy?.PromotionText === "All" ? null : sideFilter?.rateViewBy?.PromotionText,
+      "qualification": sideFilter?.rateViewBy?.QualificationText === "All" ? null : sideFilter?.rateViewBy?.QualificationText,
+      "restriction": sideFilter?.rateViewBy?.RestrictionText === "All" ? null : sideFilter?.rateViewBy?.RestrictionText,
+      "hotelsToDisplay": [...allProperties?.filter(x => selectedProperties.includes(x?.name || ''))]
+    }
+
+    GetRateSummaryCluster(filtersValue, userDetails?.userId)
+      .then((res) => {
+        if (res.status) {
+          let parityDatasMain = res.body;
+          setparityData(parityDatasMain);
+          console.log(parityDatasMain)
+          // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
+        }
+      })
+      .catch((err) => {
+        console.error('Parity data fetch failed:', err);
+        setparityData([]);
+      });
+  }
+  useEffect(() => {
     if (
-      !visibleProperties.length ||
-      !visibleProperties[0].pricePositioningEntites.length
-    )
-      return visibleProperties;
+      !clusterData.length ||
+      !clusterData[0].pricePositioningEntites.length ||
+      parityData.length === 0
 
-    const updatedProperties = visibleProperties.map((prop) => ({ ...prop }));
+    )
+      return;
+
+    const updatedProperties = clusterData.map((prop) => ({ ...prop }));
 
     const totalDates =
-      visibleProperties[0].pricePositioningEntites[0].subscriberPropertyRate.map(
+      clusterData[0].pricePositioningEntites[0].subscriberPropertyRate.map(
         (x: any) => x.checkInDateTime
       );
 
@@ -160,7 +213,7 @@ function AllPropertiesPageContent() {
     >();
 
     totalDates.forEach((checkinDate: any) => {
-      visibleProperties.forEach((prop) => {
+      clusterData.forEach((prop) => {
         const priceInner: { key: 'Subscriber' | 'Compset'; value: number }[] = [];
 
         prop.pricePositioningEntites.forEach((positioning: any) => {
@@ -196,8 +249,11 @@ function AllPropertiesPageContent() {
       });
     });
 
-    return updatedProperties.map((prop) => {
+
+    const dataComined = updatedProperties.map((prop) => {
       const comp = competitivenessMap.get(prop.sid);
+      debugger
+      const paritys = parityData.find((x: any) => x.sid === prop.sid);
       const competitiveness =
         comp && comp.denominator > 0
           ? parseFloat(Math.round(comp.value / comp.denominator).toFixed(0))
@@ -226,15 +282,28 @@ function AllPropertiesPageContent() {
           availability = Math.round((countAvailable * 100) / countTotal);
         }
       }
+      let parityDatas = paritys?.violationRateSummaryEntity?.otaViolationChannelRate?.overallWinMeetLoss;
+      let parityScore = 0;
 
+      if (parityDatas != null && (parityDatas.winCount + parityDatas.meetCount + parityDatas.lossCount) != 0) {
+        let win = parityDatas.winCount
+        let meet = parityDatas.meetCount
+        let loss = parityDatas.lossCount
+        parityScore = Math.round(((win + meet) / (win + meet + loss)) * 100)
+      }
+      else {
+        parityScore = 0;
+      }
       return {
         ...prop,
         competitiveness,
         availability,
-        parityScore: 0
+        parityScore
       };
     });
-  }
+    const sortedClusterData = dataComined.sort((a: any, b: any) => (a?.hotels?.name || '').localeCompare(b?.hotels?.name || ''));
+    setCominedData(sortedClusterData);
+  }, [clusterData, parityData]);
 
 
   // Get resolution category and column count
@@ -292,17 +361,17 @@ function AllPropertiesPageContent() {
     // Simulate loading delay
     await new Promise(resolve => setTimeout(resolve, 1500))
 
-    setDisplayedPropertiesCount(prev => Math.min(prev + 10, selectedProperties.length))
+    setDisplayedPropertiesCount(prev => Math.min(prev + 5, selectedProperties.length))
     setIsLoadingMore(false)
   }
 
   // Reset displayed count when selected properties change
   useEffect(() => {
     // Always show 10 properties by default, regardless of selection
-    if (selectedProperties.length <= 10) {
-      setDisplayedPropertiesCount(10)
+    if (selectedProperties.length <= 5) {
+      setDisplayedPropertiesCount(5)
     } else if (displayedPropertiesCount > selectedProperties.length) {
-      setDisplayedPropertiesCount(10)
+      setDisplayedPropertiesCount(5)
     }
   }, [selectedProperties.length, displayedPropertiesCount])
 
@@ -481,7 +550,7 @@ function AllPropertiesPageContent() {
                       competitorStartIndex={0}
                       digitCount={4}
                       selectedProperties={selectedProperties.slice(0, displayedPropertiesCount)}
-                      clusterData={clusterData}
+                      clusterData={cominedData}
                     />
 
                     {/* Load More Properties Button */}
@@ -498,7 +567,7 @@ function AllPropertiesPageContent() {
                               onClick={handleLoadMoreProperties}
                               className="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors duration-200 text-sm bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/50 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md w-full"
                             >
-                              <span>Load {Math.min(10, selectedProperties.length - displayedPropertiesCount)} more properties</span>
+                              <span>Load {Math.min(5, selectedProperties.length - displayedPropertiesCount)} more properties</span>
                               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                               </svg>

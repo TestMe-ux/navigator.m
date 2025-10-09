@@ -121,16 +121,16 @@ export default function RateTrendPage() {
 
     if (isSmall) {
       // Resolution from 1352px to 1500px
-      return selectedDigitCount === 4 ? 4 : selectedDigitCount === 6 ? 3 : 2
+      return selectedDigitCount === 4 ? 4 : selectedDigitCount >= 6 ? 3 : 2
     } else if (isMedium) {
       // Resolution from 1501px to 1800px
-      return selectedDigitCount === 4 ? 5 : selectedDigitCount === 6 ? 4 : 4
+      return selectedDigitCount === 4 ? 5 : selectedDigitCount >= 6 ? 4 : 4
     } else if (isLarge) {
       // Resolution above 1800px
-      return selectedDigitCount === 4 ? 8 : selectedDigitCount === 6 ? 6 : 5
+      return selectedDigitCount === 4 ? 8 : selectedDigitCount >= 6 ? 6 : 5
     } else {
       // Default fallback (for screens < 1352px)
-      return selectedDigitCount === 4 ? 4 : selectedDigitCount === 6 ? 3 : 2
+      return selectedDigitCount === 4 ? 4 : selectedDigitCount >= 6 ? 3 : 2
     }
   }
 
@@ -155,18 +155,20 @@ export default function RateTrendPage() {
   const nextCompetitors = () => {
     setCompetitorStartIndex(prev => {
       debugger
+      console.log(Math.min(prev + getCompetitorsPerPage(), competitorCount));
       // Always move by 5 positions, even if it goes beyond total competitors
-      return Math.min(prev + 4, competitorCount)
+      return Math.min(prev + getCompetitorsPerPage(), competitorCount)
     })
   }
 
   const prevCompetitors = () => {
-    setCompetitorStartIndex(prev => Math.max(0, prev - 4))
+    setCompetitorStartIndex(prev => Math.max(0, prev - getCompetitorsPerPage()))
   }
 
   const canGoNext = () => {
+    debugger;
     // Allow going to next page if we can show at least 1 more competitor
-    return competitorStartIndex + 4 < competitorCount
+    return competitorStartIndex + getCompetitorsPerPage() < competitorCount
   }
 
   const canGoPrev = () => {
