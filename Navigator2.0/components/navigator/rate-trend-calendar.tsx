@@ -131,15 +131,15 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
       const rateDifference = rateValue && compareRate && compRateEntry?.status === 'O' && compareStatus === 'O'
         ? rateValue - compareRate
         : 0;
-      const hasLightningRefresh = !!compRateEntry ? isBefore(parseISO(latestShopDateTime()), parseISO(compRateEntry?.shopDateTime)) : false;
-      // if (!!compRateEntry) console.log("Data dhsjdg" + day + comp.propertName, parseISO(latestShopDateTime()), parseISO(compRateEntry?.shopDateTime))
+      const hasLightningRefresh = !!compRateEntry ? isBefore((latestShopDateTime()), parseISO(compRateEntry?.shopDateTime)) : false;
+       if (!!compRateEntry) console.log("Data dhsjdg" + day + comp.propertName, latestShopDateTime(), compRateEntry?.shopDateTime)
       return {
         hotelName: comp.propertName,
         rate: compRateEntry?.status === 'O' ? `${rateValue.toLocaleString('en-US')}` : compRateEntry?.status === 'C' ? 'Sold Out' : '--',
         rateValue,
         difference: rateDifference !== 0
           ? `${rateDifference > 0 ? '+' : ''}${rateDifference}`
-          : compRateEntry?.status === 'C' ? '' : '--',
+          : compRateEntry?.status === 'C' ? '' : compRateEntry?.status === 'O' && compareStatus === 'O' ? rateDifference.toString() : '--',
         isLowest: false, // Will be set later
         isHighest: false, // Will be set later
         hasInclusion: !!compRateEntry?.inclusion,
@@ -182,7 +182,7 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
       rateValue: myRateValue,
       difference: myRateDifference !== 0
         ? `${myRateDifference > 0 ? '+' : ''}${myRateDifference}`
-        : '--',
+        : myRateEntry?.status === 'C' ? '' : myRateEntry?.status === 'O' && myCompareStatus === 'O' ? myRateDifference.toString() : '--',
       isLowest: false, // Will be set later
       isHighest: false, // Will be set later
       hasInclusion: !!myRateEntry?.inclusion,
@@ -239,7 +239,7 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
 
     return {
       date: day.date,
-      competitors: competitorRates,
+      competitors: competitorRates.sort((x: any, y: any) => x.hotelName.localeCompare(y.hotelName)),
       avgCompsetRate,
       avgCompsetDifference: avgCompsetRateDifference !== 0
         ? `${avgCompsetRateDifference > 0 ? '+' : ''}${avgCompsetRateDifference}`
@@ -448,7 +448,7 @@ const transformLiveDataToCalendarData = (rateData: any, rateCompData: any, start
         hotelLowestRate: rateValue,
         rateDifference: rateDifference !== 0
           ? `${rateDifference > 0 ? '+' : ''}${rateDifference}`
-          : '--',
+          : rateEntry?.status === 'O' && compareStatus === 'O' ? rateDifference.toString() : '--',
         roomType: rateEntry?.productName || "",
         hasInclusion: !!rateEntry?.inclusion,
         inclusionIcon: rateEntry?.inclusion || "",
@@ -723,7 +723,9 @@ function RateTrendCalendarInner({
   // Memoize competitor data to prevent refresh
   const memoizedCompetitorData = useMemo(() => {
     if (!selectedWeekForCompetitors || !rateData || !rateCompData) return []
-    return transformLiveDataToCompetitorData(rateData, rateCompData, selectedWeekForCompetitors, selectedComparison)
+    const transFormData = transformLiveDataToCompetitorData(rateData, rateCompData, selectedWeekForCompetitors, selectedComparison)
+    console.log("transFormData", transFormData)
+    return transFormData
   }, [selectedWeekForCompetitors, rateData, rateCompData, selectedComparison])
 
   // Memoize all competitive data for the entire calendar to prevent constant reloading

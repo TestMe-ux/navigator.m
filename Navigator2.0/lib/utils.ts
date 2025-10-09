@@ -19,8 +19,8 @@ export function escapeCSVValue(value: any) {
   return value ?? "";
 };
 export function latestShopDateTime() {
-  const istNow = new Date(); // current system time
-  const istMinus2Hours = subHours(istNow, 2);
-  return formatInTimeZone(istMinus2Hours, 'Asia/Kolkata', "yyyy-MM-dd'T'HH:mm:ssXXX");
+  const parsedDate = new Date(); // parses ISO date string
+  const minus2Hours = subHours(parsedDate, 2);
 
-};
+  return formatInTimeZone(minus2Hours, 'UTC', "yyyy-MM-dd'T'HH:mm:ss");
+}
