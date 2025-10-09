@@ -384,7 +384,7 @@ export function RateTrendsTable({
         isWeekend: checkInDate.getDay() === 5 || checkInDate.getDay() === 6,
         eventInfluence: rateEntry.event?.eventDetails?.length > 0 ? rateEntry.event.eventDetails : undefined,
         confidence: undefined,
-        hasLightningRefresh: isBefore(parseISO(latestShopDateTime()), parseISO(rateEntry?.shopDateTime)),
+        hasLightningRefresh: !!rateEntry && (rateEntry?.status === 'O' || rateEntry?.status === 'C') ? isBefore(parseISO(latestShopDateTime()), parseISO(rateEntry?.shopDateTime)) : false,
         rateEntry,
         compareRate,
         compareStatus,
@@ -685,7 +685,7 @@ export function RateTrendsTable({
                   variance: compVariance,
                   compareRate: compCompareRate,
                   compareStatus: compCompData?.status,
-
+                  hasLightningRefresh: !!compRateEntry && (compRateEntry?.status === 'O' || compRateEntry?.status === 'C') ? isBefore(parseISO(latestShopDateTime()), parseISO(compRateEntry?.shopDateTime)) : false,
                 };
               });
 
@@ -1004,7 +1004,7 @@ export function RateTrendsTable({
                                       return (
                                         <div className="flex items-center" style={{ gap: '8px' }}>
                                           <div className="w-1.5 h-1.5 bg-green-500 rounded-full" style={{ marginLeft: '2px' }}></div>
-                                          {row.hasLightningRefresh && (
+                                          {competitor.hasLightningRefresh && (
                                             <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
                                               <Check className="w-2 h-2 text-white stroke-4" />
                                             </div>
@@ -1015,7 +1015,7 @@ export function RateTrendsTable({
                                       return (
                                         <div className="flex items-center" style={{ gap: '8px' }}>
                                           <div className="w-1.5 h-1.5 bg-red-500 rounded-full" style={{ marginLeft: '2px' }}></div>
-                                          {row.hasLightningRefresh && (
+                                          {competitor.hasLightningRefresh && (
                                             <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
                                               <Check className="w-2 h-2 text-white stroke-4" />
                                             </div>
@@ -1024,7 +1024,7 @@ export function RateTrendsTable({
                                       );
                                     }
                                   }
-                                  return row.hasLightningRefresh ? (
+                                  return competitor.hasLightningRefresh ? (
                                     <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
                                       <Check className="w-2 h-2 text-white stroke-4" />
                                     </div>
