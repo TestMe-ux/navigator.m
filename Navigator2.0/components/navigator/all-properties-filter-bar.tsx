@@ -128,7 +128,6 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
 
   // Extract distinct cities filtered by selected country
   const distinctCities = React.useMemo(() => {
-    debugger;
     if (!allProperties || allProperties.length === 0) {
       return ["All Cities"]
     }

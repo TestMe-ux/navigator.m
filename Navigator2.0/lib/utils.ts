@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
-import { format } from "date-fns"
+import { format, subHours } from "date-fns"
 import { twMerge } from "tailwind-merge"
+import { formatInTimeZone } from 'date-fns-tz';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -16,4 +17,10 @@ export function escapeCSVValue(value: any) {
     return value;
   }
   return value ?? "";
+};
+export function latestShopDateTime() {
+  const istNow = new Date(); // current system time
+  const istMinus2Hours = subHours(istNow, 2);
+  return formatInTimeZone(istMinus2Hours, 'Asia/Kolkata', "yyyy-MM-dd'T'HH:mm:ssXXX");
+
 };
