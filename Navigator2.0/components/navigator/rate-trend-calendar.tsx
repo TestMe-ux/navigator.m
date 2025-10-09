@@ -131,8 +131,8 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
       const rateDifference = rateValue && compareRate && compRateEntry?.status === 'O' && compareStatus === 'O'
         ? rateValue - compareRate
         : 0;
-      const hasLightningRefresh = !!compRateEntry ? isBefore(parseISO(latestShopDateTime()), parseISO(compRateEntry?.shopDateTime)) : false;
-      // if (!!compRateEntry) console.log("Data dhsjdg" + day + comp.propertName, parseISO(latestShopDateTime()), parseISO(compRateEntry?.shopDateTime))
+      const hasLightningRefresh = !!compRateEntry ? isBefore((latestShopDateTime()), parseISO(compRateEntry?.shopDateTime)) : false;
+       if (!!compRateEntry) console.log("Data dhsjdg" + day + comp.propertName, latestShopDateTime(), compRateEntry?.shopDateTime)
       return {
         hotelName: comp.propertName,
         rate: compRateEntry?.status === 'O' ? `${rateValue.toLocaleString('en-US')}` : compRateEntry?.status === 'C' ? 'Sold Out' : '--',
