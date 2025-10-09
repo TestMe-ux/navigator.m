@@ -131,8 +131,8 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
       const rateDifference = rateValue && compareRate && compRateEntry?.status === 'O' && compareStatus === 'O'
         ? rateValue - compareRate
         : 0;
-      const hasLightningRefresh = !!compRateEntry ? isBefore((latestShopDateTime()), parseISO(compRateEntry?.shopDateTime)) : false;
-       if (!!compRateEntry) console.log("Data dhsjdg" + day + comp.propertName, latestShopDateTime(), compRateEntry?.shopDateTime)
+      const hasLightningRefresh = !!compRateEntry && (compRateEntry?.status === 'O' || compRateEntry?.status === 'C') ? isBefore((latestShopDateTime()), parseISO(compRateEntry?.shopDateTime)) : false;
+      if (!!compRateEntry) console.log("Data dhsjdg" + day + comp.propertName, latestShopDateTime(), compRateEntry?.shopDateTime)
       return {
         hotelName: comp.propertName,
         rate: compRateEntry?.status === 'O' ? `${rateValue.toLocaleString('en-US')}` : compRateEntry?.status === 'C' ? 'Sold Out' : '--',
@@ -429,7 +429,7 @@ const transformLiveDataToCalendarData = (rateData: any, rateCompData: any, start
       const rateDifference = rateValue && compareRate && rateEntry?.status === 'O' && compareStatus === 'O'
         ? rateValue - compareRate
         : 0;
-      const hasLightningRefresh = !!rateEntry ? isBefore(parseISO(latestShopDateTime()), parseISO(rateEntry?.shopDateTime)) : false
+      const hasLightningRefresh = !!rateEntry && (rateEntry?.status === 'O' || rateEntry?.status === 'C') ? isBefore(parseISO(latestShopDateTime()), parseISO(rateEntry?.shopDateTime)) : false
 
       const comparison = rateDifference !== 0
         ? `${rateDifference > 0 ? '+' : ''}${rateDifference} vs. Comp`

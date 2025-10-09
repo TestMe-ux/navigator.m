@@ -438,7 +438,7 @@ const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataRes
         // Direct/Subscriber property
         dateData.directStatus = rateEntry.status === null ? rateEntry.rate : rateEntry.status
         dateData.direct = rate
-        dateData.hasLightningRefresh = !!rateEntry ? isBefore(parseISO(latestShopDateTime()), parseISO(rateEntry?.shopDateTime)) : false;
+        dateData.hasLightningRefresh = !!rateEntry && (rateEntry?.status === 'O' || rateEntry?.status === 'C')? isBefore(parseISO(latestShopDateTime()), parseISO(rateEntry?.shopDateTime)) : false;
         dateData.directInclusion = rateEntry.inclusion || ""
         dateData.compareRate = compData?.rate ? parseFloat(compData.rate) : 0
         dateData.compareStatus = compData?.status === null ? compData.rate : compData?.status
@@ -454,7 +454,7 @@ const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataRes
         const competitorKey = `competitor_${entity.propertyID}`
         dateData[`${competitorKey}_Status`] = rateEntry.status === null ? rateEntry.rate : rateEntry.status
         dateData[competitorKey] = rate
-        dateData[`${competitorKey}_hasLightningRefresh`] = !!rateEntry ? isBefore(parseISO(latestShopDateTime()), parseISO(rateEntry?.shopDateTime)) : false;
+        dateData[`${competitorKey}_hasLightningRefresh`] = !!rateEntry && (rateEntry?.status === 'O' || rateEntry?.status === 'C') ? isBefore(parseISO(latestShopDateTime()), parseISO(rateEntry?.shopDateTime)) : false;
         dateData[`${competitorKey}_name`] = entity.propertName
         dateData[`${competitorKey}_inclusion`] = rateEntry.inclusion || ""
         dateData[`compare${competitorKey}`] = compData?.rate ? parseFloat(compData.rate) : 0
