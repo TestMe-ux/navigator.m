@@ -40,6 +40,7 @@ function AllPropertiesPageContent() {
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingMoreData, setIsLoadingMoreData] = useState(false)
+  const [loadingProperty, setLoadingProperty] = useState<string | null>(null)
   const [losGuest, setLosGuest] = useState<{ "Los": any[], "Guest": any[] }>({ "Los": [], "Guest": [] });
   // Dynamic available properties from allProperties using name field
   const availableProperties = React.useMemo(() => {
@@ -347,13 +348,48 @@ function AllPropertiesPageContent() {
 
   const resolutionInfo = getResolutionInfo()
 
-  // Property selector handlers - copied from Cluster page
-  const handlePropertyToggle = (property: string) => {
-    setSelectedProperties(prev =>
-      prev.includes(property)
-        ? prev.filter(p => p !== property)
-        : [...prev, property]
-    )
+  // Helper function to check if property data exists in cominedData
+  const isPropertyDataLoaded = (propertyName: string) => {
+    return cominedData.some(item => item.hotels?.name === propertyName);
+  }
+
+  // Function to load individual property data
+  const loadIndividualPropertyData = async (propertyName: string) => {
+    try {
+      setLoadingProperty(propertyName);
+      setIsLoadingMoreData(true);
+      
+      // Call APIs with only this individual property
+      await Promise.all([
+        getRateDateWithProperties([propertyName]),
+        GetParityDatasWithProperties([propertyName])
+      ]);
+    } catch (error) {
+      console.error(`Error loading data for property ${propertyName}:`, error);
+    } finally {
+      setLoadingProperty(null);
+      setIsLoadingMoreData(false);
+    }
+  }
+
+  // Property selector handlers - enhanced to load individual property data
+  const handlePropertyToggle = async (property: string) => {
+    const isCurrentlySelected = selectedProperties.includes(property);
+    
+    if (!isCurrentlySelected) {
+      // Adding a new property
+      setSelectedProperties(prev => [...prev, property]);
+      
+      // Check if property data is already loaded
+      if (!isPropertyDataLoaded(property)) {
+        // Load data for this individual property
+        await loadIndividualPropertyData(property);
+      }
+      // If data already exists, just show it (no API call needed)
+    } else {
+      // Removing a property - just hide it, don't call API
+      setSelectedProperties(prev => prev.filter(p => p !== property));
+    }
   }
 
   // Handle "All Properties" selection - copied from Cluster page
@@ -546,6 +582,7 @@ function AllPropertiesPageContent() {
                                             className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
                                             checked={selectedProperties.includes(property)}
                                             onClick={() => handlePropertyToggle(property)}
+                                            disabled={loadingProperty === property}
                                             readOnly
                                           />
                                           <span
@@ -553,6 +590,14 @@ function AllPropertiesPageContent() {
                                           >
                                             {property}
                                           </span>
+                                          <div className="flex items-center gap-2">
+                                            {isPropertyDataLoaded(property) && (
+                                              <div className="w-2 h-2 bg-green-500 rounded-full" title="Data loaded"></div>
+                                            )}
+                                            {loadingProperty === property && (
+                                              <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-600 border-t-transparent"></div>
+                                            )}
+                                          </div>
                                         </label>
                                       ))}
                                     </div>
