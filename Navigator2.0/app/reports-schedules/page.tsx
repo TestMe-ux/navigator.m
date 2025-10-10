@@ -3317,7 +3317,7 @@ export default function ScheduledReportsPage() {
 
       {/* Edit Scheduled Report Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-w-5xl h-[80vh] flex flex-col overflow-hidden z-[999]" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-5xl h-[85vh] flex flex-col overflow-hidden z-[999]" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader className="flex-shrink-0 pb-4 border-b border-gray-200">
             <DialogTitle className="text-xl font-semibold text-black">Edit Scheduled Report</DialogTitle>
           </DialogHeader>
@@ -3371,8 +3371,8 @@ export default function ScheduledReportsPage() {
                       <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isEditChannelsOpen ? 'rotate-180' : ''}`} />
                     </button>
 
-                    {isEditChannelsOpen && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                      {isEditChannelsOpen && (
+                       <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
                         {/* All Channels Option */}
                         <div className="px-3 py-2 border-b border-gray-200">
                           <label className="flex items-center cursor-pointer">
@@ -3599,8 +3599,8 @@ export default function ScheduledReportsPage() {
                         <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isEditGuestsOpen ? 'rotate-180' : ''}`} />
                       </button>
 
-                      {isEditGuestsOpen && (
-                        <div className="absolute z-50 w-full bottom-full mb-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                       {isEditGuestsOpen && (
+                         <div className="absolute z-50 w-full bottom-full mb-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-[180px] overflow-y-auto">
                           {Array.from({ length: 12 }, (_, i) => i + 1).map((number) => (
                             <button
                               key={number}
@@ -3637,8 +3637,8 @@ export default function ScheduledReportsPage() {
                         <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isEditLosOpen ? 'rotate-180' : ''}`} />
                       </button>
 
-                      {isEditLosOpen && (
-                        <div className="absolute z-50 w-full bottom-full mb-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                       {isEditLosOpen && (
+                         <div className="absolute z-50 w-full bottom-full mb-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-[180px] overflow-y-auto">
                           {Array.from({ length: 31 }, (_, i) => i + 1).map((number) => (
                             <label
                               key={number}
@@ -3886,7 +3886,7 @@ export default function ScheduledReportsPage() {
                       </button>
 
                       {isEditFrequencyOpen && (
-                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+                        <div className="absolute z-50 w-full bottom-full mb-1 bg-white border border-gray-300 rounded-md shadow-lg">
                           {[
                             { value: '1', label: 'Daily' },
                             { value: '2', label: 'Weekly' },

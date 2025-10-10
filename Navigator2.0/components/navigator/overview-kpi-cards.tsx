@@ -488,7 +488,7 @@ export function OverviewKpiCards(props: any) {
 
   return (
     <TooltipProvider>
-      <div className="w-full space-y-4">
+      <div className="w-full space-y-4 mb-6">
         {/* KPI Grid - Show loading or actual content */}
         {isLoading ? (
           <div className="grid gap-4 xl:gap-6 grid-cols-1 md:grid-cols-3 xl:grid-cols-3">

@@ -669,7 +669,7 @@ export default function Home() {
                 <div className="space-minimal-xl mt-8">
 
                   {/* Rate Trends Chart - Full width with enhanced styling */}
-                  <div className="animate-fade-in mb-12" data-coach-mark="rate-trends">
+                  <div className="animate-fade-in mb-8" data-coach-mark="rate-trends">
                     <RateTrendsChart rateData={rateData} rateCompData={rateCompData} />
                   </div>
 

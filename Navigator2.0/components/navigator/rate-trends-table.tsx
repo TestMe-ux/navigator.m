@@ -545,10 +545,10 @@ export function RateTrendsTable({
   }
 
   return (
-    <div className={`w-full shadow-xl border border-border/50 bg-white dark:bg-slate-900 ${className || ''}`} style={{ '--rate-column-width': rateColumnWidth } as React.CSSProperties}>
+    <div className={`w-full border-t border-l border-r border-border/50 bg-white dark:bg-slate-900 ${className || ''}`} style={{ '--rate-column-width': rateColumnWidth } as React.CSSProperties}>
 
-      <div className="rounded-lg overflow-hidden">
-        <table key={`table-${digitCount}`} className="w-full relative table-auto">
+      <div className="rounded-b-lg overflow-hidden">
+        <table key={`table-${digitCount}`} className="w-full relative table-auto border-b-0">
           {/* Two-Level Sticky Header */}
           <thead className="bg-gray-50">
             {/* First Header Row - Main Column Groups */}
@@ -572,7 +572,7 @@ export function RateTrendsTable({
               </th>
 
               {/* Subscriber Column Group - updated to 3 columns */}
-              <th colSpan={3} className="bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200">
+              <th colSpan={3} className="bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-b border-gray-200">
                 Subscriber
               </th>
 
@@ -592,7 +592,7 @@ export function RateTrendsTable({
                 }
 
                 return columnsToShow.map((name, index) => (
-                  <th title={name || ""} key={index} colSpan={3} className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200">
+                  <th title={name || ""} key={index} colSpan={3} className={`text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-b border-gray-200 ${index < competitorsPerPage - 1 ? 'border-r border-gray-200' : ''}`}>
                     {name ? (name.length > 15 ? `${name.substring(0, 12)}...` : name) : ''}
                   </th>
                 ));
@@ -636,10 +636,10 @@ export function RateTrendsTable({
                     <th className="bg-gray-50 text-left py-1.5 pl-2 font-medium text-[10px] text-muted-foreground whitespace-nowrap" style={{ width: rateColumnWidth, minWidth: rateColumnWidth, maxWidth: rateColumnWidth }}>
                       {name ? `Rate (\u200E ${selectedProperty?.currencySymbol ?? "$"}\u200E)` : ''}
                     </th>
-                    <th className={`text-left py-1.5 pl-3 font-semibold text-xs text-muted-foreground ${name ? 'border-r border-gray-200' : ''}`} style={{ width: '10px' }}>
+                    <th className={`text-left py-1.5 pl-3 font-semibold text-xs text-muted-foreground ${name && compIndex < competitorsPerPage - 1 ? 'border-r border-gray-200' : ''}`} style={{ width: '10px' }}>
 
                     </th>
-                    <th className={`text-center py-1.5 px-0.5 font-medium text-[10px] text-muted-foreground ${name ? 'border-r border-gray-200' : ''}`} style={{ width: '24px' }}>
+                    <th className={`text-center py-1.5 px-0.5 font-medium text-[10px] text-muted-foreground ${name && compIndex < competitorsPerPage - 1 ? 'border-r border-gray-200' : ''}`} style={{ width: '24px' }}>
                       {name ? 'Rank' : ''}
                     </th>
                   </React.Fragment>
@@ -715,13 +715,13 @@ export function RateTrendsTable({
               return (
                 <tr
                   key={row.id}
-                  className={`${isLastRow ? 'rounded-b-lg' : 'border-b border-gray-200'} group hover:bg-gray-50`}
+                  className={`${isLastRow ? '' : 'border-b border-gray-200'} group hover:bg-gray-50`}
                 >
                   {/* Date Column */}
                   <td className="bg-white group-hover:bg-gray-50 py-2 pl-3 pr-1 font-medium text-foreground text-sm border-r border-gray-200 align-top" style={{ width: '114px' }}>
                     <div className="flex flex-col">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1" data-coach-mark="rate-trends-evolution-graph">
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -908,7 +908,7 @@ export function RateTrendsTable({
 
 
                   {/* Subscriber - Rank */}
-                  <td className="bg-blue-50 group-hover:bg-blue-100 py-2 px-0.5 text-center text-sm border-r border-b border-gray-200 align-top" style={{ width: '14px' }}>
+                  <td className="bg-blue-50 group-hover:bg-blue-100 py-2 px-0.5 text-center text-sm border-r border-gray-200 align-top" style={{ width: '14px' }}>
                     {subscriberRank}
                   </td>
 
@@ -981,7 +981,7 @@ export function RateTrendsTable({
                         </td>
 
                         {/* Inc */}
-                        <td className={`py-2 pl-3 text-left text-sm group-hover:bg-gray-50 ${competitor ? 'border-r border-gray-200' : ''}`} style={{ width: '10px' }}>
+                        <td className={`py-2 pl-3 text-left text-sm group-hover:bg-gray-50 ${competitor && compIndex < competitorsPerPage - 1 ? 'border-r border-gray-200' : ''}`} style={{ width: '10px' }}>
                           {competitor ? (
                             <div className="flex flex-col items-start justify-center">
                               <div className="flex items-center justify-start" style={{ minHeight: '20px' }}>
@@ -1041,7 +1041,7 @@ export function RateTrendsTable({
                         </td>
 
                         {/* Rank */}
-                        <td className={`py-2 px-0.5 text-center text-sm group-hover:bg-gray-50 align-top ${competitor ? 'border-r border-gray-200' : ''}`} style={{ width: '24px' }}>
+                        <td className={`py-2 px-0.5 text-center text-sm group-hover:bg-gray-50 align-top ${competitor && compIndex < competitorsPerPage - 1 ? 'border-r border-gray-200' : ''}`} style={{ width: '24px' }}>
                           {competitor ? sortedRates.indexOf(competitor.rate) + 1 > 0 ? sortedRates.indexOf(competitor.rate) + 1 : '--' : ''}
                         </td>
                       </React.Fragment>
