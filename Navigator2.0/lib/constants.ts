@@ -1,11 +1,13 @@
 export class Constants {
     public static readonly API_GET_ChannelList = "Tax/GetChannelList";
+    public static readonly API_GET_GetChannelListCluster = "Tax/GetChannelListCluster";
     public static readonly API_GET_GetCompletecCompset = "Compset/GetCompletecCompset";
     public static readonly API_GET_GetTagProducts = "Mapping/GetTagProducts";
     public static readonly API_GET_GetTagInclusions = "Mapping/GetTagInclusions";
     public static readonly API_GET_OTARankOnAllChannel = "OTARank/GetOTARankOnAllChannel";
     public static readonly API_GET_OTAChannels = "OTARank/GetOTAChannels";
     public static readonly ParityAPI_GET_Parity = "Parity/GetRateSummary";
+    public static readonly ParityAPI_GET_GetRateSummaryCluster = "Parity/GetRateSummaryCluster";
     public static readonly API_GET_BRGCalculationSetting = "BRG/GetBRGCalculationSetting";
     public static readonly API_GET_Mapping_GetSIDListforUser = "GeneralSettings/GetSIDListforUser";
     public static readonly API_SET_Login = "UserRole/Login";
@@ -15,6 +17,7 @@ export class Constants {
     public static readonly DemandAPI_GET_DemandAI = "DemandAI/getOptimaDemandData";
     public static readonly API_GET_GetAllEvents = "Events/GetAllEvents";
     public static readonly API_GetRateTrend = "RateTrend/GetPricePositioning"
+    public static readonly API_GetPricePositioningCluster = "RateTrend/GetPricePositioningCluster";
     public static readonly API_POST_PPExcelDownload = "DownloadReport/PPExcelDownload"; 
     public static readonly API_POST_CachePage = "RateTrend/SetCachePageDataToRedish";
     public static readonly API_GET_GetAllHoliday = "Events/GetALLHolidayList";
@@ -79,4 +82,12 @@ export class Constants {
     public static readonly API_UPDATE_Alerts = "Alert/update";
     public static readonly API_SAVE_Alerts = "Alert/insert";
 
+    
+  // Tax Settings APIs
+  public static readonly API_GET_TaxPreference = "Tax/GetTaxPreference";
+  public static readonly API_SET_TaxPreference = "Tax/SetTaxPreference";
+  public static readonly API_GET_TaxSetting = "Tax/GetTaxSetting";
+  public static readonly API_GET_CurrencyCode = "Tax/GetCurrencyCodeForSID";
+  public static readonly API_SET_TaxSetting = "Tax/SetTaxSetting";
+  public static readonly API_DELETE_TaxSetting = "Tax/DeleteTaxSetting";
 }

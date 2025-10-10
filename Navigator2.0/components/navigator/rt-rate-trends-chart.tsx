@@ -11,11 +11,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { TrendingUp, Filter, Download, ChevronDown, Eye, EyeOff, ArrowUp, ArrowDown, Minus, BarChart3, Star, Maximize2, Calendar, Zap, Check } from "lucide-react"
 // import { useDateContext } from "@/components/date-context" // Hidden for static data
-import { format, eachDayOfInterval, differenceInDays, isSameDay, parseISO, subDays } from "date-fns"
+import { format, eachDayOfInterval, differenceInDays, isSameDay, parseISO, subDays, isBefore } from "date-fns"
 import { Tooltip as RechartsTooltip } from "recharts"
 // import { LocalStorageService } from "@/lib/localstorage" // Removed - using static data only
 import { toPng } from "html-to-image";
-import { escapeCSVValue } from "@/lib/utils"
+import { escapeCSVValue, latestShopDateTime } from "@/lib/utils"
 import { getInclusionIcon } from "@/lib/inclusion-icons"
 import { RateDetailModal } from "./rate-detail-modal"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
@@ -43,7 +43,7 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate, digitCount = 
   }
   if (active && payload && payload.length) {
     const data = payload[0]?.payload
-
+    debugger;
     // Check if any rate has more than 4 digits
     const ratesLength =
       payload.find((entry: any) => entry?.value != null && entry.value !== '')?.value
@@ -196,6 +196,7 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate, digitCount = 
               const avgCompStatus = isAvgCompset ? data.avgCompsetStatus : "";
               const compareavgCompsetStatus = isAvgCompset ? data.compareavgCompsetStatus : "";
               const compareRate = isMyHotel ? data.compareRate : data[`compare${competitorKey}`];
+              
 
               // Get inclusion data for current period
               const inclusionKey = `${competitorKey}_inclusion`;
@@ -252,24 +253,16 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate, digitCount = 
                     }`}>
                     {/* Show different icons based on date for specific competitors */}
                     {(() => {
-                      const date = new Date(data.date)
-                      const dayOfMonth = date.getDate()
-                      const month = date.getMonth() + 1 // getMonth() returns 0-11, so add 1
-                      // Show icons only for specific competitors (index 0, 2, 4) on Jan 2, 3 and 4
-                      const shouldShowIcon = month === 1 && (dayOfMonth === 2 || dayOfMonth === 3 || dayOfMonth === 4) && (index === 0 || index === 2 || index === 4)
+                     const hasLightningRefresh = isMyHotel ? data.hasLightningRefresh : data[`${competitorKey}_hasLightningRefresh`];
+                      if (!hasLightningRefresh) return null
 
-                      if (!shouldShowIcon) return null
-
-                      if (dayOfMonth === 2) {
+                      if (hasLightningRefresh) {
                         // Jan 2: Green tick icon with white checkmark
                         return (
                           <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center mr-2">
                             <Check className="w-2 h-2 text-white stroke-4" />
                           </div>
                         )
-                      } else {
-                        // Jan 3, 4: Blue bolt icon
-                        return <Zap className="w-3 h-3 text-blue-500 fill-current mr-2" />
                       }
                     })()}
                     <span className="text-sm font-bold">
@@ -445,6 +438,7 @@ const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataRes
         // Direct/Subscriber property
         dateData.directStatus = rateEntry.status === null ? rateEntry.rate : rateEntry.status
         dateData.direct = rate
+        dateData.hasLightningRefresh = !!rateEntry && (rateEntry?.status === 'O' || rateEntry?.status === 'C')? isBefore(parseISO(latestShopDateTime()), parseISO(rateEntry?.shopDateTime)) : false;
         dateData.directInclusion = rateEntry.inclusion || ""
         dateData.compareRate = compData?.rate ? parseFloat(compData.rate) : 0
         dateData.compareStatus = compData?.status === null ? compData.rate : compData?.status
@@ -460,6 +454,7 @@ const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataRes
         const competitorKey = `competitor_${entity.propertyID}`
         dateData[`${competitorKey}_Status`] = rateEntry.status === null ? rateEntry.rate : rateEntry.status
         dateData[competitorKey] = rate
+        dateData[`${competitorKey}_hasLightningRefresh`] = !!rateEntry && (rateEntry?.status === 'O' || rateEntry?.status === 'C') ? isBefore(parseISO(latestShopDateTime()), parseISO(rateEntry?.shopDateTime)) : false;
         dateData[`${competitorKey}_name`] = entity.propertName
         dateData[`${competitorKey}_inclusion`] = rateEntry.inclusion || ""
         dateData[`compare${competitorKey}`] = compData?.rate ? parseFloat(compData.rate) : 0

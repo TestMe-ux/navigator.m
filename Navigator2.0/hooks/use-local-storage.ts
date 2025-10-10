@@ -88,7 +88,7 @@ type SelectedProperty = {
   name?: string;
   odRestrictionDays?: number;
   optimaTrialStatus?: number;
-  pghEndDate?: string| Date; // ISO date string
+  pghEndDate?: string | Date; // ISO date string
   pghStartDate?: string; // ISO date string
   roleID?: number;
   sid?: number;
@@ -122,3 +122,6 @@ export function useUserDetail(): [UserDetails, (value: UserDetails) => void] {
   return useLocalStorage<UserDetails>('UserDetails', null)
 }
 
+export function useAllProperty(): [SelectedProperty[], (value: SelectedProperty[]) => void] {
+  return useLocalStorage<SelectedProperty[]>('Properties', [])
+}

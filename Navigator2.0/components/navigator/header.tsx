@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { useState, useCallback, useMemo, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
@@ -13,6 +14,7 @@ import { Upload, X, Send } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { ChevronDown, UserCircle, Search, Bell, Menu, Activity } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { NotificationDrawer } from "@/components/notification-drawer"
 import { GetSIDListforUser } from "@/lib/login"
 import { LocalStorageService } from "@/lib/localstorage"
 import { useUserDetail } from "@/hooks/use-local-storage"
@@ -143,11 +145,14 @@ export function Header() {
 
         {/* Left Side - Application Branding */}
         <Link href="/login" className="flex-shrink-0 flex items-center gap-3 justify-center pl-1 hover:opacity-80 transition-opacity">
-          <div className="p-2 rounded-lg bg-white/10 backdrop-blur-sm">
-            <Activity className="w-5 h-5 text-white" />
-          </div>
-          <div className="hidden sm:block">
-            <h1 className="text-lg font-bold text-white">Navigator</h1>
+          <div className="hidden sm:block ml-1">
+            <Image 
+              src="/logo.svg" 
+              alt="Navigator Logo" 
+              width={130} 
+              height={31} 
+              className="h-[31px] w-auto"
+            />
           </div>
         </Link>
 
@@ -216,7 +221,7 @@ export function Header() {
         </nav>
 
         {/* Right Side Actions */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 pr-5">
 
           {/* Hotel Selector */}
           <TooltipProvider>
@@ -296,26 +301,10 @@ export function Header() {
           </TooltipProvider>
 
           {/* Notifications */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-blue-100 hover:text-white hover:bg-white/10 relative transition-all duration-200"
-          >
-            <Bell className="h-5 w-5" />
-            {notificationCount > 0 && (
-              <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse-glow">
-                {notificationCount}
-              </span>
-            )}
-            <span className="sr-only">Notifications ({notificationCount})</span>
-          </Button>
+          <NotificationDrawer notificationCount={notificationCount} />
 
-          {/* Theme Toggle */}
-          <div className="hidden sm:block">
-            <ThemeToggle />
-          </div>
-
-
+          {/* Spacer */}
+          <div className="w-1"></div>
 
           {/* User Profile */}
           <DropdownMenu>
