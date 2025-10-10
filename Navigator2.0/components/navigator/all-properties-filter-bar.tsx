@@ -61,7 +61,9 @@ interface AllPropertiesFilterBarProps {
   onMoreFiltersClick?: () => void,
   setSelectedChannel?: any,
   viewMode?: string,
-  setViewMode?: (mode: string) => void
+  setViewMode?: (mode: string) => void,
+  onCountryChange?: (countries: string[]) => void,
+  onCityChange?: (cities: string[]) => void
 }
 
 /**
@@ -79,7 +81,7 @@ interface AllPropertiesFilterBarProps {
  * @component
  * @version 1.0.0
  */
-export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel, viewMode = "All Properties", setViewMode }: AllPropertiesFilterBarProps) {
+export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel, viewMode = "All Properties", setViewMode, onCountryChange, onCityChange }: AllPropertiesFilterBarProps) {
   const [selectedProperty] = useSelectedProperty()
   const [userDetails] = useUserDetail()
   const [allProperties] = useAllProperty()
@@ -172,6 +174,9 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
       setIsCityOpen(false)
       setIsChannelOpen(false)
     }
+    else{
+      onCountryChange?.(selectedCountries)
+    }
   }
 
   const handleCityOpenChange = (open: boolean) => {
@@ -195,52 +200,53 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
 
   // Selection handlers - updated to work with dynamic data
   const handleCountryToggle = (country: string) => {
-    debugger;
+    let newSelection: string[] = []
+    
     if (country === "All Countries") {
       if (selectedCountries.includes("All Countries")) {
-        setSelectedCountries([])
+        newSelection = []
       } else {
-        setSelectedCountries(distinctCountries)
+        newSelection = distinctCountries
       }
     } else {
-      setSelectedCountries((prev: string[]) => {
-        const newSelection = prev.includes(country)
-          ? prev.filter(c => c !== country && c !== "All Countries")
-          : [...prev.filter(c => c !== "All Countries"), country]
+      newSelection = selectedCountries.includes(country)
+        ? selectedCountries.filter(c => c !== country && c !== "All Countries")
+        : [...selectedCountries.filter(c => c !== "All Countries"), country]
 
-        // If all individual countries are selected, select "All Countries"
-        const individualCountries = distinctCountries.filter(c => c !== "All Countries")
-        if (individualCountries.every(c => newSelection.includes(c))) {
-          return ["All Countries", ...individualCountries]
-        }
-
-        return newSelection
-      })
+      // If all individual countries are selected, select "All Countries"
+      const individualCountries = distinctCountries.filter(c => c !== "All Countries")
+      if (individualCountries.every(c => newSelection.includes(c))) {
+        newSelection = ["All Countries", ...individualCountries]
+      }
     }
+    
+    setSelectedCountries(newSelection)
+    
   }
 
   const handleCityToggle = (city: string) => {
+    let newSelection: string[] = []
+    
     if (city === "All Cities") {
       if (selectedCities.includes("All Cities")) {
-        setSelectedCities([])
+        newSelection = []
       } else {
-        setSelectedCities(distinctCities)
+        newSelection = distinctCities
       }
     } else {
-      setSelectedCities((prev: string[]) => {
-        const newSelection = prev.includes(city)
-          ? prev.filter(c => c !== city && c !== "All Cities")
-          : [...prev.filter(c => c !== "All Cities"), city]
+      newSelection = selectedCities.includes(city)
+        ? selectedCities.filter(c => c !== city && c !== "All Cities")
+        : [...selectedCities.filter(c => c !== "All Cities"), city]
 
-        // If all individual cities are selected, select "All Cities"
-        const individualCities = distinctCities.filter(c => c !== "All Cities")
-        if (individualCities.every(c => newSelection.includes(c))) {
-          return ["All Cities", ...individualCities]
-        }
-
-        return newSelection
-      })
+      // If all individual cities are selected, select "All Cities"
+      const individualCities = distinctCities.filter(c => c !== "All Cities")
+      if (individualCities.every(c => newSelection.includes(c))) {
+        newSelection = ["All Cities", ...individualCities]
+      }
     }
+    
+    setSelectedCities(newSelection)
+    onCityChange?.(newSelection)
   }
 
   const handleChannelToggle = React.useCallback((channel: any, channelData: any) => {

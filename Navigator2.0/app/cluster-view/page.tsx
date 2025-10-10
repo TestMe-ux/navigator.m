@@ -28,6 +28,8 @@ function AllPropertiesPageContent() {
   const [selectedChannel, setSelectedChannel] = useState([])
   const [viewMode, setViewMode] = useState("All Properties")
   const [screenWidth, setScreenWidth] = useState(0)
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([])
+  const [selectedCities, setSelectedCities] = useState<string[]>([])
 
   // Property selector state - will be populated dynamically
   const [selectedProperties, setSelectedProperties] = useState<string[]>([])
@@ -42,28 +44,57 @@ function AllPropertiesPageContent() {
   const [isLoadingMoreData, setIsLoadingMoreData] = useState(false)
   const [loadingProperty, setLoadingProperty] = useState<string | null>(null)
   const [losGuest, setLosGuest] = useState<{ "Los": any[], "Guest": any[] }>({ "Los": [], "Guest": [] });
-  // Dynamic available properties from allProperties using name field
+  // Dynamic available properties from allProperties filtered by country and city
   const availableProperties = React.useMemo(() => {
     if (!allProperties || allProperties.length === 0) {
       return []
     }
 
-    const properties = allProperties
+    let filteredProperties = allProperties
+
+    // Filter by selected countries if any are selected
+    if (selectedCountries.length > 0 && !selectedCountries.includes("All Countries")) {
+      filteredProperties = filteredProperties.filter((property: any) =>
+        property?.country && selectedCountries.includes(property.country)
+      )
+    }
+
+    // Filter by selected cities if any are selected
+    if (selectedCities.length > 0 && !selectedCities.includes("All Cities")) {
+      filteredProperties = filteredProperties.filter((property: any) =>
+        property?.city && selectedCities.includes(property.city)
+      )
+    }
+
+    const properties = filteredProperties
       .map((property: any) => property?.name)
       .filter((name: any): name is string => Boolean(name))
       .filter((name: string, index: number, array: string[]) => array.indexOf(name) === index) // Remove duplicates
       .sort()
 
     return properties
-  }, [allProperties])
+  }, [allProperties, selectedCountries, selectedCities])
 
   // Initialize selected properties when availableProperties changes
   useEffect(() => {
     if (availableProperties.length > 0 && selectedProperties.length === 0) {
-      // Select first 10 properties by default
+      // Select first 5 properties by default
       setSelectedProperties(availableProperties.slice(0, 5))
     }
   }, [availableProperties, selectedProperties.length])
+
+  // Reset selected properties when country/city filter changes
+  useEffect(() => {
+    debugger;
+    // Filter out properties that are no longer available due to country/city filtering
+    const validProperties = selectedProperties.filter(prop => availableProperties.includes(prop))
+    
+    if (validProperties.length !== selectedProperties.length) {
+      setSelectedProperties(validProperties)
+      // Reset displayed count when properties change
+      setDisplayedPropertiesCount(Math.min(5, validProperties.length))
+    }
+  }, [availableProperties])
 
   // Track screen width for resolution indicator
   useEffect(() => {
@@ -437,7 +468,7 @@ function AllPropertiesPageContent() {
     } catch (error) {
       console.error('Error loading more properties:', error)
     } finally {
-      setIsLoadingMore(false)
+    setIsLoadingMore(false)
       setIsLoadingMoreData(false)
     }
   }
@@ -495,6 +526,8 @@ function AllPropertiesPageContent() {
               setSelectedChannel={setSelectedChannel}
               viewMode={viewMode}
               setViewMode={handleViewModeChange}
+              onCountryChange={setSelectedCountries}
+              onCityChange={setSelectedCities}
             />
           </div>
 
@@ -608,9 +641,9 @@ function AllPropertiesPageContent() {
                           </DropdownMenu>
 
                           {/* Resolution Section - next to dropdown */}
-                          <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-xs font-medium rounded">
+                          {/* <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-xs font-medium rounded">
                             {screenWidth}px | {resolutionInfo.category} | {resolutionInfo.columns} cols
-                          </div>
+                          </div> */}
                         </div>
 
                         {/* Helper Text - below heading and dropdown, left aligned */}
