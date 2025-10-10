@@ -925,7 +925,7 @@ function RateTrendCalendarInner({
     }
 
     return (
-      <div className="w-full shadow-xl border border-border/50 rounded-lg bg-white dark:bg-slate-900">
+      <div className="w-full bg-white dark:bg-slate-900">
         <div>
           <table className="w-full relative table-fixed">
             {/* Two-Level Sticky Header */}
@@ -933,32 +933,32 @@ function RateTrendCalendarInner({
               {/* First Header Row - Main Column Groups */}
               <tr className="border-b border-gray-200">
                 {/* Sticky Date Column */}
-                <th rowSpan={2} className="sticky left-0 z-30 bg-gray-50 text-left py-1.5 pl-4 pr-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-36" style={{ width: '141px' }}>
+                <th rowSpan={2} className="sticky left-0 z-30 bg-gray-50 text-left py-1.5 pl-4 pr-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-36" style={{ width: '141px' }}>
                   Date
                 </th>
 
                 {/* Sticky Demand Column */}
-                <th rowSpan={2} className="sticky left-40 z-30 bg-gray-50 text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-15" style={{ width: '60px' }}>
+                <th rowSpan={2} className="sticky left-40 z-30 bg-gray-50 text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-15" style={{ width: '60px' }}>
                   Demand
                 </th>
 
                 {/* Sticky Avg. Compset Column Group */}
-                <th colSpan={2} className="sticky left-56 z-30 bg-gray-50 text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-24">
+                <th colSpan={2} className="sticky left-56 z-30 bg-gray-50 text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-24">
                   Avg. Compset
                 </th>
 
                 {/* Sticky Subscriber Column Group */}
-                <th colSpan={4} className="sticky left-84 z-30 bg-blue-50 text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-40">
+                <th colSpan={4} className="sticky left-84 z-30 bg-blue-50 text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-40">
                   Subscriber
                 </th>
 
                 {/* Competitor Hotel 1 */}
-                <th colSpan={4} className="text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-40">
+                <th colSpan={4} className="text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-40">
                   Comfort Hotel..
                 </th>
 
                 {/* Competitor Hotel 2 */}
-                <th colSpan={4} className="text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-40">
+                <th colSpan={4} className="text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-40">
                   acom Hotel B..
                 </th>
 
@@ -967,52 +967,52 @@ function RateTrendCalendarInner({
               {/* Second Header Row - Sub Columns */}
               <tr className="border-b border-gray-200">
                 {/* Avg. Compset Sub-columns */}
-                <th className="sticky left-56 z-30 bg-gray-50 text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
+                <th className="sticky left-56 z-30 bg-gray-50 text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-12">
                   €
                 </th>
-                <th className="sticky left-68 z-30 bg-gray-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
+                <th className="sticky left-68 z-30 bg-gray-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-12">
                   ⟂⇂
                 </th>
 
                 {/* Subscriber Sub-columns */}
-                <th className="sticky left-84 z-30 bg-blue-50 text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-16" style={{ width: '64px' }}>
+                <th className="sticky left-84 z-30 bg-blue-50 text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-16" style={{ width: '64px' }}>
                   €
                 </th>
-                <th className="sticky left-96 z-30 bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
+                <th className="sticky left-96 z-30 bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-12">
                   ⟂⇂
                 </th>
-                <th className="sticky left-108 z-30 bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+                <th className="sticky left-108 z-30 bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-8">
                   <Utensils className="w-3 h-3 mx-auto" />
                 </th>
-                <th className="sticky left-116 z-30 bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+                <th className="sticky left-116 z-30 bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-8">
                   #
                 </th>
 
                 {/* Comfort Hotel Sub-columns */}
-                <th className="text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-16" style={{ width: '64px' }}>
+                <th className="text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-16" style={{ width: '64px' }}>
                   €
                 </th>
-                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
+                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-12">
                   ⟂⇂
                 </th>
-                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-8">
                   <Utensils className="w-3 h-3 mx-auto" />
                 </th>
-                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-8">
                   #
                 </th>
 
                 {/* acom Hotel Sub-columns */}
-                <th className="text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-16" style={{ width: '64px' }}>
+                <th className="text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-16" style={{ width: '64px' }}>
                   €
                 </th>
-                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
+                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-12">
                   ⟂⇂
                 </th>
-                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-8">
                   <Utensils className="w-3 h-3 mx-auto" />
                 </th>
-                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-8">
                   #
                 </th>
 

@@ -479,7 +479,7 @@ function OTARankView({
                                           <TooltipTrigger asChild>
                                             <span className="text-red-600 dark:text-red-400 font-semibold text-sm cursor-help">#500+</span>
                                           </TooltipTrigger>
-                                          <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                          <TooltipContent side={index < 2 ? "right" : "top"} className={index < 2 ? "p-2 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[9999]" : "p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[9999]"} sideOffset={index < 2 ? 15 : 5}>
                                             <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
                                           </TooltipContent>
                                         </Tooltip>
@@ -489,7 +489,7 @@ function OTARankView({
                                           <TooltipTrigger asChild>
                                             <Info className="w-3 h-3 text-red-600 dark:text-red-400 cursor-help transition-colors" />
                                           </TooltipTrigger>
-                                          <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                          <TooltipContent side={index < 2 ? "right" : "top"} className={index < 2 ? "p-2 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[9999]" : "p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[9999]"} sideOffset={index < 2 ? 15 : 5}>
                                             <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
                                           </TooltipContent>
                                         </Tooltip>

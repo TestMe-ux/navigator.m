@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus, Trash2, History, User, MoreVertical, Edit, CheckCircle, X, Camera } from "lucide-react"
+import { Search, Plus, Trash2, History, User, MoreVertical, Edit, CheckCircle, X, Camera, Check } from "lucide-react"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { getActivePageMaster, getUserHistory, getUsers, addUpdateUser, uploadImage } from "@/lib/userManagement"
@@ -1057,10 +1057,18 @@ export default function UserManagementPage() {
                               </div>
                             </td>
                             <td className="px-4 py-2 text-center text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-20">
-                              {changeWithId.emailAccess ? "true" : "false"}
+                              {changeWithId.emailAccess ? (
+                                <Check className="w-4 h-4 text-green-600 dark:text-green-400 mx-auto" />
+                              ) : (
+                                <X className="w-4 h-4 text-red-600 dark:text-red-400 mx-auto" />
+                              )}
                             </td>
                             <td className="px-4 py-2 text-center text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-24">
-                              {changeWithId.interfaceAccess ? "true" : "false"}
+                              {changeWithId.interfaceAccess ? (
+                                <Check className="w-4 h-4 text-green-600 dark:text-green-400 mx-auto" />
+                              ) : (
+                                <X className="w-4 h-4 text-red-600 dark:text-red-400 mx-auto" />
+                              )}
                             </td>
                             <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-32">
                               <div className="truncate" title={changeWithId.defaultLandingPage}>
