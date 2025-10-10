@@ -939,7 +939,7 @@ debugger
         </div>
 
         {/* Main Rate Trend Content */}
-        <div className="relative bg-white dark:bg-slate-900 shadow-xl border border-border/50 rounded-lg">
+        <div className="relative bg-white dark:bg-slate-900 border border-border/50 rounded-lg">
           {/* Table View Heading - Only visible when table view is active */}
           {currentView === "table" && (
             <div className="absolute left-4 lg:left-6 z-10 flex items-center" style={{ top: 'calc(1rem + 2px)' }}>
