@@ -39,6 +39,7 @@ function AllPropertiesPageContent() {
   const [displayedPropertiesCount, setDisplayedPropertiesCount] = useState(5)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingMoreData, setIsLoadingMoreData] = useState(false)
   const [losGuest, setLosGuest] = useState<{ "Los": any[], "Guest": any[] }>({ "Los": [], "Guest": [] });
   // Dynamic available properties from allProperties using name field
   const availableProperties = React.useMemo(() => {
@@ -113,7 +114,8 @@ function AllPropertiesPageContent() {
     sideFilter,
     selectedChannel.join(',') // ✅ fixes re-render from array identity change
   ]);
-  const getRateDate = () => {
+  const getRateDate = (propertiesToUse?: string[]) => {
+    const properties = propertiesToUse || selectedProperties;
     const filtersValue = {
       "SID": selectedProperty?.sid,
       "channels": (channelFilter?.channelId?.length ?? 0) > 0 ? channelFilter.channelId : [-1],
@@ -140,9 +142,9 @@ function AllPropertiesPageContent() {
       "compsetRatesRequired": true,
       "propertiesText": [],
       "isSecondary": compsetFilter,
-      "hotelsToDisplay": [...allProperties?.filter(x => selectedProperties.includes(x?.name || ''))]
+      "hotelsToDisplay": [...allProperties?.filter(x => properties.includes(x?.name || ''))]
     }
-    getPricePositioningCluster(filtersValue, userDetails?.userId)
+    return getPricePositioningCluster(filtersValue, userDetails?.userId)
       .then((res) => {
         if (res.status) {
           // const updatedVisibleProperties = addCompetitivenessToVisibleProperties(res?.body);
@@ -153,14 +155,25 @@ function AllPropertiesPageContent() {
           setLosGuest({ "Los": res.body?.losList, "Guest": res.body?.guestList });
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
+        return res;
       })
-      .catch((err) => console.error(err));
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
   }
-  const GetParityDatas = () => {
+
+  // Helper function for load more functionality
+  const getRateDateWithProperties = (properties: string[]) => {
+    return getRateDate(properties);
+  }
+  const GetParityDatas = (propertiesToUse?: string[]) => {
     const channelIds = channelFilter?.channelId ?? [];
+    const properties = propertiesToUse || selectedProperties;
+    
     if (!selectedProperty?.sid || !startDate || !endDate || channelIds.length === 0) {
       console.warn('Missing required parameters for parity data fetch');
-      return;
+      return Promise.resolve();
     }
 
     // setparityData([]);
@@ -174,10 +187,10 @@ function AllPropertiesPageContent() {
       "promotion": sideFilter?.rateViewBy?.PromotionText === "All" ? null : sideFilter?.rateViewBy?.PromotionText,
       "qualification": sideFilter?.rateViewBy?.QualificationText === "All" ? null : sideFilter?.rateViewBy?.QualificationText,
       "restriction": sideFilter?.rateViewBy?.RestrictionText === "All" ? null : sideFilter?.rateViewBy?.RestrictionText,
-      "hotelsToDisplay": [...allProperties?.filter(x => selectedProperties.includes(x?.name || ''))]
+      "hotelsToDisplay": [...allProperties?.filter(x => properties.includes(x?.name || ''))]
     }
 
-    GetRateSummaryCluster(filtersValue, userDetails?.userId)
+    return GetRateSummaryCluster(filtersValue, userDetails?.userId)
       .then((res) => {
         if (res.status) {
           let parityDatasMain = res.body;
@@ -185,18 +198,25 @@ function AllPropertiesPageContent() {
           console.log(parityDatasMain)
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
+        return res;
       })
       .catch((err) => {
         console.error('Parity data fetch failed:', err);
         setparityData([]);
+        throw err;
       });
+  }
+
+  // Helper function for load more functionality
+  const GetParityDatasWithProperties = (properties: string[]) => {
+    return GetParityDatas(properties);
   }
   useEffect(() => {
     if (
       !clusterData.length ||
       !clusterData[0].pricePositioningEntites.length ||
-      parityData.length === 0
-
+      parityData.length === 0 ||
+      isLoadingMoreData
     )
       return;
 
@@ -302,8 +322,14 @@ function AllPropertiesPageContent() {
       };
     });
     const sortedClusterData = dataComined.sort((a: any, b: any) => (a?.hotels?.name || '').localeCompare(b?.hotels?.name || ''));
-    setCominedData(sortedClusterData);
-  }, [clusterData, parityData]);
+    // For load more functionality, append new data to existing data
+    setCominedData(prevData => {
+      // Filter out any existing data for the same properties to avoid duplicates
+      const existingSids = new Set(prevData.map(item => item.sid));
+      const newData = sortedClusterData.filter(item => !existingSids.has(item.sid));
+      return [...prevData, ...newData];
+    });
+  }, [clusterData, parityData, isLoadingMoreData]);
 
 
   // Get resolution category and column count
@@ -354,15 +380,30 @@ function AllPropertiesPageContent() {
     }
   }
 
-  // Load more properties handler - copied from Cluster page
+  // Load more properties handler - calls APIs with next 5 properties only
   const handleLoadMoreProperties = async () => {
     setIsLoadingMore(true)
+    setIsLoadingMoreData(true)
 
-    // Simulate loading delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    try {
+      // Calculate next 5 properties to load (only the new ones, not previously loaded)
+      const nextPropertiesCount = Math.min(displayedPropertiesCount + 5, selectedProperties.length)
+      const nextProperties = selectedProperties.slice(displayedPropertiesCount, nextPropertiesCount)
+      
+      // Update displayed count first
+      setDisplayedPropertiesCount(nextPropertiesCount)
 
-    setDisplayedPropertiesCount(prev => Math.min(prev + 5, selectedProperties.length))
-    setIsLoadingMore(false)
+      // Call APIs with only the next 5 new properties
+      await Promise.all([
+        getRateDateWithProperties(nextProperties),
+        GetParityDatasWithProperties(nextProperties)
+      ])
+    } catch (error) {
+      console.error('Error loading more properties:', error)
+    } finally {
+      setIsLoadingMore(false)
+      setIsLoadingMoreData(false)
+    }
   }
 
   // Reset displayed count when selected properties change
@@ -421,7 +462,7 @@ function AllPropertiesPageContent() {
             />
           </div>
 
-          <FilterSidebar
+          {/* <FilterSidebar
             losGuest={{ "Los": losGuest.Los, "Guest": losGuest.Guest }}
             isOpen={isFilterSidebarOpen}
             onClose={() => setIsFilterSidebarOpen(false)}
@@ -431,7 +472,7 @@ function AllPropertiesPageContent() {
               console.log('Applied all properties filters:', filters)
               setIsFilterSidebarOpen(false)
             }}
-          />
+          /> */}
 
           <main className="relative flex-1 overflow-auto">
             <div
@@ -477,13 +518,13 @@ function AllPropertiesPageContent() {
                                       {/* All Properties Option */}
                                       <label
                                         className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
-                                        onClick={() => handleSelectAllProperties()}
+                                       
                                       >
                                         <input
                                           type="checkbox"
                                           className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
                                           checked={selectedProperties.length === availableProperties.length}
-                                          onChange={() => { }} // Prevent default behavior
+                                           onClick={() => handleSelectAllProperties()}
                                           readOnly
                                         />
                                         <span
@@ -498,13 +539,13 @@ function AllPropertiesPageContent() {
                                         <label
                                           key={property}
                                           className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
-                                          onClick={() => handlePropertyToggle(property)}
+                                          
                                         >
                                           <input
                                             type="checkbox"
                                             className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
                                             checked={selectedProperties.includes(property)}
-                                            onChange={() => { }} // Prevent default behavior
+                                            onClick={() => handlePropertyToggle(property)}
                                             readOnly
                                           />
                                           <span
