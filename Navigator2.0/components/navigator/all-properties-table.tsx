@@ -838,7 +838,7 @@ export function AllPropertiesTable({
                         return (
                           <td key={`expanded-metrics-${index}`} className={`px-2 py-3 text-center border-r ${index === 2 ? 'border-gray-400 dark:border-gray-500' : 'border-gray-200 dark:border-gray-700'} bg-gray-50 dark:bg-gray-800 ${visibleDayNames[index] === 'Sat' || visibleDayNames[index] === 'Sun' ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`} style={{ width: '80px', minWidth: '50px', maxWidth: '80px' }}>
                             <div className="flex flex-col gap-0.5">
-                              <span className="text-sm font-medium text-gray-400">--</span>
+                              <span className="text-sm font-medium text-gray-400"></span>
                             </div>
                           </td>
                         )
@@ -1044,10 +1044,10 @@ export function AllPropertiesTable({
                                                   }}
                                                 ></div>
                                                 {/* Current price marker (filled blue circle) */}
-                                                <div
+                                                {rateData?.rate > 0 && (<div
                                                   className="absolute left-1/2 transform -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full"
                                                   style={{ bottom: `${currentPosition}px` }}
-                                                ></div>
+                                                ></div>)}
                                               </div>
                                             </div>
                                           </TooltipTrigger>

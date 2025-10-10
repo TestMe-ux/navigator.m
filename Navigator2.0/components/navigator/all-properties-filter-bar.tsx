@@ -155,7 +155,6 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
     if (!channelData || channelData.length === 0) {
       return ["All Channel"]
     }
-
     const channels = channelData
       .map((channel: any) => channel?.name)
       .filter((name: any): name is string => Boolean(name))
@@ -589,7 +588,7 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
                 </DropdownMenu>
 
                 {/* More Filters Button - Responsive with tooltip */}
-                <TooltipProvider>
+                {/* <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -613,7 +612,7 @@ export function AllPropertiesFilterBar({ onMoreFiltersClick, setSelectedChannel,
                       <p className="text-xs">More Filters</p>
                     </TooltipContent>
                   </Tooltip>
-                </TooltipProvider>
+                </TooltipProvider> */}
 
                 {/* Active More Filters Display */}
                 {getActiveFilters.length > 0 && (
