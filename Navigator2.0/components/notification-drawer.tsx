@@ -5,8 +5,11 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
 import { Bell, ChevronDown, X, Settings } from "lucide-react"
-import { cn } from "@/lib/utils"
-
+import { cn, conevrtDateforApi } from "@/lib/utils"
+import { useSelectedProperty } from "@/hooks/use-local-storage"
+import { getNotificationAlert } from "@/lib/alerts"
+import { format, subDays } from "date-fns"
+import { useRouter } from "next/navigation"
 // Sample notification data
 const notificationData = [
   {
@@ -22,7 +25,7 @@ const notificationData = [
     isRead: false
   },
   {
-    id: "notif-002", 
+    id: "notif-002",
     date: "04 Oct",
     alerts: [
       { message: <>Competitor Central Hotel rate has <strong>increased by £1</strong></>, type: "ADR" },
@@ -35,7 +38,7 @@ const notificationData = [
   },
   {
     id: "notif-003",
-    date: "03 Oct", 
+    date: "03 Oct",
     alerts: [
       { message: <>Competitor Central Hotel rate has <strong>increased by £1</strong></>, type: "ADR" },
       { message: <>My Subscriber Hotel's rate has <strong>increased by £1</strong></>, type: "Parity" },
@@ -53,18 +56,19 @@ interface NotificationDrawerProps {
 }
 
 export function NotificationDrawer({ notificationCount, className }: NotificationDrawerProps) {
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
-  const [notifications, setNotifications] = useState(notificationData)
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set())
-  
+  const [selectedProperty] = useSelectedProperty();
   // Multiselect dropdown state
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [selectedAlertTypes, setSelectedAlertTypes] = useState<string[]>([])
   const dropdownRef = useRef<HTMLDivElement>(null)
-  
+
   // Alert type options
   const alertTypeOptions = ['All', 'ADR', 'Parity', 'Rank']
-  
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -81,14 +85,37 @@ export function NotificationDrawer({ notificationCount, className }: Notificatio
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [isDropdownOpen])
-  
+
+  useEffect(() => {
+    if (!selectedProperty?.sid) return;
+
+    const fetchChannels = async () => {
+      try {
+        const response: any = await getNotificationAlert({
+          SID: selectedProperty.sid,
+          fromDate: conevrtDateforApi(subDays(new Date(), 1)),
+          toDate: conevrtDateforApi(new Date()),
+        });
+
+        if (response?.status) {
+          console.log("Alert Data", response.body.filter((x: any) => x.isActive === true))
+          setNotifications(response.body || []);
+        }
+      } catch (error) {
+        console.error("Error fetching channels:", error);
+      }
+    };
+
+    fetchChannels();
+
+  }, [selectedProperty?.sid]);
   // Handle alert type toggle
   const handleAlertTypeToggle = (alertType: string) => {
     if (alertType === 'All') {
       setSelectedAlertTypes(selectedAlertTypes.includes('All') ? [] : alertTypeOptions)
     } else {
       setSelectedAlertTypes(prev => {
-        const newSelection = prev.includes(alertType) 
+        const newSelection = prev.includes(alertType)
           ? prev.filter(type => type !== alertType)
           : [...prev.filter(type => type !== 'All'), alertType]
         return newSelection
@@ -108,9 +135,13 @@ export function NotificationDrawer({ notificationCount, className }: Notificatio
       return newSet
     })
   }
-
+  const handleSettingsClick = () => {
+    setIsOpen(false) // Close the notification drawer
+    router.push('/settings?tab=alerts') // Navigate to settings with alerts tab selected
+  }
   // Function to get badge styling based on alert type
-  const getAlertTypeBadge = (type: string) => {
+  const getAlertTypeBadge = (description: string) => {
+    const type = description.toLowerCase().includes("ota") ? "Rank" : description.toLowerCase().includes("parity") ? "Parity" : "ADR"
     switch (type) {
       case "ADR":
         return <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 font-medium hover:bg-blue-100">ADR</Badge>
@@ -124,9 +155,9 @@ export function NotificationDrawer({ notificationCount, className }: Notificatio
   }
 
   const handleNotificationClick = (notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(notif => 
-        notif.id === notificationId 
+    setNotifications(prev =>
+      prev.map(notif =>
+        notif.id === notificationId
           ? { ...notif, isRead: true }
           : notif
       )
@@ -155,7 +186,7 @@ export function NotificationDrawer({ notificationCount, className }: Notificatio
           <span className="sr-only">Notifications ({unreadCount})</span>
         </Button>
       </SheetTrigger>
-      
+
       <SheetContent side="right" className="!w-[546px] sm:!w-[681px] p-0 flex flex-col" style={{ width: '546px', minWidth: '546px', maxWidth: '546px' }}>
         {/* Custom Header */}
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex-shrink-0 mt-[60px]">
@@ -164,9 +195,9 @@ export function NotificationDrawer({ notificationCount, className }: Notificatio
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Alerts
               </h2>
-              
+
               {/* Multiselect Dropdown */}
-              <div className="relative" ref={dropdownRef}>
+              {/* <div className="relative" ref={dropdownRef}>
                 <Button
                   variant="outline"
                   size="sm"
@@ -174,17 +205,14 @@ export function NotificationDrawer({ notificationCount, className }: Notificatio
                   className="h-8 px-3 text-xs font-medium border-gray-300 hover:bg-gray-50"
                 >
                   <span className="mr-1">
-                    {selectedAlertTypes.length === 0 ? 'All' : 
-                     selectedAlertTypes.includes('All') ? 'All' :
-                     `${selectedAlertTypes.length} selected`}
+                    {selectedAlertTypes.length === 0 ? 'All' :
+                      selectedAlertTypes.includes('All') ? 'All' :
+                        `${selectedAlertTypes.length} selected`}
                   </span>
                   <ChevronDown className="w-3 h-3" />
                 </Button>
-
-                {/* Dropdown Content */}
                 {isDropdownOpen && (
                   <div className="absolute z-50 top-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg min-w-[120px]">
-                    {/* Alert Types List */}
                     <div className="py-2">
                       {alertTypeOptions.map((alertType) => (
                         <label
@@ -205,106 +233,103 @@ export function NotificationDrawer({ notificationCount, className }: Notificatio
                     </div>
                   </div>
                 )}
-              </div>
+              </div> */}
             </div>
-            
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 relative group"
-                            onClick={() => {
-                              // TODO: Open alert settings modal/page
-                              console.log("Open alert settings")
-                            }}
-                          >
-                            <Settings className="h-4 w-4" />
-                            {/* Tooltip */}
-                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                              Modify/Create Alerts
-                            </div>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setIsOpen(false)}
-                            className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 relative group"
-                          >
-                            <X className="h-4 w-4" />
-                            {/* Tooltip */}
-                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                              Close
-                            </div>
-                          </Button>
-                        </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 relative group"
+                onClick={handleSettingsClick}
+              >
+                <Settings className="h-4 w-4" />
+                {/* Tooltip */}
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                  Modify/Create Alerts
+                </div>
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsOpen(false)}
+                className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 relative group"
+              >
+                <X className="h-4 w-4" />
+                {/* Tooltip */}
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                  Close
+                </div>
+              </Button>
+            </div>
           </div>
         </div>
 
-                    <div className="flex-1 overflow-y-auto">
-                      {/* Notifications */}
-                      {notifications.map((notification, index) => {
-                        const isExpanded = expandedDates.has(notification.date)
-                        const alertsToShow = isExpanded ? notification.alerts : notification.alerts.slice(0, 2)
-                        const hasMoreAlerts = notification.alerts.length > 2
-                        
-                        return (
-                          <div
-                            key={notification.id}
-                            className={cn(
-                              "px-6 py-2 border-b border-gray-100 dark:border-gray-800 transition-colors",
-                              !notification.isRead && "bg-blue-50 dark:bg-blue-900/20",
-                              index % 2 === 0 
-                                ? "bg-white dark:bg-gray-900" 
-                                : "bg-gray-50 dark:bg-gray-800/50"
-                            )}
-                          >
-                            <div className="flex items-start">
-                              {/* Date Column - Left Side */}
-                              <div className="flex items-center shrink-0 w-18">
-                                <div className="flex flex-col">
-                                  <span className="text-gray-900 dark:text-gray-100 font-semibold text-sm">
-                                    {notification.date}
-                                  </span>
-                                  {index < 2 && (
-                                    <Badge variant="secondary" className="bg-red-100 text-red-700 text-[10px] px-1.5 py-0.5 font-medium hover:bg-red-100 w-fit mt-1">
-                                      New
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                              
-                              {/* Alerts Column - Right Side */}
-                              <div className="flex-1">
-                                <div className="space-y-2">
-                                  {alertsToShow.map((alert, alertIndex) => (
-                                    <div key={alertIndex} className="flex items-start justify-between gap-2">
-                                      <div className="text-sm text-gray-700 dark:text-gray-300 break-words overflow-wrap-anywhere flex-1">
-                                        • {alert.message}
-                                      </div>
-                                      {getAlertTypeBadge(alert.type)}
-                                    </div>
-                                  ))}
-                                  
-                                  {/* Show More/Less Link */}
-                                  {hasMoreAlerts && (
-                                    <button
-                                      onClick={() => handleToggleExpanded(notification.date)}
-                                      className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors"
-                                    >
-                                      {isExpanded ? 'Show less' : 'Show more'}
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
+        <div className="flex-1 overflow-y-auto">
+          {/* Notifications */}
+          {notifications.map((notification, index) => {
+            const isExpanded = expandedDates.has(notification.checkInDate)
+            const alertsToShow = isExpanded ? notification.description : notification.description.slice(0, 2)
+            const hasMoreAlerts = notification.description.length > 2
 
-        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-          <Button 
-            variant="outline" 
+            return (
+              <div
+                key={index}
+                className={cn(
+                  "px-6 py-2 border-b border-gray-100 dark:border-gray-800 transition-colors",
+                  !notification.isRead && "bg-blue-50 dark:bg-blue-900/20",
+                  index % 2 === 0
+                    ? "bg-white dark:bg-gray-900"
+                    : "bg-gray-50 dark:bg-gray-800/50"
+                )}
+              >
+                <div className="flex items-start">
+                  {/* Date Column - Left Side */}
+                  <div className="flex items-center shrink-0 w-18">
+                    <div className="flex flex-col">
+                      <span className="text-gray-900 dark:text-gray-100 font-semibold text-sm">
+                        {format(notification.checkInDate, "dd MMM")}
+                      </span>
+                      {index < 2 && (
+                        <Badge variant="secondary" className="bg-red-100 text-red-700 text-[10px] px-1.5 py-0.5 font-medium hover:bg-red-100 w-fit mt-1">
+                          New
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Alerts Column - Right Side */}
+                  <div className="flex-1">
+                    <div className="space-y-2">
+                      {alertsToShow.map((alert: any, alertIndex: any) => (
+                        <div key={alertIndex} className="flex items-start justify-between gap-2">
+                          <div className="text-sm text-gray-700 dark:text-gray-300 break-words overflow-wrap-anywhere flex-1">
+                            • {alert}
+                          </div>
+                          {getAlertTypeBadge(alert)}
+                        </div>
+                      ))}
+
+                      {/* Show More/Less Link */}
+                      {hasMoreAlerts && (
+                        <button
+                          onClick={() => handleToggleExpanded(notification.checkInDate)}
+                          className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors"
+                        >
+                          {isExpanded ? 'Show less' : 'Show more'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+          <Button
+            variant="outline"
             className="w-full text-sm"
             onClick={() => {
               setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
@@ -312,7 +337,7 @@ export function NotificationDrawer({ notificationCount, className }: Notificatio
           >
             Mark All as Read
           </Button>
-        </div>
+        </div> */}
       </SheetContent>
     </Sheet>
   )

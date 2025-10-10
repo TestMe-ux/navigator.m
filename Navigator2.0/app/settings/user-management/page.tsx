@@ -42,7 +42,7 @@ export default function UserManagementPage() {
   const [apiActivePageMaster, setActivePageMaster] = useState<any[]>([]);
   const [apiUserHistory, setUserHistory] = useState<any[]>([]);
   const [profileImage, setProfileImage] = useState<ProfileImage | null>(null);
-  const [inputChanged, setInputChanged] = useState(false);
+  const [historyDataLoading, setHistoryDataLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   //const [editUser, setEditingUser] = useState<any[]>([]);
   const [isEditUserOpen, setIsEditUserOpen] = useState(false)
@@ -85,10 +85,10 @@ export default function UserManagementPage() {
     setIsLoading(true);
     try {
       // Run both APIs in parallel
-      const [usersResponse, pageMasterResponse, userHistoryResponse] = await Promise.all([
+      const [usersResponse, pageMasterResponse] = await Promise.all([
         getUsers({ SID: selectedProperty.sid, bForceFresh: false }),
         getActivePageMaster(),
-        getUserHistory({ SID: selectedProperty.sid, bForceFresh: false })
+        // getUserHistory({ SID: selectedProperty.sid, bForceFresh: false })
       ]);
 
       if (usersResponse.status) {
@@ -101,11 +101,7 @@ export default function UserManagementPage() {
       } else {
         setActivePageMaster([]);
       }
-      if (userHistoryResponse.status) {
-        setUserHistory(userHistoryResponse.body);
-      } else {
-        setUserHistory([]);
-      }
+
 
     } catch (error) {
       console.error("[fetchUserData] API call failed:", error);
@@ -120,9 +116,29 @@ export default function UserManagementPage() {
 
   useEffect(() => {
     fetchUserData();
-  }, [selectedProperty?.sid, fetchUserData]);
+  }, [selectedProperty?.sid]);
 
+  useEffect(() => {
+    if (!selectedProperty?.sid || !showChangeHistory) return;
+    setHistoryDataLoading(true);
+    const fetchUserHistory = async () => {
+      try {
+        const response: any = await getUserHistory({ SID: selectedProperty.sid, bForceFresh: false })
 
+        if (response?.status) {
+
+          setUserHistory(response.body || []);
+          setHistoryDataLoading(false);
+        }
+      } catch (error) {
+        console.error("Error fetching channels:", error);
+      } finally {
+        // setIsLoading(false);
+      }
+    };
+
+    fetchUserHistory();
+  }, [showChangeHistory]);
   // Auto-hide snackbar after 5 seconds
   useEffect(() => {
     if (showSnackbar) {
@@ -688,18 +704,18 @@ export default function UserManagementPage() {
                         {userValue.userRoleText}
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-center">
-                        <Switch disabled
-                          checked={userValue.pghReportEmail}
-                          onCheckedChange={() => toggleUserAccess(userValue.userID, "emailAccess")}
-                          className="scale-75"
-                        />
+                        {userValue.pghReportEmail ? (
+                          <Check className="w-4 h-4 text-green-600 dark:text-green-400 mx-auto" />
+                        ) : (
+                          <X className="w-4 h-4 text-red-600 dark:text-red-400 mx-auto" />
+                        )}
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-center">
-                        <Switch disabled
-                          checked={userValue.pghAccess}
-                          onCheckedChange={() => toggleUserAccess(userValue.userID, "interfaceAccess")}
-                          className="scale-75"
-                        />
+                        {userValue.pghAccess ? (
+                          <Check className="w-4 h-4 text-green-600 dark:text-green-400 mx-auto" />
+                        ) : (
+                          <X className="w-4 h-4 text-red-600 dark:text-red-400 mx-auto" />
+                        )}
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         {userValue.defaultLandingPageText}
@@ -1007,7 +1023,7 @@ export default function UserManagementPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-slate-900">
-                    {apiUserHistory && apiUserHistory.length > 0 ? (
+                    {!historyDataLoading && apiUserHistory && apiUserHistory.length > 0 ? (
                       Array.from({ length: 50 }, (_, index) => {
                         const baseData = [...apiUserHistory];
                         const change = baseData[index % baseData.length];
@@ -1087,8 +1103,16 @@ export default function UserManagementPage() {
                         );
                       })
                     ) : (
-                      < tr >
-                        <td colSpan={8} className="h-4"></td>
+                      <tr>
+                        <td colSpan={8} className="h-[200px]">
+                          <div className="h-full bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse flex items-center justify-center">
+                            <div className="flex flex-col items-center space-y-4">
+                              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+                              <div className="text-sm text-muted-foreground">Preparing your User Change History...</div>
+                              <div className="text-sm text-muted-foreground">Hang tight — your data will appear shortly.</div>
+                            </div>
+                          </div>
+                        </td>
                       </tr>
                     )}
                   </tbody>
