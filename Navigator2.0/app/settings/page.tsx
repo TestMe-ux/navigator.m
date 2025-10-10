@@ -1,6 +1,7 @@
 "use client"
-
-import { useState } from "react"
+ 
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { User, Building, Radio, Target, Bell, BarChart3, Map, Calculator } from "lucide-react"
 import { SettingsTab } from "@/components/settings-tab"
@@ -25,9 +26,18 @@ const settingsTabs = [
 ]
 
 export default function SettingsPage() {
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState("user-management")
-
-  return (
+ 
+  // Handle URL parameter for tab selection
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    if (tabParam && settingsTabs.some(tab => tab.id === tabParam)) {
+      setActiveTab(tabParam)
+    }
+  }, [searchParams])
+ 
+ return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       {/* Settings Tabs Section */}
       <SettingsTab 
