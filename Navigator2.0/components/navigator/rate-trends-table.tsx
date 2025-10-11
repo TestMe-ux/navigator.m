@@ -592,7 +592,7 @@ export function RateTrendsTable({
                 }
 
                 return columnsToShow.map((name, index) => (
-                  <th title={name || ""} key={index} colSpan={3} className={`text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-b border-gray-200 ${index < competitorsPerPage - 1 ? 'border-r border-gray-200' : ''}`}>
+                  <th title={name || ""} key={index} colSpan={3} className={`text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-b border-gray-200 ${name && index < competitorsPerPage - 1 ? 'border-r border-gray-200' : ''}`}>
                     {name ? (name.length > 15 ? `${name.substring(0, 12)}...` : name) : ''}
                   </th>
                 ));
@@ -636,10 +636,10 @@ export function RateTrendsTable({
                     <th className="bg-gray-50 text-left py-1.5 pl-2 font-medium text-[10px] text-muted-foreground whitespace-nowrap" style={{ width: rateColumnWidth, minWidth: rateColumnWidth, maxWidth: rateColumnWidth }}>
                       {name ? `Rate (\u200E ${selectedProperty?.currencySymbol ?? "$"}\u200E)` : ''}
                     </th>
-                    <th className={`text-left py-1.5 pl-3 font-semibold text-xs text-muted-foreground ${name && compIndex < competitorsPerPage - 1 ? 'border-r border-gray-200' : ''}`} style={{ width: '10px' }}>
+                    <th className={`text-left py-1.5 pl-3 font-semibold text-xs text-muted-foreground ${name ? 'border-r border-gray-200' : ''}`} style={{ width: '10px' }}>
 
                     </th>
-                    <th className={`text-center py-1.5 px-0.5 font-medium text-[10px] text-muted-foreground ${name && compIndex < competitorsPerPage - 1 ? 'border-r border-gray-200' : ''}`} style={{ width: '24px' }}>
+                    <th className={`text-center py-1.5 px-0.5 font-medium text-[10px] text-muted-foreground ${name && compIndex < competitorsPerPage ? 'border-r border-gray-200' : ''}`} style={{ width: '24px' }}>
                       {name ? 'Rank' : ''}
                     </th>
                   </React.Fragment>
@@ -706,7 +706,7 @@ export function RateTrendsTable({
               // Sort allRates in ascending order (lowest rate = highest rank)
               const sortedRates = [...new Set(allRates)].sort((a, b) => a - b);
               console.log("sortedRates:" + rateEntry.checkInDateTime, sortedRates)// use Set to remove duplicates
-              const subscriberRank = sortedRates.indexOf(hotelLowestRate) + 1
+              const subscriberRank = rateEntry?.status === "O" ? sortedRates.indexOf(hotelLowestRate) + 1 : "--";
               // Calculate dynamic width for subscriber rate
               const subscriberRateWidth = calculateRateColumnWidth(hotelLowestRate);
 
