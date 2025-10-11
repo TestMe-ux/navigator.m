@@ -14,11 +14,18 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T)
   // Effect to initialize value from localStorage on client side
   useEffect(() => {
     if (typeof window !== 'undefined' && !isInitialized) {
+      debugger;
       try {
         const item = window.localStorage.getItem(key)
         if (item && item !== 'undefined' && item !== 'null') {
           try {
-            setStoredValue(JSON.parse(item))
+            const valeParse=JSON.parse(item);
+            if(typeof valeParse === "string"){
+              setStoredValue(JSON.parse(valeParse))
+            }
+            else{
+              setStoredValue(valeParse)
+            }
           } catch (parseError) {
             console.warn(`Invalid JSON in localStorage key "${key}", clearing it:`, parseError)
             // Clear corrupted data
@@ -125,3 +132,7 @@ export function useUserDetail(): [UserDetails, (value: UserDetails) => void] {
 export function useAllProperty(): [SelectedProperty[], (value: SelectedProperty[]) => void] {
   return useLocalStorage<SelectedProperty[]>('Properties', [])
 }
+export function usePackageDetails(): [SelectedProperty[], (value: SelectedProperty[]) => void] {
+  return useLocalStorage<SelectedProperty[]>('packageDetails', [])
+}
+

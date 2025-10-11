@@ -22,7 +22,7 @@ import { ComparisonProvider, useComparison } from "@/components/comparison-conte
 import { format, differenceInDays, set } from "date-fns"
 import { getKPIData } from "@/lib/rate-trends-data"
 // import { LocalStorageService } from "@/lib/localstorage" // Removed - using static data only
-import { useLocalStorage, useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
+import { useLocalStorage, usePackageDetails, useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
 import { useScreenSize } from "@/hooks/use-screen-size"
 import { getRateTrends, PPExcelDownload } from "@/lib/rate"
 import { generateRTRRReport, getCompleteCompSet, getRTRRReportStatusBySID, getRTRRValidation } from "@/lib/reports"
@@ -30,6 +30,8 @@ import { RTRRRequestModel } from "@/lib/RTRRRequestModel"
 import { usePollingContext } from "@/components/polling/polling-context"
 import { useToast } from "@/hooks/use-toast"
 import { GetDemandAIData } from "@/lib/demand"
+import OnDemandReportModal from "@/components/on-demand-report-modal/OnDemandReportModal"
+// import { OnDemandReportModal } from "@/components/on-demand-report-modal"
 
 /**
  * Utility function to format dates consistently across server and client
@@ -101,14 +103,16 @@ export default function RateTrendPage() {
   // State for competitor scrolling (only for table view)
   const [competitorStartIndex, setCompetitorStartIndex] = useState(0)
   const [selectedProperty] = useSelectedProperty();
+  const [packageDetails] = usePackageDetails()
   const [userDetails] = useUserDetail();
   const [rateData, setRateData] = useState(Object);
-
+  const [isModalOpen, setIsModalOpen] = useState(false)
   // Polling context for task management
   const { startTaskPolling, isTaskPolling, resumePolling } = usePollingContext();
   const [rateCompData, setRateCompData] = useState(Object);
   const [demandData, setDemandData] = useState<any>([])
   const [competitorCount, setCompetitorCount] = useState(0)
+  const [compsetData, setCompsetData] = useState<any[]>([])
   const [primaryHotelsData, setPrimaryHotelsData] = useState<any[]>([])
   const [secondaryHotelsData, setSecondaryHotelsData] = useState<any[]>([])
   // const [runningReport, setRunningReport] = useState<any>({});
@@ -118,7 +122,7 @@ export default function RateTrendPage() {
   // Dynamic competitor count based on digitCount and screen resolution
   const getCompetitorsPerPage = () => {
     const { isSmall, isMedium, isLarge } = screenSize
-debugger
+    debugger
     if (isSmall) {
       // Resolution from 1352px to 1500px
       return selectedDigitCount <= 4 ? 4 : selectedDigitCount <= 7 ? 3 : 2
@@ -222,7 +226,13 @@ debugger
   // Use calculated values directly
   const availableMonths = calculateAvailableMonths
   const shouldShowMonthNavigation = availableMonths.length > 1
+  const handleReportGenerated = (reportId: number) => {
+    console.log('Report generated with ID:', reportId)
+  }
 
+  const handleError = (error: string) => {
+    console.error('Error:', error)
+  }
   // Handle lightning refresh
   const RTRFInitatedSuccess = (runningReport: any, lightingRefreshData: any) => {
     if (validationObject) {
@@ -569,6 +579,7 @@ debugger
 
           setPrimaryHotelsData(primaryCompSets)
           setSecondaryHotelsData(secondaryCompSets)
+          setCompsetData(response.body);
         }
       } catch (error) {
         console.error('Error fetching compset data:', error)
@@ -884,7 +895,7 @@ debugger
                   size="sm"
                   className="h-8 px-3 hover:bg-blue-500 hover:text-white hover:border-blue-500"
                   onClick={() => {
-                    console.log('📊 On Demand Report clicked');
+                    setIsModalOpen(true);
                     // Add report logic here
                   }}
                 >
@@ -1175,6 +1186,16 @@ debugger
         onClose={() => setIsSnackbarOpen(false)}
         message={snackbarMessage}
         type={snackbarType}
+      />
+      <OnDemandReportModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        userDetails={userDetails}
+        selectedProperty={selectedProperty}
+        packageDetails={packageDetails}
+        compsetData={compsetData}
+        onReportGenerated={handleReportGenerated}
+        onError={handleError}
       />
     </div>
   )
