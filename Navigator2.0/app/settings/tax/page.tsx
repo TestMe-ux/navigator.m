@@ -372,7 +372,7 @@ export default function TaxSettingsPage() {
         tax.taxName?.toLowerCase().includes(searchLower) ||
         tax.propertiesText?.toLowerCase().includes(searchLower) ||
         tax.channelsText?.toLowerCase().includes(searchLower) ||
-        tax.activity?.toLowerCase() === "create" ? "added".includes(searchLower) : tax.activity?.toLowerCase().includes(searchLower) ||
+        // tax.activity?.toLowerCase() === "create" ? "added".includes(searchLower) : tax.activity?.toLowerCase().includes(searchLower) ||
       tax.updatedByName?.toLowerCase().includes(searchLower)
     )
   })
