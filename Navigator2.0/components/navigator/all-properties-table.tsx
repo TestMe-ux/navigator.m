@@ -472,6 +472,7 @@ export function AllPropertiesTable({
 
   // Filter hotels based on selected properties
   const hotels = React.useMemo(() => {
+    debugger;
     if (!clusterData) return
     if (selectedProperties.length === 0) {
       return clusterData // Show all hotels if no properties selected
@@ -531,6 +532,7 @@ export function AllPropertiesTable({
   }
 
   const toggleHotelExpansion = (hotelName: string) => {
+    debugger;
     setExpandedHotels(prev => {
       const newSet = new Set(prev)
       if (newSet.has(hotelName)) {
@@ -865,11 +867,12 @@ export function AllPropertiesTable({
                               {/* Y-axis labels */}
                               {index === 3 && (() => {
                                 debugger;
-                                const allSubRate = hotel.pricePositioningEntites.find((x: any) => x.propertyType === 0)?.subscriberPropertyRate
-                                const allRatesHighest = allSubRate.map((r: any) => r.highestRate).filter((r: any) => r > 0)
-                                const allRatesLowest = allSubRate.map((r: any) => r.lowestRate).filter((r: any) => r > 0)
-                                const globalMinRate = Math.min(...allRatesLowest)
-                                const globalMaxRate = Math.max(...allRatesHighest)
+                                console.log("hotel", hotel)
+                                const allSubRate = hotel?.pricePositioningEntites.find((x: any) => x.propertyType === 0)?.subscriberPropertyRate
+                                const allRatesHighest = allSubRate?.map((r: any) => r.highestRate).filter((r: any) => r > 0)
+                                const allRatesLowest = allSubRate?.map((r: any) => r.lowestRate).filter((r: any) => r > 0)
+                                const globalMinRate = allRatesLowest?.length > 0 ? Math.min(...allRatesLowest) : 0 || 0
+                                const globalMaxRate = allRatesHighest?.length > 0 ? Math.max(...allRatesHighest) : 0 || 0
                                 const yAxisRange = globalMaxRate - globalMinRate
                                 let divisor = 1;
                                 let suffix = '';
@@ -923,27 +926,28 @@ export function AllPropertiesTable({
                               <div className={`relative h-full ${index === 3 ? 'ml-3' : ''}`}>
                                 {/* Range bar for this date */}
                                 {(() => {
-                                  const rateData = hotel.pricePositioningEntites.find((x: any) => x.propertyType === 0)?.subscriberPropertyRate.find((x: any) => format(x.checkInDateTime, 'd MMM') === date)
-                                  const lowestRateData = hotel.pricePositioningEntites.find((x: any) => x.propertName === rateData?.lowestRatePropName)?.subscriberPropertyRate.find((x: any) => format(x.checkInDateTime, 'd MMM') === date)
-                                  const highestRateData = hotel.pricePositioningEntites.find((x: any) => x.propertName === rateData?.highestRatePropName)?.subscriberPropertyRate.find((x: any) => format(x.checkInDateTime, 'd MMM') === date)
+                                  debugger;
+                                  const rateData = hotel?.pricePositioningEntites.find((x: any) => x.propertyType === 0)?.subscriberPropertyRate.find((x: any) => format(x.checkInDateTime, 'd MMM') === date)
+                                  const lowestRateData = hotel?.pricePositioningEntites.find((x: any) => x.propertName === rateData?.lowestRatePropName)?.subscriberPropertyRate.find((x: any) => format(x.checkInDateTime, 'd MMM') === date)
+                                  const highestRateData = hotel?.pricePositioningEntites.find((x: any) => x.propertName === rateData?.highestRatePropName)?.subscriberPropertyRate.find((x: any) => format(x.checkInDateTime, 'd MMM') === date)
                                   // Simple data structure - can be easily extended
                                   const rangeData = {
                                     currentRate: rateData?.status === "O" ? Math.round(rateData.rate) : 0,
-                                    minRate: Math.round(rateData.lowestRate),
-                                    maxRate: Math.round(rateData.highestRate),
-                                    rateType: rateData.rateType || 'normal'
+                                    minRate: Math.round(rateData?.lowestRate || 0),
+                                    maxRate: Math.round(rateData?.highestRate || 0),
+                                    rateType: rateData?.rateType || 'normal'
                                   }
 
                                   // Calculate Y-axis range (price range, not starting from 0)
-                                  const allSubRate = hotel.pricePositioningEntites.find((x: any) => x.propertyType === 0)?.subscriberPropertyRate
-                                  const allRates = allSubRate.map((r: any) => r.rate).filter((r: any) => r > 0)
-                                  const globalMinRate = Math.min(...allRates)
-                                  const globalMaxRate = Math.max(...allRates)
+                                  const allSubRate = hotel?.pricePositioningEntites.find((x: any) => x.propertyType === 0)?.subscriberPropertyRate
+                                  const allRates = allSubRate?.map((r: any) => r.rate).filter((r: any) => r > 0)
+                                  const globalMinRate = allRates?.length > 0 ? Math.min(...allRates) : 0 || 0
+                                  const globalMaxRate = allRates?.length > 0 ? Math.max(...allRates) : 0 || 0
                                   const yAxisRange = globalMaxRate - globalMinRate
 
                                   // Calculate range bar height and position (constrained within Y-axis)
                                   const maxBarHeight = 100 // Maximum height to prevent overflow
-                                  const rangeHeight = Math.min(((rangeData.maxRate - rangeData.minRate) / yAxisRange) * 120, maxBarHeight)
+                                  const rangeHeight = yAxisRange > 0 ? Math.min(((rangeData.maxRate - rangeData.minRate) / yAxisRange) * 120, maxBarHeight) : 0
 
                                   // Position blue dot based on rate type
                                   let currentPosition = 0;
@@ -963,9 +967,9 @@ export function AllPropertiesTable({
 
                                   // Center the range bar in the Y-axis (with constraints)
                                   const availableHeight = 120
-                                  const barBottomOffset = Math.max(10, Math.min(110 - rangeHeight, ((rangeData.minRate - globalMinRate) / yAxisRange) * availableHeight))
+                                  const barBottomOffset = yAxisRange > 0 ? Math.max(10, Math.min(110 - rangeHeight, ((rangeData.minRate - globalMinRate) / yAxisRange) * availableHeight)) : 0
 
-                                  return rateData.status === '--' ? (
+                                  return rateData && rateData?.status === '--' ? (
                                     <TooltipProvider delayDuration={0}>
                                       <Tooltip delayDuration={0} disableHoverableContent>
                                         <TooltipTrigger asChild>
@@ -1051,21 +1055,22 @@ export function AllPropertiesTable({
                                               </div>
                                             </div>
                                           </TooltipTrigger>
-                                          <AllPropertiesTooltip
-                                            date={rateData?.checkInDateTime}
-                                            dayName={visibleDayNames[index] || ''}
-                                            rate={rateData?.rate}
-                                            variance={rateData?.rate > 0 ? Math.floor(rateData?.rate * 0.1) : 0}
-                                            hasEvent={rateData?.event?.eventDetails.length > 0}
-                                            eventNames={rateData?.event?.eventDetails.length > 0 ? rateData?.event?.eventDetails : []}
-                                            hotelName={hotel.hotels?.name}
-                                            lowestRate={lowestRateData}
-                                            highestRate={highestRateData}
-                                            rowIndex={hotels.indexOf(hotel.hotels)}
-                                            rateEntry={rateData}
-                                            currency={hotel.hotels?.currencySymbol}
-                                            symbol={hotel.hotels?.currencySymbol}
-                                          />
+                                          {rateData?.rate > 0 || lowestRateData?.rate > 0 || highestRateData?.rate > 0 && (
+                                            <AllPropertiesTooltip
+                                              date={rateData?.checkInDateTime}
+                                              dayName={visibleDayNames[index] || ''}
+                                              rate={rateData?.rate}
+                                              variance={rateData?.rate > 0 ? Math.floor(rateData?.rate * 0.1) : 0}
+                                              hasEvent={rateData?.event?.eventDetails.length > 0}
+                                              eventNames={rateData?.event?.eventDetails.length > 0 ? rateData?.event?.eventDetails : []}
+                                              hotelName={hotel.hotels?.name}
+                                              lowestRate={lowestRateData}
+                                              highestRate={highestRateData}
+                                              rowIndex={hotels.indexOf(hotel.hotels)}
+                                              rateEntry={rateData}
+                                              currency={hotel.hotels?.currencySymbol}
+                                              symbol={hotel.hotels?.currencySymbol}
+                                            />)}
                                         </Tooltip>
                                       </TooltipProvider>
                                       {rateData?.event?.eventDetails.length > 0 &&

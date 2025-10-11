@@ -81,14 +81,14 @@ function AllPropertiesPageContent() {
       // Select first 5 properties by default
       setSelectedProperties(availableProperties.slice(0, 5))
     }
-  }, [availableProperties, selectedProperties.length])
+  }, [availableProperties])
 
   // Reset selected properties when country/city filter changes
   useEffect(() => {
     debugger;
     // Filter out properties that are no longer available due to country/city filtering
     const validProperties = selectedProperties.filter(prop => availableProperties.includes(prop))
-    
+
     if (validProperties.length !== selectedProperties.length) {
       setSelectedProperties(validProperties)
       // Reset displayed count when properties change
@@ -202,7 +202,7 @@ function AllPropertiesPageContent() {
   const GetParityDatas = (propertiesToUse?: string[]) => {
     const channelIds = channelFilter?.channelId ?? [];
     const properties = propertiesToUse || selectedProperties;
-    
+
     if (!selectedProperty?.sid || !startDate || !endDate || channelIds.length === 0) {
       console.warn('Missing required parameters for parity data fetch');
       return Promise.resolve();
@@ -389,7 +389,7 @@ function AllPropertiesPageContent() {
     try {
       setLoadingProperty(propertyName);
       setIsLoadingMoreData(true);
-      
+
       // Call APIs with only this individual property
       await Promise.all([
         getRateDateWithProperties([propertyName]),
@@ -406,11 +406,11 @@ function AllPropertiesPageContent() {
   // Property selector handlers - enhanced to load individual property data
   const handlePropertyToggle = async (property: string) => {
     const isCurrentlySelected = selectedProperties.includes(property);
-    
+
     if (!isCurrentlySelected) {
       // Adding a new property
       setSelectedProperties(prev => [...prev, property]);
-      
+
       // Check if property data is already loaded
       if (!isPropertyDataLoaded(property)) {
         // Load data for this individual property
@@ -456,7 +456,7 @@ function AllPropertiesPageContent() {
       // Calculate next 5 properties to load (only the new ones, not previously loaded)
       const nextPropertiesCount = Math.min(displayedPropertiesCount + 5, selectedProperties.length)
       const nextProperties = selectedProperties.slice(displayedPropertiesCount, nextPropertiesCount)
-      
+
       // Update displayed count first
       setDisplayedPropertiesCount(nextPropertiesCount)
 
@@ -468,7 +468,7 @@ function AllPropertiesPageContent() {
     } catch (error) {
       console.error('Error loading more properties:', error)
     } finally {
-    setIsLoadingMore(false)
+      setIsLoadingMore(false)
       setIsLoadingMoreData(false)
     }
   }
@@ -484,13 +484,13 @@ function AllPropertiesPageContent() {
   }, [selectedProperties.length, displayedPropertiesCount])
 
   // Simulate loading for skeleton effect
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 2000) // 2 second loading simulation
+  // useEffect(() => {
+  //   const timer = setTimeout(() => {
+  //     setIsLoading(false)
+  //   }, 2000) // 2 second loading simulation
 
-    return () => clearTimeout(timer)
-  }, [])
+  //   return () => clearTimeout(timer)
+  // }, [])
 
   const handleMoreFiltersClick = () => {
     setIsFilterSidebarOpen(true)
@@ -507,6 +507,16 @@ function AllPropertiesPageContent() {
 
   return (
     <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col" data-coach-mark="all-properties-overview">
+      <div className="sticky top-0 z-40 filter-bar-minimal bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
+        <AllPropertiesFilterBar
+          onMoreFiltersClick={handleMoreFiltersClick}
+          setSelectedChannel={setSelectedChannel}
+          viewMode={viewMode}
+          setViewMode={handleViewModeChange}
+          onCountryChange={setSelectedCountries}
+          onCityChange={setSelectedCities}
+        />
+      </div>
       {isLoading && (
         <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
           <GlobalProgressBar />
@@ -520,17 +530,6 @@ function AllPropertiesPageContent() {
       {!isLoading && (
         <>
           {/* Enhanced Filter Bar with Sticky Positioning */}
-          <div className="sticky top-0 z-40 filter-bar-minimal bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
-            <AllPropertiesFilterBar
-              onMoreFiltersClick={handleMoreFiltersClick}
-              setSelectedChannel={setSelectedChannel}
-              viewMode={viewMode}
-              setViewMode={handleViewModeChange}
-              onCountryChange={setSelectedCountries}
-              onCityChange={setSelectedCities}
-            />
-          </div>
-
           {/* <FilterSidebar
             losGuest={{ "Los": losGuest.Los, "Guest": losGuest.Guest }}
             isOpen={isFilterSidebarOpen}
@@ -587,13 +586,13 @@ function AllPropertiesPageContent() {
                                       {/* All Properties Option */}
                                       <label
                                         className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
-                                       
+
                                       >
                                         <input
                                           type="checkbox"
                                           className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
                                           checked={selectedProperties.length === availableProperties.length}
-                                           onClick={() => handleSelectAllProperties()}
+                                          onClick={() => handleSelectAllProperties()}
                                           readOnly
                                         />
                                         <span
@@ -608,7 +607,7 @@ function AllPropertiesPageContent() {
                                         <label
                                           key={property}
                                           className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
-                                          
+
                                         >
                                           <input
                                             type="checkbox"
