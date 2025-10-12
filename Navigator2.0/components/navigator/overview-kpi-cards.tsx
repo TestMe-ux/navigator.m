@@ -327,7 +327,6 @@ function KPICard({ metric }: { metric: KPIMetric }) {
   const getDisplayValue = () => {
     if (metric.format === 'text') return metric.value
     if (typeof metric.value === 'number') {
-      debugger
       return formatValue(animatedValue, metric.format, { currencySymbol: metric.currencyCode })
     }
     return metric.value
