@@ -103,6 +103,7 @@ export function Header() {
    */
   const handleHotelSelect = useCallback((hotel: any) => {
     try {
+      LocalStorageService.setItem("preferredDateMode", "next7days")
       setSelectedHotel(hotel);
       LocalStorageService.setItem('SelectedProperty', hotel);
       setHotelSearch("");
@@ -146,11 +147,11 @@ export function Header() {
         {/* Left Side - Application Branding */}
         <Link href="/login" className="flex-shrink-0 flex items-center gap-3 justify-center pl-1 hover:opacity-80 transition-opacity">
           <div className="hidden sm:block ml-1">
-            <Image 
-              src="/logo.svg" 
-              alt="Navigator Logo" 
-              width={130} 
-              height={31} 
+            <Image
+              src="/logo.svg"
+              alt="Navigator Logo"
+              width={130}
+              height={31}
               className="h-[31px] w-auto"
             />
           </div>
@@ -433,125 +434,125 @@ export function Header() {
       {/* Feedback Modal */}
       {typeof window !== 'undefined' && (
         <Dialog open={showFeedbackModal} onOpenChange={setShowFeedbackModal}>
-        <DialogContent className="sm:max-w-[650px] max-h-[80vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="text-xl font-semibold">Switch to Previous Version</DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">
-              We're constantly improving Navigator based on your feedback. If you'd prefer to use the previous version, please let us know what we can do better to enhance your experience.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4 overflow-y-auto flex-1">
-            {/* Feedback Text Area */}
-            <div className="space-y-2">
-              <Label htmlFor="feedback" className="text-sm font-medium">
-                Your Feedback
-              </Label>
-              <Textarea
-                id="feedback"
-                placeholder="Tell us about any issues you're experiencing or features you'd like to see improved. Your feedback helps us make Navigator better for everyone."
-                value={feedbackText}
-                onChange={(e) => setFeedbackText(e.target.value)}
-                className="min-h-[120px] resize-none mx-1 w-[96%]"
-              />
-            </div>
+          <DialogContent className="sm:max-w-[650px] max-h-[80vh] flex flex-col">
+            <DialogHeader className="flex-shrink-0">
+              <DialogTitle className="text-xl font-semibold">Switch to Previous Version</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                We're constantly improving Navigator based on your feedback. If you'd prefer to use the previous version, please let us know what we can do better to enhance your experience.
+              </DialogDescription>
+            </DialogHeader>
 
-            {/* File Attachment */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Attachments (Optional)</Label>
-              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-2 mx-1 w-[96%]">
-                <input
-                  type="file"
-                  id="file-upload"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files) {
-                      setAttachedFiles(Array.from(e.target.files))
-                    }
-                  }}
+            <div className="space-y-4 py-4 overflow-y-auto flex-1">
+              {/* Feedback Text Area */}
+              <div className="space-y-2">
+                <Label htmlFor="feedback" className="text-sm font-medium">
+                  Your Feedback
+                </Label>
+                <Textarea
+                  id="feedback"
+                  placeholder="Tell us about any issues you're experiencing or features you'd like to see improved. Your feedback helps us make Navigator better for everyone."
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  className="min-h-[120px] resize-none mx-1 w-[96%]"
                 />
-                <label
-                  htmlFor="file-upload"
-                  className="flex items-center justify-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-2 transition-colors"
-                >
-                  <Upload className="h-4 w-4 text-gray-400 mr-2" />
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    Click to upload files
-                  </span>
-                </label>
               </div>
 
-              {/* Attached Files List */}
-              {attachedFiles.length > 0 && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Attached Files</Label>
-                  {attachedFiles.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
-                      <span className="text-sm text-gray-700 dark:text-gray-300 truncate flex-1">
-                        {file.name}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const newFiles = attachedFiles.filter((_, i) => i !== index)
-                          setAttachedFiles(newFiles)
-                        }}
-                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
+              {/* File Attachment */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Attachments (Optional)</Label>
+                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-2 mx-1 w-[96%]">
+                  <input
+                    type="file"
+                    id="file-upload"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files) {
+                        setAttachedFiles(Array.from(e.target.files))
+                      }
+                    }}
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className="flex items-center justify-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-2 transition-colors"
+                  >
+                    <Upload className="h-4 w-4 text-gray-400 mr-2" />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      Click to upload files
+                    </span>
+                  </label>
                 </div>
-              )}
-            </div>
-          </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-end space-x-3 pt-4 border-t flex-shrink-0">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowFeedbackModal(false)
-                setFeedbackText("")
-                setAttachedFiles([])
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                // Handle "Switch without feedback" action
-                console.log("Switching to previous version without feedback")
-                setShowFeedbackModal(false)
-                setFeedbackText("")
-                setAttachedFiles([])
-                // Add your logic here to redirect to previous version
-              }}
-            >
-              Switch Without Feedback
-            </Button>
-            <Button
-              onClick={() => {
-                // Handle "Submit Feedback" action
-                console.log("Feedback:", feedbackText)
-                console.log("Attached files:", attachedFiles)
-                setShowFeedbackModal(false)
-                setFeedbackText("")
-                setAttachedFiles([])
-                // Add your logic here to submit feedback and redirect
-              }}
-              disabled={!feedbackText.trim()}
-            >
-              <Send className="h-4 w-4 mr-2" />
-              Submit Feedback & Switch
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+                {/* Attached Files List */}
+                {attachedFiles.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Attached Files</Label>
+                    {attachedFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+                        <span className="text-sm text-gray-700 dark:text-gray-300 truncate flex-1">
+                          {file.name}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newFiles = attachedFiles.filter((_, i) => i !== index)
+                            setAttachedFiles(newFiles)
+                          }}
+                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-3 pt-4 border-t flex-shrink-0">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowFeedbackModal(false)
+                  setFeedbackText("")
+                  setAttachedFiles([])
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  // Handle "Switch without feedback" action
+                  console.log("Switching to previous version without feedback")
+                  setShowFeedbackModal(false)
+                  setFeedbackText("")
+                  setAttachedFiles([])
+                  // Add your logic here to redirect to previous version
+                }}
+              >
+                Switch Without Feedback
+              </Button>
+              <Button
+                onClick={() => {
+                  // Handle "Submit Feedback" action
+                  console.log("Feedback:", feedbackText)
+                  console.log("Attached files:", attachedFiles)
+                  setShowFeedbackModal(false)
+                  setFeedbackText("")
+                  setAttachedFiles([])
+                  // Add your logic here to submit feedback and redirect
+                }}
+                disabled={!feedbackText.trim()}
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Submit Feedback & Switch
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </header>
   )
