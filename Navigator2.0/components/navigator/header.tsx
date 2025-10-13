@@ -11,7 +11,9 @@ import { ChevronDown, UserCircle, Search, Bell, Menu, X, Activity } from "lucide
 import { ThemeToggle } from "@/components/theme-toggle"
 import { GetSIDListforUser } from "@/lib/login"
 import { LocalStorageService } from "@/lib/localstorage"
-import { useUserDetail } from "@/hooks/use-local-storage"
+import { useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
+import { getAccessurl, saveSwitchAccessUrl } from "@/lib/userManagement"
+import { toast } from "@/hooks/use-toast"
 
 /**
  * Navigation Configuration
@@ -45,6 +47,7 @@ export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [notificationCount] = useState(3) // Mock notification count
   const [userDetail] = useUserDetail();
+  const [selectedProperty] = useSelectedProperty()
 
 
   useEffect(() => {
@@ -125,6 +128,73 @@ export function Header() {
     if (text?.length <= maxLength) return text
     return text?.substring(0, maxLength) + '...'
   }, [])
+
+  //handle Switch To Classic URL
+  const handleSwitchToClassic = async () => {
+    debugger
+    try {
+      // 🟢 Validate user and property before continuing
+      if (!userDetail?.accessToken || !userDetail?.userId || !selectedProperty?.sid) {
+        console.error("Missing user details or selected property");
+        toast({
+          title: "Validate user detail ",
+          description: "Missing user details or selected property",
+          variant: "error",
+          duration: 5000,
+        });
+        return;
+      }
+
+      const paramUnifiedAuth = userDetail.accessToken;
+      const paramSId = selectedProperty.sid;
+
+      // 🟢 Prepare payload for saving switch access
+      const switchAccUrlUser = {
+        accessToken: paramUnifiedAuth,
+        userID: Number(userDetail.userId),
+        sId: paramSId,
+        isSwitching: 1, // 2 = New Navigator → Old Navigator
+        iPAddress: "",
+      };
+
+      console.log("Saving switch access data:", switchAccUrlUser);
+
+      // 🟢 Save switch access URL
+      const response = await saveSwitchAccessUrl(switchAccUrlUser);
+
+      if (response?.status && response?.body) {
+        console.log("✅ SwitchAccessUrlData saved successfully");
+
+        // 🟢 Fetch the new access URL for Classic Optima
+        const resAcc = await getAccessurl({
+          unifiedauth: paramUnifiedAuth,
+          flagOptima: 3, // 2 = Navigator
+        });
+
+        if (resAcc?.status && resAcc?.body) {
+
+          const baseUrl = resAcc.body.userDetails.applicationURL;
+          const redirectUrl = `${baseUrl}auth?unifiedauth=${paramUnifiedAuth}&sid=${paramSId}`;
+          //const redirectUrl = resAcc.body.userDetails.applicationURL + `auth?unifiedauth=${paramUnifiedAuth}&sid=${paramSId}`;
+          LocalStorageService.clear();
+
+          console.log("Redirecting to Classic Optima:", redirectUrl);
+
+          window.location.href = redirectUrl;
+
+          // 🟢 Option 2: Open in new tab
+          // window.open(redirectUrl, "_blank");
+        } else {
+          console.error("❌ Failed to fetch access URL for Classic Optima");
+        }
+      } else {
+        console.error("❌ Failed to save switch access URL data");
+      }
+    } catch (error) {
+      console.error("🚨 Error switching to Classic Optima:", error);
+    }
+  };
+
 
   return (
     <header
@@ -347,6 +417,14 @@ export function Header() {
                     My Account
                   </div>
                 </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleSwitchToClassic}
+                className="cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-800"
+              >
+                <div className="flex items-center gap-2">
+                  <span>Switch to Navigator</span>
+                </div>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-white dark:hover:bg-white cursor-pointer">
