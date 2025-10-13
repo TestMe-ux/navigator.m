@@ -150,6 +150,9 @@ const validateForm = (formData: OnDemandFormData): OnDemandFormErrors => {
       }
     }
   }
+  if (formData.recipients.length === 0) {
+    errors.recipients = 'Please provide valid email addresses'
+  }
 
   // Validate recipients (optional but if provided, should be valid emails)
   if (formData.recipients.length > 0) {
@@ -569,7 +572,9 @@ export default function OnDemandReportModalConsolidated({
   const [isLosOpen, setIsLosOpen] = useState(false)
   const [isStartDateOpen, setIsStartDateOpen] = useState(false)
   const [isEndDateOpen, setIsEndDateOpen] = useState(false)
-
+  const [maxDate, setMaxDate] = useState<Date | undefined>(undefined)
+  const [maxEndDate, setMaxEndDate] = useState<Date | undefined>(undefined)
+  const today = new Date()
   // Data states
   const [channelsData, setChannelsData] = useState<string[]>([])
   const [primaryHotelsData, setPrimaryHotelsData] = useState<any[]>([])
@@ -606,8 +611,8 @@ export default function OnDemandReportModalConsolidated({
   const losRef = useRef<HTMLDivElement>(null)
 
   // Date constraints
-  const maxDate = addDays(new Date(), 365)
-  const maxEndDate = addDays(new Date(), 365)
+  // const maxDate = addDays(new Date(), 365)
+  // const maxEndDate = addDays(new Date(), 365)
 
   // Filtered data based on search
   const filteredChannels = channelsData.filter(channel =>
@@ -668,6 +673,14 @@ export default function OnDemandReportModalConsolidated({
 
   const handleAddRecipient = () => {
     if (formData.newRecipient && !formData.recipients.includes(formData.newRecipient)) {
+      debugger;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      const invalidEmails = !emailRegex.test(formData.newRecipient)
+
+      if (invalidEmails) {
+        setFormErrors(prev => ({ ...prev, recipients: 'Please provide valid email addresses' }))
+        return;
+      }
       setFormData(prev => ({
         ...prev,
         recipients: [...prev.recipients, prev.newRecipient],
@@ -815,22 +828,81 @@ export default function OnDemandReportModalConsolidated({
   }
 
   // Date handling functions
+  // const handleStartDateSelect = (date: Date | undefined) => {
+  //   setFormData(prev => ({ ...prev, startDate: date }))
+  //   setIsStartDateOpen(false)
+
+  //   if (formErrors.startDate) {
+  //     setFormErrors(prev => clearFieldError(prev, 'startDate'))
+  //   }
+  // }
   const handleStartDateSelect = (date: Date | undefined) => {
     setFormData(prev => ({ ...prev, startDate: date }))
+
+    // Close the calendar popover
     setIsStartDateOpen(false)
 
+    // Clear errors when start date is selected
     if (formErrors.startDate) {
-      setFormErrors(prev => clearFieldError(prev, 'startDate'))
+      setFormErrors(prev => ({ ...prev, startDate: '' }))
+    }
+
+    // Implement Angular logic for maxEndDate calculation
+    if (date) {
+      const date365 = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate())
+      const calculatedMaxEndDate = new Date(date)
+      calculatedMaxEndDate.setDate(calculatedMaxEndDate.getDate() + 90)
+
+      if (calculatedMaxEndDate > date365) {
+        setMaxEndDate(date365)
+      } else {
+        setMaxEndDate(calculatedMaxEndDate)
+      }
+    } else {
+      const nextYear = new Date(today)
+      nextYear.setFullYear(nextYear.getFullYear() + 1)
+      setMaxEndDate(nextYear)
+    }
+
+    // Set maxDate to 1 year from today for start date selection
+    const nextYear = new Date(today)
+    nextYear.setFullYear(nextYear.getFullYear() + 1)
+    setMaxDate(nextYear)
+
+    // If end date exists and is before the new start date, clear end date
+    if (date && formData.endDate && formData.endDate < date) {
+      setFormData(prev => ({ ...prev, endDate: undefined }))
     }
   }
 
-  const handleEndDateSelect = (date: Date | undefined) => {
-    setFormData(prev => ({ ...prev, endDate: date }))
-    setIsEndDateOpen(false)
+  // const handleEndDateSelect = (date: Date | undefined) => {
+  //   setFormData(prev => ({ ...prev, endDate: date }))
+  //   setIsEndDateOpen(false)
 
-    if (formErrors.endDate) {
-      setFormErrors(prev => clearFieldError(prev, 'endDate'))
+  //   if (formErrors.endDate) {
+  //     setFormErrors(prev => clearFieldError(prev, 'endDate'))
+  //   }
+  // }
+  const handleEndDateSelect = (date: Date | undefined) => {
+    // Validate that end date is not before start date
+    if (date && formData.startDate && date < formData.startDate) {
+      return
     }
+
+    setFormData(prev => ({ ...prev, endDate: date }))
+
+    // Clear form error when end date is selected
+    if (formErrors.endDate) {
+      setFormErrors(prev => ({ ...prev, endDate: '' }))
+    }
+
+    // Set maxDate to 1 year from today for start date selection
+    const nextYear = new Date(today)
+    nextYear.setFullYear(nextYear.getFullYear() + 1)
+    setMaxDate(nextYear)
+
+    // Close the calendar popover
+    setIsEndDateOpen(false)
   }
 
   // Data fetching functions
@@ -1019,6 +1091,32 @@ export default function OnDemandReportModalConsolidated({
   // Effects
   useEffect(() => {
     if (isOpen) {
+      const nextYear = new Date()
+      nextYear.setFullYear(nextYear.getFullYear() + 1)
+      setMaxDate(nextYear)
+      setFormData({
+        selectedChannels: [],
+        compSet: 'primary',
+        selectedPrimaryHotels: [],
+        selectedSecondaryHotels: [],
+        guests: '1',
+        los: '1',
+        startDate: undefined,
+        endDate: undefined,
+        recipients: [userDetails?.email],
+        newRecipient: '',
+        compsetData: []
+      });
+      setFormErrors({
+        channels: '',
+        compSet: '',
+        guests: '',
+        los: '',
+        startDate: '',
+        endDate: '',
+        recipients: '',
+        general: ''
+      })
       Promise.all([
         fetchChannelsDataAsync(),
         fetchCompSetDataAsync(),

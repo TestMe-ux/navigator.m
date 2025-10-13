@@ -83,10 +83,10 @@ function OTARankView({
         </CardHeader>
         <CardContent>
           <div className="h-64 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
-              <div className="flex flex-col items-center space-y-4">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                <div className="text-sm text-muted-foreground">Preparing your Ota Data Analysis...</div>
-                <div className="text-sm text-muted-foreground">Hang tight — your data will appear shortly.</div>
+            <div className="flex flex-col items-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              <div className="text-sm text-muted-foreground">Preparing your Ota Data Analysis...</div>
+              <div className="text-sm text-muted-foreground">Hang tight — your data will appear shortly.</div>
             </div>
           </div>
         </CardContent>
@@ -99,9 +99,28 @@ function OTARankView({
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-3">
-            <div className={`w-6 h-6 rounded ${selectedChannelData?.iconBg || 'bg-primary'} flex items-center justify-center mt-0.5`}>
-              <span className="text-white text-xs font-bold">{selectedChannelData?.icon}</span>
-            </div>
+            {selectedChannelData?.url ? (
+              <div className="w-6 h-6 rounded-md overflow-hidden shadow-sm">
+                <img
+                  src={selectedChannelData.url}
+                  alt={selectedChannelData.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    // Fallback to text icon if image fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    const parent = target.parentElement;
+                    if (parent) {
+                      parent.innerHTML = `<div class="w-full h-full ${selectedChannelData.iconBg} flex items-center justify-center"><span class="text-white text-xs font-bold">${selectedChannelData.icon}</span></div>`;
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <div className={`w-6 h-6 rounded-md ${selectedChannelData?.iconBg ||'bg-primary'} flex items-center justify-center shadow-sm`}>
+                <span className="text-white text-xs font-bold">{selectedChannelData?.icon}</span>
+              </div>
+            )}
             <div className="flex-1">
               <CardTitle className="text-xl font-bold">Ranking Trends Analysis</CardTitle>
               <p className="text-sm text-muted-foreground mt-1">Comprehensive ranking comparison across all channels with market insights</p>

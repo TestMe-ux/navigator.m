@@ -25,7 +25,7 @@ import { getKPIData } from "@/lib/rate-trends-data"
 import { useLocalStorage, usePackageDetails, useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
 import { useScreenSize } from "@/hooks/use-screen-size"
 import { getRateTrends, PPExcelDownload } from "@/lib/rate"
-import { generateRTRRReport, getCompleteCompSet, getRTRRReportStatusBySID, getRTRRValidation } from "@/lib/reports"
+import { generateRTRRReport, getAllReports, getCompleteCompSet, getRTRRReportStatusBySID, getRTRRValidation } from "@/lib/reports"
 import { RTRRRequestModel } from "@/lib/RTRRRequestModel"
 import { usePollingContext } from "@/components/polling/polling-context"
 import { useToast } from "@/hooks/use-toast"
@@ -111,6 +111,7 @@ export default function RateTrendPage() {
   const { startTaskPolling, isTaskPolling, resumePolling } = usePollingContext();
   const [rateCompData, setRateCompData] = useState(Object);
   const [demandData, setDemandData] = useState<any>([])
+  const [reportInProgress, setReportInProgress] = useState<boolean>(true);
   const [competitorCount, setCompetitorCount] = useState(0)
   const [compsetData, setCompsetData] = useState<any[]>([])
   const [primaryHotelsData, setPrimaryHotelsData] = useState<any[]>([])
@@ -122,7 +123,6 @@ export default function RateTrendPage() {
   // Dynamic competitor count based on digitCount and screen resolution
   const getCompetitorsPerPage = () => {
     const { isSmall, isMedium, isLarge } = screenSize
-    debugger
     if (isSmall) {
       // Resolution from 1352px to 1500px
       return selectedDigitCount <= 4 ? 4 : selectedDigitCount <= 7 ? 3 : 2
@@ -525,7 +525,8 @@ export default function RateTrendPage() {
     Promise.all([
       getRateDate(),
       getCompRateData(),
-      getDemandAIData()
+      getDemandAIData(),
+      fetchReportsDataWithDates(startDate, endDate)
     ]).finally(() => {
       clearInterval(progressInterval);
       setLoadingProgress(100);
@@ -613,6 +614,42 @@ export default function RateTrendPage() {
       })
       .catch((err) => console.error(err));
   }
+  const fetchReportsDataWithDates = async (startDate: Date, endDate: Date) => {
+    let progressInterval: NodeJS.Timeout | undefined = undefined
+    try {
+
+      const sid = selectedProperty?.sid ?? 0
+
+      // Format dates for API call
+      const startDateStr = format(new Date(startDate), "MM/dd/yyyy")
+      const endDateStr = format(new Date(endDate), "MM/dd/yyyy")
+      debugger;
+      // Call the API
+      const response = await getAllReports({
+        sid: selectedProperty?.sid,
+        startdate: startDateStr,
+        enddate: endDateStr
+      })
+
+      // Handle response - check if response exists and has data
+      if (response && (response.status || response.body !== undefined)) {
+        debugger
+        let data = response.body || []
+        const reportInProgres = data.filter((x: any) => x.reportStatus.toLowerCase() !== 'error' && (!x.reportFilePath ||
+          x.reportFilePath === 'NONE' ||
+          x.reportFilePath === 'PENDING' ||
+          x.reportFilePath === ""));
+        setReportInProgress(reportInProgres?.length > 0 ? true : false);
+      } else {
+        // Only log as error if there's an actual API error
+
+      }
+    } catch (error) {
+      console.error('Error fetching reports:', error)
+
+    }
+  }
+
   const getRateDate = () => {
     setRateData({});
     const filtersValue = {
@@ -898,6 +935,7 @@ export default function RateTrendPage() {
                     setIsModalOpen(true);
                     // Add report logic here
                   }}
+                  disabled={reportInProgress}
                 >
                   <FileText className="h-4 w-4" style={{ marginRight: '2px' }} />
                   On Demand Report
