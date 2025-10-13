@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { TrendingUp, BarChart3, Calendar, Activity, DollarSign, Percent, Grid3X3, RefreshCw, FileText, Download, ChevronLeft, ChevronRight, Eye, ChevronDown, Zap } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, conevrtDateforApi } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { RateTrendCalendar, MonthNavigation } from "@/components/navigator/rate-trend-calendar"
@@ -14,15 +14,25 @@ import { FilterBar } from "@/components/navigator/filter-bar"
 import { RateTrendHeader } from "@/components/navigator/rate-trend-header"
 import { FilterSidebar } from "@/components/filter-sidebar"
 import { LightningRefreshModal } from "@/components/navigator/generate-report-modal"
+import { DownloadLiteReportModal } from "@/components/navigator/download-lite-report-modal"
 import { Snackbar } from "@/components/ui/snackbar"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
-import { DateProvider } from "@/components/date-context"
-import { ComparisonProvider } from "@/components/comparison-context"
-import { format } from "date-fns"
+import { DateProvider, useDateContext } from "@/components/date-context"
+import { ComparisonProvider, useComparison } from "@/components/comparison-context"
+import { format, differenceInDays, set } from "date-fns"
 import { getKPIData } from "@/lib/rate-trends-data"
 // import { LocalStorageService } from "@/lib/localstorage" // Removed - using static data only
-import { useLocalStorage } from "@/hooks/use-local-storage"
+import { useLocalStorage, usePackageDetails, useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
 import { useScreenSize } from "@/hooks/use-screen-size"
+import { getRateTrends, PPExcelDownload } from "@/lib/rate"
+import { generateRTRRReport, getAllReports, getCompleteCompSet, getRTRRReportStatusBySID, getRTRRValidation } from "@/lib/reports"
+import { RTRRRequestModel } from "@/lib/RTRRRequestModel"
+import { usePollingContext } from "@/components/polling/polling-context"
+import { useToast } from "@/hooks/use-toast"
+import { GetDemandAIData } from "@/lib/demand"
+import { RateTrendsCoachMarkTrigger } from "@/components/navigator/rate-trends-coach-mark-system"
+import OnDemandReportModal from "@/components/on-demand-report-modal/OnDemandReportModal"
+// import { OnDemandReportModal } from "@/components/on-demand-report-modal"
 
 /**
  * Utility function to format dates consistently across server and client
@@ -76,83 +86,106 @@ const generateKPIData = () => {
  * @returns React component for rate trends analysis
  */
 export default function RateTrendPage() {
-  const [currentView, setCurrentView] = useLocalStorage<"calendar" | "chart" | "table">("rate-trend-view", "table")
+  const { selectedComparison, channelFilter, compsetFilter, setSideFilter, sideFilter } = useComparison()
+  const [currentView, setCurrentView] = useLocalStorage<"calendar" | "chart" | "table">("rate-trend-view", "calendar")
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false)
   // No isClient state needed for static data
   const [losGuest, setLosGuest] = useState<{ "Los": any[], "Guest": any[] }>({ "Los": [], "Guest": [] });
   const [dataLoading, setDataLoading] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [loadingCycle, setLoadingCycle] = useState(1)
-  const [selectedValue, setSelectedValue] = useState("4,444 (4 digit)")
+  // const [selectedValue, setSelectedValue] = useState("4,444 (4 digit)")
   const [selectedDigitCount, setSelectedDigitCount] = useState(4)
-  
+  const { startDate, endDate, isLoading } = useDateContext()
+  const [objForExcel, setObjForExcel] = useState<any>({})
   // Screen size detection for responsive competitor count
   const screenSize = useScreenSize()
-  
+
   // State for competitor scrolling (only for table view)
   const [competitorStartIndex, setCompetitorStartIndex] = useState(0)
-  
+  const [selectedProperty] = useSelectedProperty();
+  const [packageDetails] = usePackageDetails()
+  const [userDetails] = useUserDetail();
+  const [rateData, setRateData] = useState(Object);
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  // Polling context for task management
+  const { startTaskPolling, isTaskPolling, resumePolling } = usePollingContext();
+  const [rateCompData, setRateCompData] = useState(Object);
+  const [demandData, setDemandData] = useState<any>([])
+  const [reportInProgress, setReportInProgress] = useState<boolean>(true);
+  const [competitorCount, setCompetitorCount] = useState(0)
+  const [compsetData, setCompsetData] = useState<any[]>([])
+  const [primaryHotelsData, setPrimaryHotelsData] = useState<any[]>([])
+  const [secondaryHotelsData, setSecondaryHotelsData] = useState<any[]>([])
+  // const [runningReport, setRunningReport] = useState<any>({});
+  // const [lightingRefreshData, setLightingRefreshData] = useState<any>({});
+  const [validationObject, setValidationObject] = useState<any>({});
+  const { toast } = useToast()
   // Dynamic competitor count based on digitCount and screen resolution
   const getCompetitorsPerPage = () => {
     const { isSmall, isMedium, isLarge } = screenSize
-    
     if (isSmall) {
       // Resolution from 1352px to 1500px
-      return selectedDigitCount === 4 ? 4 : selectedDigitCount === 6 ? 3 : 2
+      return selectedDigitCount <= 4 ? 4 : selectedDigitCount <= 7 ? 3 : 2
     } else if (isMedium) {
       // Resolution from 1501px to 1800px
-      return selectedDigitCount === 4 ? 5 : selectedDigitCount === 6 ? 4 : 4
+      return selectedDigitCount <= 4 ? 5 : selectedDigitCount <= 7 ? 4 : 4
     } else if (isLarge) {
       // Resolution above 1800px
-      return selectedDigitCount === 4 ? 8 : selectedDigitCount === 6 ? 6 : 5
+      return selectedDigitCount <= 4 ? 8 : selectedDigitCount <= 7 ? 6 : 5
     } else {
       // Default fallback (for screens < 1352px)
-      return selectedDigitCount === 4 ? 4 : selectedDigitCount === 6 ? 3 : 2
+      return selectedDigitCount <= 4 ? 4 : selectedDigitCount <= 7 ? 3 : 2
     }
   }
-  
+
   const competitorsPerPage = getCompetitorsPerPage()
-  
+
   // State for Lightning Refresh Modal
   const [isLightningRefreshModalOpen, setIsLightningRefreshModalOpen] = useState(false)
-  
+
+  // State for Download Lite Report Modal
+  const [isDownloadLiteReportModalOpen, setIsDownloadLiteReportModalOpen] = useState(false)
+
   // State for Snackbar
   const [isSnackbarOpen, setIsSnackbarOpen] = useState(false)
   const [snackbarMessage, setSnackbarMessage] = useState("")
-  const [snackbarType, setSnackbarType] = useState<'info' | 'success'>('info')
-  
+  const [snackbarType, setSnackbarType] = useState<'info' | 'success' | 'error'>('info')
+
   // State for Lightning Refresh progress
   const [isLightningRefreshInProgress, setIsLightningRefreshInProgress] = useState(false)
-  
+  const [isLightningRefreshEnable, setIsLightningRefreshEnable] = useState(false)
+  const [lightningRefreshMessage, setIsLightningRefreshMessage] = useState('')
   // Navigation functions for competitor scrolling
   const nextCompetitors = () => {
     setCompetitorStartIndex(prev => {
-      const totalCompetitors = 9 // We have 9 competitors total
+      debugger
+      console.log(Math.min(prev + getCompetitorsPerPage(), competitorCount));
       // Always move by 5 positions, even if it goes beyond total competitors
-      return Math.min(prev + 5, totalCompetitors)
+      return Math.min(prev + getCompetitorsPerPage(), competitorCount)
     })
   }
-  
+
   const prevCompetitors = () => {
-    setCompetitorStartIndex(prev => Math.max(0, prev - 5))
+    setCompetitorStartIndex(prev => Math.max(0, prev - getCompetitorsPerPage()))
   }
-  
+
   const canGoNext = () => {
-    const totalCompetitors = 9
+    debugger;
     // Allow going to next page if we can show at least 1 more competitor
-    return competitorStartIndex + 5 < totalCompetitors
+    return competitorStartIndex + getCompetitorsPerPage() < competitorCount
   }
-  
+
   const canGoPrev = () => {
     return competitorStartIndex > 0
   }
-  
 
-  // Static date range - spanning multiple months to show month navigation
-  const startDate = new Date()
-  const endDate = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000) // Next 45 days (spans multiple months)
-  const isLoading = false // Always false for static data
-  
+
+  // // Static date range - spanning multiple months to show month navigation
+  // const startDate = new Date()
+  // const endDate = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000) // Next 45 days (spans multiple months)
+  // const isLoading = false // Always false for static data
+
   // Month navigation state
   const [currentMonthIndex, setCurrentMonthIndex] = useState(0)
 
@@ -171,14 +204,14 @@ export default function RateTrendPage() {
 
     const months: { month: number; year: number; monthName: string }[] = []
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    
+
     const start = new Date(startDate)
     const end = new Date(endDate)
-    
+
     // Add months between start and end dates
     const current = new Date(start.getFullYear(), start.getMonth(), 1)
     const endMonth = new Date(end.getFullYear(), end.getMonth(), 1)
-    
+
     while (current <= endMonth) {
       months.push({
         month: current.getMonth(),
@@ -187,50 +220,275 @@ export default function RateTrendPage() {
       })
       current.setMonth(current.getMonth() + 1)
     }
-    
+
     return months
   }, [startDate, endDate])
 
   // Use calculated values directly
   const availableMonths = calculateAvailableMonths
   const shouldShowMonthNavigation = availableMonths.length > 1
+  const handleReportGenerated = (reportId: number) => {
+    console.log('Report generated with ID:', reportId)
+  }
 
+  const handleError = (error: string) => {
+    console.error('Error:', error)
+  }
   // Handle lightning refresh
-  const handleLightningRefresh = (data: { channels: string; checkInStartDate: string; compSet: string; guests: string; los: string }) => {
-    const message = `⚡ Lightning Refresh ⚡ is in progress. Please wait while the data is being refreshed for ${data.channels}`
-    setSnackbarMessage(message)
-    setSnackbarType('info')
-    setIsSnackbarOpen(true)
-    setIsLightningRefreshInProgress(true)
-    
+  const RTRFInitatedSuccess = (runningReport: any, lightingRefreshData: any) => {
+    if (validationObject) {
+      if (runningReport != undefined) {
+        if (runningReport.reportId == 0) {
+          let RTRFPostObj = CreatePostObjForRTRR(lightingRefreshData);
+          GenerateRTRRReport(RTRFPostObj);
+        }
+        else {
+          setSnackbarMessage("⚡Lightning Refresh⚡ is in progress. Please wait while the data is being refreshed")
+          setSnackbarType('info')
+          setIsSnackbarOpen(true)
+          setIsLightningRefreshInProgress(true)
+          let filtersValue = CreatePostObjForRTRR(lightingRefreshData);
+          let channelName = filtersValue.Sources;
+          let losrtrr = filtersValue?.LOS != null ? filtersValue?.LOS : 1;
+          let guestrtrr = filtersValue?.Occupancy != null ? filtersValue?.Occupancy : 1;
+          if (selectedProperty?.sid && userDetails?.userId) {
+            const taskData = {
+              taskId: runningReport.reportId,
+              channel: Array.isArray(channelName) ? channelName.join(', ') : channelName,
+              los: losrtrr.toString(),
+              guest: guestrtrr.toString(),
+              sid: typeof selectedProperty.sid === 'string' ? parseInt(selectedProperty.sid) : selectedProperty.sid,
+              userId: userDetails.userId.toString(),
+              checkInStartDate: filtersValue.FirstCheckInDate ? new Date(filtersValue.FirstCheckInDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+              checkInEndDate: filtersValue.FirstCheckInDate ? new Date(new Date(filtersValue.FirstCheckInDate).getTime() + filtersValue.DaysOfData * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              month: filtersValue.FirstCheckInDate ? new Date(filtersValue.FirstCheckInDate).getMonth() + 1 : new Date().getMonth() + 1,
+              year: filtersValue.FirstCheckInDate ? new Date(filtersValue.FirstCheckInDate).getFullYear() : new Date().getFullYear(),
+              onTaskComplete: () => {
+                // Re-enable Lightning Refresh when task completes (success or failure, but not retry)
+                setIsLightningRefreshInProgress(false);
+                console.log('🔄 Lightning Refresh completed, re-enabling button');
+              }
+            };
+
+            startTaskPolling(taskData);
+            console.log('🔄 Started task polling for lightning refresh:', taskData);
+          } else {
+            console.warn('⚠️ Missing selectedProperty or userDetails for task polling');
+          }
+        }
+      }
+      else {
+        let RTRFPostObj = CreatePostObjForRTRR(lightingRefreshData);
+        GenerateRTRRReport(RTRFPostObj);
+      }
+
+    }
+    else {
+      //this.RTRRValidation = response.ValidationObj;
+    }
+  };
+  const CreatePostObjForRTRR = (lightingRefreshData: any) => {
+    debugger
+    var postdata: RTRRRequestModel = {
+      SID: selectedProperty?.sid || 0,
+      ContactId: userDetails?.userId?.toString() || '',
+      FirstCheckInDate: new Date().toISOString(),
+      DaysOfData: 0,
+      LOS: 1,
+      Occupancy: 1,
+      Properties: [],
+      Sources: [],
+      AllProperties: [],
+      AllSources: [],
+      EmailIds: [],
+      ContactName: userDetails?.email || '',
+      Name: '',
+      Currency: '',
+      ReportSource: '',
+      RTRRInSecond: 0,
+      IsILOSApplicable: false,
+      IsOptimaTrial: false
+    };
+
+    // Update values from the form data
+    postdata.LOS = !!lightingRefreshData?.los ? parseInt(lightingRefreshData?.los) : 1;
+    postdata.Occupancy = !!lightingRefreshData?.guests ? parseInt(lightingRefreshData?.guests) : 1;
+    postdata.Name = userDetails?.firstName + " " + userDetails?.lastName
+    let CurrentDatetime = (new Date(lightingRefreshData?.checkInStartDate));
+    CurrentDatetime.setHours(0, 0, 0, 0);
+
+    //let totalDayinMonth = this.daysInMonth(CurrentDatetime.getMonth(), CurrentDatetime.getFullYear());
+    var todaysDate = new Date();
+    let DayOfData = 0;
+    todaysDate.setHours(0, 0, 0, 0);
+    if (new Date(lightingRefreshData?.checkInStartDate) >= todaysDate) {
+      if (CurrentDatetime < todaysDate) {
+        DayOfData = differenceInDays(new Date(lightingRefreshData?.checkInStartDate), todaysDate);
+      } else {
+        DayOfData = 30;// differenceInDays(new Date(this.checkInEndDate), new Date(this.checkInStartDate));
+      }
+    }
+    DayOfData = DayOfData == 0 ? 1 : DayOfData;
+    postdata.DaysOfData = DayOfData >= 31 ? 31 : DayOfData;
+
+    let properties: any[] = [];
+    let sources: any[] = [];
+
+
+    sources.push(lightingRefreshData.selectedChannel);
+
+    if (lightingRefreshData?.compSet === "primary") {
+      primaryHotelsData.forEach(item => {
+        properties.push(item?.hmid);
+      })
+
+    } else {
+      secondaryHotelsData.forEach(item => {
+        properties.push(item?.hmid);
+      })
+    }
+
+    properties.push(selectedProperty?.hmid);
+
+    postdata.Sources = sources;
+    postdata.Properties = properties;
+    debugger;
+    if (new Date(lightingRefreshData?.checkInStartDate) < todaysDate || DayOfData == 0) {
+      postdata.FirstCheckInDate = todaysDate.toISOString();
+    } else {
+      // Use date-fns to properly construct the date
+      debugger;
+      const checkInDate = new Date(lightingRefreshData?.checkInStartDate);
+      const day = checkInDate.getDate();
+      const month = checkInDate.getMonth();
+      const year = checkInDate.getFullYear();
+      const dateStringData = new Date(Date.UTC(year, month, day, 0, 0, 0));
+      // Create a new date with the same year and month, but with the calculated day
+      // const dateStringData = set(new Date(year, month, 1), {
+      //   date: day,
+      //   hours: 0,
+      //   minutes: 0,
+      //   seconds: 0,
+      //   milliseconds: 0,
+      // });
+      postdata.FirstCheckInDate = dateStringData.toISOString();
+    }
+
+    postdata.Currency = selectedProperty?.currencyCode?.toString() ?? '';
+    //let result = $.grep(vm.LightingChannel, function (e) { if (e.Cname.toLowerCase() == vm.RTRRChannelUnderProcessed.toLowerCase()) return true; else return false; });
+    if (lightingRefreshData.selectedChannel != undefined) {
+      const result = lightingRefreshData.channels.filter((e: any) =>
+        e.cname.toLowerCase() == lightingRefreshData.selectedChannel.toLowerCase()
+      );
+      if (result.length > 0) {
+        postdata.RTRRInSecond = result[0].rtrrInSecond;
+      }
+    }
+
+
+    return postdata;
+  }
+
+  const handleLightningRefresh = async (data: { selectedChannel: string; channels: string; checkInStartDate: string; compSet: string; guests: string; los: string }) => {
+    // const message = `⚡ Lightning Refresh ⚡ is in progress. Please wait while the data is being refreshed for ${data.selectedChannel}`
+    const response: any = await getRTRRValidation({
+      SID: selectedProperty?.sid,
+      UserID: userDetails?.userId,
+    });
+    if (response?.status) {
+      debugger;
+      setValidationObject(response.body);
+      const filtersValue = {
+        SID: selectedProperty?.sid,
+        Channel: data.selectedChannel,
+        LOS: data.los,
+        Guest: data.guests,
+        Month: new Date(data.checkInStartDate).getMonth() + 1,
+        Year: new Date(data.checkInStartDate).getFullYear()
+      }
+      debugger;
+      const responseRtrrReport: any = await getRTRRReportStatusBySID(filtersValue);
+      if (responseRtrrReport?.status) {
+        // setRunningReport(responseRtrrReport.body);
+        RTRFInitatedSuccess(responseRtrrReport.body, data);
+      }
+      else {
+        console.log('No record Found for SID');
+      }
+    }
+    else {
+      setIsLightningRefreshEnable(response.body.messageCode == 'M-001' ? false : true);
+      setIsLightningRefreshInProgress(response.body.messageCode == 'M-002' || response.body.messageCode == 'M-003' ? true : false);
+      setSnackbarMessage(response.body.message)
+      setSnackbarType('error')
+      setIsSnackbarOpen(true)
+    }
+
+
     // Auto-close progress snackbar after 10 seconds
     setTimeout(() => {
       setIsSnackbarOpen(false)
     }, 10000)
-    
+
     // Show success snackbar and reset button state after 10 seconds
-    setTimeout(() => {
-      setIsLightningRefreshInProgress(false)
-      
-      // Show success snackbar
-      const successMessage = `Your 'Lightning Refresh' has been completed successfully for ${data.channels}, LOS ${data.los}, GUEST ${data.guests}, and the next 30 days`
-      setSnackbarMessage(successMessage)
-      setSnackbarType('success')
-      setIsSnackbarOpen(true)
-      
-      // Auto-close success snackbar after 10 seconds
-      setTimeout(() => {
-        setIsSnackbarOpen(false)
-      }, 10000)
-    }, 10000)
+    // setTimeout(() => {
+    //   setIsLightningRefreshInProgress(false)
+
+    //   // Show success snackbar
+    //   const successMessage = `Your 'Lightning Refresh' has been completed successfully for ${data.selectedChannel}, LOS ${data.los}, GUEST ${data.guests}, and the next 30 days`
+
+
+    //   // Auto-close success snackbar after 10 seconds
+    //   setTimeout(() => {
+    //     setIsSnackbarOpen(false)
+    //   }, 10000)
+    // }, 10000)
   }
-  
-  // No client hydration needed for static data
-  
+  const GenerateRTRRReport = async (filtersValue: RTRRRequestModel) => {
+    const response: any = await generateRTRRReport(filtersValue);
+    // console.log(response);
+    RTRFGenrateRequestSuccess(response, filtersValue);
+  }
+  const RTRFGenrateRequestSuccess = (response: any, filtersValue: RTRRRequestModel) => {
+    if (response.status) {
+      let channelName = filtersValue.Sources;
+      let losrtrr = filtersValue?.LOS != null ? filtersValue?.LOS : 1;
+      let guestrtrr = filtersValue?.Occupancy != null ? filtersValue?.Occupancy : 1;
+      let message = "" + ' ⚡Lightning Refresh⚡ is in progress. Please wait while the data is being refreshed for ' + "" + channelName + ", " + 'LOS ' + losrtrr + ", " + 'GUEST ' + guestrtrr + ", " + 'and the next ' + filtersValue.DaysOfData + ' days';
+      // this._snackbar.openSnackBar(message, '', 'success');
+      setSnackbarMessage(message)
+      setSnackbarType('info')
+      setIsSnackbarOpen(true)
+      setIsLightningRefreshInProgress(true)
+      // Start task polling for lightning refresh
+      if (selectedProperty?.sid && userDetails?.userId) {
+        const taskData = {
+          taskId: response.body,
+          channel: Array.isArray(channelName) ? channelName.join(', ') : channelName,
+          los: losrtrr.toString(),
+          guest: guestrtrr.toString(),
+          sid: typeof selectedProperty.sid === 'string' ? parseInt(selectedProperty.sid) : selectedProperty.sid,
+          userId: userDetails.userId.toString(),
+          checkInStartDate: filtersValue.FirstCheckInDate ? new Date(filtersValue.FirstCheckInDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          checkInEndDate: filtersValue.FirstCheckInDate ? new Date(new Date(filtersValue.FirstCheckInDate).getTime() + filtersValue.DaysOfData * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          month: filtersValue.FirstCheckInDate ? new Date(filtersValue.FirstCheckInDate).getMonth() + 1 : new Date().getMonth() + 1,
+          year: filtersValue.FirstCheckInDate ? new Date(filtersValue.FirstCheckInDate).getFullYear() : new Date().getFullYear(),
+          onTaskComplete: () => {
+            // Re-enable Lightning Refresh when task completes (success or failure, but not retry)
+            setIsLightningRefreshInProgress(false);
+            console.log('🔄 Lightning Refresh completed, re-enabling button');
+          }
+        };
 
-  // No date range change handling needed for static data
-
-  // Calculate static KPIs - no dependencies needed since dates are fixed
+        startTaskPolling(taskData);
+        console.log('🔄 Started task polling for lightning refresh:', taskData);
+      } else {
+        console.warn('⚠️ Missing selectedProperty or userDetails for task polling');
+      }
+    }
+    else {
+    }
+  }
   const kpiData = generateKPIData()
 
   /**
@@ -240,19 +498,350 @@ export default function RateTrendPage() {
     setIsFilterSidebarOpen(true)
     console.log("🔍 Opening filter sidebar")
   }
+  useEffect(() => {
 
+
+    const channelIds = channelFilter?.channelId ?? [];
+    if (
+      !startDate ||
+      !endDate ||
+      !selectedProperty?.sid ||
+      !(channelIds.length > 0)
+    ) return;
+    // setIsPageLoading(true);
+    setLoadingProgress(0);
+
+    const progressInterval = setInterval(() => {
+      setLoadingProgress((prev) => {
+        const increment = Math.floor(Math.random() * 9) + 3;
+        const newProgress = prev + increment;
+        if (newProgress >= 100) {
+          setLoadingCycle(prevCycle => prevCycle + 1);
+          return 0;
+        }
+        return newProgress;
+      });
+    }, 80);
+
+    Promise.all([
+      getRateDate(),
+      getCompRateData(),
+      getDemandAIData(),
+      fetchReportsDataWithDates(startDate, endDate)
+    ]).finally(() => {
+      clearInterval(progressInterval);
+      setLoadingProgress(100);
+      setTimeout(() => {
+        // setIsPageLoading(false);
+        setLoadingProgress(0);
+      }, 300);
+    });
+
+  }, [
+    startDate,
+    endDate,
+    selectedProperty?.sid,
+    channelFilter?.channelId?.join(','),
+    sideFilter,
+    compsetFilter
+  ]);
+
+  useEffect(() => {
+    if (!startDate ||
+      !endDate ||
+      !selectedProperty?.sid) return;
+    Promise.all([
+      getCompRateData()
+    ]);
+  }, [selectedComparison])
+  useEffect(() => {
+    if (!selectedProperty?.sid) return;
+    const fetchRTRRChannel = async () => {
+      const response: any = await getRTRRValidation({
+        SID: selectedProperty.sid,
+        UserID: userDetails?.userId,
+      });
+      if (response) {
+        setIsLightningRefreshMessage(response.body.message)
+        setIsLightningRefreshEnable(response.body.messageCode == 'M-001' ? false : true);
+        setIsLightningRefreshInProgress(response.body.messageCode == 'M-002' || response.body.messageCode == 'M-003' ? true : false);
+      }
+    }
+    const fetchCompSetData = async () => {
+      try {
+        const response = await getCompleteCompSet({
+          SID: selectedProperty?.sid,
+          includesubscriber: false
+        })
+
+        if (response.status && response.body) {
+          // Filter primary and secondary compsets based on isSecondary property
+          const primaryCompSets = response.body.filter((x: any) => !x.isSecondary)
+          const secondaryCompSets = response.body.filter((x: any) => x.isSecondary)
+
+          setPrimaryHotelsData(primaryCompSets)
+          setSecondaryHotelsData(secondaryCompSets)
+          setCompsetData(response.body);
+        }
+      } catch (error) {
+        console.error('Error fetching compset data:', error)
+        // Set default data if API fails
+        setPrimaryHotelsData([])
+        setSecondaryHotelsData([])
+      } finally {
+        // setIsLoadingCompSet(false)
+      }
+    }
+    Promise.all([fetchRTRRChannel(), fetchCompSetData()])
+  }, [selectedProperty?.sid]);
+
+  // Resume polling when component mounts and has necessary data
+  useEffect(() => {
+    if (selectedProperty?.sid && userDetails?.userId) {
+      // Small delay to ensure localStorage is available and component is fully mounted
+      const timer = setTimeout(() => {
+        resumePolling();
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [selectedProperty?.sid, userDetails?.userId, resumePolling]);
+  const getDemandAIData = () => {
+    return GetDemandAIData({ SID: selectedProperty?.sid, startDate: conevrtDateforApi(startDate?.toString()), endDate: conevrtDateforApi(endDate?.toString()) })
+      .then((res) => {
+        if (res.status) {
+          setDemandData(res.body);
+        }
+      })
+      .catch((err) => console.error(err));
+  }
+  const fetchReportsDataWithDates = async (startDate: Date, endDate: Date) => {
+    let progressInterval: NodeJS.Timeout | undefined = undefined
+    try {
+
+      const sid = selectedProperty?.sid ?? 0
+
+      // Format dates for API call
+      const startDateStr = format(new Date(startDate), "MM/dd/yyyy")
+      const endDateStr = format(new Date(endDate), "MM/dd/yyyy")
+      debugger;
+      // Call the API
+      const response = await getAllReports({
+        sid: selectedProperty?.sid,
+        startdate: startDateStr,
+        enddate: endDateStr
+      })
+
+      // Handle response - check if response exists and has data
+      if (response && (response.status || response.body !== undefined)) {
+        debugger
+        let data = response.body || []
+        const reportInProgres = data.filter((x: any) => x.reportStatus.toLowerCase() !== 'error' && (!x.reportFilePath ||
+          x.reportFilePath === 'NONE' ||
+          x.reportFilePath === 'PENDING' ||
+          x.reportFilePath === ""));
+        setReportInProgress(reportInProgres?.length > 0 ? true : false);
+      } else {
+        // Only log as error if there's an actual API error
+
+      }
+    } catch (error) {
+      console.error('Error fetching reports:', error)
+
+    }
+  }
+
+  const getRateDate = () => {
+    setRateData({});
+    const filtersValue = {
+      "SID": selectedProperty?.sid,
+      "channels": (channelFilter?.channelId?.length ?? 0) > 0 ? channelFilter.channelId : [-1],
+      "channelsText": (channelFilter?.channelName?.length ?? 0) > 0 ? channelFilter.channelName : ["All Channel"],
+      "checkInStartDate": conevrtDateforApi(startDate?.toString()),
+      "checkInEndDate": conevrtDateforApi(endDate?.toString()),
+      "LOS": sideFilter?.lengthOfStay?.toString() || null,
+      "guest": sideFilter?.guest?.toString() || null,
+      "productTypeID": sideFilter?.roomTypes || null,
+      "productTypeIDText": sideFilter?.roomTypes || "All",
+      "inclusionID": sideFilter?.inclusions || [],
+      "inclusionIDText": sideFilter?.inclusions?.length ? sideFilter.inclusions : ["All"],
+      "properties": [],
+      "restriction": sideFilter?.rateViewBy?.Restriction,
+      "qualification": sideFilter?.rateViewBy?.Qualification,
+      "promotion": sideFilter?.rateViewBy?.Promotion,
+      "restrictionText": sideFilter?.rateViewBy?.RestrictionText || "All",
+      "promotionText": sideFilter?.rateViewBy?.PromotionText || "All",
+      "qualificationText": sideFilter?.rateViewBy?.QualificationText || "All",
+      "subscriberPropertyID": selectedProperty?.hmid,
+      "subscriberName": selectedProperty?.name,
+      "mSIRequired": false,
+      "benchmarkRequired": true,
+      "compsetRatesRequired": true,
+      "propertiesText": [],
+      "isSecondary": compsetFilter,
+    }
+    setObjForExcel(filtersValue)
+    getRateTrends(filtersValue)
+      .then((res) => {
+        if (res.status) {
+          let digitCount = 4;
+          const CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
+            const rates = x.subscriberPropertyRate || [];
+
+            const [avgRate, avgStatus] = (() => {
+              const valid = rates.filter((r: any) => parseInt(r.rate) > 0 && r.status === "O").map((r: any) => parseInt(r.rate));
+              if (valid.length) return [valid.reduce((a: any, b: any) => a + b, 0) / valid.length, "O"];
+
+              const statuses = new Set(rates.map((r: any) => r.status));
+              if (statuses.has("C")) return [0, "C"];
+              if (statuses.has("ND")) return [0, "ND"];
+              return [0, "ND"];
+            })();
+            if (Math.round(avgRate).toString().length > digitCount) {
+              digitCount = Math.round(avgRate).toString().length;
+            }
+            return {
+              ...x,
+              AvgData: avgRate,
+              AvgStatus: avgStatus
+            };
+          });
+          setSelectedDigitCount(digitCount);
+          res.body.pricePositioningEntites = CalulatedData;
+          setCompetitorCount(res.body.pricePositioningEntites.filter((x: any) => x.propertyType === 1).length)
+          // console.log('Rate trends data:', res.body);
+          setRateData(res.body);
+          setLosGuest({ "Los": res.body?.losList, "Guest": res.body?.guestList });
+          // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
+        }
+      })
+      .catch((err) => console.error(err));
+  }
+  const getCompRateData = () => {
+    setRateCompData({});
+    const startDateComp = startDate
+      ? new Date(startDate.getTime() + (-selectedComparison * 24 * 60 * 60 * 1000))
+      : new Date();
+    const endDateComp = endDate
+      ? new Date(endDate.getTime() + (-selectedComparison * 24 * 60 * 60 * 1000))
+      : new Date();
+    const filtersValue = {
+      "SID": selectedProperty?.sid,
+      "channels": channelFilter.channelId,
+      "channelsText": channelFilter.channelName,
+      "checkInStartDate": conevrtDateforApi(startDateComp.toString()),
+      "checkInEndDate": conevrtDateforApi(endDateComp.toString()),
+      "LOS": sideFilter?.lengthOfStay?.toString() || null,
+      "guest": sideFilter?.guest?.toString() || null,
+      "productTypeID": sideFilter?.roomTypes || null,
+      "productTypeIDText": sideFilter?.roomTypes || "All",
+      "inclusionID": sideFilter?.inclusions || [],
+      "inclusionIDText": sideFilter?.inclusions?.length ? sideFilter.inclusions : ["All"],
+      "properties": [],
+      "restriction": sideFilter?.rateViewBy?.Restriction,
+      "qualification": sideFilter?.rateViewBy?.Qualification,
+      "promotion": sideFilter?.rateViewBy?.Promotion,
+      "restrictionText": sideFilter?.rateViewBy?.RestrictionText || "All",
+      "promotionText": sideFilter?.rateViewBy?.PromotionText || "All",
+      "qualificationText": sideFilter?.rateViewBy?.QualificationText || "All",
+      "subscriberPropertyID": selectedProperty?.hmid,
+      "subscriberName": selectedProperty?.name,
+      "mSIRequired": false,
+      "benchmarkRequired": true,
+      "compsetRatesRequired": true,
+      "propertiesText": [],
+      "isSecondary": compsetFilter,
+    }
+    getRateTrends(filtersValue)
+      .then((res) => {
+        if (res.status) {
+          debugger
+          const CalulatedData = res.body?.pricePositioningEntites.map((x: any) => {
+            const rates = x.subscriberPropertyRate || [];
+
+            const [avgRate, avgStatus] = (() => {
+              const valid = rates.filter((r: any) => parseInt(r.rate) > 0 && r.status === "O").map((r: any) => parseInt(r.rate));
+              if (valid.length) return [valid.reduce((a: any, b: any) => a + b, 0) / valid.length, "O"];
+
+              const statuses = new Set(rates.map((r: any) => r.status));
+              if (statuses.has("C")) return [0, "C"];
+              if (statuses.has("ND")) return [0, "ND"];
+              return [0, "ND"];
+            })();
+
+            return {
+              ...x,
+              AvgData: avgRate,
+              AvgStatus: avgStatus
+            };
+          });
+          res.body.pricePositioningEntites = CalulatedData;
+          // console.log('Rate trends data:', res.body);
+          setRateCompData(res.body);
+          // setLosGuest({ "Los": res.body?.losList, "Guest": res.body?.guestList });
+          // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
+        }
+      })
+      .catch((err) => console.error(err));
+  }
   // No loading state needed for static data
+  const PPExcelDownloads = (excelType: string) => {
+    var filterData: any = {};
+    if (excelType == 'LiteRate' && objForExcel?.LOS == null) {
+      toast({
+        description: "Please select a single LOS configuration for downloading the ‘Lite Report’.",
+        variant: "default",
+        duration: 3000,
+      })
+      return false;
+    }
+    filterData.SID = selectedProperty?.sid;
+    // filterData.subscriberName=this.localStr.getSelectedPropertyName();
+    filterData.reqDateTime = format(new Date(), "MM/dd/yyyy");
+    filterData.excelType = excelType;
+
+    if (excelType == 'LiteRate') {
+      var filterStartDate = objForExcel.checkInStartDate;
+      var filterEndDate = objForExcel.checkInEndDate;
+      // filterData.CheckInStartDate=filterStartDate;
+      // filterData.CheckInEndDate=filterEndDate;
+      // ObjForExcel.checkInStartDate = filterStartDate;
+      // ObjForExcel.CheckInEndDate = filterEndDate;
+    }
+
+    objForExcel.mSIRequired = true;
+    PPExcelDownload(filterData, objForExcel).then((response: any) => {
+      if (response.status) {
+        //this.BRGCalculationHistory = response.body;
+        var element = document.createElement('a');
+        element.setAttribute('href', response.body);
+
+        element.style.display = 'none';
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+      }
+      else {
+        toast({
+          description: "There is some issue in downloading the report. Please contact help@rategain.com",
+          variant: "error",
+          duration: 3000,
+        })
+      }
+    });
+    return true;
+  }
 
   return (
-    <DateProvider>
-    <ComparisonProvider>
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      
-      {/* Enhanced Filter Bar with Sticky Positioning */}
-      <div className="sticky top-0 z-50 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md transition-all duration-200 min-h-[80px]">
+
+
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950" data-coach-mark="rate-trends-overview">
+
+      {/* Filter Bar */}
+      <div className="bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md transition-all duration-200 min-h-[80px]" data-coach-mark="rate-trends-filter-bar">
         <FilterBar onMoreFiltersClick={handleMoreFiltersClick} />
       </div>
-      
+
 
 
 
@@ -267,73 +856,76 @@ export default function RateTrendPage() {
                 Rate Trends
               </h1>
               {/* Sample Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 px-3">
-                    {selectedValue}
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  <DropdownMenuItem onClick={() => {
-                    setSelectedValue("4,444 (4 digit)")
-                    setSelectedDigitCount(4)
-                  }}>
-                    4,444 (4 digit)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    setSelectedValue("444,400 (6 digit)")
-                    setSelectedDigitCount(6)
-                  }}>
-                    444,400 (6 digit)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    setSelectedValue("44,225,588 (8 digit)")
-                    setSelectedDigitCount(8)
-                  }}>
-                    44,225,588 (8 digit)
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
             <p className="text-sm text-muted-foreground">
               Track rate movements and competitive positioning across time periods
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3" data-coach-mark="rate-trends-lightning-refresh">
             {/* Lightning Refresh and Report Buttons */}
             <TooltipProvider>
               <div className="flex items-center gap-2">
                 {/* Lightning Refresh Button */}
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 px-3 hover:bg-blue-500 hover:text-white hover:border-blue-500 group"
-                        onClick={() => {
-                          if (!isLightningRefreshInProgress) {
-                            console.log('🔄 Lightning Refresh clicked');
-                            setIsLightningRefreshModalOpen(true);
-                          }
-                        }}
-                        disabled={isLightningRefreshInProgress}
-                      >
-                        <Zap 
-                          className={`h-4 w-4 text-gray-600 group-hover:text-white ${isLightningRefreshInProgress ? 'animate-pulse' : ''}`} 
-                          style={{marginRight: '2px'}} 
-                        />
-                        {isLightningRefreshInProgress ? 'Refreshing...' : 'Lightning Refresh'}
-                      </Button>
-                    </TooltipTrigger>
-                    {isLightningRefreshInProgress && (
-                      <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
-                        <p className="text-xs">Lightning refresh under progress</p>
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                </TooltipProvider>
+                {isLightningRefreshEnable && !isLightningRefreshInProgress && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 hover:bg-blue-500 hover:text-white hover:border-blue-500 group"
+                          onClick={() => {
+                            if (!isLightningRefreshInProgress) {
+                              console.log('🔄 Lightning Refresh clicked');
+                              setIsLightningRefreshModalOpen(true);
+                            }
+                          }}
+                          disabled={isLightningRefreshInProgress}
+                        >
+                          <Zap
+                            className={`h-4 w-4 text-gray-600 group-hover:text-white ${isLightningRefreshInProgress ? 'animate-pulse' : ''}`}
+                            style={{ marginRight: '2px' }}
+                          />
+                          {isLightningRefreshInProgress ? 'Refreshing...' : 'Lightning Refresh'}
+                        </Button>
+                      </TooltipTrigger>
+                      {isLightningRefreshInProgress && (
+                        <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                          <p className="text-xs">Lightning refresh under progress</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>)}
+                {isLightningRefreshInProgress && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 hover:bg-blue-500 hover:text-white hover:border-blue-500 group"
+                          onClick={() => {
+                            if (!isLightningRefreshInProgress) {
+                              console.log('🔄 Lightning Refresh clicked');
+                              setIsLightningRefreshModalOpen(true);
+                            }
+                          }}
+                        // disabled={isLightningRefreshInProgress}
+                        >
+                          <Zap
+                            className={`h-4 w-4 text-gray-600 group-hover:text-white ${isLightningRefreshInProgress ? 'animate-pulse' : ''}`}
+                            style={{ marginRight: '2px' }}
+                          />
+                          {isLightningRefreshInProgress ? 'Refreshing...' : 'Lightning Refresh'}
+                        </Button>
+                      </TooltipTrigger>
+                      {isLightningRefreshInProgress && (
+                        <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                          <p className="text-xs">{!!lightningRefreshMessage ? lightningRefreshMessage : 'Lightning refresh under progress'}</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>)}
 
                 {/* On Demand Report Button */}
                 <Button
@@ -341,11 +933,12 @@ export default function RateTrendPage() {
                   size="sm"
                   className="h-8 px-3 hover:bg-blue-500 hover:text-white hover:border-blue-500"
                   onClick={() => {
-                    console.log('📊 On Demand Report clicked');
+                    setIsModalOpen(true);
                     // Add report logic here
                   }}
+                  disabled={reportInProgress}
                 >
-                  <FileText className="h-4 w-4" style={{marginRight: '2px'}} />
+                  <FileText className="h-4 w-4" style={{ marginRight: '2px' }} />
                   On Demand Report
                 </Button>
 
@@ -370,6 +963,7 @@ export default function RateTrendPage() {
                   <DropdownMenuContent align="end" className="w-auto min-w-fit">
                     <DropdownMenuItem
                       onClick={() => {
+                        PPExcelDownloads('Rate');
                         console.log('📥 Download Macro Report clicked');
                         // Add macro report download logic here
                       }}
@@ -380,7 +974,7 @@ export default function RateTrendPage() {
                     <DropdownMenuItem
                       onClick={() => {
                         console.log('📥 Download Lite Report clicked');
-                        // Add lite report download logic here
+                        setIsDownloadLiteReportModalOpen(true);
                       }}
                       className="whitespace-nowrap px-3 py-2"
                     >
@@ -394,184 +988,187 @@ export default function RateTrendPage() {
           </div>
         </div>
 
-          {/* Main Rate Trend Content */}
-          <div className="relative bg-white dark:bg-slate-900 shadow-xl border border-border/50 rounded-lg">
-            {/* Table View Heading - Only visible when table view is active */}
-            {currentView === "table" && (
-              <div className="absolute left-4 lg:left-6 z-10 flex items-center" style={{ top: 'calc(1rem + 2px)' }}>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">Detailed Analysis</h3>
-              </div>
-            )}
-            
-            {/* Calendar View Heading - Only visible when calendar view is active */}
-            {currentView === "calendar" && (
-              <div className="absolute left-4 lg:left-6 z-10 flex items-center" style={{ top: 'calc(1rem + 2px)' }}>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                  Rates Calendar
-                                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400 ml-2">(in USD from 4 Sep to 10 Sep)</span>
-                </h3>
-              </div>
-            )}
-
-            {/* Month Navigation - Only visible when calendar view is active and multi-month range */}
-            {currentView === "calendar" && shouldShowMonthNavigation && (
-              <div className="absolute top-4 z-10 flex items-center justify-center" style={{ left: '50%', transform: 'translateX(-50%)' }}>
-                <MonthNavigation
-                  shouldShowMonthNavigation={shouldShowMonthNavigation}
-                  availableMonths={availableMonths}
-                  currentMonthIndex={currentMonthIndex}
-                  onPrevMonth={prevMonth}
-                  onNextMonth={nextMonth}
-                />
-              </div>
-            )}
-            
-            
-            {/* Rate Legends & Competitor Navigation - Only visible when table view is active */}
-            {currentView === "table" && (
-              <div className="absolute right-48 z-10 flex items-center gap-8" style={{ top: 'calc(1rem + 4px)' }}>
-                {/* Rate Legends */}
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                    <span className="text-xs text-gray-600 dark:text-gray-400">Highest Rate</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                    <span className="text-xs text-gray-600 dark:text-gray-400">Lowest Rate</span>
-                  </div>
-                </div>
-                
-                {/* Competitor Navigation */}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-600 dark:text-gray-400">
-                    Competitors {competitorStartIndex + 1}-{Math.min(competitorStartIndex + competitorsPerPage, 9)} of 9
-                  </span>
-                  <span className="text-xs text-blue-500 bg-blue-50 px-2 py-1 rounded">
-                    {screenSize.width}px ({screenSize.isSmall ? 'Small' : screenSize.isMedium ? 'Medium' : screenSize.isLarge ? 'Large' : 'Default'}) - {competitorsPerPage} cols
-                  </span>
-                  <button
-                    onClick={prevCompetitors}
-                    disabled={!canGoPrev()}
-                    className={`p-1 rounded-md border ${
-                      canGoPrev() 
-                        ? 'border-gray-300 hover:bg-gray-50 text-gray-700' 
-                        : 'border-gray-200 text-gray-400 cursor-not-allowed'
-                    }`}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={nextCompetitors}
-                    disabled={!canGoNext()}
-                    className={`p-1 rounded-md border ${
-                      canGoNext() 
-                        ? 'border-gray-300 hover:bg-gray-50 text-gray-700' 
-                        : 'border-gray-200 text-gray-400 cursor-not-allowed'
-                    }`}
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-            
-
-            {/* Rate Legends - Only visible when calendar view is active */}
-            {currentView === "calendar" && (
-              <div className="absolute top-4 z-10 flex items-center gap-2 hidden md:flex m-2" style={{ right: '11rem' }}>
-                {/* Rate Legends */}
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                    <span className="text-xs text-gray-600 dark:text-gray-400">Highest Rate</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                    <span className="text-xs text-gray-600 dark:text-gray-400">Lowest Rate</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-
-            {/* View Toggle - Positioned consistently for all views */}
-            <div className="absolute top-4 right-4 lg:right-6 z-10">
-              <TooltipProvider>
-                <div className="flex items-center border border-border rounded-lg overflow-hidden bg-white dark:bg-slate-800 shadow-sm">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={currentView === "calendar" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setCurrentView("calendar")}
-                        className={cn(
-                          "h-8 px-3 rounded-none border-r-0 border-b-0",
-                          currentView === "calendar" ? "border-r-0 border-b-0" : "border-r-0 border-b-0 hover:border-r-0 hover:border-b-0"
-                        )}
-                      >
-                        <Calendar className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
-                      <p className="text-xs">Calendar View</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={currentView === "chart" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setCurrentView("chart")}
-                        className={cn(
-                          "h-8 px-3 rounded-none border-l-0 border-r-0 border-t-0 border-b-0",
-                          currentView === "chart" ? "border-l-0 border-r-0 border-t-0 border-b-0" : "border-l-0 border-r-0 border-t-0 border-b-0 hover:border-l-0 hover:border-r-0 hover:border-t-0 hover:border-b-0"
-                        )}
-                      >
-                        <TrendingUp className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
-                      <p className="text-xs">Chart View</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={currentView === "table" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setCurrentView("table")}
-                        className={cn(
-                          "h-8 px-3 rounded-none border-l-0 border-t-0",
-                          currentView === "table" ? "border-l-0 border-t-0" : "border-l-0 border-t-0 hover:border-l-0 hover:border-t-0"
-                        )}
-                      >
-                        <Grid3X3 className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
-                      <p className="text-xs">Table View</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-              </TooltipProvider>
+        {/* Main Rate Trend Content */}
+        <div className="relative bg-white dark:bg-slate-900 border rounded-lg" data-coach-mark="rate-trends-chart-visualization">
+          {/* Table View Heading - Only visible when table view is active */}
+          {currentView === "table" && (
+            <div className="absolute left-4 lg:left-6 z-10 flex items-center" style={{ top: 'calc(1rem + 2px)' }}>
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white">Detailed Analysis</h3>
             </div>
-            
-            {/* Content based on current view */}
-            {currentView === "table" ? (
-              <div className="pt-16">
-                <RateTrendsTable 
-                  competitorStartIndex={competitorStartIndex}
-                  digitCount={selectedDigitCount}
-                />
+          )}
+
+          {/* Calendar View Heading - Only visible when calendar view is active */}
+          {currentView === "calendar" && (
+            <div className="absolute left-4 lg:left-6 z-10 flex items-center" style={{ top: 'calc(1rem + 2px)' }}>
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                Rates Calendar
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400 ml-2">{`(in \u200E ${selectedProperty?.currencySymbol ?? '$'} \u200E from ${startDate ? format(startDate, 'dd MMM') : 'N/A'} to ${endDate ? format(endDate, 'dd MMM') : 'N/A'})`}</span>
+              </h3>
+            </div>
+          )}
+
+          {/* Month Navigation - Only visible when calendar view is active and multi-month range */}
+          {currentView === "calendar" && shouldShowMonthNavigation && (
+            <div className="absolute top-4 z-10 flex items-center justify-center" style={{ left: '50%', transform: 'translateX(-50%)' }}>
+              <MonthNavigation
+                shouldShowMonthNavigation={shouldShowMonthNavigation}
+                availableMonths={availableMonths}
+                currentMonthIndex={currentMonthIndex}
+                onPrevMonth={prevMonth}
+                onNextMonth={nextMonth}
+              />
+            </div>
+          )}
+
+
+          {/* Rate Legends & Competitor Navigation - Only visible when table view is active */}
+          {currentView === "table" && (
+            <div className="absolute right-48 z-10 flex items-center gap-8" style={{ top: 'calc(1rem + 4px)' }}>
+              {/* Rate Legends */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                  <span className="text-xs text-gray-600 dark:text-gray-400">Highest Rate</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  <span className="text-xs text-gray-600 dark:text-gray-400">Lowest Rate</span>
+                </div>
               </div>
-            ) : currentView === "chart" ? (
-              <div className="pt-16">
-                <RTRateTrendsChart key="rate-trends-chart" rateData={{}} digitCount={selectedDigitCount} />
+
+              {/* Competitor Navigation */}
+              <div className="flex items-center gap-2">
+                {/* <span className="text-xs text-gray-600 dark:text-gray-400">
+                  Competitors {competitorStartIndex + 1}-{Math.min(competitorStartIndex + competitorsPerPage, 9)} of 9
+                </span> */}
+                {/* <span className="text-xs text-blue-500 bg-blue-50 px-2 py-1 rounded">
+                  {screenSize.width}px ({screenSize.isSmall ? 'Small' : screenSize.isMedium ? 'Medium' : screenSize.isLarge ? 'Large' : 'Default'}) - {competitorsPerPage} cols
+                </span> */}
+                <button
+                  onClick={prevCompetitors}
+                  disabled={!canGoPrev()}
+                  className={`p-1 rounded-md border ${canGoPrev()
+                    ? 'border-gray-300 hover:bg-gray-50 text-gray-700'
+                    : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={nextCompetitors}
+                  disabled={!canGoNext()}
+                  className={`p-1 rounded-md border ${canGoNext()
+                    ? 'border-gray-300 hover:bg-gray-50 text-gray-700'
+                    : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
-            ) : (
-              <RateTrendCalendar 
-                currentView={currentView} 
+            </div>
+          )}
+
+
+          {/* Rate Legends - Only visible when calendar view is active */}
+          {currentView === "calendar" && (
+            <div className="absolute top-4 z-10 flex items-center gap-2 hidden md:flex m-2" style={{ right: '11rem' }}>
+              {/* Rate Legends */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                  <span className="text-xs text-gray-600 dark:text-gray-400">Highest Rate</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  <span className="text-xs text-gray-600 dark:text-gray-400">Lowest Rate</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+
+          {/* View Toggle - Positioned consistently for all views */}
+          <div className="absolute top-4 right-4 lg:right-6 z-10" data-coach-mark="rate-trends-view-toggle">
+            <TooltipProvider>
+              <div className="flex items-center border border-border rounded-lg overflow-hidden bg-white dark:bg-slate-800 shadow-sm">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={currentView === "calendar" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setCurrentView("calendar")}
+                      className={cn(
+                        "h-8 px-3 rounded-none border-r-0 border-b-0",
+                        currentView === "calendar" ? "border-r-0 border-b-0" : "border-r-0 border-b-0 hover:border-r-0 hover:border-b-0"
+                      )}
+                    >
+                      <Calendar className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                    <p className="text-xs">Calendar View</p>
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={currentView === "chart" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setCurrentView("chart")}
+                      className={cn(
+                        "h-8 px-3 rounded-none border-l-0 border-r-0 border-t-0 border-b-0",
+                        currentView === "chart" ? "border-l-0 border-r-0 border-t-0 border-b-0" : "border-l-0 border-r-0 border-t-0 border-b-0 hover:border-l-0 hover:border-r-0 hover:border-t-0 hover:border-b-0"
+                      )}
+                    >
+                      <TrendingUp className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                    <p className="text-xs">Chart View</p>
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={currentView === "table" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setCurrentView("table")}
+                      className={cn(
+                        "h-8 px-3 rounded-none border-l-0 border-t-0",
+                        currentView === "table" ? "border-l-0 border-t-0" : "border-l-0 border-t-0 hover:border-l-0 hover:border-t-0"
+                      )}
+                    >
+                      <Grid3X3 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                    <p className="text-xs">Table View</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </TooltipProvider>
+          </div>
+
+          {/* Content based on current view */}
+          {currentView === "table" ? (
+            <div className="pt-16" data-coach-mark="rate-trends-table-analysis">
+              <RateTrendsTable
+                competitorStartIndex={competitorStartIndex}
+                digitCount={selectedDigitCount}
+                rateData={rateData}
+                rateCompData={rateCompData}
+                demandData={demandData}
+              />
+            </div>
+          ) : currentView === "chart" ? (
+            <div className="pt-16" data-coach-mark="rate-trends-chart-visualization">
+              <RTRateTrendsChart key="rate-trends-chart" rateData={rateData}
+                rateCompData={rateCompData} digitCount={selectedDigitCount} />
+            </div>
+          ) : (
+            <div data-coach-mark="rate-trends-calendar-view">
+              <RateTrendCalendar
+                currentView={currentView}
                 highlightToday={true}
                 showWeekNumbers={false}
                 shouldShowMonthNavigation={shouldShowMonthNavigation}
@@ -580,38 +1177,50 @@ export default function RateTrendPage() {
                 onPrevMonth={prevMonth}
                 onNextMonth={nextMonth}
                 digitCount={selectedDigitCount}
-                startDate={startDate}
-                endDate={endDate}
+                startDate={startDate || new Date()}
+                endDate={endDate || new Date()}
                 onDateSelect={(date) => {
                   console.log('📅 Date selected:', date.toLocaleDateString())
                   // Add any additional date selection logic here
                 }}
+                rateData={rateData}
+                rateCompData={rateCompData}
+                selectedProperty={selectedProperty}
               />
-            )}
-          </div>
-          
-          {/* Blank spacer div with 250px height */}
-          <div className="h-[250px]"></div>
+            </div>
+          )}
+        </div>
+
+        {/* Blank spacer div with 250px height */}
+        <div className="h-[250px]"></div>
       </main>
 
       {/* Filter Sidebar */}
-      <FilterSidebar 
-       losGuest={losGuest}
-        isOpen={isFilterSidebarOpen} 
-        onClose={() => setIsFilterSidebarOpen(false)} 
+      <FilterSidebar
+        losGuest={losGuest}
+        isOpen={isFilterSidebarOpen}
+        onClose={() => setIsFilterSidebarOpen(false)}
         onApply={(filters) => {
+          setSideFilter(filters)
           // Handle filter apply logic here
           console.log('Applied filters:', filters)
           setIsFilterSidebarOpen(false)
         }}
       />
       {/* Lightning Refresh Modal */}
-      <LightningRefreshModal 
+      <LightningRefreshModal
         isOpen={isLightningRefreshModalOpen}
         onClose={() => setIsLightningRefreshModalOpen(false)}
         onRefresh={handleLightningRefresh}
       />
-      
+
+      {/* Download Lite Report Modal */}
+      <DownloadLiteReportModal
+        isOpen={isDownloadLiteReportModalOpen}
+        onClose={() => setIsDownloadLiteReportModalOpen(false)}
+        objForExcel={objForExcel}
+      />
+
       {/* Snackbar */}
       <Snackbar
         isOpen={isSnackbarOpen}
@@ -619,8 +1228,19 @@ export default function RateTrendPage() {
         message={snackbarMessage}
         type={snackbarType}
       />
+
+      {/* Rate Trends Coach Mark Trigger */}
+      <RateTrendsCoachMarkTrigger onViewChange={setCurrentView} />
+      <OnDemandReportModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        userDetails={userDetails}
+        selectedProperty={selectedProperty}
+        packageDetails={packageDetails}
+        compsetData={compsetData}
+        onReportGenerated={handleReportGenerated}
+        onError={handleError}
+      />
     </div>
-    </ComparisonProvider>
-    </DateProvider>
   )
 }

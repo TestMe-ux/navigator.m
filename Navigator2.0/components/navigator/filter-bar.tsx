@@ -100,6 +100,10 @@ export function FilterBar({ onMoreFiltersClick, setSelectedChannel }: FilterBarP
 
   // Compare dropdown state - using context now
   const [isCompareOpen, setIsCompareOpen] = React.useState(false)
+
+  // Dropdown state management - track which dropdown is open
+  const [openDropdown, setOpenDropdown] = React.useState<string | null>(null)
+
   const [selectedFilters, setSelectedFilters] = React.useState(() =>
     allFiltersList.reduce(
       (acc, group) => {
@@ -244,6 +248,9 @@ export function FilterBar({ onMoreFiltersClick, setSelectedChannel }: FilterBarP
     if (!open) {
       // Reset channel filter when dropdown closes
       setChannelFilter({ channelId: selectedChannels, channelName: [] })
+      setOpenDropdown(null)
+    } else {
+      setOpenDropdown('channel')
     }
   }
   /**
@@ -375,7 +382,7 @@ export function FilterBar({ onMoreFiltersClick, setSelectedChannel }: FilterBarP
 
               {/* Visible Filters */}
               <div className="flex items-center gap-3 flex-wrap min-w-0">
-                <DropdownMenu key="channel" onOpenChange={(event) => onOpenChangeSelect(event)}>
+                <DropdownMenu key="channel" open={openDropdown === 'channel'} onOpenChange={(event) => onOpenChangeSelect(event)}>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
@@ -426,7 +433,13 @@ export function FilterBar({ onMoreFiltersClick, setSelectedChannel }: FilterBarP
                   // Special handling for Comparison filter (multi-select with checkboxes)
                   if (group.name === "Compset") {
                     return (
-                      <DropdownMenu key={group.name}>
+                      <DropdownMenu key={group.name} open={openDropdown === 'compset'} onOpenChange={(open) => {
+                        if (open) {
+                          setOpenDropdown('compset')
+                        } else {
+                          setOpenDropdown(null)
+                        }
+                      }}>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="outline"
@@ -475,7 +488,13 @@ export function FilterBar({ onMoreFiltersClick, setSelectedChannel }: FilterBarP
                   const isActive = selectedFilters[group.name] !== group.defaultOption
 
                   return (
-                    <DropdownMenu key={group.name}>
+                    <DropdownMenu key={group.name} open={openDropdown === group.name.toLowerCase().replace(/\s+/g, '-')} onOpenChange={(open) => {
+                      if (open) {
+                        setOpenDropdown(group.name.toLowerCase().replace(/\s+/g, '-'))
+                      } else {
+                        setOpenDropdown(null)
+                      }
+                    }}>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant={isActive ? "default" : "outline"}
@@ -522,7 +541,7 @@ export function FilterBar({ onMoreFiltersClick, setSelectedChannel }: FilterBarP
                         onClick={onMoreFiltersClick}
                       >
                         <Filter className="w-4 h-4" />
-                        <span className="hidden xl-1366:inline font-semibold">More Filters</span>
+                        <span className="hidden xl-1450:inline font-semibold">More Filters</span>
                         {getActiveFilters.length > 0 && (
                           <Badge
                             className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg"

@@ -32,7 +32,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
     '/login/reset-password',
     '/login/create-password',
     '/signup',
-    '/forgot-password'
+    '/forgot-password',
+    "/optima/auth"
   ]
 
   // Check if current route is public
@@ -66,6 +67,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
         }
       } finally {
         setIsLoading(false)
+       
       }
     }
 

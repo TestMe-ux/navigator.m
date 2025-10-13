@@ -35,6 +35,7 @@ import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { useDateContext } from "@/components/date-context"
 import { conevrtDateforApi } from "@/lib/utils"
 import { GlobalProgressBar, LoadingSkeleton } from "@/components/loading-skeleton"
+import { LocalStorageService } from "@/lib/localstorage"
 
 /**
  * Modern Quick Actions Configuration
@@ -225,7 +226,7 @@ export default function Home() {
   const [csatClosed, setCSATClosed] = useState(false)
   const { startDate, endDate, setDateRange } = useDateContext()
   const [selectedProperty] = useSelectedProperty()
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [loadingCycle, setLoadingCycle] = useState(1)
   // Scroll detection for CSAT card
@@ -328,6 +329,9 @@ export default function Home() {
       GetParityDatas_Comp()
     ]);
   }, [selectedComparison])
+  // useEffect(() => {
+  //   LocalStorageService.setItem("preferredDateMode", "next7days")
+  // }, [selectedProperty?.sid])
 
   const getRateDate = () => {
     setRateData({});
@@ -382,7 +386,7 @@ export default function Home() {
             };
           });
           res.body.pricePositioningEntites = CalulatedData;
-          console.log('Rate trends data:', res.body);
+          // console.log('Rate trends data:', res.body);
           setRateData(res.body);
           setLosGuest({ "Los": res.body?.losList, "Guest": res.body?.guestList });
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
@@ -449,7 +453,7 @@ export default function Home() {
             };
           });
           res.body.pricePositioningEntites = CalulatedData;
-          console.log('Rate trends data:', res.body);
+          // console.log('Rate trends data:', res.body);
           setRateCompData(res.body);
           // setLosGuest({ "Los": res.body?.losList, "Guest": res.body?.guestList });
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
@@ -608,8 +612,8 @@ export default function Home() {
   // }
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950" data-coach-mark="dashboard-overview">
-      {/* Enhanced Filter Bar with Sticky Positioning */}
-      <div className="sticky top-0 z-40 filter-bar-minimal bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
+      {/* Filter Bar */}
+      <div className="filter-bar-minimal bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
         <FilterBar onMoreFiltersClick={handleMoreFiltersClick} setSelectedChannel={setSelectedChannel} />
       </div>
       <FilterSidebar
@@ -665,7 +669,7 @@ export default function Home() {
                 <div className="space-minimal-xl mt-8">
 
                   {/* Rate Trends Chart - Full width with enhanced styling */}
-                  <div className="animate-fade-in mb-12" data-coach-mark="rate-trends">
+                  <div className="animate-fade-in mb-8" data-coach-mark="rate-trends">
                     <RateTrendsChart rateData={rateData} rateCompData={rateCompData} />
                   </div>
 

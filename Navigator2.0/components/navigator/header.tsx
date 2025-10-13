@@ -7,12 +7,19 @@ import { useState, useCallback, useMemo, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { Upload, X, Send } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { ChevronDown, UserCircle, Search, Bell, Menu, X } from "lucide-react"
+import { ChevronDown, UserCircle, Search, Bell, Menu, Activity } from "lucide-react"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { NotificationDrawer } from "@/components/notification-drawer"
 import { GetSIDListforUser } from "@/lib/login"
 import { LocalStorageService } from "@/lib/localstorage"
-import { useUserDetail } from "@/hooks/use-local-storage"
+import { useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
+import { getAccessurl, saveSwitchAccessUrl } from "@/lib/userManagement"
+import { toast } from "@/hooks/use-toast"
 
 /**
  * Navigation Configuration
@@ -46,6 +53,10 @@ export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [notificationCount] = useState(3) // Mock notification count
   const [userDetail] = useUserDetail();
+  const [selectedProperty] = useSelectedProperty()
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+  const [feedbackText, setFeedbackText] = useState("")
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([])
 
 
   useEffect(() => {
@@ -95,6 +106,7 @@ export function Header() {
    */
   const handleHotelSelect = useCallback((hotel: any) => {
     try {
+      LocalStorageService.setItem("preferredDateMode", "next7days")
       setSelectedHotel(hotel);
       LocalStorageService.setItem('SelectedProperty', hotel);
       setHotelSearch("");
@@ -127,6 +139,73 @@ export function Header() {
     return text?.substring(0, maxLength) + '...'
   }, [])
 
+  //handle Switch To Classic URL
+  const handleSwitchToClassic = async () => {
+    debugger
+    try {
+      // 🟢 Validate user and property before continuing
+      if (!userDetail?.accessToken || !userDetail?.userId || !selectedProperty?.sid) {
+        console.error("Missing user details or selected property");
+        toast({
+          title: "Validate user detail ",
+          description: "Missing user details or selected property",
+          variant: "error",
+          duration: 5000,
+        });
+        return;
+      }
+
+      const paramUnifiedAuth = userDetail.accessToken;
+      const paramSId = selectedProperty.sid;
+
+      // 🟢 Prepare payload for saving switch access
+      const switchAccUrlUser = {
+        accessToken: paramUnifiedAuth,
+        userID: Number(userDetail.userId),
+        sId: paramSId,
+        isSwitching: 1, // 2 = New Navigator → Old Navigator
+        iPAddress: "",
+      };
+
+      console.log("Saving switch access data:", switchAccUrlUser);
+
+      // 🟢 Save switch access URL
+      const response = await saveSwitchAccessUrl(switchAccUrlUser);
+
+      if (response?.status && response?.body) {
+        console.log("✅ SwitchAccessUrlData saved successfully");
+
+        // 🟢 Fetch the new access URL for Classic Optima
+        const resAcc = await getAccessurl({
+          unifiedauth: paramUnifiedAuth,
+          flagOptima: 3, // 2 = Navigator
+        });
+
+        if (resAcc?.status && resAcc?.body) {
+
+          const baseUrl = resAcc.body.userDetails.applicationURL;
+          const redirectUrl = `${baseUrl}auth?unifiedauth=${paramUnifiedAuth}&sid=${paramSId}`;
+          //const redirectUrl = resAcc.body.userDetails.applicationURL + `auth?unifiedauth=${paramUnifiedAuth}&sid=${paramSId}`;
+          LocalStorageService.clear();
+
+          console.log("Redirecting to Classic Optima:", redirectUrl);
+
+          window.location.href = redirectUrl;
+
+          // 🟢 Option 2: Open in new tab
+          // window.open(redirectUrl, "_blank");
+        } else {
+          console.error("❌ Failed to fetch access URL for Classic Optima");
+        }
+      } else {
+        console.error("❌ Failed to save switch access URL data");
+      }
+    } catch (error) {
+      console.error("🚨 Error switching to Classic Optima:", error);
+    }
+  };
+
+
   return (
     <header
       className="fixed top-0 left-0 right-0 z-[100] w-full bg-gradient-brand text-white border-b border-white/10 shadow-brand-lg"
@@ -138,11 +217,11 @@ export function Header() {
         {/* Left Side - Application Branding */}
         <Link href="/login" className="flex-shrink-0 flex items-center gap-3 justify-center pl-1 hover:opacity-80 transition-opacity">
           <div className="hidden sm:block ml-1">
-            <Image 
-              src="/logo.svg" 
-              alt="Navigator Logo" 
-              width={130} 
-              height={31} 
+            <Image
+              src="/logo.svg"
+              alt="Navigator Logo"
+              width={130}
+              height={31}
               className="h-[31px] w-auto"
             />
           </div>
@@ -306,7 +385,14 @@ export function Header() {
                 size="icon"
                 className="text-blue-100 hover:text-white hover:bg-white/10 transition-all duration-200"
               >
-                <UserCircle className="h-5 w-5" />
+                {userDetail?.imagePath ? (
+                  <img
+                    src={userDetail?.imagePath}
+                    alt="Profile"
+                    className="h-5 w-5 object-cover rounded-full group-hover:opacity-50 transition-opacity duration-200"
+                  />
+                ) : (
+                  <UserCircle className="h-5 w-5" />)}
                 <span className="sr-only">User Profile</span>
               </Button>
             </DropdownMenuTrigger>
@@ -328,6 +414,15 @@ export function Header() {
                     My Account
                   </div>
                 </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSwitchToClassic} className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white dark:hover:bg-white cursor-pointer" onClick={() => setShowFeedbackModal(true)}>
+                <div className="flex items-center gap-2">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
+                  </svg>
+                  Switch to Previous Version
+                </div>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-white dark:hover:bg-white cursor-pointer">
@@ -404,6 +499,130 @@ export function Header() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Feedback Modal */}
+      {typeof window !== 'undefined' && (
+        <Dialog open={showFeedbackModal} onOpenChange={setShowFeedbackModal}>
+          <DialogContent className="sm:max-w-[650px] max-h-[80vh] flex flex-col">
+            <DialogHeader className="flex-shrink-0">
+              <DialogTitle className="text-xl font-semibold">Switch to Previous Version</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                We're constantly improving Navigator based on your feedback. If you'd prefer to use the previous version, please let us know what we can do better to enhance your experience.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4 overflow-y-auto flex-1">
+              {/* Feedback Text Area */}
+              <div className="space-y-2">
+                <Label htmlFor="feedback" className="text-sm font-medium">
+                  Your Feedback
+                </Label>
+                <Textarea
+                  id="feedback"
+                  placeholder="Tell us about any issues you're experiencing or features you'd like to see improved. Your feedback helps us make Navigator better for everyone."
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  className="min-h-[120px] resize-none mx-1 w-[96%]"
+                />
+              </div>
+
+              {/* File Attachment */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Attachments (Optional)</Label>
+                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-2 mx-1 w-[96%]">
+                  <input
+                    type="file"
+                    id="file-upload"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files) {
+                        setAttachedFiles(Array.from(e.target.files))
+                      }
+                    }}
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className="flex items-center justify-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-2 transition-colors"
+                  >
+                    <Upload className="h-4 w-4 text-gray-400 mr-2" />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      Click to upload files
+                    </span>
+                  </label>
+                </div>
+
+                {/* Attached Files List */}
+                {attachedFiles.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Attached Files</Label>
+                    {attachedFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+                        <span className="text-sm text-gray-700 dark:text-gray-300 truncate flex-1">
+                          {file.name}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newFiles = attachedFiles.filter((_, i) => i !== index)
+                            setAttachedFiles(newFiles)
+                          }}
+                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-3 pt-4 border-t flex-shrink-0">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowFeedbackModal(false)
+                  setFeedbackText("")
+                  setAttachedFiles([])
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  // Handle "Switch without feedback" action
+                  console.log("Switching to previous version without feedback")
+                  setShowFeedbackModal(false)
+                  setFeedbackText("")
+                  setAttachedFiles([])
+                  // Add your logic here to redirect to previous version
+                }}
+              >
+                Switch Without Feedback
+              </Button>
+              <Button
+                onClick={() => {
+                  // Handle "Submit Feedback" action
+                  console.log("Feedback:", feedbackText)
+                  console.log("Attached files:", attachedFiles)
+                  setShowFeedbackModal(false)
+                  setFeedbackText("")
+                  setAttachedFiles([])
+                  // Add your logic here to submit feedback and redirect
+                }}
+                disabled={!feedbackText.trim()}
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Submit Feedback & Switch
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </header>
   )

@@ -126,7 +126,7 @@ export default function PropertySettingsPage() {
       if (resImage?.status) {
         setPropertyData((prev: any) => ({ ...prev, imagePath: resImage.body[0] }));
       }
-      else{
+      else {
         toast({
           description: "Image upload failed!!",
           variant: "error",
@@ -472,9 +472,20 @@ export default function PropertySettingsPage() {
 
                 <div className="space-y-4">
                   <div>
-                    <Label className="block text-xs font-medium text-gray-700 mb-1">
-                      Property Image
-                    </Label>
+                    <div className="flex justify-between items-center mb-1">
+                      <Label className="text-xs font-medium text-gray-700">
+                        Property Image
+                      </Label>
+                      {propertyData.imagePath && (
+                        <button
+                          type="button"
+                          onClick={() => setPropertyData((prev: any) => ({ ...prev, imagePath: "" }))}
+                          className="text-xs text-red-600 hover:underline mt-1"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
                     <div className="relative">
                       <input
                         id="property-image-upload"
@@ -503,6 +514,7 @@ export default function PropertySettingsPage() {
                         )}
                       </button>
                     </div>
+
                   </div>
 
                   {/* Created By below Property Image */}
@@ -605,7 +617,7 @@ export default function PropertySettingsPage() {
                             </span>
                           </div>
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tr-lg border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-32">
+                        {/* <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tr-lg border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-32">
                           <div
                             className="flex items-center gap-1 cursor-pointer group"
                             onClick={() => handleSort('createdBy')}
@@ -618,7 +630,7 @@ export default function PropertySettingsPage() {
                               {getSortIcon('createdBy')}
                             </span>
                           </div>
-                        </th>
+                        </th> */}
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-slate-900">
@@ -719,14 +731,14 @@ export default function PropertySettingsPage() {
                                   {!!changeWithId.createdOn ? format(changeWithId.createdOn, "dd MMM''yy") : ""}
                                 </TruncatedTooltip>
                               </td>
-                              <td className={`px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 ${isLastRow ? 'rounded-br-lg' : ''} w-32`}>
+                              {/* <td className={`px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 ${isLastRow ? 'rounded-br-lg' : ''} w-32`}>
                                 <TruncatedTooltip
                                   content={changeWithId.createdBy}
                                   className="truncate"
                                 >
                                   {changeWithId.createdBy}
                                 </TruncatedTooltip>
-                              </td>
+                              </td> */}
                             </tr>
                           );
                         });

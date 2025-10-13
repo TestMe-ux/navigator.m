@@ -18,7 +18,7 @@ export async function updateCompSet(filtersValue: any) {
     return data;
 }
 export async function getSearchHotelList(filtersValue: any, sid: number, hotelMasterId: number) {
-    let url = process.env.NEXT_PUBLIC_API_OPTIMA_URL + 'OptimaTokenAPI/SearchCMDHotels?SID=' + sid + '&hotelMasterId=' + hotelMasterId;
+    let url = process.env.NEXT_PUBLIC_API_OPTIMA_URL + 'OptimaAPI/SearchCMDHotels?SID=' + sid + '&hotelMasterId=' + hotelMasterId;
     const { data } = await apiClient.post(url, filtersValue);
     return data;
 }

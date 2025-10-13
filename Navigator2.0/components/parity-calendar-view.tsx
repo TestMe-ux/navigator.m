@@ -29,20 +29,7 @@ interface ParityCalendarViewProps {
 
 export function ParityCalendarView({ className, parityDataMain }: ParityCalendarViewProps) {
   // Debug logging for parityDataMain
-  console.log('ParityCalendarView - parityDataMain:', parityDataMain)
-  console.log('ParityCalendarView - parityDataMain type:', typeof parityDataMain)
-  console.log('ParityCalendarView - parityDataMain length:', parityDataMain?.length)
-  
-  // Currency settings for Indonesian Rupiah
-  const BASE_RATE_IDR = 12398873 // Base rate in Indonesian Rupiah (8 digits)
-  const CURRENCY_SYMBOL = "Rp"
-  
-  // Format currency with Indonesian Rupiah (using commas for thousands separator)
-  const formatIDR = (amount: number) => {
-    // Use custom formatting to ensure commas are used as thousand separators
-    const formattedAmount = amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-    return `${CURRENCY_SYMBOL} ${formattedAmount}`
-  }
+
 
   // Format number without currency symbol (for tooltip display)
   const formatNumber = (amount: number) => {
@@ -223,7 +210,18 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
   
   const { startDate, endDate } = useParityDateContext()
   const { selectedChannels, channelFilter } = useParityChannelContext()
-  const [selectedProperty] = useSelectedProperty()
+  const [selectedProperty] = useSelectedProperty() // For sid related data
+
+  // Currency settings - dynamic based on selected property
+  const BASE_RATE_IDR = 12398873 // Base rate in Indonesian Rupiah (8 digits)
+  const CURRENCY_SYMBOL = selectedProperty?.currencySymbol ?? '$'
+
+  // Format currency with dynamic currency symbol (using commas for thousands separator)
+  const formatIDR = (amount: number) => {
+    // Use custom formatting to ensure commas are used as thousand separators
+    const formattedAmount = amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+    return `${CURRENCY_SYMBOL} ${formattedAmount}`
+  }
   const [parityData, setParityData] = useState<ApiChannelData[]>([])
   const [parityScoreData, setScoreParityData] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -241,6 +239,17 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
   
   const benchmarkChannel = parityData.length > 0 ? getBenchmarkChannel() : null
   const BENCHMARK_CHANNEL_NAME = benchmarkChannel?.channelName || "MakeMyTrip"
+
+  // Debug benchmark channel name case
+  if (benchmarkChannel) {
+    console.log('🔍 Benchmark channel name case:', {
+      original: benchmarkChannel.channelName,
+      assigned: BENCHMARK_CHANNEL_NAME,
+      isSame: benchmarkChannel.channelName === BENCHMARK_CHANNEL_NAME,
+      originalType: typeof benchmarkChannel.channelName,
+      assignedType: typeof BENCHMARK_CHANNEL_NAME
+    })
+  }
   
   const getBenchmarkDisplayName = () => {
     return BENCHMARK_CHANNEL_NAME.length > 12 ? `${BENCHMARK_CHANNEL_NAME.substring(0, 9)}...` : BENCHMARK_CHANNEL_NAME
@@ -260,43 +269,86 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
   const needsPagination = totalDays > optimalColumns
   const isSticky = needsPagination
 
-  // Generate date range from API response data
-  const generateDateRangeFromApi = () => {
+  // Generate full filtered dates for UI rendering (without pagination)
+  const generateFullFilteredDates = () => {
     if (!parityData || parityData.length === 0) {
       return []
     }
     
-    // Get dates from the first channel's checkInDateWiseRates
-    const firstChannel = parityData[0]
-    if (!firstChannel?.checkInDateWiseRates || !Array.isArray(firstChannel.checkInDateWiseRates)) {
-      return []
-    }
-    
-    // Extract unique dates from API response and sort them
-    const dates = firstChannel.checkInDateWiseRates
-      .map((rate: any) => new Date(rate.checkInDate))
-      .filter((date: Date) => !isNaN(date.getTime())) // Filter out invalid dates
-      .sort((a: Date, b: Date) => a.getTime() - b.getTime()) // Sort chronologically
-    
-    // Remove duplicates
-    const uniqueDates = dates.filter((date: Date, index: number, arr: Date[]) => 
+    // Collect all dates from ALL channels' checkInDateWiseRates
+    const allDates: Date[] = []
+    parityData.forEach((channel, channelIndex) => {
+      if (channel?.checkInDateWiseRates && Array.isArray(channel.checkInDateWiseRates)) {
+        const channelDates = channel.checkInDateWiseRates
+          .map((rate: any) => rate.checkInDate ? new Date(rate.checkInDate) : null)
+          .filter((date: Date | null) => date && !isNaN(date.getTime()))
+        
+        console.log(`🔍 Channel ${channel.channelName} dates:`, channelDates.map((d: Date) => d.toLocaleDateString()))
+        allDates.push(...channelDates)
+      }
+    })
+
+
+    // Sort chronologically first, then remove duplicates
+    const sortedDates = allDates.sort((a: Date, b: Date) => a.getTime() - b.getTime())
+    const uniqueDates = sortedDates.filter((date: Date, index: number, arr: Date[]) =>
       index === 0 || date.getTime() !== arr[index - 1].getTime()
     )
-    
-    // If total days <= optimal columns, show all dates
-    if (uniqueDates.length <= optimalColumns) {
-      return uniqueDates
+    // Apply date range filtering if startDate and endDate are provided
+    let filteredDates = uniqueDates
+    if (startDate && endDate) {
+      console.log('🔍 Date Filter Debug:')
+      console.log('  startDate:', startDate.toLocaleDateString())
+      console.log('  endDate:', endDate.toLocaleDateString())
+      console.log('  uniqueDates count:', uniqueDates.length)
+      console.log('  uniqueDates range:', uniqueDates.length > 0 ? `${uniqueDates[0].toLocaleDateString()} to ${uniqueDates[uniqueDates.length-1].toLocaleDateString()}` : 'No dates')
+      
+      filteredDates = uniqueDates.filter(date => {
+        const dateTimestamp = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+        const startTimestamp = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()).getTime()
+        const endTimestamp = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate()).getTime()
+
+        const isInRange = dateTimestamp >= startTimestamp && dateTimestamp <= endTimestamp
+        
+        if (!isInRange) {
+          console.log(`  Filtered out: ${date.toLocaleDateString()} (not in range)`)
+        }
+
+        return isInRange
+      })
+      
+      console.log('  filteredDates count:', filteredDates.length)
+      console.log('  filteredDates range:', filteredDates.length > 0 ? `${filteredDates[0].toLocaleDateString()} to ${filteredDates[filteredDates.length-1].toLocaleDateString()}` : 'No dates')
     }
-    
-    // For pagination, show a subset based on current page
-    const startIndex = Math.max(0, Math.min(currentPage * optimalColumns, uniqueDates.length - optimalColumns))
-    const endIndex = Math.min(startIndex + optimalColumns, uniqueDates.length)
-    
-    return uniqueDates.slice(startIndex, endIndex)
+
+    return filteredDates
   }
 
-  const dateRange = generateDateRangeFromApi()
+  // Generate date range from API response data (with pagination)
+  const generateDateRangeFromApi = () => {
+    // Use the same logic as generateFullFilteredDates but with pagination
+    const allFilteredDates = generateFullFilteredDates()
+    
+    // If total days <= optimal columns, show all dates
+    if (allFilteredDates.length <= optimalColumns) {
+      return allFilteredDates
+    }
 
+    // For pagination, show 7 days per page
+    // First page: 7 dates, subsequent pages: 7 dates each (or remaining dates if < 7)
+    const startIndex = currentPage * optimalColumns
+    const endIndex = Math.min(startIndex + optimalColumns, allFilteredDates.length)
+
+    const finalDates = allFilteredDates.slice(startIndex, endIndex)
+
+    return finalDates
+  }
+
+  // Debug logging for the final result
+
+  // Generate the date ranges
+  const dateRange = generateDateRangeFromApi()
+  const fullFilteredDates = generateFullFilteredDates()
 
   // Helper function to get channel result from API data
   const getChannelResult = (channelWisewinData: any) => {
@@ -322,42 +374,29 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
 
   // Load parity data from parityDataMain prop - direct API binding
   useEffect(() => {
-    console.log('🔄 Loading parity calendar data from parityDataMain')
+
     if (!parityDataMain) {
-      console.log('⚠️ parityDataMain is not provided')
       return;
     }
     
     setIsLoading(true)
     
     try {
-      debugger;
       // Work directly with API response structure
       const channels = parityDataMain?.otaViolationChannelRate?.violationChannelRatesCollection || []
       setParityData(channels)
       const parityScrore = parityDataMain?.otaViolationChannelRate?.dateWiseWinMeetLoss || []
       setScoreParityData(parityScrore)
-      console.log('✅ Parity calendar data loaded directly from API:', channels)
       
       // Debug parity scores specifically
       channels.forEach((channel: any, index: number) => {
-        console.log(`Channel ${index}: ${channel.channelName}`, {
-          parityScore: channel.channelWisewinMeetLoss?.parityScore,
-          winPercent: channel.channelWisewinMeetLoss?.winPercent,
-          meetPercent: channel.channelWisewinMeetLoss?.meetPercent,
-          lossPercent: channel.channelWisewinMeetLoss?.lossPercent,
-          isBrand: channel.isBrand,
-          fullChannelWisewinMeetLoss: channel.channelWisewinMeetLoss
-        })
+
         
         // Special debugging for brand channels
         if (channel.isBrand) {
-          console.log(`🔍 Brand channel ${channel.channelName} details:`, {
-        isBrand: channel.isBrand,
-            channelWisewinMeetLoss: channel.channelWisewinMeetLoss,
-            hasParityScore: 'parityScore' in (channel.channelWisewinMeetLoss || {}),
-            parityScoreValue: channel.channelWisewinMeetLoss?.parityScore
-          })
+          console.log(`🔍 Brand channel name case: "${channel.channelName}"`)
+          console.log(`🔍 Brand channel name type: ${typeof channel.channelName}`)
+          console.log(`🔍 Brand channel name length: ${channel.channelName?.length}`)
         }
       })
     } catch (error) {
@@ -436,7 +475,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
           const dayData = channel.checkInDateWiseRates.find((day: ApiDailyData) => {
             if (!day || !day.checkInDate) return false
             const dayDate = new Date(day.checkInDate)
-            return dayDate.getTime() === targetDate.getTime()
+            return !isNaN(dayDate.getTime()) && dayDate.getTime() === targetDate.getTime()
           })
           if (dayData) {
             const result = getChannelResult(channel.channelWisewinMeetLoss)
@@ -463,7 +502,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
     switch (status) {
       case 'L': return 'bg-red-100 text-red-800 border-red-300' // Loss - Red
       case 'W': return 'bg-orange-100 text-orange-800 border-orange-300' // Win - Orange  
-      case 'M': return 'bg-blue-100 text-blue-800 border-blue-300' // Meet - Blue (default)
+      case 'M': return 'bg-green-100 text-green-800 border-green-300' // Meet - Blue (default)
       default: return 'bg-blue-100 text-blue-800 border-blue-300'
     }
   }
@@ -487,27 +526,34 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
     return isSoldOutForDate31(benchmarkIndex, date)
   }
 
-  // Get result color for benchmark 2nd row based on overall channel results for that date
+  // Get benchmark cell color based on special rules
   const getBenchmarkCellColor = (dateString: string | Date, defaultResult: string, defaultScore?: number, isBrand?: boolean) => {
     const dateObj = dateString instanceof Date ? dateString : new Date(dateString)
-    const dayOfMonth = dateObj.getDate()
-    
-    // Force meet color (green) for date 30 regardless of actual status
-    // if (dayOfMonth === 30) {
-    //   return "bg-green-100 text-green-800 border-green-300" // Meet = Green
-    // }
-    
-    // For date 31 - benchmark sold out logic
-    // if (dayOfMonth === 31) {
-    //   const isBenchmarkSoldOut = isBenchmarkSoldOutForDate31(dateString)
-    //   if (isBenchmarkSoldOut) {
-    //     // Benchmark sold out gets loss state color (red)
-    //     return "bg-red-100 text-red-800 border-red-300" // Loss = Red
-    //   }
-    // }
-    
-    // For 2nd row (MakeMyTrip Benchmark), use overall status color
-    //const overallStatus = getOverallStatusForDate(dateString)
+   debugger;
+    const allResults = parityScoreData.find(x => format(x.checkInDate, 'dd/MM/yyyy') === format(dateObj, 'dd/MM/yyyy'))
+    // Apply benchmark row rules
+    if (allResults.length === 0) {
+      return getStatusColorClass("") // Default to Meet if no data
+    }
+
+    // Rule 1: If any channel shows Loss → benchmark cell = Red (Loss)
+    if (allResults?.lossCount>0) {
+      return getStatusColorClass("L")
+    }
+
+    // Rule 2: If all channels show Win → benchmark cell = Orange (Win)
+    if (allResults?.meetCount>0) {
+      return getStatusColorClass("M")
+    }
+
+    // Rule 3: If all channels show Meet → benchmark cell = Green (Meet)
+    if (allResults?.winCount>0) {
+      return getStatusColorClass("W")
+    }
+
+    // Rule 4: If mix of Win & Meet → benchmark cell = Orange (Win)
+   
+    // Default fallback
     return getStatusColorClass("")
   }
 
@@ -516,16 +562,16 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
     // if (date) {
     //   const dateObj = date instanceof Date ? date : new Date(date)
     //   const dayOfMonth = dateObj.getDate()
-      
+
     //   // if (dayOfMonth === 30) {
     //   //   return "bg-green-100 text-green-800 border-green-300" // Meet = Green
     //   // }
-      
+
     //   // For date 31 - special sold out logic
     //   if (dayOfMonth === 31) {
     //     const isBenchmarkSoldOut = isBenchmarkSoldOutForDate31(date)
     //     const isCurrentChannelSoldOut = channelIndex !== undefined ? isSoldOutForDate31(channelIndex, date) : false
-        
+
     //     if (isCurrentChannelSoldOut) {
     //       // Sold out channels get meet state color (green)
     //       return "bg-green-100 text-green-800 border-green-300" // Meet = Green
@@ -557,7 +603,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
     }
   }
 
-  
+
   const getScoreColor = (score: number) => {
     if (score >= 70) return "bg-green-50 text-green-700 border-green-200"
     if (score >= 50) return "bg-orange-50 text-orange-700 border-orange-200"
@@ -588,7 +634,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
       return
     }
 
-  
+
     // Sort channels: benchmark first, then alphabetical
     const sortedChannels = [...parityData].sort((a, b) => {
       if (a.isBrand && !b.isBrand) return -1
@@ -596,8 +642,16 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
       return a.channelName?.localeCompare(b.channelName || '') || 0
     })
 
-    // Generate date columns
-    const dateColumns = dateRange.map((date: Date) => format(date, 'dd-MMM'))
+    // Use the same logic as UI for consistency
+    const filteredDates = generateFullFilteredDates()
+    
+    console.log('🔍 CSV Date Debug:')
+    console.log('  filteredDates count:', filteredDates.length)
+    console.log('  filteredDates:', filteredDates.map(d => d.toLocaleDateString()))
+    console.log('  dateColumns:', filteredDates.map(d => format(d, 'dd-MMM-yyyy')))
+
+    // Generate date columns for filtered dates - include year for clarity
+    const dateColumns = filteredDates.map((date: Date) => format(date, 'dd-MMM-yyyy'))
     
     // CSV headers
     const headers = [
@@ -614,58 +668,96 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
       const isBenchmark = channel.isBrand === true
       const channelName = isBenchmark ? `${channel.channelName} (Benchmark)` : channel.channelName
       
-      // Calculate Win/Meet/Loss percentages
-      const { winPercent, meetPercent, lossPercent } = calculateWinMeetLossPercentages(channel.channelWisewinMeetLoss)
+      // Calculate Win/Meet/Loss percentages - EXACT same logic as UI
+      let overallWinMeetLoss;
+      if (channel.isBrand) {
+        overallWinMeetLoss = parityDataMain?.otaViolationChannelRate?.overallWinMeetLoss
+      } else {
+        overallWinMeetLoss = channel.channelWisewinMeetLoss
+      }
       
-      // Calculate parity score
+      const { winPercent, meetPercent, lossPercent } = calculateWinMeetLossPercentages(overallWinMeetLoss)
+      
+      // Calculate parity score - EXACT same logic as UI
       let parityScore = channel.channelWisewinMeetLoss?.parityScore || 0
-      if (isBenchmark && (!parityScore || parityScore === 0)) {
-        const { winCount = 0, meetCount = 0, lossCount = 0 } = channel.channelWisewinMeetLoss || {}
+      
+      // Special handling for brand channels that might have different data structure
+      const winCount = overallWinMeetLoss?.winCount || 0
+      const meetCount = overallWinMeetLoss?.meetCount || 0
+      const lossCount = overallWinMeetLoss?.lossCount || 0
         const total = winCount + meetCount + lossCount
+      
         if (total > 0) {
           parityScore = Math.round(((winCount + meetCount) * 100) / total)
-        }
       }
 
-      // Generate date cell data
-      const dateCells = dateRange.map((date: Date): string => {
-        const dayData = channel.checkInDateWiseRates?.find((rate: any) => {
+      // Generate date cell data for filtered dates - using EXACT UI binding logic
+      const dateCells = filteredDates.map((currentDate: Date): string => {
+        // EXACT same logic as UI: const dayData = currentDate ? channel.checkInDateWiseRates?.find((rate: any) => {
+        const dayData = currentDate ? channel.checkInDateWiseRates?.find((rate: any) => {
           const rateDate = new Date(rate.checkInDate)
-          return rateDate.getTime() === date.getTime()
-        })
+          return rateDate.getTime() === currentDate.getTime()
+        }) : null
 
         if (!dayData) {
           return 'No Data'
         }
 
-        const dayOfMonth = date.getDate()
-        const isSoldOut = dayOfMonth === 30 || (dayOfMonth === 31 && isSoldOutForDate31(parityData.findIndex(c => c.channelId === channel.channelId), date))
-        
-        if (isSoldOut) {
+        // EXACT same logic as UI table rendering:
+        // {dayData.rate == 0 && dayData.statusMessage == "Closed" ? 'Sold Out' :
+        //  dayData.rate == 0 && dayData.statusMessage !== "Closed" ? "--" : truncatedRate}
+        if (dayData.rate == 0 && dayData.statusMessage == "Closed") {
           return 'Sold Out'
+        } else if (dayData.rate == 0 && dayData.statusMessage !== "Closed") {
+          return '--'
         }
 
-        // Get benchmark rate for difference calculation
+        // Get rate from API - use 0 if not available, but still display it (EXACT UI logic)
+        const apiRate = dayData.rate || 0
+        const rateText = formatNumber(apiRate)
+        const truncatedRate = rateText.length > 11 ? `${rateText.substring(0, 8)}...` : rateText
+
+        // Get benchmark rate - EXACT same logic as UI
         const benchmarkChannel = parityData.find(c => c.isBrand === true)
-        const benchmarkRate = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
+        const benchmarkDayData = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
           const rateDate = new Date(rate.checkInDate)
-          return rateDate.getTime() === date.getTime()
-        })?.rate || 0
-
-        const channelRate = dayData.rate || 0
-        const difference = benchmarkRate - channelRate
+          return rateDate.getTime() === currentDate.getTime()
+        })
         
-        // Format difference
-        let differenceText = ''
-        if (difference === 0) {
-          differenceText = 'No difference'
-        } else if (difference < 0) {
-          differenceText = `-${formatNumber(Math.abs(difference))}`
-        } else {
-          differenceText = `+${formatNumber(Math.abs(difference))}`
+        // Check if benchmark is 'Sold Out' or '--'
+        let benchmarkRate = 0
+        let benchmarkStatus = ''
+        if (benchmarkDayData) {
+          if (benchmarkDayData.rate == 0 && benchmarkDayData.statusMessage == "Closed") {
+            benchmarkStatus = 'Sold Out'
+          } else if (benchmarkDayData.rate == 0 && benchmarkDayData.statusMessage !== "Closed") {
+            benchmarkStatus = '--'
+          } else {
+            benchmarkRate = benchmarkDayData.rate || 0
+          }
         }
 
-        // Get violation type
+        // Calculate difference - show actual difference even when benchmark is 'Sold Out'
+        let differenceText = ''
+        if (benchmarkStatus === '--') {
+          differenceText = '--'
+        } else {
+          // For 'Sold Out' case, use 0 as benchmark rate to calculate difference
+          const effectiveBenchmarkRate = benchmarkStatus === 'Sold Out' ? 0 : benchmarkRate
+          const difference = effectiveBenchmarkRate - apiRate
+          
+          if (difference === 0) {
+            differenceText = 'No difference'
+          } else if (difference > 0) {
+            // Positive difference: benchmark higher than channel = loss for channel = show as +
+            differenceText = `+${formatNumber(difference)}`
+          } else {
+            // Negative difference: benchmark lower than channel = win for channel = show as -
+            differenceText = `-${formatNumber(Math.abs(difference))}`
+          }
+        }
+
+        // Get violation type - EXACT same logic as UI
         const hasAvailViolation = dayData.availViolation || false
         const hasRateViolation = dayData.rateViolation || false
         let violationText = ''
@@ -675,23 +767,80 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
           violationText = 'R'
         }
 
-        // Get room type and inclusions
+        // Get room type and inclusions - no default values
         const roomType = dayData.toolTipProductName || ''
+        const formattedRoom = roomType ? formatRoomText(roomType) : ''
         const inclusion = dayData.inclusion || ''
 
-        // Build cell content
-        const cellParts = [
-          `Rate: ${formatNumber(channelRate)}`,
-          `Room: ${roomType}`,
-          `Inclusions: ${inclusion}`,
-          `Difference: ${differenceText}`
-        ]
+        // Get benchmark room type and inclusions - no default values
+        const benchmarkRoomType = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
+          const rateDate = new Date(rate.checkInDate)
+          return rateDate.getTime() === currentDate.getTime()
+        })?.toolTipProductName || ''
+        const benchmarkInclusion = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
+          const rateDate = new Date(rate.checkInDate)
+          return rateDate.getTime() === currentDate.getTime()
+        })?.inclusion || ''
 
-        if (violationText) {
-          cellParts.push(`Violation: ${violationText}`)
+        // Get result status (Win/Meet/Loss) - skip for benchmark row
+        let resultText = ''
+        if (!isBenchmark) {
+          // If benchmark is '--', don't show W/M/L status
+          if (benchmarkStatus === '--') {
+            resultText = ''
+          } else {
+            // Use dayData.parityVsBaseLine like the UI does for non-benchmark channels
+            const result = dayData.parityVsBaseLine || 'M'
+            resultText = result === 'W' ? 'Win' : result === 'L' ? 'Loss' : 'Meet'
+          }
+        } 
+
+        // Build the detailed format: Benchmark: rate (room, inclusion) | OTA: rate (room, inclusion) | Diff: difference | Violation | Result
+        // Only include room and inclusion if data is available
+        const benchmarkRoomInclusion = (benchmarkRoomType || benchmarkInclusion) 
+          ? ` (${benchmarkRoomType}${benchmarkRoomType && benchmarkInclusion ? ', ' : ''}${benchmarkInclusion})`
+          : ''
+        
+        // Format benchmark part based on status
+        let benchmarkPart = ''
+        if (benchmarkStatus === 'Sold Out') {
+          // For 'Sold Out' case, remove parentheses from room/inclusion info
+          benchmarkPart = `Benchmark: Sold Out${benchmarkRoomInclusion.replace(/[()]/g, '')}`
+        } else if (benchmarkStatus === '--') {
+          benchmarkPart = `Benchmark: --${benchmarkRoomInclusion}`
+        } else {
+          benchmarkPart = `Benchmark: ${formatNumber(benchmarkRate)}${benchmarkRoomInclusion}`
         }
+        
+        const channelRoomInclusion = (formattedRoom || inclusion) 
+          ? ` (${formattedRoom}${formattedRoom && inclusion ? ', ' : ''}${inclusion})`
+          : ''
+        const channelPart = `${channel.channelName}: ${truncatedRate}${channelRoomInclusion}`
+        
+        const diffPart = `Diff: ${differenceText}`
+        const violationPart = violationText ? `${violationText} |` : ''
+        const resultPart = resultText
 
-        return cellParts.join(' | ')
+        // For benchmark channels, don't include channel part
+        if (isBenchmark) {
+          // For benchmark channels, show simplified format when benchmark is 'Sold Out' or '--'
+          if (benchmarkStatus === 'Sold Out') {
+            return `${benchmarkPart} | ${diffPart} | ${violationPart} ${resultPart}`
+          } else if (benchmarkStatus === '--') {
+            return `${benchmarkPart}`
+          } else {
+            return `${benchmarkPart} | ${diffPart} | ${violationPart} ${resultPart}`
+          }
+        } else {
+          // For other channels, show simplified format when benchmark is 'Sold Out' or '--'
+          if (benchmarkStatus === 'Sold Out') {
+            return `${benchmarkPart} | ${channelPart} | ${diffPart} | ${violationPart} ${resultPart}`
+          } else if (benchmarkStatus === '--') {
+            return `${benchmarkPart} | ${channelPart}`
+          } else {
+            return `${benchmarkPart} | ${channelPart} | ${diffPart} | ${violationPart} ${resultPart}`
+          }
+        }
       })
 
       return [
@@ -725,11 +874,11 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
     URL.revokeObjectURL(url)
   }
 
-  const totalPages = needsPagination ? Math.ceil(totalDays / optimalColumns) : 1
-  const isPaginationDisabled = totalDays <= optimalColumns
+  const totalPages = needsPagination ? Math.ceil(fullFilteredDates.length / optimalColumns) : 1
+  const isPaginationDisabled = fullFilteredDates.length <= optimalColumns
 
   return (
-    <TooltipProvider delayDuration={0} skipDelayDuration={0} disableHoverableContent={true}>
+    <TooltipProvider delayDuration={300} skipDelayDuration={0} disableHoverableContent={false}>
       <div className={cn("", className)}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
@@ -824,13 +973,11 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                       "w-1.5 p-0 m-0",
                       isSticky && "sticky left-96 bg-muted/50 z-10"
                     )}></th>
-                    {Array.from({ length: needsPagination ? optimalColumns : dateRange.length }, (_, index) => {
-                       const date = dateRange[index] || undefined
-                      // When on Next page (currentPage > 0), hide last 3 columns for blank state demo
-                      const isBlankColumn = currentPage > 0 && index >= dateRange.length - 3
-                      const hasDate = date && index < dateRange.length && !isBlankColumn
+                    {Array.from({ length: needsPagination ? optimalColumns : fullFilteredDates.length }, (_, index) => {
+                      const date = needsPagination ? dateRange[index] : fullFilteredDates[index] || undefined
+                      const hasDate = date && index < (needsPagination ? dateRange.length : fullFilteredDates.length)
                       // Dynamic width based on column count - larger cells for fewer columns
-                      const cellWidth = needsPagination ? Math.max(60, Math.floor(672 / optimalColumns)) : Math.max(48, Math.floor(672 / dateRange.length))
+                      const cellWidth = needsPagination ? Math.max(60, Math.floor(672 / optimalColumns)) : Math.max(48, Math.floor(672 / fullFilteredDates.length))
                       const adaptiveWidth = needsPagination ? `w-[${cellWidth}px]` : `min-w-[${cellWidth}px]`
                       
                       return (
@@ -844,15 +991,12 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                 <TooltipTrigger asChild className="cursor-default">
                                   <div className="mt-1 px-1 py-1 bg-blue-100 text-blue-800 rounded font-bold cursor-default hover:cursor-default" style={{ fontSize: '13px' }}>
                                     {(() => {
-                                      // Don't show parity score for blank columns
-                                      if (isBlankColumn) return ''
-                                      
                                       // Extract parity score from channel data (first channel)
-                                    //  debugger;
-                                      
-                                        
-                                      let parityScoreDisplay = parityScoreData[index]?.parityScore || 0
-                                     return `${parityScoreDisplay}%`
+                                      //  debugger;
+                                    
+
+                                      let parityScoreDisplay = parityScoreData.find(x => format(x.checkInDate, 'dd/MM/yyyy') === format(date, 'dd/MM/yyyy'))?.parityScore || 0
+                                      return `${parityScoreDisplay}%`
                                     })()}
                                   </div>
                                 </TooltipTrigger>
@@ -920,19 +1064,19 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                             ) : null}
                             {/* Fallback: First letter of channel name */}
                             <div className={cn(
-                              "w-4 h-4 rounded flex items-center justify-center text-xs font-bold text-white bg-blue-600",
+                              "w-4 h-4 rounded flex items-center justify-center text-xs font-bold",
                               channel.channelIcon ? "hidden" : "block"
                             )}>
-                              <span className="w-4 h-4 rounded flex items-center justify-center text-xs font-bold text-white bg-blue-600">
+                              <span className="w-4 h-4 rounded flex items-center justify-center text-xs font-bold">
                                 {channel.channelName?.charAt(0)?.toUpperCase() || 'C'}
                               </span>
                             </div>
                           {(isBenchmark && channel.channelName.length > 10) || (!isBenchmark && channel.channelName.length > 18) ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <span className="text-xs font-medium text-gray-900 cursor-default">
+                                <span className="text-xs font-medium text-gray-900 cursor-help">
                                   {isBenchmark 
-                                    ? `${channel.channelName.substring(0, 10)}...`
+                                        ? `${channel.channelName.substring(0, 8)}...`
                                     : `${channel.channelName.substring(0, 18)}...`
                                   }
                                 </span>
@@ -941,12 +1085,15 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                 <div className="text-xs font-normal">
                                   {(() => {
                                     const name = channel.channelName
-                                    if (name.length <= 24) {
-                                      return <p>{name}</p>
+                                    const benchmarkText = isBenchmark ? " (Benchmark)" : ""
+                                    const fullText = name + benchmarkText
+                                    
+                                    if (fullText.length <= 24) {
+                                      return <p>{fullText}</p>
                                     }
                                     
                                     const lines = []
-                                    let remainingText = name
+                                    let remainingText = fullText
                                     
                                     // Split into lines of 24 characters each, max 3 lines
                                     for (let i = 0; i < 3 && remainingText.length > 0; i++) {
@@ -967,9 +1114,18 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                               </TooltipContent>
                             </Tooltip>
                           ) : (
-                            <span className="text-xs font-medium text-gray-900">
-                              {channel.channelName}
-                            </span>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-xs font-medium text-gray-900 cursor-help">
+                                  {channel.channelName}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                                <div className="text-xs font-normal">
+                                  {channel.channelName}{isBenchmark ? " (Benchmark)" : ""}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
                           )}
                           {isBenchmark && (
                             <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 cursor-default hover:bg-blue-100">
@@ -996,7 +1152,15 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                 "flex items-center h-5 bg-gray-100 rounded overflow-hidden border border-gray-200 cursor-pointer"
                             )}>
                               {(() => {
-                                const { winPercent, meetPercent, lossPercent } = calculateWinMeetLossPercentages(channel.channelWisewinMeetLoss)
+                                      let overallWinMeetLoss;
+                                      if (channel.isBrand) {
+                                        overallWinMeetLoss = parityDataMain?.otaViolationChannelRate?.overallWinMeetLoss
+                                        // Try to calculate parity score from win/meet/loss counts
+                                      }
+                                      else {
+                                        overallWinMeetLoss = channel.channelWisewinMeetLoss
+                                      }
+                                      const { winPercent, meetPercent, lossPercent } = calculateWinMeetLossPercentages(overallWinMeetLoss)
                                 return (
                                   <>
                               <div
@@ -1082,7 +1246,15 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                 </div>
                               <div className="space-y-1 text-xs">
                                 {(() => {
-                                  const { winPercent, meetPercent, lossPercent } = calculateWinMeetLossPercentages(channel.channelWisewinMeetLoss)
+                                        let overallWinMeetLoss;
+                                        if (channel.isBrand) {
+                                          overallWinMeetLoss = parityDataMain?.otaViolationChannelRate?.overallWinMeetLoss
+                                          // Try to calculate parity score from win/meet/loss counts
+                                        }
+                                        else {
+                                          overallWinMeetLoss = channel.channelWisewinMeetLoss
+                                        }
+                                        const { winPercent, meetPercent, lossPercent } = calculateWinMeetLossPercentages(overallWinMeetLoss)
                                   return (
                                     <>
                                 <div className="flex items-center gap-2">
@@ -1107,62 +1279,46 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                         )}
                       </td>
 
-                      {/* Overall Parity Score */}
-                                                 <td 
-                           className={cn(
-                        "py-2 px-3 border-r border-border mr-2.5",
-                        isSticky && isBenchmark && "sticky left-80 bg-blue-50 dark:bg-blue-950/30 z-10",
-                             isSticky && !isBenchmark && "sticky left-80 bg-white dark:bg-slate-950 hover:bg-muted/50 z-10",
-                             isBenchmark && "bg-blue-50 dark:bg-blue-950/30" // Benchmark gets special background
-                           )}
-                        >
-                        <div className={cn("flex items-center gap-1", isBenchmark && "cursor-default")}>
-                          <span
-                            className="font-bold cursor-default text-gray-900"
-                            style={{ 
-                              fontSize: '13px',
-                              color: '#1f2937',
-                              backgroundColor: 'transparent',
-                              display: 'inline-block',
-                              minWidth: '30px'
-                            }}
+                          {/* Overall Parity Score */}
+                          <td
+                            className={cn(
+                              "py-2 px-3 border-r border-border mr-2.5",
+                              isSticky && isBenchmark && "sticky left-80 bg-blue-50 dark:bg-blue-950/30 z-10",
+                              isSticky && !isBenchmark && "sticky left-80 bg-white dark:bg-slate-950 hover:bg-muted/50 z-10",
+                              isBenchmark && "bg-blue-50 dark:bg-blue-950/30" // Benchmark gets special background
+                            )}
                           >
-                            {(() => {
-                              let score = channel.channelWisewinMeetLoss?.parityScore || 0
-                              
-                              // Special handling for brand channels that might have different data structure
-                              if (channel.isBrand && (!score || score === 0)) {
+                            <div className={cn("flex items-center gap-1", isBenchmark && "cursor-default")}>
+                              <span
+                                className="font-bold cursor-default text-gray-900"
+                                style={{
+                                  fontSize: '13px',
+                                  color: '#1f2937',
+                                  backgroundColor: 'transparent',
+                                  display: 'inline-block',
+                                  minWidth: '30px'
+                                }}
+                              >
+                                {(() => {
+                                  let score = channel.channelWisewinMeetLoss?.parityScore || 0
+
+                                  // Special handling for brand channels that might have different data structure
+                                  let overallWinMeetLoss;
+                                  if (channel.isBrand) {
+                                    overallWinMeetLoss = parityDataMain?.otaViolationChannelRate?.overallWinMeetLoss
                                 // Try to calculate parity score from win/meet/loss counts
-                                const winCount = channel.channelWisewinMeetLoss?.winCount || 0
-                                const meetCount = channel.channelWisewinMeetLoss?.meetCount || 0
-                                const lossCount = channel.channelWisewinMeetLoss?.lossCount || 0
+                                  }
+                                  else {
+                                    overallWinMeetLoss = channel.channelWisewinMeetLoss
+                                  }
+                                  const winCount = overallWinMeetLoss?.winCount || 0
+                                  const meetCount = overallWinMeetLoss?.meetCount || 0
+                                  const lossCount = overallWinMeetLoss?.lossCount || 0
                                 const total = winCount + meetCount + lossCount
                                 
                                 if (total > 0) {
                                   score = Math.round(((winCount + meetCount) * 100) / total)
-                                  console.log(`🔧 Calculated parity score for brand channel ${channel.channelName}:`, {
-                                    winCount,
-                                    meetCount,
-                                    lossCount,
-                                    total,
-                                    calculatedScore: score
-                                  })
-                                }
-                              }
-                              
-                              console.log(`Rendering parity score for ${channel.channelName}:`, {
-                                rawScore: channel.channelWisewinMeetLoss?.parityScore,
-                                finalScore: score,
-                                channelWisewinMeetLoss: channel.channelWisewinMeetLoss,
-                                isBrand: channel.isBrand,
-                                channelIndex: channelIndex
-                              })
-                              
-                              // Force display even if score is 0 for debugging
-                              if (score === 100) {
-                                console.log(`🎯 Found 100% score for ${channel.channelName}!`)
-                              }
-                              
+                                  }
                               return `${score}%`
                             })()}
                           </span>
@@ -1178,32 +1334,30 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                       )}></td>
 
                       {/* Daily Results */}
-                      {Array.from({ length: needsPagination ? optimalColumns : dateRange.length }, (_, index) => {
+                          {Array.from({ length: needsPagination ? optimalColumns : fullFilteredDates.length }, (_, index) => {
                         // Map display index to actual day index in full dataset
                         const actualDayIndex = needsPagination ? currentPage * optimalColumns + index : index
-                        const currentDate = dateRange[index]
-                        const dayData = channel.checkInDateWiseRates?.find((rate: any) => {
+                            const currentDate = needsPagination ? dateRange[index] : fullFilteredDates[index]
+                            const dayData = currentDate ? channel.checkInDateWiseRates?.find((rate: any) => {
                           const rateDate = new Date(rate.checkInDate)
                           return rateDate.getTime() === currentDate.getTime()
-                        })
-                        // When on Next page (currentPage > 0), hide last 3 columns for blank state demo
-                        const isBlankColumn = currentPage > 0 && index >= dateRange.length - 3
-                        const hasData = dayData && index < dateRange.length && !isBlankColumn
+                            }) : null
+                            const hasData = dayData && index < (needsPagination ? dateRange.length : fullFilteredDates.length)
                         
                         // Dynamic width based on column count - larger cells for fewer columns
-                        const cellWidth = needsPagination ? Math.max(60, Math.floor(672 / optimalColumns)) : Math.max(48, Math.floor(672 / dateRange.length))
+                            const cellWidth = needsPagination ? Math.max(60, Math.floor(672 / optimalColumns)) : Math.max(48, Math.floor(672 / fullFilteredDates.length))
                         const adaptiveWidth = needsPagination ? `w-[${cellWidth}px]` : `min-w-[${cellWidth}px]`
                         
                         // Calculate colored cell width based on column count
                         const baseColoredCellWidth = needsPagination 
                           ? Math.max(50, Math.floor(672 / optimalColumns) - 8)
-                          : Math.max(40, Math.floor(672 / dateRange.length) - 8)
-                        const shouldReduceWidth = !needsPagination && [3, 7, 10].includes(dateRange.length)
+                              : Math.max(40, Math.floor(672 / fullFilteredDates.length) - 8)
+                            const shouldReduceWidth = !needsPagination && [3, 7, 10].includes(fullFilteredDates.length)
                         const reducedWidth = shouldReduceWidth ? Math.floor(baseColoredCellWidth * 0.95) : baseColoredCellWidth
                         const adaptiveCellWidth = needsPagination ? `w-[${reducedWidth}px]` : `w-[${reducedWidth}px]`
                         
                         // Position tooltip on left for last 2 columns to prevent overflow
-                        const totalColumns = needsPagination ? optimalColumns : dateRange.length
+                            const totalColumns = needsPagination ? optimalColumns : fullFilteredDates.length
                         const isLastTwoColumns = index >= totalColumns - 2
                         const tooltipSide = isLastTwoColumns ? "left" : "top"
                         
@@ -1222,24 +1376,22 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                     <div
                                       className={cn(
                                         `relative ${adaptiveCellWidth} h-6 flex items-center justify-center rounded text-[10px] font-bold border cursor-pointer transition-all hover:scale-105`,
-                                        parityData.length > 0 
-                                          ? getStatusColorClass("")
-                                          : getResultColor(dayData.parityVsBaseLine, channel.channelWisewinMeetLoss?.parityScore, channel.isBrand, dayData.checkInDate, channelIndex),
+                                            isBenchmark
+                                              ? getBenchmarkCellColor(dayData.checkInDate, dayData.parityVsBaseLine, channel.channelWisewinMeetLoss?.parityScore, channel.isBrand)
+                                              : getResultColor(dayData.parityVsBaseLine, channel.channelWisewinMeetLoss?.parityScore, channel.isBrand, dayData.checkInDate, channelIndex),
                                       )}
                                     >
                                       {(() => {
                                         const dayOfMonth = getDayOfMonth(dayData.checkInDate)
-                                        // if (dayOfMonth === 30) return 'Sold Out'
-                                        // if (dayOfMonth === 31 && isSoldOutForDate31(channelIndex, dayData.checkInDate)) return 'Sold Out'
+                                            // if (dayOfMonth === 30) return 'Sold Out'
+                                            // if (dayOfMonth === 31 && isSoldOutForDate31(channelIndex, dayData.checkInDate)) return 'Sold Out'
                                         
                                         // Get rate from API - use 0 if not available, but still display it
-                                        if(dayData.rate==0 && dayData.statusMessage=="Closed")
-                                        {
-                                          return 'Sold Out';
-                                        }else if(dayData.rate==0 && dayData.statusMessage!=="Closed")
-                                        {
-                                          return "--";
-                                        }
+                                            if (dayData.rate == 0 && dayData.statusMessage == "Closed") {
+                                              return <span>Sold Out</span>;
+                                            } else if (dayData.rate == 0 && dayData.statusMessage !== "Closed") {
+                                              return <span>--</span>;
+                                            }
                                         const apiRate = dayData.rate || 0
                                         
                                         // Check for violations using API boolean values
@@ -1255,8 +1407,8 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                           return (
                                             <div className="flex items-center justify-center gap-1">
                                               <span>{rateText}</span>
-                                              <div className="w-[13px] h-[13px] rounded-full border  flex items-center justify-center">
-                                                <span className="text-[8px] font-bold ">
+                                                  <div className="w-[13px] h-[13px] rounded-full border  flex items-center justify-center">
+                                                    <span className="text-[8px] font-bold ">
                                                   {violationType}
                                                 </span>
                                               </div>
@@ -1268,6 +1420,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                       })()}
                                 </div>
                                   </TooltipTrigger>
+                                      {dayData.rate > 0 &&
                                   <TooltipContent 
                                     side={tooltipSide}
                                     sideOffset={8}
@@ -1291,26 +1444,24 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                         const truncatedChannelName = channelName.length > 12 ? `${channelName.substring(0, 9)}...` : channelName
                                         const dayOfMonth = getDayOfMonth(dayData.checkInDate)
                                         
-                                        if(dayData.rate==0 && dayData.statusMessage=="Closed")
-                                        {
-                                          return 'Sold Out';
-                                        }else if(dayData.rate==0 && dayData.statusMessage!=="Closed")
-                                        {
-                                          return "--";
-                                        }
+                                              if (dayData.rate == 0 && dayData.statusMessage == "Closed") {
+                                                return <span>Sold Out</span>;
+                                              } else if (dayData.rate == 0 && dayData.statusMessage !== "Closed") {
+                                                return <span>--</span>;
+                                              }
                                         const apiRate = dayData.rate || 0
 
-                                        // Get rate from API - use 0 if not available, but still display it
-                                        const rateText = formatNumber(apiRate)
+                                              // Get rate from API - use 0 if not available, but still display it
+                                              const rateText = formatNumber(apiRate)
                                         const truncatedRate = rateText.length > 11 ? `${rateText.substring(0, 8)}...` : rateText
                                         
                                         // Get room type from API
                                         const roomType = dayData.toolTipProductName || ''
-                                        const formattedRoom = formatRoomText(roomType)
+                                              const formattedRoom = !!roomType?.trim() ? formatRoomText(roomType) : '--'
                                         
                                         // Get inclusion from API
-                                        const inclusion = dayData.inclusion 
-                                        const formattedInclusion = formatInclusionText(inclusion)
+                                              const inclusion = dayData.inclusion || ''
+                                              const formattedInclusion = !!inclusion?.trim() ? formatInclusionText(inclusion) : '--'
                                         
                                         // Fixed column widths
                                         const channelWidth = '120px'
@@ -1323,7 +1474,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                             <thead>
                                               <tr className="text-gray-500 dark:text-slate-400 font-medium">
                                                 <th className="text-left pb-2" style={{ width: channelWidth, paddingLeft: '4px', paddingRight: '16px' }}>Channel</th>
-                                                <th className="text-left pb-2" style={{ width: rateWidth, paddingRight: '16px' }}>Rate (Rp)</th>
+                                                      <th className="text-left pb-2" style={{ width: rateWidth, paddingRight: '16px' }}>Rate ({CURRENCY_SYMBOL})</th>
                                                 <th className="text-left pb-2" style={{ width: roomWidth, paddingRight: '16px' }}>Room</th>
                                                 <th className="text-left pb-2" style={{ width: inclusionWidth }}>Inclusion</th>
                                               </tr>
@@ -1374,12 +1525,17 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                                 
                                                 {/* Rate */}
                                                 <td className="py-1.5 align-top text-left font-bold text-blue-900 dark:text-blue-200" style={{ width: rateWidth, paddingRight: '16px' }}>
-                                                  <div className="truncate" title={rateText}>{truncatedRate}</div>
+                                                        <div className="truncate" title={rateText}>
+                                                          {dayData.rate == 0 && dayData.statusMessage == "Closed" ? 'Sold Out' :
+                                                            dayData.rate == 0 && dayData.statusMessage !== "Closed" ? "--" : truncatedRate}
+                                                        </div>
                                                 </td>
                                                 
                                                 {/* Room type */}
                                                 <td className="py-1.5 align-top text-left text-blue-900 dark:text-blue-200" style={{ width: roomWidth, paddingRight: '16px' }}>
-                                                  {typeof formattedRoom === 'string' ? (
+                                                        {formattedRoom === '--' ? (
+                                                          <div>--</div>
+                                                        ) : typeof formattedRoom === 'string' ? (
                                                     <div title={roomType}>{formattedRoom}</div>
                                                   ) : (
                                                     <div title={roomType}>
@@ -1391,7 +1547,9 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                                 
                                                 {/* Inclusion */}
                                                 <td className="py-1.5 align-top text-left text-blue-900 dark:text-blue-200 rounded-r" style={{ width: inclusionWidth }}>
-                                                  {typeof formattedInclusion === 'string' ? (
+                                                        {formattedInclusion === '--' ? (
+                                                          <div>--</div>
+                                                        ) : typeof formattedInclusion === 'string' ? (
                                                     <div title={inclusion}>{formattedInclusion}</div>
                                                   ) : (
                                                     <div title={inclusion}>
@@ -1407,6 +1565,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                       })()}
                                     </div>
                                   </TooltipContent>
+                                      }
                                 </Tooltip>
                               ) : (
                                 // Regular rows - with tooltip and styling
@@ -1415,20 +1574,18 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                               <div
                                 className={cn(
                                         `relative ${adaptiveCellWidth} h-6 flex items-center justify-center rounded text-[10px] font-bold border cursor-pointer transition-all hover:scale-105`,
-                                        isBenchmark && parityData.length > 0 
-                                           ? getStatusColorClass("")
-                                          : getResultColor(dayData.parityVsBaseLine, channel.channelWisewinMeetLoss?.parityScore, channel.isBrand, dayData.checkInDate, channelIndex),
-                                     )}
+                                            isBenchmark
+                                              ? getBenchmarkCellColor(dayData.checkInDate, dayData.parityVsBaseLine, channel.channelWisewinMeetLoss?.parityScore, channel.isBrand)
+                                              : getResultColor(dayData.parityVsBaseLine, channel.channelWisewinMeetLoss?.parityScore, channel.isBrand, dayData.checkInDate, channelIndex),
+                                      )}
                                     >
                                       {(() => {
                                         const dayOfMonth = getDayOfMonth(dayData.checkInDate)
-                                       if(dayData.rate==0 && dayData.statusMessage=="Closed")
-                                        {
-                                          return 'Sold Out';
-                                        }else if(dayData.rate==0 && dayData.statusMessage!=="Closed")
-                                        {
-                                          return "--";
-                                        }
+                                            if (dayData.rate == 0 && dayData.statusMessage == "Closed") {
+                                              return <span>Sold Out</span>;
+                                            } else if (dayData.rate == 0 && dayData.statusMessage !== "Closed") {
+                                              return <span>--</span>;
+                                            }
                                         const apiRate = dayData.rate || 0
                                         
                                         // Check for violations using API boolean values
@@ -1457,6 +1614,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                       })()}
                               </div>
                             </TooltipTrigger>
+                                      {dayData.rate > 0 &&
                                   <TooltipContent 
                                     side={tooltipSide}
                                     sideOffset={8}
@@ -1478,7 +1636,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                         <thead>
                                           <tr className="text-gray-500 dark:text-slate-400 font-medium">
                                             <th className="text-left pb-2" style={{ width: '80px', paddingLeft: '4px' }}>Channel</th>
-                                            <th className="text-left pb-2 pl-4" style={{ minWidth: '90px', maxWidth: '140px' }}>Rate (Rp)</th>
+                                                  <th className="text-left pb-2 pl-4" style={{ minWidth: '90px', maxWidth: '140px' }}>Rate ({CURRENCY_SYMBOL})</th>
                                             <th className="text-left pb-2 pl-4" style={{ minWidth: '120px', maxWidth: '200px', paddingRight: '16px' }}>Room</th>
                                             <th className="text-left pb-2 pl-4" style={{ minWidth: '70px', maxWidth: '120px' }}>Inclusion</th>
                                           </tr>
@@ -1534,20 +1692,18 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                               <td className="py-1.5 align-top pl-4 pr-2 text-left font-bold text-blue-900 dark:text-blue-200" style={{ minWidth: '90px', maxWidth: '140px' }}>
                                                 {(() => {
                                                     const dayOfMonth = getDayOfMonth(dayData.checkInDate)
-                                                  if(dayData.rate==0 && dayData.statusMessage=="Closed")
-                                                  {
-                                                    return 'Sold Out';
-                                                  }else if(dayData.rate==0 && dayData.statusMessage!=="Closed")
-                                                  {
-                                                    return "--";
-                                                  }
-                                                  const apiRate = dayData.rate || 0
-                                          // Use actual rate from API response for benchmark
+                                                        if (dayData.rate == 0 && dayData.statusMessage == "Closed") {
+                                                          return <span>Sold Out</span>;
+                                                        } else if (dayData.rate == 0 && dayData.statusMessage !== "Closed") {
+                                                          return <span>--</span>;
+                                                        }
+                                                        const apiRate = dayData.rate || 0
+                                                    // Use actual rate from API response for benchmark
                                                     const benchmarkRate = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
                                                       const rateDate = new Date(rate.checkInDate)
                                                       return rateDate.getTime() === currentDate.getTime()
                                                     })?.rate || BASE_RATE_IDR
-                                                    return formatNumber(benchmarkRate)
+                                                        return <span>{formatNumber(benchmarkRate)}</span>
                                                 })()}
                                             </td>
                                             
@@ -1555,9 +1711,11 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                               <td className="py-1.5 align-top pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ width: '150px', paddingRight: '16px' }}>
                                                 {(() => {
                                                   const roomType = dayData.toolTipProductName || ''
-                                                  const formattedRoom = formatRoomText(roomType)
+                                                        const formattedRoom = roomType ? formatRoomText(roomType) : '--'
                                                   
-                                                  if (typeof formattedRoom === 'string') {
+                                                        if (formattedRoom === '--') {
+                                                          return <div>--</div>
+                                                        } else if (typeof formattedRoom === 'string') {
                                                     return <div title={roomType}>{formattedRoom}</div>
                                                   } else {
                                                     return (
@@ -1573,10 +1731,12 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                               {/* Inclusion */}
                                               <td className="py-1.5 align-top pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ width: '130px' }}>
                                                 {(() => {
-                                                  const inclusion = dayData.inclusion 
-                                                  const formattedInclusion = formatInclusionText(inclusion)
+                                                        const inclusion = dayData.inclusion || ''
+                                                        const formattedInclusion = inclusion ? formatInclusionText(inclusion) : '--'
                                                   
-                                                  if (typeof formattedInclusion === 'string') {
+                                                        if (formattedInclusion === '--') {
+                                                          return <div>--</div>
+                                                        } else if (typeof formattedInclusion === 'string') {
                                                     return <div title={inclusion}>{formattedInclusion}</div>
                                                   } else {
                                                     return (
@@ -1604,34 +1764,38 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                                 {/* Rate */}
                                                 <td className="py-1.5 align-top pl-4 pr-2 text-left font-bold text-blue-900 dark:text-blue-200" style={{ minWidth: '90px', maxWidth: '140px' }}>
                                                   {(() => {
-                                                    const dayOfMonth = getDayOfMonth(dayData.checkInDate)
-                                                    if (dayOfMonth === 30) return 'Sold Out'
-                                                    if (dayOfMonth === 31) {
-                                                      const isBenchmarkSoldOut = isBenchmarkSoldOutForDate31(dayData.checkInDate)
-                                                      const isCurrentChannelSoldOut = isSoldOutForDate31(channelIndex, dayData.checkInDate)
-                                                      
-                                                      if (isBenchmarkSoldOut) {
-                                                        return 'Sold Out' // Show benchmark as sold out if it is sold out
-                                                      } else if (isCurrentChannelSoldOut) {
-                                                        return 'Sold Out' // Show sold out if current channel is sold out
-                                                      }
-                                                    }
-                                                    // Get benchmark rate from API
                                                     const benchmarkRate = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
                                                       const rateDate = new Date(rate.checkInDate)
                                                       return rateDate.getTime() === new Date(dayData.checkInDate).getTime()
-                                                    })?.rate || 0
-                                                    return formatNumber(benchmarkRate)
+                                                          })
+
+                                                          const benchmarkDatas = benchmarkRate.rate == 0 && benchmarkRate.statusMessage == "Closed" ? 'Sold Out' :
+                                                            benchmarkRate.rate == 0 && benchmarkRate.statusMessage !== "Closed" ? "--" : formatNumber(benchmarkRate.rate)
+
+                                                          return benchmarkDatas;
                                                   })()}
                                             </td>
                                             
                                             {/* Room with abbreviation */}
                                                 <td className="py-1.5 align-top pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ width: '180px', paddingRight: '16px' }}>
                                               {(() => {
-                                                const roomType = dayData.toolTipProductName || ''
-                                                const formattedRoom = formatRoomText(roomType)
-                                                
-                                                if (typeof formattedRoom === 'string') {
+                                                          const benchmarkRate = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
+                                                            const rateDate = new Date(rate.checkInDate)
+                                                            return rateDate.getTime() === new Date(dayData.checkInDate).getTime()
+                                                          })
+                                                          const roomType = benchmarkRate.toolTipProductName || ''
+                                                          let formattedRoom;
+                                                          if (benchmarkRate.rate == 0 && benchmarkRate.statusMessage == "Closed") {
+                                                            formattedRoom = ""
+                                                          } else if (benchmarkRate.rate == 0 && benchmarkRate.statusMessage !== "Closed") {
+                                                            formattedRoom = ""
+                                                          }
+                                                          else {
+                                                            formattedRoom = !!roomType.trim() ? formatRoomText(roomType) : '--'
+                                                          }
+                                                          if (formattedRoom === '--') {
+                                                            return <div>--</div>
+                                                          } else if (typeof formattedRoom === 'string') {
                                                   return <div title={roomType}>{formattedRoom}</div>
                                                 } else {
                                                   return (
@@ -1647,10 +1811,24 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                             {/* Inclusion */}
                                                 <td className="py-1.5 align-top pl-4 pr-2 text-left text-blue-900 dark:text-blue-200" style={{ width: '180px' }}>
                                               {(() => {
-                                                const inclusion = dayData.inclusion 
-                                                const formattedInclusion = formatInclusionText(inclusion)
-                                                
-                                                if (typeof formattedInclusion === 'string') {
+                                                          const benchmarkRate = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
+                                                            const rateDate = new Date(rate.checkInDate)
+                                                            return rateDate.getTime() === new Date(dayData.checkInDate).getTime()
+                                                          })
+                                                          const inclusion = benchmarkRate.inclusion
+                                                          // const formattedInclusion = formatInclusionText(inclusion)
+                                                          let formattedInclusion;
+                                                          if (benchmarkRate.rate == 0 && benchmarkRate.statusMessage == "Closed") {
+                                                            formattedInclusion = ""
+                                                          } else if (benchmarkRate.rate == 0 && benchmarkRate.statusMessage !== "Closed") {
+                                                            formattedInclusion = ""
+                                                          }
+                                                          else {
+                                                            formattedInclusion = !!inclusion ? formatInclusionText(inclusion) : '--'
+                                                          }
+                                                          if (formattedInclusion === '--') {
+                                                            return <div>--</div>
+                                                          } else if (typeof formattedInclusion === 'string') {
                                                   return <div title={inclusion}>{formattedInclusion}</div>
                                                 } else {
                                                   return (
@@ -1677,14 +1855,12 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                                 <td className="py-1.5 align-top pl-4 pr-2 text-left font-bold text-gray-900 dark:text-slate-100" style={{ minWidth: '90px', maxWidth: '140px' }}>
                                               {(() => {
                                                     const dayOfMonth = getDayOfMonth(dayData.checkInDate)
-                                                 if(dayData.rate==0 && dayData.statusMessage=="Closed")
-                                                  {
-                                                    return 'Sold Out';
-                                                  }else if(dayData.rate==0 && dayData.statusMessage!=="Closed")
-                                                  {
-                                                    return "--";
-                                                  }
-                                       
+                                                          if (dayData.rate == 0 && dayData.statusMessage == "Closed") {
+                                                            return <span>Sold Out</span>;
+                                                          } else if (dayData.rate == 0 && dayData.statusMessage !== "Closed") {
+                                                            return <span>--</span>;
+                                                          }
+
                                                     
                                                     // Get rate from API - use 0 if not available, but still display it
                                                     const apiRate = dayData.rate || 0
@@ -1696,9 +1872,10 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                                 <td className="py-1.5 align-top pl-4 pr-2 text-left text-gray-900 dark:text-slate-100" style={{ width: '180px', paddingRight: '16px' }}>
                                               {(() => {
                                                 const roomType = dayData.toolTipProductName || ''
-                                                const formattedRoom = formatRoomText(roomType)
-                                                
-                                                if (typeof formattedRoom === 'string') {
+                                                          const formattedRoom = !!roomType?.trim() ? formatRoomText(roomType) : '--'
+                                                          if (formattedRoom === '--') {
+                                                            return <div>--</div>
+                                                          } else if (typeof formattedRoom === 'string') {
                                                   return <div title={roomType}>{formattedRoom}</div>
                                                 } else {
                                                   return (
@@ -1714,10 +1891,12 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                             {/* Inclusion */}
                                                 <td className="py-1.5 align-top pl-4 pr-2 text-left text-gray-900 dark:text-slate-100" style={{ width: '180px' }}>
                                               {(() => {
-                                                const inclusion = dayData.inclusion 
-                                                const formattedInclusion = formatInclusionText(inclusion)
+                                                          const inclusion = dayData.inclusion || ''
+                                                          const formattedInclusion = !!inclusion?.trim() ? formatInclusionText(inclusion) : '--'
                                                 
-                                                if (typeof formattedInclusion === 'string') {
+                                                          if (formattedInclusion === '--') {
+                                                            return <div>--</div>
+                                                          } else if (typeof formattedInclusion === 'string') {
                                                   return <div title={inclusion}>{formattedInclusion}</div>
                                                 } else {
                                                   return (
@@ -1734,12 +1913,12 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                               {/* Rate Difference Row - Hide for sold out dates */}
                                               {(() => {
                                                 const dayOfMonth = getDayOfMonth(dayData.checkInDate)
-                                                // if (dayOfMonth === 30) {
-                                                //   return null // Don't render difference row for sold out dates
-                                                // }
-                                                // if (dayOfMonth === 31 && isSoldOutForDate31(channelIndex, dayData.checkInDate)) {
-                                                //   return null // Don't render difference row for sold out channels on date 31
-                                                // }
+                                                      // if (dayOfMonth === 30) {
+                                                      //   return null // Don't render difference row for sold out dates
+                                                      // }
+                                                      // if (dayOfMonth === 31 && isSoldOutForDate31(channelIndex, dayData.checkInDate)) {
+                                                      //   return null // Don't render difference row for sold out channels on date 31
+                                                      // }
                                                 
                                                 return (
                                                   <tr>
@@ -1748,20 +1927,30 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                                       {(() => {
                                                         // Check if this is a meet state by calculating the difference
                                                         const dayOfMonth = getDayOfMonth(dayData.checkInDate)
-                                                        // if (dayOfMonth === 31) {
-                                                        //   const isBenchmarkSoldOut = isBenchmarkSoldOutForDate31(dayData.checkInDate)
-                                                        //   const isCurrentChannelSoldOut = isSoldOutForDate31(channelIndex, dayData.checkInDate)
-                                                        //   if (isBenchmarkSoldOut && !isCurrentChannelSoldOut) {
-                                                        //     return 'Difference' // Show for sold out case
-                                                        //   }
-                                                        // }
+                                                              // if (dayOfMonth === 31) {
+                                                              //   const isBenchmarkSoldOut = isBenchmarkSoldOutForDate31(dayData.checkInDate)
+                                                              //   const isCurrentChannelSoldOut = isSoldOutForDate31(channelIndex, dayData.checkInDate)
+                                                              //   if (isBenchmarkSoldOut && !isCurrentChannelSoldOut) {
+                                                              //     return 'Difference' // Show for sold out case
+                                                              //   }
+                                                              // }
                                                         
                                                         // Get rates from API for difference calculation
-                                                        const benchmarkRate = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
+                                                        const benchmarkRateData = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
                                                           const rateDate = new Date(rate.checkInDate)
                                                           return rateDate.getTime() === new Date(dayData.checkInDate).getTime()
-                                                        })?.rate || 0
+                                                        })
+                                                        const benchmarkRate = benchmarkRateData?.rate || 0
+
+                                                        // Check if any rate is '--' (no data, not sold out)
+                                                        const isBenchmarkNoData = benchmarkRate === 0 && benchmarkRateData?.statusMessage !== "Closed"
+                                                        const isChannelNoData = dayData.rate === 0 && dayData.statusMessage !== "Closed"
                                                         
+                                                        // Hide difference if any rate is '--'
+                                                        if (isBenchmarkNoData || isChannelNoData) {
+                                                          return ''
+                                                        }
+
                                                         const channelRate = dayData.rate || 0
                                                         const difference = benchmarkRate - channelRate
                                                         
@@ -1777,46 +1966,56 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                                       {(() => {
                                                         // Special case for date 31 when benchmark is sold out but current channel has rates
                                                         const dayOfMonth = getDayOfMonth(dayData.checkInDate)
-                                                        // if (dayOfMonth === 31) {
-                                                        //   const isBenchmarkSoldOut = isBenchmarkSoldOutForDate31(dayData.checkInDate)
-                                                        //   const isCurrentChannelSoldOut = isSoldOutForDate31(channelIndex, dayData.checkInDate)
-                                                          
-                                                        //   if (isBenchmarkSoldOut && !isCurrentChannelSoldOut) {
-                                                        //     // When benchmark is sold out but current channel has rates
-                                                        //     // Show loss state logic with red color and + values
-                                                        //     const channelVariation = channel.channelName.length * 100000
-                                                        //     const currentDate = new Date(dayData.checkInDate)
-                                                        //     const startOfRange = dateRange[0] || currentDate
-                                                        //     const dayVariation = Math.floor((currentDate.getTime() - startOfRange.getTime()) / (1000 * 60 * 60 * 24)) * 50000
-                                                            
-                                                        //     let channelRate = BASE_RATE_IDR
-                                                        //     const result = dayData.result
-                                                            
-                                                        //     if (result === 'W') {
-                                                        //       channelRate = BASE_RATE_IDR + 500000 + (channelVariation % 2000000) + dayVariation
-                                                        //     } else if (result === 'L') {
-                                                        //       channelRate = BASE_RATE_IDR - 500000 - (channelVariation % 1500000) - dayVariation
-                                                        //     } else {
-                                                        //       channelRate = BASE_RATE_IDR
-                                                        //     }
-                                                            
-                                                        //     channelRate = Math.max(channelRate, 8000000)
-                                                        //     const difference = channelRate // Since benchmark is sold out, show full channel rate as positive difference
-                                                            
-                                                        //     return (
-                                                        //       <span className="text-red-600 dark:text-red-400 font-bold">
-                                                        //         +{formatNumber(difference)}
-                                                        //       </span>
-                                                        //     )
-                                                        //   }
-                                                        // }
+                                                              // if (dayOfMonth === 31) {
+                                                              //   const isBenchmarkSoldOut = isBenchmarkSoldOutForDate31(dayData.checkInDate)
+                                                              //   const isCurrentChannelSoldOut = isSoldOutForDate31(channelIndex, dayData.checkInDate)
+
+                                                              //   if (isBenchmarkSoldOut && !isCurrentChannelSoldOut) {
+                                                              //     // When benchmark is sold out but current channel has rates
+                                                              //     // Show loss state logic with red color and + values
+                                                              //     const channelVariation = channel.channelName.length * 100000
+                                                              //     const currentDate = new Date(dayData.checkInDate)
+                                                              //     const startOfRange = dateRange[0] || currentDate
+                                                              //     const dayVariation = Math.floor((currentDate.getTime() - startOfRange.getTime()) / (1000 * 60 * 60 * 24)) * 50000
+
+                                                              //     let channelRate = BASE_RATE_IDR
+                                                              //     const result = dayData.result
+
+                                                              //     if (result === 'W') {
+                                                              //       channelRate = BASE_RATE_IDR + 500000 + (channelVariation % 2000000) + dayVariation
+                                                              //     } else if (result === 'L') {
+                                                              //       channelRate = BASE_RATE_IDR - 500000 - (channelVariation % 1500000) - dayVariation
+                                                              //     } else {
+                                                              //       channelRate = BASE_RATE_IDR
+                                                              //     }
+
+                                                              //     channelRate = Math.max(channelRate, 8000000)
+                                                              //     const difference = channelRate // Since benchmark is sold out, show full channel rate as positive difference
+
+                                                              //     return (
+                                                              //       <span className="text-red-600 dark:text-red-400 font-bold">
+                                                              //         +{formatNumber(difference)}
+                                                              //       </span>
+                                                              //     )
+                                                              //   }
+                                                              // }
                                                         
                                                         // Get rates from API
-                                                        const benchmarkRate = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
+                                                        const benchmarkRateData = benchmarkChannel?.checkInDateWiseRates?.find((rate: any) => {
                                                           const rateDate = new Date(rate.checkInDate)
                                                           return rateDate.getTime() === new Date(dayData.checkInDate).getTime()
-                                                        })?.rate || 0
+                                                        })
+                                                        const benchmarkRate = benchmarkRateData?.rate || 0
+
+                                                        // Check if any rate is '--' (no data, not sold out)
+                                                        const isBenchmarkNoData = benchmarkRate === 0 && benchmarkRateData?.statusMessage !== "Closed"
+                                                        const isChannelNoData = dayData.rate === 0 && dayData.statusMessage !== "Closed"
                                                         
+                                                        // Hide difference if any rate is '--'
+                                                        if (isBenchmarkNoData || isChannelNoData) {
+                                                          return <span></span>
+                                                        }
+
                                                         const channelRate = dayData.rate || 0
                                                         const difference = benchmarkRate - channelRate  // Benchmark rate - Channel rate
                                                         
@@ -1828,12 +2027,12 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                                           varianceColor = 'text-gray-500 dark:text-slate-400'
                                                           varianceText = 'No difference'
                                                         } else if (difference < 0) {
-                                                          // Negative difference: Channel rate is higher than benchmark (red)
-                                                          varianceColor = 'text-red-600 dark:text-red-400'
+                                                                // Negative difference: Channel rate is higher than benchmark (green)
+                                                                varianceColor = 'text-green-600 dark:text-green-400'
                                                           varianceText = `-${formatNumber(Math.abs(difference))}`
                                                         } else {
-                                                          // Positive difference: Channel rate is lower than benchmark (green)
-                                                          varianceColor = 'text-green-600 dark:text-green-400'
+                                                                // Positive difference: Channel rate is lower than benchmark (red)
+                                                                varianceColor = 'text-red-600 dark:text-red-400'
                                                           varianceText = `+${formatNumber(Math.abs(difference))}`
                                                         }
                                                         
@@ -1884,6 +2083,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                                       </table>
                               </div>
                             </TooltipContent>
+                                      }
                           </Tooltip>
                               )
                             ) : (
@@ -1954,7 +2154,7 @@ export function ParityCalendarView({ className, parityDataMain }: ParityCalendar
                 <div className="w-[13px] h-[13px] rounded-full border border-red-500 flex items-center justify-center">
                   <span className="text-[8px] font-bold text-red-500">R</span>
                 </div>
-                    <span className="text-foreground font-medium">Rate Violation</span>
+                                <span className="text-foreground font-medium">Rate Violation</span>
               </div>
 
             </div>

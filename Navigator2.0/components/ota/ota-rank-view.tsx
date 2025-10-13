@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts"
-import { BarChart3, Table, Download, ChevronLeft, ChevronRight, Info } from "lucide-react"
+import { BarChart3, Table, Download, ChevronLeft, ChevronRight, Info, Triangle } from "lucide-react"
 import { toPng } from "html-to-image"
 import { cn } from "@/lib/utils"
 import { OTARankingTooltip } from "./ota-ranking-tooltip"
@@ -83,7 +83,11 @@ function OTARankView({
         </CardHeader>
         <CardContent>
           <div className="h-64 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
-            <span className="text-gray-500">Loading ranking trends...</span>
+            <div className="flex flex-col items-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              <div className="text-sm text-muted-foreground">Preparing your Ota Data Analysis...</div>
+              <div className="text-sm text-muted-foreground">Hang tight — your data will appear shortly.</div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -95,9 +99,28 @@ function OTARankView({
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-3">
-            <div className={`w-6 h-6 rounded ${selectedChannelData?.iconBg || 'bg-primary'} flex items-center justify-center mt-0.5`}>
-              <span className="text-white text-xs font-bold">{selectedChannelData?.icon}</span>
-            </div>
+            {selectedChannelData?.url ? (
+              <div className="w-6 h-6 rounded-md overflow-hidden shadow-sm">
+                <img
+                  src={selectedChannelData.url}
+                  alt={selectedChannelData.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    // Fallback to text icon if image fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    const parent = target.parentElement;
+                    if (parent) {
+                      parent.innerHTML = `<div class="w-full h-full ${selectedChannelData.iconBg} flex items-center justify-center"><span class="text-white text-xs font-bold">${selectedChannelData.icon}</span></div>`;
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <div className={`w-6 h-6 rounded-md ${selectedChannelData?.iconBg ||'bg-primary'} flex items-center justify-center shadow-sm`}>
+                <span className="text-white text-xs font-bold">{selectedChannelData?.icon}</span>
+              </div>
+            )}
             <div className="flex-1">
               <CardTitle className="text-xl font-bold">Ranking Trends Analysis</CardTitle>
               <p className="text-sm text-muted-foreground mt-1">Comprehensive ranking comparison across all channels with market insights</p>
@@ -327,9 +350,11 @@ function OTARankView({
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">No ranking data available for the selected date range.</p>
+              <div className="h-full bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse flex items-center justify-center">
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                  <div className="text-sm text-muted-foreground">Preparing your Ota Data Analysis...</div>
+                  <div className="text-sm text-muted-foreground">Hang tight — your data will appear shortly.</div>
                 </div>
               </div>
             )}
@@ -349,44 +374,50 @@ function OTARankView({
                           Check-in Date
                         </th>
                         {/* Sticky My Hotel Column */}
-                        <th className="sticky left-24 z-30 bg-blue-50 text-right py-1.5 pl-2 pr-4 font-semibold text-xs text-muted-foreground border-r border-gray-200">
+                        <th className="sticky left-24 z-30 bg-blue-50 text-center py-1.5 pl-2 pr-4 font-semibold text-xs text-muted-foreground border-r border-gray-200">
                           {selectedProperty?.name}
-                          <div className="text-xs text-muted-foreground font-normal mt-0.5">Rank</div>
+                          <div className="flex items-center justify-center space-x-6">
+                            <div className="text-xs text-muted-foreground font-normal mt-0.5">Rank</div>
+                            <span className="text-gray-500 text-xs px-1 py-0.5 rounded text-center" style={{ width: '30px', display: 'inline-block' }}><Triangle className="h-3 w-3" /></span>
+                          </div>
                         </th>
                         {/* Competitor Columns */}
                         {(() => {
                           const allCompetitors = availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel');
                           const competitorSlice = allCompetitors.slice(competitorPage * 4, (competitorPage + 1) * 4);
-                          
+
                           return Array.from({ length: 4 }, (_, index) => {
                             const hotel = competitorSlice[index];
 
-                          if (hotel) {
-                            return (
-                              <th key={hotel.dataKey} className="text-right py-1.5 px-0 font-semibold text-xs text-muted-foreground min-w-32" style={{ marginLeft: '-20px' }}>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div className="truncate cursor-pointer">{hotel.name.length > 15 ? `${hotel.name.substring(0, 15)}...` : hotel.name}</div>
-                                    </TooltipTrigger>
-                                    {hotel.name.length > 15 && (
-                                      <TooltipContent className="bg-black text-white border-black font-normal">
-                                        <p>{hotel.name}</p>
-                                      </TooltipContent>
-                                    )}
-                                  </Tooltip>
-                                </TooltipProvider>
-                                <div className="text-xs text-muted-foreground font-normal mt-0.5">Rank</div>
-                              </th>
-                            );
-                          } else {
-                            return (
-                              <th key={`empty-${index}`} className="text-right py-1.5 px-0 font-semibold text-xs text-muted-foreground min-w-32" style={{ marginLeft: '-20px' }}>
-                                <div className="text-xs text-muted-foreground font-normal mt-0.5 opacity-0">-</div>
-                              </th>
-                            );
-                          }
-                        });
+                            if (hotel) {
+                              return (
+                                <th key={hotel.dataKey} className={`text-center py-1.5 px-0 font-semibold text-xs text-muted-foreground min-w-32 ${index !== 3 ? 'border-r' : ''}`} style={{ marginLeft: '-20px' }}>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="truncate cursor-pointer">{hotel.name.length > 20 ? `${hotel.name.substring(0, 20)}...` : hotel.name}</div>
+                                      </TooltipTrigger>
+                                      {hotel.name.length > 20 && (
+                                        <TooltipContent className="bg-black text-white border-black font-normal">
+                                          <p>{hotel.name}</p>
+                                        </TooltipContent>
+                                      )}
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                  <div className="flex items-center justify-center space-x-6">
+                                    <div className="text-xs text-muted-foreground font-normal mt-0.5">Rank</div>
+                                    <span className="text-gray-500 text-xs px-1 py-0.5 rounded text-center" style={{ width: '30px', display: 'inline-block' }}><Triangle className="h-3 w-3" /></span>
+                                  </div>
+                                </th>
+                              );
+                            } else {
+                              return (
+                                <th key={`empty-${index}`} className="text-right py-1.5 px-0 font-semibold text-xs text-muted-foreground min-w-32" style={{ marginLeft: '-20px' }}>
+                                  <div className="text-xs text-muted-foreground font-normal mt-0.5 opacity-0">-</div>
+                                </th>
+                              );
+                            }
+                          });
                         })()}
                         {/* Navigation Column */}
                         {availableHotelLines.filter(hotel => hotel.dataKey !== 'myHotel').length > 0 && (
@@ -457,17 +488,17 @@ function OTARankView({
                             </td>
                             {/* Sticky My Hotel Rank */}
                             <td className="sticky left-24 z-10 bg-blue-50 group-hover:bg-blue-100 py-2 pl-2 pr-4 text-right border-r border-gray-200 border-b border-gray-200">
-                              <div className="flex items-center justify-end space-x-6">
+                              <div className="flex items-center justify-center space-x-6">
                                 {/* <span className="font-semibold text-sm">{dataPoint[myHotelData?.dataKey || 'myHotel'] ?? '500+'}</span> */}
                                 {
                                   dataPoint[myHotelData?.dataKey || 'myHotel'] === null || dataPoint[myHotelData?.dataKey || 'myHotel'] === undefined || dataPoint[myHotelData?.dataKey || 'myHotel'] > 500 ?
-                                    (<div className="flex items-center justify-end space-x-1">
+                                    (<div className="flex items-center justify-center space-x-1">
                                       <TooltipProvider>
                                         <Tooltip>
                                           <TooltipTrigger asChild>
                                             <span className="text-red-600 dark:text-red-400 font-semibold text-sm cursor-help">#500+</span>
                                           </TooltipTrigger>
-                                          <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                          <TooltipContent side={index < 2 ? "right" : "top"} className={index < 2 ? "p-2 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[9999]" : "p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[9999]"} sideOffset={index < 2 ? 15 : 5}>
                                             <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
                                           </TooltipContent>
                                         </Tooltip>
@@ -477,7 +508,7 @@ function OTARankView({
                                           <TooltipTrigger asChild>
                                             <Info className="w-3 h-3 text-red-600 dark:text-red-400 cursor-help transition-colors" />
                                           </TooltipTrigger>
-                                          <TooltipContent side="top" className="p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs">
+                                          <TooltipContent side={index < 2 ? "right" : "top"} className={index < 2 ? "p-2 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[9999]" : "p-3 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl max-w-xs z-[9999]"} sideOffset={index < 2 ? 15 : 5}>
                                             <p className="text-sm font-normal">Property not available in top 500 ranking.</p>
                                           </TooltipContent>
                                         </Tooltip>
@@ -507,12 +538,12 @@ function OTARankView({
 
                               if (hotel) {
                                 return (
-                                  <td key={hotel.dataKey} className="py-2 px-0 text-right group-hover:bg-gray-50" style={{ marginLeft: '-20px' }}>
-                                    <div className="flex items-center justify-end space-x-6">
+                                  <td key={hotel.dataKey} className={`py-2 px-0 text-right group-hover:bg-gray-50 ${index !== 3 ? 'border-r' : ''}`} style={{ marginLeft: '-20px' }}>
+                                    <div className="flex items-center justify-center space-x-6">
 
                                       {
                                         dataPoint[hotel.dataKey] === null || dataPoint[hotel.dataKey] === undefined || dataPoint[hotel.dataKey] > 500 ?
-                                          (<div className="flex items-center justify-end space-x-1">
+                                          (<div className="flex items-center justify-center space-x-1">
                                             <TooltipProvider>
                                               <Tooltip>
                                                 <TooltipTrigger asChild>

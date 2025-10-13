@@ -2,9 +2,14 @@
 
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { Info } from "lucide-react"
+import { Info, Plus } from "lucide-react"
 
-export function ScheduledReportsHeader() {
+interface ScheduledReportsHeaderProps {
+  onCreateSchedule?: () => void
+  packageType?: string
+}
+
+export function ScheduledReportsHeader({ onCreateSchedule, packageType }: ScheduledReportsHeaderProps) {
   
   return (
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4">
@@ -21,7 +26,7 @@ export function ScheduledReportsHeader() {
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-sm bg-slate-800 text-white border-slate-700">
                 <p className="text-sm">
-                  Comprehensive reports dashboard for viewing, managing, and downloading generated reports including scheduled, on-demand, and historical report data.
+                  View and manage all automatically generated reports with download capabilities, created based on predefined schedules.
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -33,7 +38,17 @@ export function ScheduledReportsHeader() {
 
         {/* Right Section - Actions */}
         <div className="flex items-center gap-2">
-          {/* No actions currently */}
+          {packageType === 'Pay-As-You-Go' && (
+            <Button
+              variant="default"
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={onCreateSchedule}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Create Schedule
+            </Button>
+          )}
         </div>
       </div>
   )

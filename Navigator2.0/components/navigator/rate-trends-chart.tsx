@@ -1073,7 +1073,7 @@ export function RateTrendsChart({ rateData, rateCompData }: any) {
 
   return (
     <Card ref={cardRef} className="chart-container-minimal animate-fade-in bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700">
-      <CardHeader className="pb-4">
+      <CardHeader className="pb-4" data-coach-mark="rate-trends-header">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
             <CardTitle className="text-minimal-title flex items-center gap-2">
@@ -1204,13 +1204,12 @@ export function RateTrendsChart({ rateData, rateCompData }: any) {
 
           {/* Chart Container */}
           <div className="h-[384px] w-full">
-            {!hasData ? (
+            {!hasData || Object.keys(rateCompData).length === 0 ? (
               <div className="h-full bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse flex items-center justify-center">
-                <div className="text-center">
-                  <div className="text-gray-500 dark:text-gray-400 mb-2">No rate data available</div>
-                  <div className="text-xs text-gray-400 dark:text-gray-500">
-                    Please check your data source
-                  </div>
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                  <div className="text-sm text-muted-foreground">Preparing your Rate Trends Analysis...</div>
+                  <div className="text-sm text-muted-foreground">Hang tight — your data will appear shortly.</div>
                 </div>
               </div>
             ) : data.length === 0 ? (

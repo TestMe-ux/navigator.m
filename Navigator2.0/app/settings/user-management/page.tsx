@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus, Trash2, History, User, MoreVertical, Edit, CheckCircle, X, Camera } from "lucide-react"
+import { Search, Plus, Trash2, History, User, MoreVertical, Edit, CheckCircle, X, Camera, Check } from "lucide-react"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { getActivePageMaster, getUserHistory, getUsers, addUpdateUser, uploadImage } from "@/lib/userManagement"
@@ -42,7 +42,7 @@ export default function UserManagementPage() {
   const [apiActivePageMaster, setActivePageMaster] = useState<any[]>([]);
   const [apiUserHistory, setUserHistory] = useState<any[]>([]);
   const [profileImage, setProfileImage] = useState<ProfileImage | null>(null);
-  const [inputChanged, setInputChanged] = useState(false);
+  const [historyDataLoading, setHistoryDataLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   //const [editUser, setEditingUser] = useState<any[]>([]);
   const [isEditUserOpen, setIsEditUserOpen] = useState(false)
@@ -85,10 +85,10 @@ export default function UserManagementPage() {
     setIsLoading(true);
     try {
       // Run both APIs in parallel
-      const [usersResponse, pageMasterResponse, userHistoryResponse] = await Promise.all([
+      const [usersResponse, pageMasterResponse] = await Promise.all([
         getUsers({ SID: selectedProperty.sid, bForceFresh: false }),
         getActivePageMaster(),
-        getUserHistory({ SID: selectedProperty.sid, bForceFresh: false })
+        // getUserHistory({ SID: selectedProperty.sid, bForceFresh: false })
       ]);
 
       if (usersResponse.status) {
@@ -101,11 +101,7 @@ export default function UserManagementPage() {
       } else {
         setActivePageMaster([]);
       }
-      if (userHistoryResponse.status) {
-        setUserHistory(userHistoryResponse.body);
-      } else {
-        setUserHistory([]);
-      }
+
 
     } catch (error) {
       console.error("[fetchUserData] API call failed:", error);
@@ -120,9 +116,29 @@ export default function UserManagementPage() {
 
   useEffect(() => {
     fetchUserData();
-  }, [selectedProperty, fetchUserData]);
+  }, [selectedProperty?.sid]);
 
+  useEffect(() => {
+    if (!selectedProperty?.sid || !showChangeHistory) return;
+    setHistoryDataLoading(true);
+    const fetchUserHistory = async () => {
+      try {
+        const response: any = await getUserHistory({ SID: selectedProperty.sid, bForceFresh: false })
 
+        if (response?.status) {
+
+          setUserHistory(response.body || []);
+          setHistoryDataLoading(false);
+        }
+      } catch (error) {
+        console.error("Error fetching channels:", error);
+      } finally {
+        // setIsLoading(false);
+      }
+    };
+
+    fetchUserHistory();
+  }, [showChangeHistory]);
   // Auto-hide snackbar after 5 seconds
   useEffect(() => {
     if (showSnackbar) {
@@ -165,7 +181,14 @@ export default function UserManagementPage() {
     setUsersDetails((prev) => prev.map((user) => (Number(user.userId) === userId ?
       { ...user, [accessType]: !user[accessType] } : user)))
   }
+  function isRateGainMail(email: any) {
+    const domain = "rategain.com";
+    if (email != undefined && email != null && email.indexOf(domain) != -1) {
+      return true;
+    }
+    return false;
 
+  }
   const handleAddUser = async () => {
     debugger
     if (newUser.firstName && newUser.lastName && newUser.userRole && newUser.emailId && newUser.defaultLandingPageText) {
@@ -176,16 +199,18 @@ export default function UserManagementPage() {
             return 2;
           case "Property User":
             return 1;
-          // case "Manager":
-          //   return 3;
-          // case "Viewer":
-          //   return 4;
           default:
             return 0; // fallback if role not found
         }
       };
-
-
+      if (isRateGainMail(newUser.emailId)) {
+        toast({
+          description: "Email having rategain.com is invalid.",
+          variant: "default",
+          duration: 3000,
+        })
+        return;
+      }
       const filtersValues: any = {}
       if (profileImage?.imagePath != undefined) {
         filtersValues.imagePath = profileImage?.imagePath;
@@ -202,13 +227,13 @@ export default function UserManagementPage() {
       filtersValues.userRoleID = mapUserRole(newUser.userRole);
       filtersValues.userRoleText = newUser.userRole;
       filtersValues.updatedBy = userDetails?.userId.toString();
-      filtersValues.currentUserRole = newUser.userRole;
-      filtersValues.isNewOptimaDelete = false;
-      if (newUser.userID == null && newUser.userID == "") {
+      filtersValues.currentUserRole = userDetails?.userRoletext;
+      if (newUser.userID === null && newUser.userID === "") {
         filtersValues.OperationAddorUpdate = 0;
-      } else if (newUser.userID != null && newUser.userID != "") {
+      } else if (newUser.userID !== null && newUser.userID !== "") {
         filtersValues.userID = Number(newUser.userID);
         filtersValues.OperationAddorUpdate = 1;
+        filtersValues.isNewOptimaDelete = false;
       }
 
       const response = await addUpdateUser(filtersValues);
@@ -226,7 +251,7 @@ export default function UserManagementPage() {
 
         //if (newUser.userID == null && newUser.userID == "") {
         //   setUsersDetails((prev) => [newUser, ...prev]);
-        //} else {
+        //} else if (newUser.userID !== null && newUser.userID !== "") {
         //   setUsersDetails((prev) => {
         //     const filtered = prev.filter(user => user.userID === newUser.userID);
         //     console.log("apiUsers after updated:", filtered);
@@ -253,18 +278,6 @@ export default function UserManagementPage() {
           duration: 5000,
         })
       }
-      //
-
-      // Reset form
-      // setNewUser({
-      //   firstName: "",
-      //   lastName: "",
-      //   userRole: "",
-      //   emailId: "",
-      //   interfaceAccess: false,
-      //   emailAccess: false,
-      //   defaultLandingPage: "",
-      // })
     }
   }
 
@@ -307,7 +320,7 @@ export default function UserManagementPage() {
         isNewOptimaDelete: null,
         IsNewOptimaDelete: true,
         currentUserRole: null,
-        CurrentUserRole: userToDelete.userRoleText,
+        CurrentUserRole: userDetails?.userRoletext,
         operationAddorUpdate: 0,
         OperationAddorUpdate: 1,
         defaultLandingPage: userToDelete.defaultLandingPage,
@@ -673,7 +686,7 @@ export default function UserManagementPage() {
                               <img
                                 src={userValue.imagePath}
                                 alt="User"
-                                className="w-3 h-3 rounded-full profileImage"
+                                className="w-6 h-6 rounded-full profileImage"
                               />
                             )}
 
@@ -691,18 +704,18 @@ export default function UserManagementPage() {
                         {userValue.userRoleText}
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-center">
-                        <Switch disabled
-                          checked={userValue.pghReportEmail}
-                          onCheckedChange={() => toggleUserAccess(userValue.userID, "emailAccess")}
-                          className="scale-75"
-                        />
+                        {userValue.pghReportEmail ? (
+                          <Check className="w-4 h-4 text-green-600 dark:text-green-400 mx-auto" />
+                        ) : (
+                          <X className="w-4 h-4 text-red-600 dark:text-red-400 mx-auto" />
+                        )}
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-center">
-                        <Switch disabled
-                          checked={userValue.pghAccess}
-                          onCheckedChange={() => toggleUserAccess(userValue.userID, "interfaceAccess")}
-                          className="scale-75"
-                        />
+                        {userValue.pghAccess ? (
+                          <Check className="w-4 h-4 text-green-600 dark:text-green-400 mx-auto" />
+                        ) : (
+                          <X className="w-4 h-4 text-red-600 dark:text-red-400 mx-auto" />
+                        )}
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         {userValue.defaultLandingPageText}
@@ -1010,7 +1023,7 @@ export default function UserManagementPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-slate-900">
-                    {apiUserHistory && apiUserHistory.length > 0 ? (
+                    {!historyDataLoading && apiUserHistory && apiUserHistory.length > 0 ? (
                       Array.from({ length: 50 }, (_, index) => {
                         const baseData = [...apiUserHistory];
                         const change = baseData[index % baseData.length];
@@ -1020,7 +1033,7 @@ export default function UserManagementPage() {
                           id: index + 1,
                           name: `${change.firstName} ${change.lastName}`,
                           userType: change.userRoleText,
-                          email: change.email.replace('@', `${index + 1}@`),
+                          email: change.email,
                           emailAccess: change.pghReportEmail,
                           interfaceAccess: change.pghAccess,
                           defaultLandingPage: change.defaultLandingPageText,
@@ -1060,10 +1073,18 @@ export default function UserManagementPage() {
                               </div>
                             </td>
                             <td className="px-4 py-2 text-center text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-20">
-                              {changeWithId.emailAccess ? "true" : "false"}
+                              {changeWithId.emailAccess ? (
+                                <Check className="w-4 h-4 text-green-600 dark:text-green-400 mx-auto" />
+                              ) : (
+                                <X className="w-4 h-4 text-red-600 dark:text-red-400 mx-auto" />
+                              )}
                             </td>
                             <td className="px-4 py-2 text-center text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-24">
-                              {changeWithId.interfaceAccess ? "true" : "false"}
+                              {changeWithId.interfaceAccess ? (
+                                <Check className="w-4 h-4 text-green-600 dark:text-green-400 mx-auto" />
+                              ) : (
+                                <X className="w-4 h-4 text-red-600 dark:text-red-400 mx-auto" />
+                              )}
                             </td>
                             <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-32">
                               <div className="truncate" title={changeWithId.defaultLandingPage}>
@@ -1082,8 +1103,16 @@ export default function UserManagementPage() {
                         );
                       })
                     ) : (
-                      < tr >
-                        <td colSpan={8} className="h-4"></td>
+                      <tr>
+                        <td colSpan={8} className="h-[200px]">
+                          <div className="h-full bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse flex items-center justify-center">
+                            <div className="flex flex-col items-center space-y-4">
+                              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+                              <div className="text-sm text-muted-foreground">Preparing your User Change History...</div>
+                              <div className="text-sm text-muted-foreground">Hang tight — your data will appear shortly.</div>
+                            </div>
+                          </div>
+                        </td>
                       </tr>
                     )}
                   </tbody>
@@ -1208,7 +1237,7 @@ export default function UserManagementPage() {
                 <Label className="block text-xs font-medium text-gray-700 mb-1">
                   User Role<span className="text-red-500 ml-1">*</span>
                 </Label>
-                <Select
+                <Select disabled={userDetails?.userRoletext !== 'Admin' || newUser.userRole === 'Admin'}
                   value={newUser.userRole}
                   onValueChange={(value) => setNewUser((prev) => ({ ...prev, userRole: value }))}
                 >
@@ -1229,6 +1258,7 @@ export default function UserManagementPage() {
                   Email ID<span className="text-red-500 ml-1">*</span>
                 </Label>
                 <Input
+                  disabled
                   type="email"
                   value={newUser.emailId}
                   onChange={(e) => setNewUser((prev) => ({ ...prev, emailId: e.target.value }))}

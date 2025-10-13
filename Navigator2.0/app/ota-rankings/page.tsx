@@ -374,12 +374,12 @@ export default function OTARankingsPage() {
             const isCheckingDateAvailable = element.checkInDate && element.checkInDate instanceof Date
             // Check if property data is available (has otaRank), if not set rank to 501
             const isPropertyDataAvailable = element.otaRank !== undefined && element.otaRank !== null
-            
+
             const rankValue = (isCheckingDateAvailable && isPropertyDataAvailable) ? element.otaRank : 501
-            const changeInRankValue = (isCheckingDateAvailable && isPropertyDataAvailable) ? 
-              (element.changeInRateDays > 0 ? element.changeInRank : null) : 
+            const changeInRankValue = (isCheckingDateAvailable && isPropertyDataAvailable) ?
+              (element.changeInRateDays > 0 ? element.changeInRank : null) :
               null
-            
+
             otaRankGraphData[dataIndex][dataKey] = rankValue
             // Store changeInRank for variance calculation
             otaRankGraphData[dataIndex][`${dataKey}ChangeInRank`] = changeInRankValue
@@ -485,14 +485,14 @@ export default function OTARankingsPage() {
       const rankingItem = channelRankingData?.[0]
 
       // Calculate average rank and other metrics
-    
+
       const ratedays = compareWith == "Last 1 Week" ? true : false;
       // Check if property data is available, if not set rank to 501
       const isPropertyDataAvailable = rankingItem?.otaRank !== undefined && rankingItem?.otaRank !== null
       const avgRank = isPropertyDataAvailable ? rankingItem.otaRank : 501
       const totalRankings = 500
       debugger;
-      const rankingChange = isPropertyDataAvailable && rankingItem?.changeInRank && (viewMode === "Rank" ? (ratedays ? rankingItem?.changeInRateDays <= 7 && rankingItem?.changeInRateDays > 0 : rankingItem?.changeInRateDays > 7 ) : true) ? parseInt(rankingItem.changeInRank) : 0
+      const rankingChange = isPropertyDataAvailable && rankingItem?.changeInRank && (viewMode === "Rank" ? (ratedays ? rankingItem?.changeInRateDays <= 7 : rankingItem?.changeInRateDays > 7) : true) ? parseInt(rankingItem.changeInRank) : 0
       const reviewScore = rankingItem?.score ? parseFloat(rankingItem.score) : 0
 
       return {

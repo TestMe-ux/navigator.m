@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast"
 import { get } from "http"
 export default function CompsetSettingsPage() {
   const [competitors, setCompetitors] = useState<any[]>([])
+  const [maxCompetitors, setMaxCompetitors] = useState<number>(0)
   const [compsetHistory, setCompsetHistory] = useState<any[]>([])
   const [updateCompetitor, setUpdateCompetitor] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("")
@@ -58,34 +59,54 @@ export default function CompsetSettingsPage() {
     return () => clearTimeout(timer)
   }, [])
 
-  // Filter suggestions based on search query
+  // Debounced search for hotel suggestions
   useEffect(() => {
-    debugger
+    const timeoutId = setTimeout(() => {
+      if (searchQuery.trim() === "" || searchQuery.length < 3) {
+        setFilteredSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
 
-    setShowSuggestions(false)
-    if (searchQuery.trim() === "" || searchQuery.length < 3) {
-      setFilteredSuggestions([])
-    } else {
       if (newCompetitor.hotelMasterId > 0) return;
+
       setIsInputFocused(false);
       setIsSearchApi(true);
-      getSearchHotelList(searchQuery.toLowerCase(), selectedProperty?.sid || 0, selectedProperty?.hmid || 0).then((response: any) => {
-        if (response?.Status && response?.Body?.length > 0) {
-          setFilteredSuggestions(response?.Body)
-          setShowSuggestions(response?.Body?.length > 0)
-        }
-      }).finally(() => {
-        setIsInputFocused(true);
-        setIsSearchApi(false);
-      });
 
-    }
+      getSearchHotelList(searchQuery.toLowerCase(), selectedProperty?.sid || 0, selectedProperty?.hmid || 0)
+        .then((response: any) => {
+          if (response?.Status && response?.Body?.length > 0) {
+            setFilteredSuggestions(response?.Body);
+            setShowSuggestions(response?.Body?.length > 0);
+          } else {
+            setFilteredSuggestions([]);
+            setShowSuggestions(false);
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching hotel suggestions:", error);
+          setFilteredSuggestions([]);
+          setShowSuggestions(false);
+        })
+        .finally(() => {
+          setIsInputFocused(true);
+          setIsSearchApi(false);
+          if (searchQuery.trim() === "" || searchQuery.length < 3) {
+            setFilteredSuggestions([]);
+            setShowSuggestions(false);
+          }
+        });
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
   }, [searchQuery])
+  // Fetch competitors data
   useEffect(() => {
     if (!selectedProperty?.sid) return;
 
     const fetchCompset = async () => {
       try {
+        setIsLoading(true);
         const response: any = await getAllCompSet({
           SID: selectedProperty.sid,
           isTempraroy: true
@@ -93,17 +114,50 @@ export default function CompsetSettingsPage() {
 
         if (response?.status) {
           setCompetitors(response.body || []);
+          const maxComp = response.body?.[0]?.maxNumberOfCompetitors;
+          if (maxComp) {
+            setMaxCompetitors(maxComp);
+          }
         }
       } catch (error) {
-        console.error("Error fetching channels:", error);
+        console.error("Error fetching competitors:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    setIsLoading(true); // Start loading before fetch
     fetchCompset();
-  }, [selectedProperty?.sid, showSnackbar]);
+  }, [selectedProperty?.sid]);
+
+  // Separate effect to handle data refresh after successful operations
+  useEffect(() => {
+    if (showSnackbar && selectedProperty?.sid) {
+      // Reset snackbar state
+      setShowSnackbar(false);
+
+      // Refresh data
+      const refreshData = async () => {
+        try {
+          const response: any = await getAllCompSet({
+            SID: selectedProperty.sid,
+            isTempraroy: true
+          });
+
+          if (response?.status) {
+            setCompetitors(response.body || []);
+            const maxComp = response.body?.[0]?.maxNumberOfCompetitors;
+            if (maxComp) {
+              setMaxCompetitors(maxComp);
+            }
+          }
+        } catch (error) {
+          console.error("Error refreshing competitors:", error);
+        }
+      };
+
+      refreshData();
+    }
+  }, [showSnackbar, selectedProperty?.sid]);
   useEffect(() => {
     if (!selectedProperty?.sid || !showChangeHistory) return;
 
@@ -145,29 +199,61 @@ export default function CompsetSettingsPage() {
         "propertyID": newCompetitor.hotelMasterId,
         "name": newCompetitor.hotelName,
       }
-      const response = await AddCompSet(competitor);
-      if (response.status) {
-        handleCancelAddCompetitor();
-        toast({
-          description: response.message || "Competitor has been added successfully",
-          variant: "success",
-          duration: 3000,
-        })
-        setShowSnackbar(true)
+      const compLength = competitors.length
+      if (compLength < maxCompetitors) {
+        setIsSearchApi(true);
+        const response = await AddCompSet(competitor);
+        if (response.status) {
+          setShowSnackbar(true)
+          handleCancelAddCompetitor();
+          toast({
+            description: response.message || "Competitor has been added successfully",
+            variant: "success",
+            duration: 3000,
+          })
+
+        }
+        else {
+          toast({
+            title: "Error",
+            description: response.message || "Something went wrong. Please try again!",
+            variant: "error",
+            duration: 5000,
+          })
+        }
       }
       else {
         toast({
           title: "Error",
-          description: response.message || "Something went wrong. Please try again!",
+          description: "You have exceed max no of competitor and max number: " + maxCompetitors,
           variant: "error",
           duration: 5000,
         })
       }
+      setIsSearchApi(false)
       // setCompetitors((prev) => [...prev, competitor])
       // setNewCompetitor({ hotelName: "", competitorType: "Primary", hotelMasterId: 0 })
 
     }
   }
+  const handleAddPopCompetitor = () => {
+    const compLength = competitors.length
+    if (compLength < maxCompetitors) {
+      setShowAddCompetitor(true);
+      setSearchQuery("");
+      setFilteredSuggestions([]);
+      setShowSuggestions(false)
+    }
+    else {
+      toast({
+        title: "Error",
+        description: "You have exceed max no of competitor and max number: " + maxCompetitors,
+        variant: "error",
+        duration: 5000,
+      })
+    }
+  }
+
 
   const handleCancelAddCompetitor = () => {
     setNewCompetitor({ hotelName: "", competitorType: "Primary", hotelMasterId: 0 })
@@ -206,6 +292,8 @@ export default function CompsetSettingsPage() {
   }
 
   const handleClearSearch = () => {
+    debugger;
+    setFilteredSuggestions([])
     setSearchQuery("")
     setNewCompetitor((prev) => ({ ...prev, hotelName: "" }))
     setShowSuggestions(false)
@@ -300,7 +388,7 @@ export default function CompsetSettingsPage() {
   ) => {
     debugger;
     const isActive = event === true;
-
+    setIsSearchApi(true);
     try {
       const response: any = await updateCompSet({
         compsetid: compsetID,
@@ -373,6 +461,7 @@ export default function CompsetSettingsPage() {
       });
     } finally {
       setUpdateCompetitor(null);
+      setIsSearchApi(false);
     }
   };
 
@@ -551,7 +640,7 @@ export default function CompsetSettingsPage() {
               Change History
             </Button>
             <Button
-              onClick={() => setShowAddCompetitor(true)}
+              onClick={() => handleAddPopCompetitor()}
               className="flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
@@ -728,9 +817,9 @@ export default function CompsetSettingsPage() {
                     id="hotel-name"
                     value={searchQuery}
                     onChange={handleSearchInputChange}
-                    onFocus={handleSearchInputFocus}
-                    onBlur={handleSearchInputBlur}
-                    disabled={isSearchApi}
+                    // onFocus={handleSearchInputFocus}
+                    // onBlur={handleSearchInputBlur}
+                    // disabled={isSearchApi}
                     placeholder="Search and select hotel name"
                     className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
                   />
@@ -738,7 +827,7 @@ export default function CompsetSettingsPage() {
                     <button
                       type="button"
                       onClick={handleClearSearch}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors z-[99]"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -801,7 +890,7 @@ export default function CompsetSettingsPage() {
               </Button>
               <Button
                 onClick={handleAddCompetitor}
-                disabled={!searchQuery || !newCompetitor.competitorType || isSearchApi}
+                disabled={!searchQuery || !newCompetitor.competitorType || isSearchApi || newCompetitor.hotelMasterId === 0}
                 className="h-9 px-4 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
               >
                 Add Competitor
@@ -1016,14 +1105,23 @@ export default function CompsetSettingsPage() {
                 variant="outline"
                 onClick={cancelDeleteCompetitor}
                 className="px-6"
+                disabled={isSearchApi}
               >
                 Cancel
               </Button>
               <Button
                 onClick={confirmDeleteCompetitor}
                 className="px-6 bg-red-600 hover:bg-red-700 text-white"
+                disabled={isSearchApi}
               >
-                Delete
+                {isSearchApi ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Deleting ...</span>
+                  </div>
+                ) : (
+                  "Delete"
+                )}
               </Button>
             </div>
           </DialogContent>

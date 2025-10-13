@@ -21,6 +21,7 @@ import { getRateTrends } from "@/lib/rate"
 import { getChannels } from "@/lib/channels"
 import { conevrtDateforApi } from "@/lib/utils"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
+import { DemandCoachMarkTrigger } from "@/components/navigator/demand-coach-mark-system"
 
 function DemandPageContent() {
   const fmtDate = (d: string) => format(new Date(d), "EEE, dd MMM - yyyy");
@@ -337,7 +338,7 @@ function DemandPageContent() {
             return { ...x, AvgData: ty };
           });
           res.body.pricePositioningEntites = CalulatedData;
-          console.log('Rate trends data:', res.body);
+          // console.log('Rate trends data:', res.body);
           setRateData(res.body);
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
@@ -425,9 +426,9 @@ function DemandPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
-      {/* Enhanced Demand Filter Bar with Sticky Positioning */}
-      <div className="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800" data-coach-mark="demand-overview">
+      {/* Demand Filter Bar */}
+      <div className="bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
         <DemandFilterBar onFiltersChange={handleDemandFiltersChange} />
       </div>
 
@@ -448,27 +449,30 @@ function DemandPageContent() {
         <div className="max-w-7xl xl:max-w-none mx-auto space-y-4 md:space-y-6 lg:space-y-8">
 
           {/* Summary Cards Section */}
-          <section className="w-full">
+          <section className="w-full" data-coach-mark="demand-summary-cards">
             <DemandSummaryCards filter={filter} avgDemand={avgDemand} demandData={demandData} demandAIPerCountryAverageData={demandAIPerCountryAverageData} demandCurrencySymbol={demandCurrencyDetails}  />
           </section>
 
 
-          {/* Demand Forecast Chart - No Header */}
-          <section className="w-full">
-            <Card className="card-elevated animate-fade-in">
-              <CardContent className="p-3 md:p-4 lg:p-6 xl:p-8">
-                <EnhancedDemandTrendsChart filter={filter} events={eventData} holidaysData={holidaysData} demandData={demandData} rateData={rateData} rateCompData={rateCompData}  demandCurrencySymbol={demandCurrencyDetails} />
-              </CardContent>
-            </Card>
-          </section>
+              {/* Demand Forecast Chart - No Header */}
+              <section className="w-full">
+                <Card className="card-elevated animate-fade-in">
+                  <CardContent className="p-3 md:p-4 lg:p-6 xl:p-8">
+                    <EnhancedDemandTrendsChart filter={filter} events={eventData} holidaysData={holidaysData} demandData={demandData} rateData={rateData} rateCompData={rateCompData}  demandCurrencySymbol={demandCurrencyDetails} />
+                  </CardContent>
+                </Card>
+              </section>
 
           {/* Events & Holidays Section */}
-          <section className="w-full">
+          <section className="w-full" data-coach-mark="events-holidays-table">
             <MyEventsHolidaysTable events={eventData} holidaysData={holidaysData} />
           </section>
 
         </div>
       </div>
+
+      {/* Demand Coach Mark Trigger */}
+      <DemandCoachMarkTrigger />
 
 
     </div>

@@ -4950,7 +4950,7 @@ export default function EventsCalendarPage() {
           </TooltipProvider>
         </div>
         {isLoading ? (
-          <Card className="overflow-hidden shadow-lg xl:w-full w-[90%] mx-auto">
+          <Card className="overflow-hidden xl:w-full w-[90%] mx-auto">
             {/* Loading Header */}
             <div className="grid grid-cols-7 border-b border-border bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
@@ -4976,7 +4976,7 @@ export default function EventsCalendarPage() {
             </div>
           </Card>
         ) : viewMode === "calendar" ? (
-          <Card className="overflow-hidden shadow-lg xl:w-full w-[90%] mx-auto">
+          <Card className="overflow-hidden xl:w-full w-[90%] mx-auto">
             {/* Calendar Header */}
             <div className="grid grid-cols-7 border-b border-border bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => (

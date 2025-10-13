@@ -17,4 +17,8 @@ export async function deleteChannel(filtersValue: any) {
     const { data } = await apiClient.post(`${Constants.API_DeleteChannel}`, null, { params: filtersValue });
     return data;
 }
+export async function GetChannelListCluster(filtersValue: any) {
+    const { data } = await apiClient.get(`${Constants.API_GET_GetChannelListCluster}`, { params: filtersValue });
+    return data;
+}
 

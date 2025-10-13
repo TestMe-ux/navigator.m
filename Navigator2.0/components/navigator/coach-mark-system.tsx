@@ -3,20 +3,12 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { 
-  HelpCircle, 
+  HelpCircle,
   X, 
   ChevronLeft, 
-  ChevronRight, 
-  Play, 
-  Pause,
-  RotateCcw,
-  CheckCircle,
-  Lightbulb,
-  Target,
-  Eye,
-  MousePointer
+  ChevronRight,
+  CheckCircle
 } from "lucide-react"
 
 interface CoachMark {
@@ -36,78 +28,57 @@ interface CoachMark {
 const coachMarks: CoachMark[] = [
   {
     id: "welcome",
-    title: "🏨 Welcome to Revenue Management Central",
-    description: "As a revenue manager, this dashboard is your command center for maximizing profitability. You'll monitor competitor pricing, identify revenue opportunities, and make data-driven pricing decisions. Let's explore the key tools that will drive your success.",
+    title: "Welcome to Revenue Management Central",
+    description: "This is your command center for optimizing hotel performance.\nTrack revenue KPIs, competitor rates, and market insights - all in one place to guide data-driven pricing and strategy decisions.",
     target: "[data-coach-mark='dashboard-overview']",
     position: "bottom",
     category: "navigation",
     priority: 1
   },
   {
-    id: "revenue-kpis",
-    title: "💰 Revenue Performance KPIs",
-    description: "Your daily revenue health check. Monitor ADR trends, rate parity violations, and market position. Red indicators need immediate attention - they're costing you revenue right now.",
-    target: "[data-coach-mark='kpi-cards']",
+    id: "navigation-panel",
+    title: "Navigation & Collapse Panel",
+    description: "Access all major revenue tools from the left menu - Rate Trends, Demand Forecast, OTA Rankings, and more.\nCollapse the panel anytime for an expanded view of your analytics workspace.",
+    target: "[data-coach-mark='navigation-collapse-button']",
     position: "top",
-    category: "data",
+    category: "navigation",
     priority: 2
   },
   {
-    id: "competitor-analysis",
-    title: "🎯 Competitor Rate Intelligence",
-    description: "Your competitive advantage tool! See who's cheapest each day, identify pricing threats, and spot revenue opportunities. The tooltip shows market positioning and action recommendations.",
-    target: "[data-coach-mark='rate-trends']",
+    id: "revenue-kpis",
+    title: "Revenue Performance KPIs",
+    description: "Get a clear snapshot of your property's performance.\nReview key metrics like ADR, rate parity, and market rank, alongside local events that may impact demand and pricing opportunities.",
+    target: "[data-coach-mark='kpi-cards']",
     position: "top",
-    category: "insights",
-    priority: 3,
-    action: {
-      type: "hover",
-      description: "Hover over chart points to see competitive threats and opportunities"
-    }
+    category: "data",
+    priority: 3
   },
   {
-    id: "market-demand-intelligence",
-    title: "🌍 Market Demand Intelligence",
-    description: "Understand where your guests come from and what events drive demand. Use the map to identify source market trends and the event calendar to anticipate demand spikes for strategic pricing.",
-    target: "[data-coach-mark='market-demand']",
+    id: "rate-trends-analysis",
+    title: "Rate Trends Analysis",
+    description: "Compare your rates with competitors and market averages over time.\nSpot pricing gaps, monitor positioning, and uncover opportunities to adjust strategy for better competitiveness.",
+    target: "[data-coach-mark='rate-trends-header']",
     position: "top",
     category: "insights",
-    priority: 4,
-    action: {
-      type: "click",
-      description: "Explore source markets and events affecting demand"
-    }
+    priority: 4
   },
   {
-    id: "property-health",
-    title: "⚡ Revenue Health Diagnostics",
-    description: "Your channel performance scorecard. Identify parity violations, ranking issues, and review problems that impact conversion. Focus on 'Critical' and 'High Priority' items first.",
+    id: "property-health-score",
+    title: "Property Health Score",
+    description: "Evaluate your channel and parity performance at a glance.\nIdentify ranking drops, or review issues - and focus on high-priority actions to protect your revenue.",
     target: "[data-coach-mark='property-health']",
     position: "top",
     category: "actions",
     priority: 5
   },
   {
-    id: "navigation-pages",
-    title: "📈 Advanced Analytics Pages",
-    description: "Access specialized tools: Demand forecasting for capacity planning, Rate Trends for historical analysis, and Help center for revenue management best practices and training materials.",
-    target: "[data-coach-mark='navigation-menu']",
-    position: "right",
-    category: "navigation",
-    priority: 6,
-    action: {
-      type: "click",
-      description: "Explore demand forecasting and rate trend analysis"
-    }
-  },
-  {
-    id: "daily-workflow",
-    title: "🚀 Your Daily Revenue Workflow",
-    description: "Success tip: Start each day by checking KPIs → Review competitor rates → Identify pricing opportunities → Adjust rates based on demand intelligence. This dashboard gives you everything needed for optimal revenue decisions.",
-    target: "[data-coach-mark='dashboard-overview']",
-    position: "bottom",
+    id: "market-demand-overview",
+    title: "Market Demand Overview",
+    description: "Understand your destination's market dynamics - analyze demand, occupancy, and ADR shifts.\nUse source market and event insights to forecast potential booking trends.",
+    target: "[data-coach-mark='market-demand-header']",
+    position: "top",
     category: "insights",
-    priority: 7
+    priority: 6
   }
 ]
 
@@ -121,9 +92,29 @@ export function CoachMarkSystem({ isVisible, onClose }: CoachMarkSystemProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set())
   const [targetElement, setTargetElement] = useState<HTMLElement | null>(null)
-  const overlayRef = useRef<HTMLDivElement>(null)
+  const [positionStyles, setPositionStyles] = useState<any>({})
 
   const currentCoachMark = coachMarks[currentStep]
+
+  // Reset to first coachmark when tour starts
+  useEffect(() => {
+    if (isVisible) {
+      setCurrentStep(0)
+      setCompletedSteps(new Set())
+      setIsPlaying(false)
+      setTargetElement(null)
+      
+      // Clear any existing highlights
+      if (typeof window !== 'undefined') {
+        document.querySelectorAll('.coach-mark-highlight-spotlight').forEach(el => {
+          el.classList.remove('coach-mark-highlight-spotlight')
+        })
+      }
+    }
+  }, [isVisible])
+
+  // Use spotlight highlighting for all coach marks
+  const highlightClass = "coach-mark-highlight-spotlight"
 
   useEffect(() => {
     if (!isVisible || !currentCoachMark) return
@@ -141,8 +132,8 @@ export function CoachMarkSystem({ isVisible, onClose }: CoachMarkSystemProps) {
         element.scrollIntoView({ behavior: 'smooth', block: 'center' })
         }
         
-        // Add highlight class
-        element.classList.add('coach-mark-highlight')
+        // Add spotlight highlight class
+        element.classList.add(highlightClass)
         return element
       } else {
         console.warn(`❌ Could not find target element: ${currentCoachMark.target}`)
@@ -178,14 +169,37 @@ export function CoachMarkSystem({ isVisible, onClose }: CoachMarkSystemProps) {
     }
 
     return () => {
-      // Remove highlight from all elements
+      // Remove spotlight highlight class from all elements
       if (typeof window !== 'undefined') {
-        document.querySelectorAll('.coach-mark-highlight').forEach(el => {
-          el.classList.remove('coach-mark-highlight')
+        document.querySelectorAll('.coach-mark-highlight-spotlight').forEach(el => {
+          el.classList.remove('coach-mark-highlight-spotlight')
         })
       }
     }
   }, [currentStep, isVisible, currentCoachMark, targetElement])
+
+  // Update position on scroll
+  useEffect(() => {
+    if (!isVisible || !targetElement) return
+
+    const updatePosition = () => {
+      const rect = targetElement.getBoundingClientRect()
+      const styles = calculatePositionStyles(rect)
+      setPositionStyles(styles)
+    }
+
+    // Initial position calculation
+    updatePosition()
+
+    // Add scroll listener
+    window.addEventListener('scroll', updatePosition, { passive: true })
+    window.addEventListener('resize', updatePosition, { passive: true })
+
+    return () => {
+      window.removeEventListener('scroll', updatePosition)
+      window.removeEventListener('resize', updatePosition)
+    }
+  }, [isVisible, targetElement, currentCoachMark])
 
   useEffect(() => {
     if (!isPlaying) return
@@ -223,8 +237,8 @@ export function CoachMarkSystem({ isVisible, onClose }: CoachMarkSystemProps) {
   const handleClose = () => {
     setIsPlaying(false)
     if (typeof window !== 'undefined') {
-      document.querySelectorAll('.coach-mark-highlight').forEach(el => {
-        el.classList.remove('coach-mark-highlight')
+      document.querySelectorAll('.coach-mark-highlight-spotlight').forEach(el => {
+        el.classList.remove('coach-mark-highlight-spotlight')
       })
     }
     onClose()
@@ -236,7 +250,7 @@ export function CoachMarkSystem({ isVisible, onClose }: CoachMarkSystemProps) {
     setIsPlaying(false)
   }
 
-  const getPositionStyles = () => {
+  const calculatePositionStyles = (rect: DOMRect) => {
     if (!targetElement) {
       // Fallback positioning - show in center of screen
       return {
@@ -248,8 +262,6 @@ export function CoachMarkSystem({ isVisible, onClose }: CoachMarkSystemProps) {
       }
     }
 
-    const rect = targetElement.getBoundingClientRect()
-    
     const styles: any = {
       position: 'fixed',
       zIndex: 9999
@@ -264,15 +276,30 @@ export function CoachMarkSystem({ isVisible, onClose }: CoachMarkSystemProps) {
         left: '50%',
         transform: 'translate(-50%, -50%)',
         zIndex: 9999
-    }
+      }
     }
 
     // Standard positioning for normal-sized elements using viewport coordinates
     switch (currentCoachMark.position) {
       case 'top':
         styles.top = `${rect.top - 20}px`
-        styles.left = `${rect.left + rect.width / 2}px`
-        styles.transform = 'translate(-50%, -100%)'
+        // Special handling for navigation-panel coachmark - align left
+        if (currentCoachMark.id === 'navigation-panel') {
+          // Check if navigation is collapsed (button width is very small)
+          if (rect.width < 100) {
+            // For collapsed state, position above and left-aligned
+            styles.left = `${rect.left}px`
+            styles.transform = 'translate(0, -100%)'
+            styles.top = `${rect.top - 20}px`
+          } else {
+            // For expanded state, position above and left-aligned
+            styles.left = `${rect.left}px`
+            styles.transform = 'translate(0, -100%)'
+          }
+        } else {
+          styles.left = `${rect.left + rect.width / 2}px`
+          styles.transform = 'translate(-50%, -100%)'
+        }
         break
       case 'bottom':
         styles.top = `${rect.bottom + 20}px`
@@ -285,8 +312,8 @@ export function CoachMarkSystem({ isVisible, onClose }: CoachMarkSystemProps) {
         styles.transform = 'translate(-100%, -50%)'
         break
       case 'right':
-        // Special handling for navigation menu
-        if (currentCoachMark.target.includes('navigation-menu')) {
+        // Special handling for navigation items
+        if (currentCoachMark.target.includes('navigation-items')) {
           styles.top = `${rect.top + rect.height / 2}px`
           styles.left = `${rect.right + 30}px`
           styles.transform = 'translateY(-50%)'
@@ -301,6 +328,13 @@ export function CoachMarkSystem({ isVisible, onClose }: CoachMarkSystemProps) {
     return styles
   }
 
+  const getPositionStyles = () => {
+    // Use the state-based position styles that update on scroll
+    return positionStyles
+  }
+
+  // COMMENTED OUT: Category functions no longer needed since tags are removed
+  /*
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'navigation': return <Target className="h-4 w-4" />
@@ -322,30 +356,39 @@ export function CoachMarkSystem({ isVisible, onClose }: CoachMarkSystemProps) {
       default: return 'bg-slate-50 text-slate-700 border-slate-200'
     }
   }
+  */
 
   if (!isVisible || !currentCoachMark) return null
 
   return (
     <>
+      {/* Grey Overlay for Welcome Coachmark */}
+      {currentStep === 0 && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-[9998] pointer-events-none"
+          style={{ zIndex: 9998 }}
+        />
+      )}
+
       {/* CSS Styles for Coach Mark */}
       <style jsx global>{`
-        .coach-mark-highlight {
-          outline: 2px solid #3b82f6 !important;
+        .coach-mark-highlight-spotlight {
+          outline: 2px solid #1d4ed8 !important;
           outline-offset: 4px !important;
           border-radius: 8px !important;
           position: relative !important;
           z-index: 1000 !important;
         }
         
-        /* White background for navigation menu with consistent outline */
-        .coach-mark-highlight[data-coach-mark="navigation-menu"] {
+        /* White background for navigation items with consistent outline */
+        .coach-mark-highlight-spotlight[data-coach-mark="navigation-items"] {
           background: rgba(255, 255, 255, 0.95) !important;
-          outline: 2px solid #3b82f6 !important;
+          outline: 2px solid #1d4ed8 !important;
           outline-offset: 4px !important;
           border-radius: 8px !important;
           position: relative !important;
           z-index: 1000 !important;
-          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15) !important;
+          box-shadow: 0 4px 12px rgba(29, 78, 216, 0.15) !important;
           backdrop-filter: blur(4px) !important;
         }
         
@@ -377,78 +420,38 @@ export function CoachMarkSystem({ isVisible, onClose }: CoachMarkSystemProps) {
         }
       `}</style>
 
-      {/* Overlay */}
-      <div 
-        ref={overlayRef}
-        className="fixed inset-0 bg-black/50 z-[1001] pointer-events-auto"
-        onClick={handleClose}
-      />
 
       {/* Coach Mark Card */}
       <Card 
-        className="coach-mark-card max-w-sm shadow-2xl border-2 border-blue-200 dark:border-blue-700 pointer-events-auto bg-white dark:bg-slate-900"
+        className="coach-mark-card max-w-lg shadow-2xl border-2 border-blue-600 dark:border-blue-500 pointer-events-auto bg-white dark:bg-slate-900"
         style={getPositionStyles()}
       >
         <CardContent className="p-4 pointer-events-auto">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Badge className={`text-xs ${getCategoryColor(currentCoachMark.category)}`}>
-                {getCategoryIcon(currentCoachMark.category)}
-                {currentCoachMark.category}
-              </Badge>
-              <span className="text-xs text-muted-foreground">
-                {currentStep + 1} of {coachMarks.length}
-              </span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClose}
-              className="h-6 w-6 p-0 pointer-events-auto"
-              style={{ zIndex: 10000 }}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-
           {/* Content */}
           <div className="space-y-3">
-            <h3 className="font-semibold text-foreground text-sm">
-              {currentCoachMark.title}
-            </h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
+            {/* Title with Cancel Button */}
+            <div className="flex items-start justify-between">
+              <h3 className="font-semibold text-foreground text-sm flex-1 pr-2">
+                {currentCoachMark.title}
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClose}
+                className="h-6 w-6 p-0 pointer-events-auto flex-shrink-0"
+                style={{ zIndex: 10000 }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed pb-5 whitespace-pre-line">
               {currentCoachMark.description}
             </p>
-
-            {/* Action Hint */}
-            {currentCoachMark.action && (
-              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-2">
-                <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-1">
-                  <MousePointer className="h-3 w-3" />
-                  {currentCoachMark.action.description}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Progress Bar */}
-          <div className="mt-4 mb-3">
-            <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>Progress</span>
-              <span>{Math.round(((currentStep + 1) / coachMarks.length) * 100)}%</span>
-            </div>
-            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5">
-              <div 
-                className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
-                style={{ width: `${((currentStep + 1) / coachMarks.length) * 100}%` }}
-              />
-            </div>
           </div>
 
           {/* Controls */}
           <div className="flex items-center justify-between pointer-events-auto">
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
                 size="sm"
@@ -459,24 +462,9 @@ export function CoachMarkSystem({ isVisible, onClose }: CoachMarkSystemProps) {
               >
                 <ChevronLeft className="h-3 w-3" />
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsPlaying(!isPlaying)}
-                className="h-7 px-2 pointer-events-auto"
-                style={{ zIndex: 10000 }}
-              >
-                {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleRestart}
-                className="h-7 px-2 pointer-events-auto"
-                style={{ zIndex: 10000 }}
-              >
-                <RotateCcw className="h-3 w-3" />
-              </Button>
+              <span className="text-xs text-muted-foreground">
+                {currentStep + 1} of {coachMarks.length}
+              </span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -558,16 +546,21 @@ export function CoachMarkTrigger() {
 
   return (
     <>
-      {/* Revenue Manager Tour Button - Clean without tooltip */}
-      <div className="fixed bottom-6 right-6 z-50">
+      {/* Revenue Manager Tour Button - Clean with black tooltip */}
+      <div className="fixed bottom-6 right-6 z-50 group">
           <Button
           onClick={handleStartTour}
-            className="h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 bg-slate-100 hover:bg-slate-200 border-2 border-slate-300 hover:border-slate-400 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-600 dark:hover:border-slate-500"
+            className="h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 bg-slate-100 hover:bg-slate-200 border-2 border-slate-300 hover:border-slate-400 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-600 dark:hover:border-slate-500"
             size="sm"
-            title="Start Revenue Manager Tour"
           >
-            <HelpCircle className="h-6 w-6 text-slate-600 dark:text-slate-300" />
+            <HelpCircle className="h-5 w-5 text-slate-600 dark:text-slate-300" />
           </Button>
+          
+          {/* Black Tooltip */}
+          <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-black text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+            Start Product Tour for Overview page
+            <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black"></div>
+          </div>
       </div>
 
       {/* Coach Mark System */}

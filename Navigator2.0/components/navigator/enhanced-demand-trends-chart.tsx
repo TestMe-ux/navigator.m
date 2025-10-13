@@ -38,7 +38,7 @@ const suffixMap: Record<string, string> = {
 // Helper to safely get value with dynamic key
 const getValue = (obj: any, key: string) => obj?.[key] ?? 0;
 // Generate trend data based on date range
-function generateTrendData(startDate: Date, endDate: Date, demandData: any, rateData: any, filter: any, rateCompData: any) {
+function generateTrendData(startDate: Date, endDate: Date, demandData: any, rateData: any, filter: any, rateCompData: any, demandCurrencySymbol: any) {
   const days = eachDayOfInterval({ start: startDate, end: endDate })
   const lowestDemandIndex = Math.max(...demandData?.optimaDemand.map((d: any) => d.demandIndex));
   const myRateDatas = rateData?.pricePositioningEntites
@@ -58,7 +58,8 @@ function generateTrendData(startDate: Date, endDate: Date, demandData: any, rate
     const baseDemand = Math.floor(1 + Math.sin(index * 0.3) * 1.2 + Math.random() * 1.5)
 
 
-    const marketADR = demandI?.hotelADR ? Math.round(Number(demandI.hotelADR)) : 0
+    const marketADRData = demandI?.hotelADR ? Math.round(Number(demandI.hotelADR)) : 0
+    const marketADR = demandCurrencySymbol?.ischatgptData ? (marketADRData * (demandCurrencySymbol?.conversionRate ?? 1)).toFixed(0) : marketADRData
     const hotelADR = Math.round(Math.max(Number(myRateData?.rate) || 0, 0));
     const hotelADRStatus = myRateData?.status;
     const airTravellers = demandI?.oagCapacity ? demandI.oagCapacity : 0
@@ -402,7 +403,7 @@ const CustomTooltip = ({ active, payload, label, datasetType, demandCurrencySymb
               <div className="flex items-center justify-between gap-6 min-w-fit">
                 <div className="whitespace-nowrap">
                   <span className="font-semibold text-muted-foreground">Market ADR:</span>{" "}
-                  <span className="font-bold text-red-600 dark:text-red-400"> {`\u200E ${demandCurrencySymbolState?.currencySymbol}\u200E`}{demandCurrencySymbolState?.ischatgptData ? (data["Market ADR"] * (demandCurrencySymbolState?.conversionRate ?? 1)).toFixed(0) : data["Market ADR"]}</span>
+                  <span className="font-bold text-red-600 dark:text-red-400"> {`\u200E ${demandCurrencySymbolState?.currencySymbol}\u200E`}{data["Market ADR"]}</span>
                 </div>
                 <span className={`font-bold ${getVarianceColor(data.marketADRVariance)} whitespace-nowrap flex-shrink-0`}>
                   {formatVariance(data.marketADRVariance)}
@@ -712,7 +713,7 @@ export function EnhancedDemandTrendsChart({ filter, events, holidaysData, demand
     }
     if (!demandData || demandData.length === 0 || !rateData || Object.keys(rateData).length === 0 || !rateCompData || Object.keys(rateCompData).length === 0) return [];
     // Generate daily data first
-    const dailyData = generateTrendData(actualStartDate!, actualEndDate!, demandData, rateData, filter, rateCompData)
+    const dailyData = generateTrendData(actualStartDate!, actualEndDate!, demandData, rateData, filter, rateCompData, demandCurrencySymbol)
 
     // Add event data to daily data
     const dailyDataWithEvents = generateChartEvents(dailyData, events, holidaysData)
@@ -730,7 +731,7 @@ export function EnhancedDemandTrendsChart({ filter, events, holidaysData, demand
 
   // Calculate Y-axis domains dynamically
   const demandDomain = [0, 4]
-
+  debugger;
   // Calculate actual price domain from data with robust error handling
   const priceValues = trendData.flatMap(d => [d.hotelADR, d.marketADR]).filter(val => val != null && !isNaN(val))
   const minPrice = priceValues.length > 0 ? Math.min(...priceValues) : 70
@@ -778,7 +779,7 @@ export function EnhancedDemandTrendsChart({ filter, events, holidaysData, demand
     <TooltipProvider>
       <div className="space-y-4 bg-white" ref={cardRef}>
         {/* Header Section with Controls */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4" data-coach-mark="demand-trends-header">
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Trends</h3>

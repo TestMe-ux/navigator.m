@@ -114,10 +114,14 @@ export default function ParitySettingsPage() {
   const hasChanges = JSON.stringify(parityData) !== JSON.stringify(originalData)
 
   const handleSave = () => {
+    debugger
     // console.log("Parity saved:", parityData)
     // setOriginalData(parityData)
     // setShowSnackbar(true)
     setIsSave(true);
+
+    const filteredChannel = channels.filter(x => x.name.toLowerCase() === parityData.otaBenchName.toLowerCase());
+
     const filtersValue = {
       "OTABenchName": parityData.otaBenchName,
       "restriction": parityData.restriction,
@@ -129,7 +133,7 @@ export default function ParitySettingsPage() {
       "otaId": 1,
       "RateViolationID": parityData.rateViolationID,
       "AvailableViolationID": parityData.availableViolationID,
-      "OTABench": parityData.otaBench
+      "OTABench": filteredChannel[0].cid
     }
     AddBRGSettings(filtersValue).then((res: any) => {
       if (res.status && res.body) {
@@ -371,13 +375,13 @@ export default function ParitySettingsPage() {
                     Baseline Site<span className="text-red-500 ml-1">*</span>
                   </Label>
                   <Select
-                    value={parityData.otaBenchName.toLowerCase()}
+                    value={parityData?.otaBenchName?.toLowerCase()}
                     onValueChange={(value) => setParityData((prev: any) => ({ ...prev, otaBenchName: value }))}
                   >
                     <SelectTrigger className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-0 focus:ring-offset-0">
                       <SelectValue placeholder="Select baseline site" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className={channels?.length > 0 ? 'h-60' : ''}>
                       {channels?.length > 0 && channels.map((site: any) => (
                         <SelectItem key={site.cid} value={site.name.toLowerCase()} className="pl-3 [&>span:first-child]:hidden">
                           {site.name}
@@ -477,7 +481,7 @@ export default function ParitySettingsPage() {
                   </Label>
                   <Input
                     id="createdBy"
-                    value={parityData.createdBy}
+                    value={parityData?.createdBy ?? ''}
                     disabled
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
                   />
@@ -487,15 +491,15 @@ export default function ParitySettingsPage() {
           </CardContent>
         </Card>
 
-      {/* Change History Modal */}
-      <Dialog open={showChangeHistory} onOpenChange={setShowChangeHistory}>
-        <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Parity Change History</DialogTitle>
-            <DialogDescription>
-              Shows the history of all the changes
-            </DialogDescription>
-          </DialogHeader>
+        {/* Change History Modal */}
+        <Dialog open={showChangeHistory} onOpenChange={setShowChangeHistory}>
+          <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold">Parity Change History</DialogTitle>
+              <DialogDescription>
+                Shows the history of all the changes
+              </DialogDescription>
+            </DialogHeader>
 
             <div className="mt-2 flex-1 overflow-hidden">
               <div className="border border-gray-300 dark:border-gray-600 rounded-lg h-full">
