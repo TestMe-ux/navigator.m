@@ -205,7 +205,7 @@ export function MarketDemandWidget() {
 
   return (
     <Card className="card-elevated animate-fade-in">
-      <CardHeader className="pb-4">
+      <CardHeader className="pb-4" data-coach-mark="market-demand-header">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="space-y-2">

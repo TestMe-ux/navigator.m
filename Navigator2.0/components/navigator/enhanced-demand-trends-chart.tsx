@@ -779,7 +779,7 @@ export function EnhancedDemandTrendsChart({ filter, events, holidaysData, demand
     <TooltipProvider>
       <div className="space-y-4 bg-white" ref={cardRef}>
         {/* Header Section with Controls */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4" data-coach-mark="demand-trends-header">
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Trends</h3>

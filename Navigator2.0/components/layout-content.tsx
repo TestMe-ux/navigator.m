@@ -2,18 +2,14 @@
 
 import React, { useState, useEffect } from "react"
 import { NavigationDrawer } from "@/components/navigation-drawer"
+import { useNavigationState } from "@/hooks/use-navigation-state"
 
 /**
  * Layout Content Component
  * Handles navigation drawer state management with enhanced responsiveness
  */
 export function LayoutContent({ children }: { children: React.ReactNode }) {
-  const [isNavCollapsed, setIsNavCollapsed] = useState(false)
-
-  const toggleNavCollapse = () => {
-    setIsNavCollapsed(!isNavCollapsed)
-    console.log(`🔄 Navigation drawer ${isNavCollapsed ? 'expanded' : 'collapsed'}`)
-  }
+  const { isCollapsed, toggleCollapse } = useNavigationState()
 
   // Debug logging
   useEffect(() => {
@@ -24,15 +20,15 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
     <div className="relative min-h-screen flex bg-slate-50 dark:bg-slate-950 pt-16">
       {/* Navigation Drawer */}
       <NavigationDrawer 
-        isCollapsed={isNavCollapsed}
-        onToggleCollapse={toggleNavCollapse}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={toggleCollapse}
       />
       
       {/* Main Application Container - Fixed margins to match nav drawer width */}
       <div 
         className={`
           flex-1 flex flex-col transition-all duration-300 ease-in-out
-          ${isNavCollapsed ? 'ml-0 md:ml-16' : 'ml-0 md:ml-64'}
+          ${isCollapsed ? 'ml-0 md:ml-16' : 'ml-0 md:ml-64'}
         `}
         style={{
           minHeight: 'calc(100vh - 4rem)',

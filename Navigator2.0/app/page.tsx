@@ -612,8 +612,8 @@ export default function Home() {
   // }
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950" data-coach-mark="dashboard-overview">
-      {/* Enhanced Filter Bar with Sticky Positioning */}
-      <div className="sticky top-0 z-40 filter-bar-minimal bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
+      {/* Filter Bar */}
+      <div className="filter-bar-minimal bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
         <FilterBar onMoreFiltersClick={handleMoreFiltersClick} setSelectedChannel={setSelectedChannel} />
       </div>
       <FilterSidebar

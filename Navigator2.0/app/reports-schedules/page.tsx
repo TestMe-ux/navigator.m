@@ -3125,8 +3125,8 @@ export default function ScheduledReportsPage() {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-        {/* Enhanced Filter Bar with Sticky Positioning */}
-        <div className="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200 relative overflow-hidden">
+        {/* Filter Bar */}
+        <div className="bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200 relative overflow-hidden">
           <ReportsFilterBar
             onDateRangeChange={handleDateRangeChange}
             onReportTypeChange={handleReportTypeChange}

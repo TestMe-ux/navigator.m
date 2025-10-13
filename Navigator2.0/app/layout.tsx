@@ -10,6 +10,7 @@ import { ComparisonProvider } from "@/components/comparison-context"
 import { DatadogProvider } from "@/lib/datadogRum"
 import { PollingProvider } from "@/components/polling/polling-context"
 import { GlobalSnackbar } from "@/components/polling/global-snackbar"
+import { NavigationProvider } from "@/hooks/use-navigation-state"
 
 /**
  * Root Layout Metadata
@@ -76,12 +77,14 @@ export default function RootLayout({
             <ComparisonProvider>
               <DateProvider>
                 <PollingProvider>
-                  {/* Conditional Layout - Header only appears on non-auth pages */}
-                  <ConditionalLayout>{children}</ConditionalLayout>
-                  {/* Toast notifications */}
-                  <Toaster />
-                  {/* Global Snackbar for polling notifications */}
-                  <GlobalSnackbar />
+                  <NavigationProvider>
+                    {/* Conditional Layout - Header only appears on non-auth pages */}
+                    <ConditionalLayout>{children}</ConditionalLayout>
+                    {/* Toast notifications */}
+                    <Toaster />
+                    {/* Global Snackbar for polling notifications */}
+                    <GlobalSnackbar />
+                  </NavigationProvider>
                 </PollingProvider>
               </DateProvider>
             </ComparisonProvider>

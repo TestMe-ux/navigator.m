@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { format, isBefore, isSameDay, parseISO, subDays } from "date-fns"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { getInclusionIcon } from "@/lib/inclusion-icons"
+import { useResponsiveWidth } from "@/hooks/use-navigation-state"
 import { latestShopDateTime } from "@/lib/utils"
 
 
@@ -551,6 +552,7 @@ function RateTrendCalendarInner({
   // Use props if available, otherwise fall back to date context
   const dateContext = useDateContext()
   const { selectedComparison } = useComparison()
+  const { hotelColumnWidth, gridTemplateColumns, isCollapsed } = useResponsiveWidth()
   const startDate = propStartDate || dateContext.startDate
   const endDate = propEndDate || dateContext.endDate
   const isLoading = dateContext.isLoading
@@ -1713,11 +1715,11 @@ function RateTrendCalendarInner({
 
                       <div className="overflow-x-auto">
                         {/* Fixed Avg. Compset Row */}
-                        <div className="grid" style={{ gridTemplateColumns: `1fr repeat(7, 1fr)` }}>
+                        <div className="grid" style={{ gridTemplateColumns: gridTemplateColumns }}>
                           {/* Hotel Names Column - Avg. Compset */}
                           <div>
-                            <div className="px-2 py-0.5 text-xs font-medium text-gray-900 dark:text-gray-100 bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800/60 border-0 h-12 flex items-center border-b border-b-gray-300 dark:border-b-gray-500 transition-colors duration-200" style={{ width: '120px' }}>
-                              <div className="truncate w-full font-semibold" style={{ width: '120px' }}>
+                            <div className={`px-2 py-0.5 text-xs font-medium text-gray-900 dark:text-gray-100 bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800/60 border-0 h-12 flex items-center border-b border-b-gray-300 dark:border-b-gray-500 transition-colors duration-200 ${hotelColumnWidth}`}>
+                              <div className="truncate w-full font-semibold" title="Avg. Compset">
                                 Avg. Compset
                               </div>
                             </div>
@@ -1759,15 +1761,19 @@ function RateTrendCalendarInner({
                         </div>
 
                         {/* Scrollable Competitor Rows */}
-                        <div className="grid max-h-60 overflow-y-auto" style={{ gridTemplateColumns: `1fr repeat(7, 1fr)` }}>
+                        <div className="grid max-h-60 overflow-y-auto" style={{ gridTemplateColumns: gridTemplateColumns }}>
                           {/* Hotel Names Column */}
                           <div>
                             {memoizedCompetitorData[0]?.competitors.map((_, compIndex) => {
                               const isLastRow = compIndex === memoizedCompetitorData[0]?.competitors.length - 1;
                               return (
-                                <div key={compIndex} className={`px-2 py-0.5 text-xs font-medium text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/60 border-0 h-12 flex items-center transition-colors duration-200 ${!isLastRow ? 'border-b border-b-gray-300 dark:border-b-gray-500' : ''}`} style={{ width: '120px' }}>
-                                  <div className="truncate w-full" title={memoizedCompetitorData[0]?.competitors[compIndex]?.hotelName} style={{ width: '120px' }}>
-                                    {memoizedCompetitorData[0]?.competitors[compIndex]?.hotelName}
+                                <div key={compIndex} className={`px-2 py-0.5 text-xs font-medium text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/60 border-0 h-12 flex items-center transition-colors duration-200 ${!isLastRow ? 'border-b border-b-gray-300 dark:border-b-gray-500' : ''} ${hotelColumnWidth}`}>
+                                  <div className="truncate w-full" title={memoizedCompetitorData[0]?.competitors[compIndex]?.hotelName}>
+                                    {(() => {
+                                      const hotelName = memoizedCompetitorData[0]?.competitors[compIndex]?.hotelName || '';
+                                      // Truncate at 16 characters and add ellipsis
+                                      return hotelName.length > 16 ? hotelName.substring(0, 16) + '...' : hotelName;
+                                    })()}
                                   </div>
                                 </div>
                               );

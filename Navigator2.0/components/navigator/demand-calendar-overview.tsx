@@ -531,7 +531,7 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
           <div className="max-w-7xl mx-auto">
             <div className="animate-pulse space-y-4">
               <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded-lg w-1/3"></div>
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-7 gap-2" data-coach-mark="demand-calendar-grid">
                 {Array.from({ length: 42 }).map((_, i) => (
                   <div key={i} className="h-16 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
                 ))}
@@ -551,7 +551,7 @@ function DemandCalendarOverviewInner({ eventData, holidayData }: any, csvRef: an
         <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-3 lg:py-4">
           <div className="max-w-7xl mx-auto">
             {/* Three Month Calendar Grid - Responsive View */}
-            <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-16">
+            <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-16" data-coach-mark="demand-calendar-grid">
 
               {/* Current Month */}
               <div className="space-y-2">
