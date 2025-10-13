@@ -324,7 +324,7 @@ const generateOnDemandReport = async (
       LOS: parseInt(formData.los),
       Occupancy: parseInt(formData.guests),
       Sources: formData.selectedChannels,
-      Properties: primaryPropertyIds,
+      Properties: [selectedProperty?.hmid, ...primaryPropertyIds],
       EmailIds: formData.recipients,
       EndDate: endDate,
       ReportSource: 'DownloadReport',
