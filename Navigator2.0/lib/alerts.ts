@@ -20,3 +20,8 @@ export async function saveAlerts(alertType: string, filtersValue: any) {
     const { data } = await apiClient.post(`${Constants.API_SAVE_Alerts}` + `/${alertType}`,  filtersValue);
     return data;
 }
+export async function getNotificationAlert(filtersValue: any) {
+    const { data } = await apiClient.get(`${Constants.API_GetNotificationAlert}`,   { params: filtersValue });
+    return data;
+}
+

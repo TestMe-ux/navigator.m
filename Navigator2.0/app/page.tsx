@@ -329,9 +329,9 @@ export default function Home() {
       GetParityDatas_Comp()
     ]);
   }, [selectedComparison])
-  useEffect(() => {
-    LocalStorageService.setItem("preferredDateMode", "next7days")
-  }, [selectedProperty?.sid])
+  // useEffect(() => {
+  //   LocalStorageService.setItem("preferredDateMode", "next7days")
+  // }, [selectedProperty?.sid])
 
   const getRateDate = () => {
     setRateData({});

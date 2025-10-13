@@ -76,7 +76,8 @@ export default function AlertsSettingsPage() {
   const competitionDropdownRef = useRef<HTMLDivElement>(null)
   const [isRankCompetitorDropdownOpen, setIsRankCompetitorDropdownOpen] = useState(false)
   const [isChannelDropdownOpen, setIsChannelDropdownOpen] = useState(false)
-  const [selectedRankCompetitorHotels, setSelectedRankCompetitorHotels] = useState<string[]>([])
+  const [selectedRankCompetitorHotels, setSelectedRankCompetitorHotels] = useState<{ id: number; name: string }[]>([]);
+
   const [rankCompetitorSearchTerm, setRankCompetitorSearchTerm] = useState("")
   const rankCompetitorDropdownRef = useRef<HTMLDivElement>(null)
   const rankChannelDropdownRef = useRef<HTMLDivElement>(null)
@@ -128,7 +129,7 @@ export default function AlertsSettingsPage() {
 
   const [parity, setParity] = useState<{
     selectedOption: number; // 1, 2, 3...
-    alertOn: Record<number, string | number>;
+    alertOn: Record<number, string>;
     parityScoreValues: Record<number, number | "">; // Number inputs
     parityScoreBy: Record<number, "" | "Percentage" | "Absolute">;
     parityThresholdValue: Record<number, number | "">;
@@ -156,6 +157,8 @@ export default function AlertsSettingsPage() {
 
 
   const handleOptionSelect = (option: number, objAlertFilter?: any) => {
+    
+
     if (!selectedProperty) return
     setParity((prev) => {
       if (prev.selectedOption === option) return prev;
@@ -187,11 +190,9 @@ export default function AlertsSettingsPage() {
       // OPTION 2 - Increases/Decreases
       if (option === 2) {
         // newState.alertOn = { ...prev.alertOn, [2]: objAlertFilter?.AlertOn ?? prev.alertOn[2] ?? "" };
-        newState.alertOn = {
-          ...prev.alertOn,
-          [2]: objAlertFilter?.AlertOn != null ? objAlertFilter.AlertOn : "",
-        };
-        // newState.parityScoreValues = { ...prev.parityScoreValues, [2]: objAlertFilter?.ThresholdValue ?? prev.parityScoreValues[2] ?? "" };
+        //newState.alertOn = { ...prev.alertOn, [2]: objAlertFilter?.AlertOn || prev.alertOn[2] || "" };
+        newState.alertOn = { ...prev.alertOn, [2]: objAlertFilter?.AlertOn ?? prev.alertOn[2] ?? "" };
+
         newState.parityScoreValues = {
           ...prev.parityScoreValues,
           [2]: objAlertFilter?.ThresholdValue != null ? Number(objAlertFilter.ThresholdValue) : "",
@@ -209,10 +210,8 @@ export default function AlertsSettingsPage() {
 
       // OPTION 3 - Falls Below / Rises Above
       if (option === 3) {
-        newState.alertOn = {
-          ...prev.alertOn,
-          [3]: objAlertFilter?.AlertOn || prev.alertOn[3] || ""
-        };
+        newState.alertOn = { ...prev.alertOn, [3]: objAlertFilter?.AlertOn ?? prev.alertOn[3] ?? "" };
+
         // When updating parityThresholdValue
         newState.parityThresholdValue = {
           ...prev.parityThresholdValue,
@@ -374,14 +373,27 @@ export default function AlertsSettingsPage() {
   const handleAddAlertClick = () => {
     // Reset tab state before applying
     setDisabledTabs({ ADR: false, Parity: false, Rank: false });
+    // setParity(prev => ({ ...prev, selectedOption: 1 }));
+    handleCancelAddAlert()
+
     if (!selectedProperty?.sid) return;
 
     setNewAlert({
       sendForEventsHolidays: false,
     });
+
+    setParity({
+      selectedOption: 1,
+      alertOn: { 1: "wins" },
+      parityScoreValues: {},
+      parityScoreBy: {},
+      parityThresholdValue: {},
+      currency1: selectedProperty?.currencySymbol ?? "$",
+    });
     // Open the Add Alert dialog
     setShowAddAlert(true);
     setIsEditMode(false);
+
     // Optional: set default tab to ADR
     setActiveTab("ADR");
   };
@@ -454,7 +466,7 @@ export default function AlertsSettingsPage() {
 
   const fetchAlertData = async () => {
     if (!selectedProperty?.sid) return;
-    
+
     try {
       setIsLoading(true);
       // Fetch channels + compSets in parallel
@@ -690,39 +702,39 @@ export default function AlertsSettingsPage() {
 
 
   // Handle rank competitor hotel selection
-  const handleRankCompetitorHotelToggle = (hotel: string) => {
-    setSelectedRankCompetitorHotels(prev => {
-      let newHotels = [...prev]
+  // const handleRankCompetitorHotelToggle = (hotel: string) => {
+  //   setSelectedRankCompetitorHotels(prev => {
+  //     let newHotels = [...prev]
 
-      if (hotel === 'All Competitor Hotels') {
-        if (newHotels.includes('All Competitor Hotels')) {
-          newHotels = []
-        } else {
-          const allHotelNames = compSetList.map(h => h.name);
-          newHotels = [...allHotelNames, 'All Competitor Hotels'];
-          //newHotels = [...compSets]
-        }
-      } else {
-        if (newHotels.includes(hotel)) {
-          newHotels = newHotels.filter(h => h !== hotel)
-          newHotels = newHotels.filter(h => h !== 'All Competitor Hotels')
-        } else {
-          newHotels.push(hotel)
+  //     if (hotel === 'All Competitor Hotels') {
+  //       if (newHotels.includes('All Competitor Hotels')) {
+  //         newHotels = []
+  //       } else {
+  //         const allHotelNames = compSetList.map(h => h.name);
+  //         newHotels = [...allHotelNames, 'All Competitor Hotels'];
+  //         //newHotels = [...compSets]
+  //       }
+  //     } else {
+  //       if (newHotels.includes(hotel)) {
+  //         newHotels = newHotels.filter(h => h !== hotel)
+  //         newHotels = newHotels.filter(h => h !== 'All Competitor Hotels')
+  //       } else {
+  //         newHotels.push(hotel)
 
-          const individualHotels = compSetList.filter(h => h.name !== 'All Competitor Hotels')
-          const selectedIndividualHotels = newHotels.filter(h => h !== 'All Competitor Hotels')
+  //         const individualHotels = compSetList.filter(h => h.name !== 'All Competitor Hotels')
+  //         const selectedIndividualHotels = newHotels.filter(h => h !== 'All Competitor Hotels')
 
-          if (selectedIndividualHotels.length === individualHotels.length) {
-            if (!newHotels.includes('All Competitor Hotels')) {
-              newHotels.push('All Competitor Hotels')
-            }
-          }
-        }
-      }
+  //         if (selectedIndividualHotels.length === individualHotels.length) {
+  //           if (!newHotels.includes('All Competitor Hotels')) {
+  //             newHotels.push('All Competitor Hotels')
+  //           }
+  //         }
+  //       }
+  //     }
 
-      return newHotels
-    })
-  }
+  //     return newHotels
+  //   })
+  // }
 
   type SortableAlertKeys = keyof Pick<AlertUI, 'type' | 'rule' | 'createdOn' | 'createdBy' | 'status'>;
 
@@ -844,7 +856,7 @@ export default function AlertsSettingsPage() {
 
   const saveAlertAPI = async (alertType: string, alertBody: any) => {
     console.log(alertType, alertBody)
-
+    
     try {
       const responseAlert = await saveAlerts(alertType, alertBody);
       if (responseAlert.status) {
@@ -980,7 +992,7 @@ export default function AlertsSettingsPage() {
       rankAlert.CompID = subscriber?.propertyID;
     }
     else {
-      rankAlert.CompID = selectedRankCompetitorHotels;
+      rankAlert.CompID = selectedRankCompetitorHotels[0].id;
     }
 
     saveAlertAPI("OTARanking", rankAlert);
@@ -990,7 +1002,7 @@ export default function AlertsSettingsPage() {
 
 
   const handleAddAlert = () => {
-
+    
     const isInvalid: boolean = validationMessage(activeTab);
     if (isInvalid) return; // stop execution if validation fails
 
@@ -1029,7 +1041,7 @@ export default function AlertsSettingsPage() {
       }
     }
     if (currentTabs === "Parity") {
-      
+
       const option = parity.selectedOption;
       if (option === 1) {
         const alertOnValue = parity.alertOn?.[0];
@@ -1119,8 +1131,11 @@ export default function AlertsSettingsPage() {
 
 
   const handleEditAlert = (alertBody: any) => {
-
+    
     if (!selectedProperty?.sid || !alertBody?.type) return;
+
+    const isInvalid: boolean = validationMessage(activeTab);
+    if (isInvalid) return; // stop execution if validation fails
 
     const objAlertFilter = alertsIds.find(x => x.AlertId === alertBody.AlertID);
     if (!objAlertFilter) return;
@@ -1160,9 +1175,8 @@ export default function AlertsSettingsPage() {
     else if (alertBody.type === "Parity") {
       setActiveTab("Parity");
       setDisabledTabs({ ADR: true, Parity: false, Rank: true });
-
+      setParity(prev => ({ ...prev, selectedOption: 1 }));
       const selectedOption = objAlertFilter.SelectedOption ?? 1;
-
 
       // Handle Channel selection for Option 1
       if (selectedOption === 1) {
@@ -1171,57 +1185,77 @@ export default function AlertsSettingsPage() {
 
         setAllSelected(allChannelsSelected);
         setSelectedChannels(
-          allChannelsSelected ? channels.map(ch => ch.cid) : objAlertFilter.ChannelList || []
+          allChannelsSelected ? channels.map((ch) => ch.cid) : objAlertFilter.ChannelList || []
         );
 
         setChannelSearchTerm("");
+      } else {
+        setSelectedChannels([]);
+        setAllSelected(false);
       }
 
-      // Compute initial values for this option
-      // const isPercentage = objAlertFilter.IsPercentage ?? false;
-      // const thresholdValue = objAlertFilter.ThresholdValue ?? 0;
-      // Update Parity state
+      // Initialize parity state
       setParity(prev => {
-        const newState = { ...prev, selectedOption: selectedOption };
+        const selectedOption = objAlertFilter.SelectedOption ?? 1;
 
-        if (selectedOption === 1) {
-          newState.alertOn[1] = objAlertFilter.AlertOn || "wins";
-        }
-        else if (selectedOption === 2) {
+        // Keep previous state, but ensure all keys are defined
+        const newState = {
+          selectedOption,
+          alertOn: {
+            1: objAlertFilter?.SelectedOption === 1 ? objAlertFilter.AlertOn ?? "wins" : prev.alertOn[1] ?? "wins",
+            2: objAlertFilter?.SelectedOption === 2 ? objAlertFilter.AlertOn ?? "Increases" : prev.alertOn[2] ?? "Increases",
+            3: objAlertFilter?.SelectedOption === 3 ? objAlertFilter.AlertOn ?? "Falls Below" : prev.alertOn[3] ?? "Falls Below",
+          },
+          parityScoreValues: {
+            2: selectedOption === 2 ? objAlertFilter.ThresholdValue ?? 0 : prev.parityScoreValues[2] ?? 0,
+          },
+          parityScoreBy: {
+            2: selectedOption === 2
+              ? objAlertFilter.IsPercentage
+                ? "Percentage"
+                : "Absolute"
+              : prev.parityScoreBy[2] ?? "Absolute",
+          },
+          parityThresholdValue: {
+            3: selectedOption === 3 ? objAlertFilter.ThresholdValue ?? 0 : prev.parityThresholdValue[3] ?? 0,
+          },
+          currency1: selectedProperty?.currencySymbol ?? "$",
+        };
 
-          newState.alertOn[2] = objAlertFilter.AlertOn || "wins";
-          newState.parityScoreValues[2] = objAlertFilter.ThresholdValue ?? 0;
-          newState.parityScoreBy[2] = objAlertFilter.IsPercentage ? "Percentage" : "Absolute";
-        }
-        else if (selectedOption === 3) {
-          newState.alertOn[3] = objAlertFilter.AlertOn || "wins";
-          newState.parityThresholdValue[3] = objAlertFilter.ThresholdValue ?? 0;
-        }
         return newState;
       });
 
     }
 
+
     // === RANK ALERT ===
     else if (alertBody.type === "OTA Ranking") {
       setActiveTab("Rank");
       setDisabledTabs({ ADR: true, Parity: true, Rank: false });
-
+      
       setRank(prev => ({
         ...prev,
         alertOn: objAlertFilter.AlertOn || "Subscriber",
         compset: objAlertFilter.CompID || "",
         alertRule: objAlertFilter.AlertRule || "Increased",
         rankChannel: objAlertFilter.Channel != null ? String(objAlertFilter.Channel) : "", // convert to string
-        thresholdValue: objAlertFilter.ThresholdValue ?? 0,
+        rankThresholdValue: objAlertFilter.ThresholdValue ?? 0,
       }));
 
 
       // Bind competitor (Rank)
       if (objAlertFilter.CompID) {
-        const comp = compSetHotels.find(c => c.hmid === objAlertFilter.CompID);
-        if (comp) setSelectedRankCompetitorHotels([comp.name]);
+        const comp = compSetList.find(c => String(c.hmid) === String(objAlertFilter.CompID));
+        if (comp) {
+          setSelectedRankCompetitorHotels([{ id: Number(comp.hmid), name: comp.name }]);
+          setRank(prev => ({
+            ...prev,
+            compset: comp.hmid,
+          }));
+        }
       }
+
+
     }
 
     // === Common alert-level values ===
@@ -2148,25 +2182,31 @@ export default function AlertsSettingsPage() {
                         <Label className="block text-sm font-medium text-gray-700 mb-3 mt-3">Alert me when Parity Score</Label>
 
                         <RadioGroup
-                          value={(parity.alertOn[parity.selectedOption] ?? "").toString()}
-                          onValueChange={(value) =>
+                          value={(parity.alertOn[parity.selectedOption] ?? "Increases").toString()} // fallback default
+                          onValueChange={(value) => {
                             setParity((prev) => ({
                               ...prev,
-                              alertOn: { ...prev.alertOn, [prev.selectedOption]: value }
-                            }))
-                          }
+                              alertOn: { ...prev.alertOn, [prev.selectedOption]: value },
+                            }));
+                          }}
                           className="flex gap-6"
                           disabled={parity.selectedOption !== 2}
                         >
                           <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="Increases" id="increases" />
-                            <Label htmlFor="increases" className="text-sm font-normal">Increases</Label>
+                            <RadioGroupItem value="Increased" id="increases" />
+                            <Label htmlFor="increases" className="text-sm font-normal">
+                              Increases
+                            </Label>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="Decreases" id="decreases" />
-                            <Label htmlFor="decreases" className="text-sm font-normal">Decreases</Label>
+                            <RadioGroupItem value="Decreased" id="decreases" />
+                            <Label htmlFor="decreases" className="text-sm font-normal">
+                              Decreases
+                            </Label>
                           </div>
                         </RadioGroup>
+
+
                         <Label className="block text-sm font-medium text-gray-700 mb-3 mt-3 pt-4">By (applicable for all channels)</Label>
                         <RadioGroup
                           value={parity.selectedOption === 2 ? parity.parityScoreBy[2] : undefined}
@@ -2267,21 +2307,22 @@ export default function AlertsSettingsPage() {
                         <Label className="block text-sm font-medium text-gray-700 mb-3 mt-3">Alert me when Parity Score</Label>
                         <RadioGroup
                           value={(parity.alertOn[parity.selectedOption] ?? "").toString()}
-                          onValueChange={(value) =>
+                          onValueChange={(value) => {
+                           // console.log("Selected value:", parity.alertOn[parity.selectedOption]); // prints selected value                         
                             setParity((prev) => ({
                               ...prev,
                               alertOn: { ...prev.alertOn, [prev.selectedOption]: value }
                             }))
-                          }
+                          }}
                           className="flex gap-6"
                           disabled={parity.selectedOption !== 3}
                         >
                           <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="Falls Below" id="falls-below" />
+                            <RadioGroupItem value="Falls below" id="falls-below" />
                             <Label htmlFor="falls-below" className="text-sm font-normal">Falls Below</Label>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="Rises Above" id="rises-above" />
+                            <RadioGroupItem value="Rises above" id="rises-above" />
                             <Label htmlFor="rises-above" className="text-sm font-normal">Rises Above</Label>
                           </div>
                         </RadioGroup>
@@ -2348,7 +2389,7 @@ export default function AlertsSettingsPage() {
                             className="flex items-center space-x-2 text-sm font-normal cursor-pointer"
                             onClick={() => setIsRankCompetitorDropdownOpen(!isRankCompetitorDropdownOpen)}
                           >
-                            <span> {selectedRankCompetitorHotels[0] || "Competitor OTA Ranking"}</span>
+                            <span> {selectedRankCompetitorHotels[0]?.name || "Competitor OTA Ranking"}</span>
                             <ChevronDown className="w-5 h-5 text-gray-600" />
                           </Label>
 
@@ -2375,11 +2416,19 @@ export default function AlertsSettingsPage() {
                                   <div
                                     key={hotel.hmid}
                                     onClick={() => {
-                                      setSelectedRankCompetitorHotels([hotel.name]); // single selection
-                                      setIsRankCompetitorDropdownOpen(false); // close dropdown
+                                      setSelectedRankCompetitorHotels([{ id: Number(hotel.hmid), name: hotel.name }]); // store both
+                                      setRank(prev => ({
+                                        ...prev,
+                                        compset: hotel.hmid, // store selected id
+                                      }));
+                                      setIsRankCompetitorDropdownOpen(false);
                                     }}
-                                    className={`px-3 py-2 cursor-pointer hover:bg-gray-50 text-sm text-gray-900 truncate ${selectedRankCompetitorHotels.includes(hotel.name) ? "bg-gray-100 font-medium" : ""
+
+                                    className={`px-3 py-2 cursor-pointer hover:bg-gray-50 text-sm text-gray-900 truncate ${selectedRankCompetitorHotels.some(selected => selected.id === hotel.hmid)
+                                      ? "bg-gray-100 font-medium"
+                                      : ""
                                       }`}
+
                                     title={hotel.name}
                                   >
                                     {hotel.name.length > 32 ? `${hotel.name.substring(0, 32)}...` : hotel.name}

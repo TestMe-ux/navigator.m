@@ -18,7 +18,13 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T)
         const item = window.localStorage.getItem(key)
         if (item && item !== 'undefined' && item !== 'null') {
           try {
-            setStoredValue(JSON.parse(item))
+            const valeParse=JSON.parse(item);
+            if(typeof valeParse === "string"){
+              setStoredValue(JSON.parse(valeParse))
+            }
+            else{
+              setStoredValue(valeParse)
+            }
           } catch (parseError) {
             console.warn(`Invalid JSON in localStorage key "${key}", clearing it:`, parseError)
             // Clear corrupted data
@@ -88,7 +94,7 @@ type SelectedProperty = {
   name?: string;
   odRestrictionDays?: number;
   optimaTrialStatus?: number;
-  pghEndDate?: string| Date; // ISO date string
+  pghEndDate?: string | Date; // ISO date string
   pghStartDate?: string; // ISO date string
   roleID?: number;
   sid?: number;
@@ -120,5 +126,12 @@ export function useSelectedProperty(): [SelectedProperty, (value: SelectedProper
 
 export function useUserDetail(): [UserDetails, (value: UserDetails) => void] {
   return useLocalStorage<UserDetails>('UserDetails', null)
+}
+
+export function useAllProperty(): [SelectedProperty[], (value: SelectedProperty[]) => void] {
+  return useLocalStorage<SelectedProperty[]>('Properties', [])
+}
+export function usePackageDetails(): [SelectedProperty[], (value: SelectedProperty[]) => void] {
+  return useLocalStorage<SelectedProperty[]>('packageDetails', [])
 }
 

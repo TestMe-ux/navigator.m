@@ -1,6 +1,6 @@
 "use client"
 import React, { useEffect, useMemo, useState } from "react"
-import { BarChart3, Calendar, Star, ChevronLeft, ChevronRight, Zap } from "lucide-react"
+import { BarChart3, Calendar, Star, ChevronLeft, ChevronRight, Zap, Check } from "lucide-react"
 // import { useDateContext } from "@/components/date-context" // Hidden for static data
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { EnhancedTableTooltip } from "./enhanced-table-tooltip"
@@ -8,9 +8,10 @@ import { RateDetailModal } from "./rate-detail-modal"
 import { useScreenSize } from "@/hooks/use-screen-size"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { useComparison } from "../comparison-context"
-import { isSameDay, parseISO, subDays } from "date-fns"
+import { isBefore, isSameDay, parseISO, subDays } from "date-fns"
 import { getInclusionIcon } from "@/lib/inclusion-icons"
 import { CachePage } from "@/lib/rate"
+import { latestShopDateTime } from "@/lib/utils"
 
 interface CalendarDay {
   date: number
@@ -360,7 +361,6 @@ export function RateTrendsTable({
 
       const compareRate = compData?.rate ? parseFloat(compData.rate) : 0;
       const compareStatus = compData?.status
-      debugger;
       const demandIndex = demandData?.optimaDemand.find((re: any) =>
         isSameDay(
           parseISO(re.checkinDate),
@@ -384,7 +384,7 @@ export function RateTrendsTable({
         isWeekend: checkInDate.getDay() === 5 || checkInDate.getDay() === 6,
         eventInfluence: rateEntry.event?.eventDetails?.length > 0 ? rateEntry.event.eventDetails : undefined,
         confidence: undefined,
-        hasLightningRefresh: false,
+        hasLightningRefresh: !!rateEntry && (rateEntry?.status === 'O' || rateEntry?.status === 'C') ? isBefore(parseISO(latestShopDateTime()), parseISO(rateEntry?.shopDateTime)) : false,
         rateEntry,
         compareRate,
         compareStatus,
@@ -532,7 +532,7 @@ export function RateTrendsTable({
   };
 
   // Show no data state when no live data is available
-  if (!rateData || !transformedData.myProperty || tableData.length === 0) {
+  if (!rateData || !transformedData.myProperty || tableData.length === 0 || Object.keys(rateCompData).length === 0) {
     return (
       <div className="h-[400px] bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 rounded-lg p-8 flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
@@ -580,7 +580,7 @@ export function RateTrendsTable({
               {(() => {
                 const competitorNames = transformedData.competitors.map(comp => comp.propertName);
                 const visibleCompetitors = competitorNames.slice(competitorStartIndex, competitorStartIndex + competitorsPerPage);
-
+                debugger;
                 // Always show exactly competitorsPerPage columns, fill with placeholders if needed
                 const columnsToShow = [];
                 for (let i = 0; i < competitorsPerPage; i++) {
@@ -592,7 +592,7 @@ export function RateTrendsTable({
                 }
 
                 return columnsToShow.map((name, index) => (
-                  <th title={name || ""} key={index} colSpan={3} className={`text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-b border-gray-200 ${index < competitorsPerPage - 1 ? 'border-r border-gray-200' : ''}`}>
+                  <th title={name || ""} key={index} colSpan={3} className={`text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-b border-gray-200 ${name && index < competitorsPerPage - 1 ? 'border-r border-gray-200' : ''}`}>
                     {name ? (name.length > 15 ? `${name.substring(0, 12)}...` : name) : ''}
                   </th>
                 ));
@@ -636,10 +636,10 @@ export function RateTrendsTable({
                     <th className="bg-gray-50 text-left py-1.5 pl-2 font-medium text-[10px] text-muted-foreground whitespace-nowrap" style={{ width: rateColumnWidth, minWidth: rateColumnWidth, maxWidth: rateColumnWidth }}>
                       {name ? `Rate (\u200E ${selectedProperty?.currencySymbol ?? "$"}\u200E)` : ''}
                     </th>
-                    <th className={`text-left py-1.5 pl-3 font-semibold text-xs text-muted-foreground ${name && compIndex < competitorsPerPage - 1 ? 'border-r border-gray-200' : ''}`} style={{ width: '10px' }}>
+                    <th className={`text-left py-1.5 pl-3 font-semibold text-xs text-muted-foreground ${name ? 'border-r border-gray-200' : ''}`} style={{ width: '10px' }}>
 
                     </th>
-                    <th className={`text-center py-1.5 px-0.5 font-medium text-[10px] text-muted-foreground ${name && compIndex < competitorsPerPage - 1 ? 'border-r border-gray-200' : ''}`} style={{ width: '24px' }}>
+                    <th className={`text-center py-1.5 px-0.5 font-medium text-[10px] text-muted-foreground ${name && compIndex < competitorsPerPage ? 'border-r border-gray-200' : ''}`} style={{ width: '24px' }}>
                       {name ? 'Rank' : ''}
                     </th>
                   </React.Fragment>
@@ -685,7 +685,7 @@ export function RateTrendsTable({
                   variance: compVariance,
                   compareRate: compCompareRate,
                   compareStatus: compCompData?.status,
-
+                  hasLightningRefresh: !!compRateEntry && (compRateEntry?.status === 'O' || compRateEntry?.status === 'C') ? isBefore(parseISO(latestShopDateTime()), parseISO(compRateEntry?.shopDateTime)) : false,
                 };
               });
 
@@ -706,7 +706,7 @@ export function RateTrendsTable({
               // Sort allRates in ascending order (lowest rate = highest rank)
               const sortedRates = [...new Set(allRates)].sort((a, b) => a - b);
               console.log("sortedRates:" + rateEntry.checkInDateTime, sortedRates)// use Set to remove duplicates
-              const subscriberRank = sortedRates.indexOf(hotelLowestRate) + 1
+              const subscriberRank = rateEntry?.status === "O" ? sortedRates.indexOf(hotelLowestRate) + 1 : "--";
               // Calculate dynamic width for subscriber rate
               const subscriberRateWidth = calculateRateColumnWidth(hotelLowestRate);
 
@@ -880,7 +880,9 @@ export function RateTrendsTable({
                                 <div className="flex items-center" style={{ gap: '8px' }}>
                                   <div className="w-1.5 h-1.5 bg-green-500 rounded-full" style={{ marginLeft: '2px' }}></div>
                                   {row.hasLightningRefresh && (
-                                    <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                    <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                      <Check className="w-2 h-2 text-white stroke-4" />
+                                    </div>
                                   )}
                                 </div>
                               );
@@ -889,14 +891,18 @@ export function RateTrendsTable({
                                 <div className="flex items-center" style={{ gap: '8px' }}>
                                   <div className="w-1.5 h-1.5 bg-red-500 rounded-full" style={{ marginLeft: '2px' }}></div>
                                   {row.hasLightningRefresh && (
-                                    <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                    <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                      <Check className="w-2 h-2 text-white stroke-4" />
+                                    </div>
                                   )}
                                 </div>
                               );
                             }
                           }
                           return row.hasLightningRefresh ? (
-                            <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                            <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                              <Check className="w-2 h-2 text-white stroke-4" />
+                            </div>
                           ) : null;
                         })()}
                       </div>
@@ -998,8 +1004,10 @@ export function RateTrendsTable({
                                       return (
                                         <div className="flex items-center" style={{ gap: '8px' }}>
                                           <div className="w-1.5 h-1.5 bg-green-500 rounded-full" style={{ marginLeft: '2px' }}></div>
-                                          {row.hasLightningRefresh && (
-                                            <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                          {competitor.hasLightningRefresh && (
+                                            <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                              <Check className="w-2 h-2 text-white stroke-4" />
+                                            </div>
                                           )}
                                         </div>
                                       );
@@ -1007,15 +1015,19 @@ export function RateTrendsTable({
                                       return (
                                         <div className="flex items-center" style={{ gap: '8px' }}>
                                           <div className="w-1.5 h-1.5 bg-red-500 rounded-full" style={{ marginLeft: '2px' }}></div>
-                                          {row.hasLightningRefresh && (
-                                            <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                          {competitor.hasLightningRefresh && (
+                                            <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                              <Check className="w-2 h-2 text-white stroke-4" />
+                                            </div>
                                           )}
                                         </div>
                                       );
                                     }
                                   }
-                                  return row.hasLightningRefresh ? (
-                                    <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                  return competitor.hasLightningRefresh ? (
+                                    <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                      <Check className="w-2 h-2 text-white stroke-4" />
+                                    </div>
                                   ) : null;
                                 })()}
                               </div>

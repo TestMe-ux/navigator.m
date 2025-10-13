@@ -1,7 +1,7 @@
 export interface RTRRRequestModel {
     SID: number;
     ContactId: string;
-    FirstCheckInDate: Date;
+    FirstCheckInDate: string;
     DaysOfData: number;
     LOS: number;
     Occupancy: number;

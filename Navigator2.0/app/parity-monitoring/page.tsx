@@ -1143,7 +1143,7 @@ function ParityMonitoringContent() {
                               {/* Header with Icon and Name */}
                               <div className="flex items-center gap-3 mb-6">
                                 <div
-                                  className={`w-7 h-7 rounded-md flex items-center justify-center text-white font-bold text-xs bg-${channel.color} shadow-sm`}
+                                  className={`w-7 h-7 rounded-md flex items-center justify-center text-white font-bold text-xs shadow-sm`}
                                 >
                                   {/* Check if channelIcon is a URL (starts with http) */}
                                   {channel.channelIcon && channel.channelIcon.startsWith('http') ? (

@@ -11,11 +11,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { TrendingUp, Filter, Download, ChevronDown, Eye, EyeOff, ArrowUp, ArrowDown, Minus, BarChart3, Star, Maximize2, Calendar, Zap, Check } from "lucide-react"
 // import { useDateContext } from "@/components/date-context" // Hidden for static data
-import { format, eachDayOfInterval, differenceInDays, isSameDay, parseISO, subDays } from "date-fns"
+import { format, eachDayOfInterval, differenceInDays, isSameDay, parseISO, subDays, isBefore } from "date-fns"
 import { Tooltip as RechartsTooltip } from "recharts"
 // import { LocalStorageService } from "@/lib/localstorage" // Removed - using static data only
 import { toPng } from "html-to-image";
-import { escapeCSVValue } from "@/lib/utils"
+import { escapeCSVValue, latestShopDateTime } from "@/lib/utils"
 import { getInclusionIcon } from "@/lib/inclusion-icons"
 import { RateDetailModal } from "./rate-detail-modal"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
@@ -43,7 +43,7 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate, digitCount = 
   }
   if (active && payload && payload.length) {
     const data = payload[0]?.payload
-
+    debugger;
     // Check if any rate has more than 4 digits
     const ratesLength =
       payload.find((entry: any) => entry?.value != null && entry.value !== '')?.value
@@ -197,6 +197,7 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate, digitCount = 
               const compareavgCompsetStatus = isAvgCompset ? data.compareavgCompsetStatus : "";
               const compareRate = isMyHotel ? data.compareRate : data[`compare${competitorKey}`];
 
+
               // Get inclusion data for current period
               const inclusionKey = `${competitorKey}_inclusion`;
               const inclusionData = data[inclusionKey];
@@ -252,24 +253,16 @@ const RTRateTrendsTooltip = ({ active, payload, label, coordinate, digitCount = 
                     }`}>
                     {/* Show different icons based on date for specific competitors */}
                     {(() => {
-                      const date = new Date(data.date)
-                      const dayOfMonth = date.getDate()
-                      const month = date.getMonth() + 1 // getMonth() returns 0-11, so add 1
-                      // Show icons only for specific competitors (index 0, 2, 4) on Jan 2, 3 and 4
-                      const shouldShowIcon = month === 1 && (dayOfMonth === 2 || dayOfMonth === 3 || dayOfMonth === 4) && (index === 0 || index === 2 || index === 4)
+                      const hasLightningRefresh = isMyHotel ? data.hasLightningRefresh : data[`${competitorKey}_hasLightningRefresh`];
+                      if (!hasLightningRefresh) return null
 
-                      if (!shouldShowIcon) return null
-
-                      if (dayOfMonth === 2) {
+                      if (hasLightningRefresh) {
                         // Jan 2: Green tick icon with white checkmark
                         return (
                           <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center mr-2">
                             <Check className="w-2 h-2 text-white stroke-4" />
                           </div>
                         )
-                      } else {
-                        // Jan 3, 4: Blue bolt icon
-                        return <Zap className="w-3 h-3 text-blue-500 fill-current mr-2" />
                       }
                     })()}
                     <span className="text-sm font-bold">
@@ -445,6 +438,7 @@ const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataRes
         // Direct/Subscriber property
         dateData.directStatus = rateEntry.status === null ? rateEntry.rate : rateEntry.status
         dateData.direct = rate
+        dateData.hasLightningRefresh = !!rateEntry && (rateEntry?.status === 'O' || rateEntry?.status === 'C') ? isBefore(parseISO(latestShopDateTime()), parseISO(rateEntry?.shopDateTime)) : false;
         dateData.directInclusion = rateEntry.inclusion || ""
         dateData.compareRate = compData?.rate ? parseFloat(compData.rate) : 0
         dateData.compareStatus = compData?.status === null ? compData.rate : compData?.status
@@ -460,6 +454,7 @@ const transformRateData = (rateData: RateDataResponse, rateCompData: RateDataRes
         const competitorKey = `competitor_${entity.propertyID}`
         dateData[`${competitorKey}_Status`] = rateEntry.status === null ? rateEntry.rate : rateEntry.status
         dateData[competitorKey] = rate
+        dateData[`${competitorKey}_hasLightningRefresh`] = !!rateEntry && (rateEntry?.status === 'O' || rateEntry?.status === 'C') ? isBefore(parseISO(latestShopDateTime()), parseISO(rateEntry?.shopDateTime)) : false;
         dateData[`${competitorKey}_name`] = entity.propertName
         dateData[`${competitorKey}_inclusion`] = rateEntry.inclusion || ""
         dateData[`compare${competitorKey}`] = compData?.rate ? parseFloat(compData.rate) : 0
@@ -660,13 +655,19 @@ const formatYAxis = (value: string | number): string => {
  * @version 2.0.0
  */
 export function RTRateTrendsChart({ rateData, digitCount = 4, rateCompData }: any) {
-  const { startDate, endDate, isLoading } = useDateContext()
-
   const [selectedProperty] = useSelectedProperty();
-
-  const { selectedComparison } = useComparison()
-
-  // Generate sample channel configs for demonstration
+  const { selectedComparison } = useComparison();
+  const [legendVisibility, setLegendVisibility] = useState<Record<string, boolean>>({})
+  const [channelVisibility, setChannelVisibility] = useState<Record<string, boolean>>({})
+  const [isInitialized, setIsInitialized] = useState<boolean>(false)
+  // Tab state
+  const [activeTab, setActiveTab] = useState<string>('chart')
+  // Modal state for rate detail popup
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedDateForModal, setSelectedDateForModal] = useState<Date | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string>('')
+  const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+const cardRef = useRef<HTMLDivElement>(null);
   // Generate channel configs based on actual data
   const channelConfigs = useMemo(() => {
     if (!rateData || !rateCompData) []
@@ -675,65 +676,9 @@ export function RTRateTrendsChart({ rateData, digitCount = 4, rateCompData }: an
   }, [rateData, rateCompData])
 
   // State management
-  const [errorMessage, setErrorMessage] = useState<string>('')
-  const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Helper function to set error message with proper timeout management
-  const setErrorWithTimeout = useCallback((message: string, duration: number = 10000) => {
-    // Clear any existing timeout
-    if (errorTimeoutRef.current) {
-      clearTimeout(errorTimeoutRef.current)
-    }
 
-    // Set the error message
-    setErrorMessage(message)
 
-    // Set new timeout
-    errorTimeoutRef.current = setTimeout(() => {
-      setErrorMessage('')
-      errorTimeoutRef.current = null
-    }, duration)
-  }, [])
-
-  // Helper function to clear error message immediately
-  const clearError = useCallback(() => {
-    if (errorTimeoutRef.current) {
-      clearTimeout(errorTimeoutRef.current)
-      errorTimeoutRef.current = null
-    }
-    setErrorMessage('')
-  }, [])
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (errorTimeoutRef.current) {
-        clearTimeout(errorTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  // Debug error message changes
-  React.useEffect(() => {
-    if (errorMessage) {
-      console.log('📢 Error message set:', errorMessage)
-    } else {
-      console.log('✅ Error message cleared')
-    }
-  }, [errorMessage])
-
-  const [legendVisibility, setLegendVisibility] = useState<Record<string, boolean>>({})
-
-  const [channelVisibility, setChannelVisibility] = useState<Record<string, boolean>>({})
-
-  const [isInitialized, setIsInitialized] = useState<boolean>(false)
-
-  // Tab state
-  const [activeTab, setActiveTab] = useState<string>('chart')
-
-  // Modal state for rate detail popup
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [selectedDateForModal, setSelectedDateForModal] = useState<Date | null>(null)
 
   // Modal handler functions
   const openModal = useCallback((date: Date) => {
@@ -758,10 +703,6 @@ export function RTRateTrendsChart({ rateData, digitCount = 4, rateCompData }: an
     setSelectedDateForModal(newDate)
   }, [selectedDateForModal])
 
-  // Generate sample data dynamically based on date range
-
-  // Generate sample data for demonstration (fallback for 7 days)
-
   // Use static data only - similar to table and calendar views
   const data = useMemo(() => {
     // Transform actual rate data to chart format
@@ -772,6 +713,24 @@ export function RTRateTrendsChart({ rateData, digitCount = 4, rateCompData }: an
   }, [rateData, rateCompData])
 
   // Initialize visibility states when channel configs change
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  // Debug error message changes
+  useEffect(() => {
+    if (errorMessage) {
+      console.log('📢 Error message set:', errorMessage)
+    } else {
+      console.log('✅ Error message cleared')
+    }
+  }, [errorMessage])
+
   useEffect(() => {
     if (channelConfigs.length > 0 && !isInitialized) {
       const initialLegendVisibility: Record<string, boolean> = {}
@@ -861,34 +820,6 @@ export function RTRateTrendsChart({ rateData, digitCount = 4, rateCompData }: an
     allSelectedChannels.slice(10),
     [allSelectedChannels]
   )
-
-  // Clean up legend states only for hotels that are completely deselected
-  // useEffect(() => {
-  //   if (!allSelectedChannels || allSelectedChannels.length === 0) return
-  //   const allSelectedKeys = allSelectedChannels.map(channel => channel?.key).filter(Boolean)
-
-
-  //   setLegendVisibility(prev => {
-  //     const updated = { ...prev }
-  //     let needsUpdate = false
-
-  //     // Only clean up legend states for hotels that are completely deselected from dropdown
-  //     for (const key in updated) {
-  //       if (!allSelectedKeys.includes(key as any) && updated[key] === true) {
-
-  //         updated[key] = false
-  //         needsUpdate = true
-  //       }
-  //     }
-
-  //     return needsUpdate ? updated : prev
-  //   })
-  // }, [allSelectedChannels])
-
-  // Note: Error messages are managed by timeout only. Auto-clearing removed to prevent immediate dismissal.
-
-  // Toggle channel visibility - allow all selections, but limit chart visibility to first 8
-
   // Toggle channel visibility - no limit, dropdown selection should always work
   const toggleChannelVisibility = useCallback((channelKey: string) => {
     // Update channel visibility first
@@ -991,19 +922,8 @@ export function RTRateTrendsChart({ rateData, digitCount = 4, rateCompData }: an
   // Check if we have data
   const hasData = data.length > 0 && channelConfigs.length > 0
 
-  // Show loading state when date range is changing
-  if (isLoading) {
-    return (
-      <div className="bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 rounded-lg p-8">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
-          <p className="text-slate-600 dark:text-slate-400">Loading chart data...</p>
-        </div>
-      </div>
-    )
-  }
-
-  const cardRef = useRef<HTMLDivElement>(null);
+ 
+  
   const handleDownloadImageRate = () => {
     console.log("Downloading chart image with static data", data);
     if (cardRef.current) {

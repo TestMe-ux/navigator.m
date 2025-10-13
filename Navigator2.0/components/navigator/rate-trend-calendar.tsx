@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Activity, Calendar, DollarSign, Star, Percent, ArrowUp, ArrowDown, Download, Wifi, Utensils, Coffee, Car, Dumbbell, BarChart3, Zap } from "lucide-react"
+import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Activity, Calendar, DollarSign, Star, Percent, ArrowUp, ArrowDown, Download, Wifi, Utensils, Coffee, Car, Dumbbell, BarChart3, Zap, Check } from "lucide-react"
 import { RateTrendGraph } from "./rate-trend-graph"
 import { RTRateTrendsChart } from "./rt-rate-trends-chart"
 import { RateDetailModal } from "./rate-detail-modal"
@@ -12,10 +12,11 @@ import { useDateContext } from "@/components/date-context"
 import { useComparison } from "@/components/comparison-context"
 import React, { useState, useEffect, useMemo, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { format, isSameDay, parseISO, subDays } from "date-fns"
+import { format, isBefore, isSameDay, parseISO, subDays } from "date-fns"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { getInclusionIcon } from "@/lib/inclusion-icons"
 import { useResponsiveWidth } from "@/hooks/use-navigation-state"
+import { latestShopDateTime } from "@/lib/utils"
 
 
 
@@ -67,7 +68,8 @@ interface CompetitorRate {
   abbreviation?: string
   inclusion?: string
   channelName?: string
-  rateEntry?: any
+  rateEntry?: any,
+  hasLightningRefresh?: boolean
 }
 
 interface CompetitorData {
@@ -111,7 +113,6 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
       const compRateEntry = comp.subscriberPropertyRate?.find((rate: any) => {
         return isSameDay(parseISO(rate.checkInDateTime), dayDate)
       })
-
       // Get comparison data for this competitor rate entry
       const compCompData = compEntities
         ?.filter((ce: any) => ce.propertyID === compRateEntry?.propertyID)[0]
@@ -131,14 +132,15 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
       const rateDifference = rateValue && compareRate && compRateEntry?.status === 'O' && compareStatus === 'O'
         ? rateValue - compareRate
         : 0;
-
+      const hasLightningRefresh = !!compRateEntry && (compRateEntry?.status === 'O' || compRateEntry?.status === 'C') ? isBefore((latestShopDateTime()), parseISO(compRateEntry?.shopDateTime)) : false;
+      if (!!compRateEntry) console.log("Data dhsjdg" + day + comp.propertName, latestShopDateTime(), compRateEntry?.shopDateTime)
       return {
         hotelName: comp.propertName,
         rate: compRateEntry?.status === 'O' ? `${rateValue.toLocaleString('en-US')}` : compRateEntry?.status === 'C' ? 'Sold Out' : '--',
         rateValue,
         difference: rateDifference !== 0
           ? `${rateDifference > 0 ? '+' : ''}${rateDifference}`
-          : compRateEntry?.status === 'C' ? '' : '--',
+          : compRateEntry?.status === 'C' ? '' : compRateEntry?.status === 'O' && compareStatus === 'O' ? rateDifference.toString() : '--',
         isLowest: false, // Will be set later
         isHighest: false, // Will be set later
         hasInclusion: !!compRateEntry?.inclusion,
@@ -149,6 +151,7 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
         abbreviation: compRateEntry?.abbreviation || '',
         inclusion: compRateEntry?.inclusion || '',
         channelName: compRateEntry?.channelName || '',
+        hasLightningRefresh: hasLightningRefresh,
         rateEntry: compRateEntry // Store original rate entry for full data access
       }
     })
@@ -180,7 +183,7 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
       rateValue: myRateValue,
       difference: myRateDifference !== 0
         ? `${myRateDifference > 0 ? '+' : ''}${myRateDifference}`
-        : '--',
+        : myRateEntry?.status === 'C' ? '' : myRateEntry?.status === 'O' && myCompareStatus === 'O' ? myRateDifference.toString() : '--',
       isLowest: false, // Will be set later
       isHighest: false, // Will be set later
       hasInclusion: !!myRateEntry?.inclusion,
@@ -193,7 +196,6 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
       channelName: myRateEntry?.channelName || '',
       rateEntry: myRateEntry // Store original rate entry for full data access
     }]
-
     // Find lowest and highest rates (only among open rates)
     const openRates = allRates.filter(r => r.rateValue > 0)
     if (openRates.length > 0) {
@@ -238,7 +240,7 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
 
     return {
       date: day.date,
-      competitors: competitorRates,
+      competitors: competitorRates.sort((x: any, y: any) => x.hotelName.localeCompare(y.hotelName)),
       avgCompsetRate,
       avgCompsetDifference: avgCompsetRateDifference !== 0
         ? `${avgCompsetRateDifference > 0 ? '+' : ''}${avgCompsetRateDifference}`
@@ -428,11 +430,11 @@ const transformLiveDataToCalendarData = (rateData: any, rateCompData: any, start
       const rateDifference = rateValue && compareRate && rateEntry?.status === 'O' && compareStatus === 'O'
         ? rateValue - compareRate
         : 0;
+      const hasLightningRefresh = !!rateEntry && (rateEntry?.status === 'O' || rateEntry?.status === 'C') ? isBefore(parseISO(latestShopDateTime()), parseISO(rateEntry?.shopDateTime)) : false
 
       const comparison = rateDifference !== 0
         ? `${rateDifference > 0 ? '+' : ''}${rateDifference} vs. Comp`
         : '-- vs. Comp'
-
       let dayData: CalendarDay = {
         date,
         month,
@@ -447,7 +449,7 @@ const transformLiveDataToCalendarData = (rateData: any, rateCompData: any, start
         hotelLowestRate: rateValue,
         rateDifference: rateDifference !== 0
           ? `${rateDifference > 0 ? '+' : ''}${rateDifference}`
-          : '--',
+          : rateEntry?.status === 'O' && compareStatus === 'O' ? rateDifference.toString() : '--',
         roomType: rateEntry?.productName || "",
         hasInclusion: !!rateEntry?.inclusion,
         inclusionIcon: rateEntry?.inclusion || "",
@@ -464,7 +466,7 @@ const transformLiveDataToCalendarData = (rateData: any, rateCompData: any, start
         hasIndicator: currentDate.getDay() === 5 || currentDate.getDay() === 6, // Weekend indicator
         indicatorColor: currentDate.getDay() === 5 || currentDate.getDay() === 6 ? 'bg-red-400' : undefined,
         indicatorType: currentDate.getDay() === 5 || currentDate.getDay() === 6 ? 'square' : 'circle',
-        hasLightningRefresh: false, // Can be enhanced based on actual data
+        hasLightningRefresh: hasLightningRefresh, // Can be enhanced based on actual data
         rateEntry: rateEntry, // Store original rate entry for live data access
         abbreviation: rateEntry?.abbreviation
       }
@@ -667,7 +669,7 @@ function RateTrendCalendarInner({
 
   // Generate calendar data based on live data
   const calendarData = useMemo(() => {
-    if (!rateData || !startDate || !endDate) {
+    if (!rateData || !startDate || !endDate || !rateCompData) {
       return []
     }
 
@@ -723,7 +725,9 @@ function RateTrendCalendarInner({
   // Memoize competitor data to prevent refresh
   const memoizedCompetitorData = useMemo(() => {
     if (!selectedWeekForCompetitors || !rateData || !rateCompData) return []
-    return transformLiveDataToCompetitorData(rateData, rateCompData, selectedWeekForCompetitors, selectedComparison)
+    const transFormData = transformLiveDataToCompetitorData(rateData, rateCompData, selectedWeekForCompetitors, selectedComparison)
+    console.log("transFormData", transFormData)
+    return transFormData
   }, [selectedWeekForCompetitors, rateData, rateCompData, selectedComparison])
 
   // Memoize all competitive data for the entire calendar to prevent constant reloading
@@ -1151,7 +1155,7 @@ function RateTrendCalendarInner({
 
 
   // Show loading state when date range is changing
-  if (isLoading || visibleWeeks.length <= 0) {
+  if (isLoading || visibleWeeks.length <= 0 || Object.keys(rateCompData).length === 0) {
     return (
       <div className="h-[400px] bg-gradient-to-br from-card to-card/50 shadow-xl border border-border/50 rounded-lg p-8 flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
@@ -1241,11 +1245,12 @@ function RateTrendCalendarInner({
                               </div>
                               {/* Lightning refresh icon next to date */}
                               {day.hasLightningRefresh && (
-                                <div className="ml-1">
-                                  <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                  <Check className="w-2 h-2 text-white stroke-4" />
                                 </div>
                               )}
                               {/* Event icon after specific margin */}
+
                               <div className="ml-2 text-xs text-gray-500 dark:text-gray-400">
                                 {day.hasEvent ? day.eventIcon : ''}
                               </div>
@@ -1524,8 +1529,8 @@ function RateTrendCalendarInner({
                                     </div>
                                     {/* Lightning refresh icon next to date */}
                                     {day.hasLightningRefresh && (
-                                      <div className="ml-1">
-                                        <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                      <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                        <Check className="w-2 h-2 text-white stroke-4" />
                                       </div>
                                     )}
                                   </div>
@@ -1541,7 +1546,7 @@ function RateTrendCalendarInner({
                                 {/* Row 2: Hotel Lowest Rate */}
                                 <div className="text-center rounded">
                                   <div className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                                    {day.hotelLowestRate > 0 ? day.hotelLowestRate.toLocaleString('en-US') : ''}
+                                    {day.rateEntry?.status == "O" ? day.hotelLowestRate.toLocaleString('en-US') : day.rateEntry?.status == "C" ? "Sold Out" : '--'}
                                   </div>
                                 </div>
                                 {/* Row 3: Difference vs Last Period */}
@@ -1742,9 +1747,9 @@ function RateTrendCalendarInner({
                                             }`}>
                                             {avgDiff}
                                           </span>
-                                          {Math.random() > 0.5 && (
+                                          {/* {avgDiff?.hasLightningRefresh && (
                                             <Zap className="w-3 h-3 text-blue-500 fill-current" />
-                                          )}
+                                          )} */}
                                         </div>
                                       </>
                                     ) : null}
@@ -1810,8 +1815,10 @@ function RateTrendCalendarInner({
                                                       }`}>
                                                       {competitor?.difference}
                                                     </span>
-                                                    {Math.random() > 0.6 && (
-                                                      <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                                    {competitor?.hasLightningRefresh && (
+                                                      <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                                        <Check className="w-2 h-2 text-white stroke-4" />
+                                                      </div>
                                                     )}
                                                   </div>
                                                 </div>

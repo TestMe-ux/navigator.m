@@ -22,15 +22,17 @@ import { ComparisonProvider, useComparison } from "@/components/comparison-conte
 import { format, differenceInDays, set } from "date-fns"
 import { getKPIData } from "@/lib/rate-trends-data"
 // import { LocalStorageService } from "@/lib/localstorage" // Removed - using static data only
-import { useLocalStorage, useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
+import { useLocalStorage, usePackageDetails, useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
 import { useScreenSize } from "@/hooks/use-screen-size"
 import { getRateTrends, PPExcelDownload } from "@/lib/rate"
-import { generateRTRRReport, getRTRRReportStatusBySID, getRTRRValidation } from "@/lib/reports"
+import { generateRTRRReport, getAllReports, getCompleteCompSet, getRTRRReportStatusBySID, getRTRRValidation } from "@/lib/reports"
 import { RTRRRequestModel } from "@/lib/RTRRRequestModel"
 import { usePollingContext } from "@/components/polling/polling-context"
 import { useToast } from "@/hooks/use-toast"
 import { GetDemandAIData } from "@/lib/demand"
 import { RateTrendsCoachMarkTrigger } from "@/components/navigator/rate-trends-coach-mark-system"
+import OnDemandReportModal from "@/components/on-demand-report-modal/OnDemandReportModal"
+// import { OnDemandReportModal } from "@/components/on-demand-report-modal"
 
 /**
  * Utility function to format dates consistently across server and client
@@ -85,14 +87,14 @@ const generateKPIData = () => {
  */
 export default function RateTrendPage() {
   const { selectedComparison, channelFilter, compsetFilter, setSideFilter, sideFilter } = useComparison()
-  const [currentView, setCurrentView] = useLocalStorage<"calendar" | "chart" | "table">("rate-trend-view", "table")
+  const [currentView, setCurrentView] = useLocalStorage<"calendar" | "chart" | "table">("rate-trend-view", "calendar")
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false)
   // No isClient state needed for static data
   const [losGuest, setLosGuest] = useState<{ "Los": any[], "Guest": any[] }>({ "Los": [], "Guest": [] });
   const [dataLoading, setDataLoading] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [loadingCycle, setLoadingCycle] = useState(1)
-  const [selectedValue, setSelectedValue] = useState("4,444 (4 digit)")
+  // const [selectedValue, setSelectedValue] = useState("4,444 (4 digit)")
   const [selectedDigitCount, setSelectedDigitCount] = useState(4)
   const { startDate, endDate, isLoading } = useDateContext()
   const [objForExcel, setObjForExcel] = useState<any>({})
@@ -102,14 +104,19 @@ export default function RateTrendPage() {
   // State for competitor scrolling (only for table view)
   const [competitorStartIndex, setCompetitorStartIndex] = useState(0)
   const [selectedProperty] = useSelectedProperty();
+  const [packageDetails] = usePackageDetails()
   const [userDetails] = useUserDetail();
   const [rateData, setRateData] = useState(Object);
-
+  const [isModalOpen, setIsModalOpen] = useState(false)
   // Polling context for task management
   const { startTaskPolling, isTaskPolling, resumePolling } = usePollingContext();
   const [rateCompData, setRateCompData] = useState(Object);
   const [demandData, setDemandData] = useState<any>([])
+  const [reportInProgress, setReportInProgress] = useState<boolean>(true);
   const [competitorCount, setCompetitorCount] = useState(0)
+  const [compsetData, setCompsetData] = useState<any[]>([])
+  const [primaryHotelsData, setPrimaryHotelsData] = useState<any[]>([])
+  const [secondaryHotelsData, setSecondaryHotelsData] = useState<any[]>([])
   // const [runningReport, setRunningReport] = useState<any>({});
   // const [lightingRefreshData, setLightingRefreshData] = useState<any>({});
   const [validationObject, setValidationObject] = useState<any>({});
@@ -117,19 +124,18 @@ export default function RateTrendPage() {
   // Dynamic competitor count based on digitCount and screen resolution
   const getCompetitorsPerPage = () => {
     const { isSmall, isMedium, isLarge } = screenSize
-
     if (isSmall) {
       // Resolution from 1352px to 1500px
-      return selectedDigitCount === 4 ? 4 : selectedDigitCount === 6 ? 3 : 2
+      return selectedDigitCount <= 4 ? 4 : selectedDigitCount <= 7 ? 3 : 2
     } else if (isMedium) {
       // Resolution from 1501px to 1800px
-      return selectedDigitCount === 4 ? 5 : selectedDigitCount === 6 ? 4 : 4
+      return selectedDigitCount <= 4 ? 5 : selectedDigitCount <= 7 ? 4 : 4
     } else if (isLarge) {
       // Resolution above 1800px
-      return selectedDigitCount === 4 ? 8 : selectedDigitCount === 6 ? 6 : 5
+      return selectedDigitCount <= 4 ? 8 : selectedDigitCount <= 7 ? 6 : 5
     } else {
       // Default fallback (for screens < 1352px)
-      return selectedDigitCount === 4 ? 4 : selectedDigitCount === 6 ? 3 : 2
+      return selectedDigitCount <= 4 ? 4 : selectedDigitCount <= 7 ? 3 : 2
     }
   }
 
@@ -149,22 +155,25 @@ export default function RateTrendPage() {
   // State for Lightning Refresh progress
   const [isLightningRefreshInProgress, setIsLightningRefreshInProgress] = useState(false)
   const [isLightningRefreshEnable, setIsLightningRefreshEnable] = useState(false)
+  const [lightningRefreshMessage, setIsLightningRefreshMessage] = useState('')
   // Navigation functions for competitor scrolling
   const nextCompetitors = () => {
     setCompetitorStartIndex(prev => {
       debugger
+      console.log(Math.min(prev + getCompetitorsPerPage(), competitorCount));
       // Always move by 5 positions, even if it goes beyond total competitors
-      return Math.min(prev + 4, competitorCount)
+      return Math.min(prev + getCompetitorsPerPage(), competitorCount)
     })
   }
 
   const prevCompetitors = () => {
-    setCompetitorStartIndex(prev => Math.max(0, prev - 4))
+    setCompetitorStartIndex(prev => Math.max(0, prev - getCompetitorsPerPage()))
   }
 
   const canGoNext = () => {
+    debugger;
     // Allow going to next page if we can show at least 1 more competitor
-    return competitorStartIndex + 4 < competitorCount
+    return competitorStartIndex + getCompetitorsPerPage() < competitorCount
   }
 
   const canGoPrev = () => {
@@ -218,7 +227,13 @@ export default function RateTrendPage() {
   // Use calculated values directly
   const availableMonths = calculateAvailableMonths
   const shouldShowMonthNavigation = availableMonths.length > 1
+  const handleReportGenerated = (reportId: number) => {
+    console.log('Report generated with ID:', reportId)
+  }
 
+  const handleError = (error: string) => {
+    console.error('Error:', error)
+  }
   // Handle lightning refresh
   const RTRFInitatedSuccess = (runningReport: any, lightingRefreshData: any) => {
     if (validationObject) {
@@ -232,6 +247,34 @@ export default function RateTrendPage() {
           setSnackbarType('info')
           setIsSnackbarOpen(true)
           setIsLightningRefreshInProgress(true)
+          let filtersValue = CreatePostObjForRTRR(lightingRefreshData);
+          let channelName = filtersValue.Sources;
+          let losrtrr = filtersValue?.LOS != null ? filtersValue?.LOS : 1;
+          let guestrtrr = filtersValue?.Occupancy != null ? filtersValue?.Occupancy : 1;
+          if (selectedProperty?.sid && userDetails?.userId) {
+            const taskData = {
+              taskId: runningReport.reportId,
+              channel: Array.isArray(channelName) ? channelName.join(', ') : channelName,
+              los: losrtrr.toString(),
+              guest: guestrtrr.toString(),
+              sid: typeof selectedProperty.sid === 'string' ? parseInt(selectedProperty.sid) : selectedProperty.sid,
+              userId: userDetails.userId.toString(),
+              checkInStartDate: filtersValue.FirstCheckInDate ? new Date(filtersValue.FirstCheckInDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+              checkInEndDate: filtersValue.FirstCheckInDate ? new Date(new Date(filtersValue.FirstCheckInDate).getTime() + filtersValue.DaysOfData * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              month: filtersValue.FirstCheckInDate ? new Date(filtersValue.FirstCheckInDate).getMonth() + 1 : new Date().getMonth() + 1,
+              year: filtersValue.FirstCheckInDate ? new Date(filtersValue.FirstCheckInDate).getFullYear() : new Date().getFullYear(),
+              onTaskComplete: () => {
+                // Re-enable Lightning Refresh when task completes (success or failure, but not retry)
+                setIsLightningRefreshInProgress(false);
+                console.log('🔄 Lightning Refresh completed, re-enabling button');
+              }
+            };
+
+            startTaskPolling(taskData);
+            console.log('🔄 Started task polling for lightning refresh:', taskData);
+          } else {
+            console.warn('⚠️ Missing selectedProperty or userDetails for task polling');
+          }
         }
       }
       else {
@@ -249,7 +292,7 @@ export default function RateTrendPage() {
     var postdata: RTRRRequestModel = {
       SID: selectedProperty?.sid || 0,
       ContactId: userDetails?.userId?.toString() || '',
-      FirstCheckInDate: new Date(),
+      FirstCheckInDate: new Date().toISOString(),
       DaysOfData: 0,
       LOS: 1,
       Occupancy: 1,
@@ -294,38 +337,41 @@ export default function RateTrendPage() {
 
     sources.push(lightingRefreshData.selectedChannel);
 
-    // if (this.primarySelected) {
-    //   this.primarySubscribers.forEach(item => {
-    //     properties.push(item);
-    //   })
+    if (lightingRefreshData?.compSet === "primary") {
+      primaryHotelsData.forEach(item => {
+        properties.push(item?.hmid);
+      })
 
-    // } else {
-    //   this.secondarySubscribers.forEach(item => {
-    //     properties.push(item);
-    //   })
-    // }
+    } else {
+      secondaryHotelsData.forEach(item => {
+        properties.push(item?.hmid);
+      })
+    }
 
     properties.push(selectedProperty?.hmid);
 
     postdata.Sources = sources;
     postdata.Properties = properties;
+    debugger;
     if (new Date(lightingRefreshData?.checkInStartDate) < todaysDate || DayOfData == 0) {
-      postdata.FirstCheckInDate = todaysDate;
+      postdata.FirstCheckInDate = todaysDate.toISOString();
     } else {
       // Use date-fns to properly construct the date
+      debugger;
       const checkInDate = new Date(lightingRefreshData?.checkInStartDate);
       const day = checkInDate.getDate();
       const month = checkInDate.getMonth();
       const year = checkInDate.getFullYear();
-
+      const dateStringData = new Date(Date.UTC(year, month, day, 0, 0, 0));
       // Create a new date with the same year and month, but with the calculated day
-      postdata.FirstCheckInDate = set(new Date(year, month, 1), {
-        date: day,
-        hours: 0,
-        minutes: 0,
-        seconds: 0,
-        milliseconds: 0
-      });
+      // const dateStringData = set(new Date(year, month, 1), {
+      //   date: day,
+      //   hours: 0,
+      //   minutes: 0,
+      //   seconds: 0,
+      //   milliseconds: 0,
+      // });
+      postdata.FirstCheckInDate = dateStringData.toISOString();
     }
 
     postdata.Currency = selectedProperty?.currencyCode?.toString() ?? '';
@@ -480,7 +526,8 @@ export default function RateTrendPage() {
     Promise.all([
       getRateDate(),
       getCompRateData(),
-      getDemandAIData()
+      getDemandAIData(),
+      fetchReportsDataWithDates(startDate, endDate)
     ]).finally(() => {
       clearInterval(progressInterval);
       setLoadingProgress(100);
@@ -514,12 +561,38 @@ export default function RateTrendPage() {
         SID: selectedProperty.sid,
         UserID: userDetails?.userId,
       });
-      if (response?.status) {
+      if (response) {
+        setIsLightningRefreshMessage(response.body.message)
         setIsLightningRefreshEnable(response.body.messageCode == 'M-001' ? false : true);
         setIsLightningRefreshInProgress(response.body.messageCode == 'M-002' || response.body.messageCode == 'M-003' ? true : false);
       }
     }
-    fetchRTRRChannel();
+    const fetchCompSetData = async () => {
+      try {
+        const response = await getCompleteCompSet({
+          SID: selectedProperty?.sid,
+          includesubscriber: false
+        })
+
+        if (response.status && response.body) {
+          // Filter primary and secondary compsets based on isSecondary property
+          const primaryCompSets = response.body.filter((x: any) => !x.isSecondary)
+          const secondaryCompSets = response.body.filter((x: any) => x.isSecondary)
+
+          setPrimaryHotelsData(primaryCompSets)
+          setSecondaryHotelsData(secondaryCompSets)
+          setCompsetData(response.body);
+        }
+      } catch (error) {
+        console.error('Error fetching compset data:', error)
+        // Set default data if API fails
+        setPrimaryHotelsData([])
+        setSecondaryHotelsData([])
+      } finally {
+        // setIsLoadingCompSet(false)
+      }
+    }
+    Promise.all([fetchRTRRChannel(), fetchCompSetData()])
   }, [selectedProperty?.sid]);
 
   // Resume polling when component mounts and has necessary data
@@ -542,6 +615,42 @@ export default function RateTrendPage() {
       })
       .catch((err) => console.error(err));
   }
+  const fetchReportsDataWithDates = async (startDate: Date, endDate: Date) => {
+    let progressInterval: NodeJS.Timeout | undefined = undefined
+    try {
+
+      const sid = selectedProperty?.sid ?? 0
+
+      // Format dates for API call
+      const startDateStr = format(new Date(startDate), "MM/dd/yyyy")
+      const endDateStr = format(new Date(endDate), "MM/dd/yyyy")
+      debugger;
+      // Call the API
+      const response = await getAllReports({
+        sid: selectedProperty?.sid,
+        startdate: startDateStr,
+        enddate: endDateStr
+      })
+
+      // Handle response - check if response exists and has data
+      if (response && (response.status || response.body !== undefined)) {
+        debugger
+        let data = response.body || []
+        const reportInProgres = data.filter((x: any) => x.reportStatus.toLowerCase() !== 'error' && (!x.reportFilePath ||
+          x.reportFilePath === 'NONE' ||
+          x.reportFilePath === 'PENDING' ||
+          x.reportFilePath === ""));
+        setReportInProgress(reportInProgres?.length > 0 ? true : false);
+      } else {
+        // Only log as error if there's an actual API error
+
+      }
+    } catch (error) {
+      console.error('Error fetching reports:', error)
+
+    }
+  }
+
   const getRateDate = () => {
     setRateData({});
     const filtersValue = {
@@ -747,34 +856,6 @@ export default function RateTrendPage() {
                 Rate Trends
               </h1>
               {/* Sample Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 px-3">
-                    {selectedValue}
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  <DropdownMenuItem onClick={() => {
-                    setSelectedValue("4,444 (4 digit)")
-                    setSelectedDigitCount(4)
-                  }}>
-                    4,444 (4 digit)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    setSelectedValue("444,400 (6 digit)")
-                    setSelectedDigitCount(6)
-                  }}>
-                    444,400 (6 digit)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    setSelectedValue("44,225,588 (8 digit)")
-                    setSelectedDigitCount(8)
-                  }}>
-                    44,225,588 (8 digit)
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
             <p className="text-sm text-muted-foreground">
               Track rate movements and competitive positioning across time periods
@@ -785,7 +866,7 @@ export default function RateTrendPage() {
             <TooltipProvider>
               <div className="flex items-center gap-2">
                 {/* Lightning Refresh Button */}
-                {isLightningRefreshEnable && (
+                {isLightningRefreshEnable && !isLightningRefreshInProgress && (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -815,6 +896,36 @@ export default function RateTrendPage() {
                       )}
                     </Tooltip>
                   </TooltipProvider>)}
+                {isLightningRefreshInProgress && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 hover:bg-blue-500 hover:text-white hover:border-blue-500 group"
+                          onClick={() => {
+                            if (!isLightningRefreshInProgress) {
+                              console.log('🔄 Lightning Refresh clicked');
+                              setIsLightningRefreshModalOpen(true);
+                            }
+                          }}
+                        // disabled={isLightningRefreshInProgress}
+                        >
+                          <Zap
+                            className={`h-4 w-4 text-gray-600 group-hover:text-white ${isLightningRefreshInProgress ? 'animate-pulse' : ''}`}
+                            style={{ marginRight: '2px' }}
+                          />
+                          {isLightningRefreshInProgress ? 'Refreshing...' : 'Lightning Refresh'}
+                        </Button>
+                      </TooltipTrigger>
+                      {isLightningRefreshInProgress && (
+                        <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+                          <p className="text-xs">{!!lightningRefreshMessage ? lightningRefreshMessage : 'Lightning refresh under progress'}</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>)}
 
                 {/* On Demand Report Button */}
                 <Button
@@ -822,9 +933,10 @@ export default function RateTrendPage() {
                   size="sm"
                   className="h-8 px-3 hover:bg-blue-500 hover:text-white hover:border-blue-500"
                   onClick={() => {
-                    console.log('📊 On Demand Report clicked');
+                    setIsModalOpen(true);
                     // Add report logic here
                   }}
+                  disabled={reportInProgress}
                 >
                   <FileText className="h-4 w-4" style={{ marginRight: '2px' }} />
                   On Demand Report
@@ -926,12 +1038,12 @@ export default function RateTrendPage() {
 
               {/* Competitor Navigation */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-600 dark:text-gray-400">
+                {/* <span className="text-xs text-gray-600 dark:text-gray-400">
                   Competitors {competitorStartIndex + 1}-{Math.min(competitorStartIndex + competitorsPerPage, 9)} of 9
-                </span>
-                <span className="text-xs text-blue-500 bg-blue-50 px-2 py-1 rounded">
+                </span> */}
+                {/* <span className="text-xs text-blue-500 bg-blue-50 px-2 py-1 rounded">
                   {screenSize.width}px ({screenSize.isSmall ? 'Small' : screenSize.isMedium ? 'Medium' : screenSize.isLarge ? 'Large' : 'Default'}) - {competitorsPerPage} cols
-                </span>
+                </span> */}
                 <button
                   onClick={prevCompetitors}
                   disabled={!canGoPrev()}
@@ -1119,6 +1231,16 @@ export default function RateTrendPage() {
 
       {/* Rate Trends Coach Mark Trigger */}
       <RateTrendsCoachMarkTrigger onViewChange={setCurrentView} />
+      <OnDemandReportModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        userDetails={userDetails}
+        selectedProperty={selectedProperty}
+        packageDetails={packageDetails}
+        compsetData={compsetData}
+        onReportGenerated={handleReportGenerated}
+        onError={handleError}
+      />
     </div>
   )
 }

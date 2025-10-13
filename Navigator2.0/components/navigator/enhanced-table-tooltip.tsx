@@ -34,7 +34,6 @@ export function EnhancedTableTooltip({
   rateEntry,
 
 }: EnhancedTableTooltipProps) {
-  debugger;
   // Format the date properly
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -138,7 +137,7 @@ export function EnhancedTableTooltip({
             {/* Avg. Compset Section */}
             <div className="text-xs text-black dark:text-gray-100">
               <div className="text-left whitespace-nowrap">
-                <span className="font-bold">{`\u200E ${selectedProperty?.currencySymbol ?? "$"}\u200E` + " " + Math.floor(rate * 0.95).toLocaleString('en-US')}</span> <span className="font-medium">- Avg. Compset</span>
+                <span className="font-bold">{`\u200E ${selectedProperty?.currencySymbol ?? "$"}\u200E` + " " + Math.floor(rateEntry?.compsetAverage).toLocaleString('en-US')}</span> <span className="font-medium">- Avg. Compset</span>
               </div>
             </div>
 
