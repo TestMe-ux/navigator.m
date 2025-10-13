@@ -21,3 +21,9 @@ export async function getRateEvalutionData(filtersValue: any) {
     const { data } = await apiClient.post(`${Constants.API_GetRateEvalution}`, filtersValue);
     return data;
 }
+export async function GetRateSummaryCluster(filtersValue: any, userID: any) {
+    const { data } = await apiClient.post(`${Constants.ParityAPI_GET_GetRateSummaryCluster}`, filtersValue,{ params: { "UserID": userID } });
+    return data;
+}
+
+

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Activity, Calendar, DollarSign, Star, Percent, ArrowUp, ArrowDown, Download, Wifi, Utensils, Coffee, Car, Dumbbell, BarChart3, Zap } from "lucide-react"
+import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Activity, Calendar, DollarSign, Star, Percent, ArrowUp, ArrowDown, Download, Wifi, Utensils, Coffee, Car, Dumbbell, BarChart3, Zap, Check } from "lucide-react"
 import { RateTrendGraph } from "./rate-trend-graph"
 import { RTRateTrendsChart } from "./rt-rate-trends-chart"
 import { RateDetailModal } from "./rate-detail-modal"
@@ -12,9 +12,11 @@ import { useDateContext } from "@/components/date-context"
 import { useComparison } from "@/components/comparison-context"
 import React, { useState, useEffect, useMemo, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { format, isSameDay, parseISO, subDays } from "date-fns"
+import { format, isBefore, isSameDay, parseISO, subDays } from "date-fns"
 import { useSelectedProperty } from "@/hooks/use-local-storage"
 import { getInclusionIcon } from "@/lib/inclusion-icons"
+import { useResponsiveWidth } from "@/hooks/use-navigation-state"
+import { latestShopDateTime } from "@/lib/utils"
 
 
 
@@ -66,7 +68,8 @@ interface CompetitorRate {
   abbreviation?: string
   inclusion?: string
   channelName?: string
-  rateEntry?: any
+  rateEntry?: any,
+  hasLightningRefresh?: boolean
 }
 
 interface CompetitorData {
@@ -129,15 +132,15 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
       const rateDifference = rateValue && compareRate && compRateEntry?.status === 'O' && compareStatus === 'O'
         ? rateValue - compareRate
         : 0;
-
-      debugger;
+      const hasLightningRefresh = !!compRateEntry && (compRateEntry?.status === 'O' || compRateEntry?.status === 'C') ? isBefore((latestShopDateTime()), parseISO(compRateEntry?.shopDateTime)) : false;
+      if (!!compRateEntry) console.log("Data dhsjdg" + day + comp.propertName, latestShopDateTime(), compRateEntry?.shopDateTime)
       return {
         hotelName: comp.propertName,
         rate: compRateEntry?.status === 'O' ? `${rateValue.toLocaleString('en-US')}` : compRateEntry?.status === 'C' ? 'Sold Out' : '--',
         rateValue,
         difference: rateDifference !== 0
           ? `${rateDifference > 0 ? '+' : ''}${rateDifference}`
-          : compRateEntry?.status === 'C' ? '' : '--',
+          : compRateEntry?.status === 'C' ? '' : compRateEntry?.status === 'O' && compareStatus === 'O' ? rateDifference.toString() : '--',
         isLowest: false, // Will be set later
         isHighest: false, // Will be set later
         hasInclusion: !!compRateEntry?.inclusion,
@@ -148,6 +151,7 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
         abbreviation: compRateEntry?.abbreviation || '',
         inclusion: compRateEntry?.inclusion || '',
         channelName: compRateEntry?.channelName || '',
+        hasLightningRefresh: hasLightningRefresh,
         rateEntry: compRateEntry // Store original rate entry for full data access
       }
     })
@@ -179,7 +183,7 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
       rateValue: myRateValue,
       difference: myRateDifference !== 0
         ? `${myRateDifference > 0 ? '+' : ''}${myRateDifference}`
-        : '--',
+        : myRateEntry?.status === 'C' ? '' : myRateEntry?.status === 'O' && myCompareStatus === 'O' ? myRateDifference.toString() : '--',
       isLowest: false, // Will be set later
       isHighest: false, // Will be set later
       hasInclusion: !!myRateEntry?.inclusion,
@@ -236,7 +240,7 @@ const transformLiveDataToCompetitorData = (rateData: any, rateCompData: any, wee
 
     return {
       date: day.date,
-      competitors: competitorRates,
+      competitors: competitorRates.sort((x: any, y: any) => x.hotelName.localeCompare(y.hotelName)),
       avgCompsetRate,
       avgCompsetDifference: avgCompsetRateDifference !== 0
         ? `${avgCompsetRateDifference > 0 ? '+' : ''}${avgCompsetRateDifference}`
@@ -426,11 +430,11 @@ const transformLiveDataToCalendarData = (rateData: any, rateCompData: any, start
       const rateDifference = rateValue && compareRate && rateEntry?.status === 'O' && compareStatus === 'O'
         ? rateValue - compareRate
         : 0;
+      const hasLightningRefresh = !!rateEntry && (rateEntry?.status === 'O' || rateEntry?.status === 'C') ? isBefore(parseISO(latestShopDateTime()), parseISO(rateEntry?.shopDateTime)) : false
 
       const comparison = rateDifference !== 0
         ? `${rateDifference > 0 ? '+' : ''}${rateDifference} vs. Comp`
         : '-- vs. Comp'
-
       let dayData: CalendarDay = {
         date,
         month,
@@ -445,7 +449,7 @@ const transformLiveDataToCalendarData = (rateData: any, rateCompData: any, start
         hotelLowestRate: rateValue,
         rateDifference: rateDifference !== 0
           ? `${rateDifference > 0 ? '+' : ''}${rateDifference}`
-          : '--',
+          : rateEntry?.status === 'O' && compareStatus === 'O' ? rateDifference.toString() : '--',
         roomType: rateEntry?.productName || "",
         hasInclusion: !!rateEntry?.inclusion,
         inclusionIcon: rateEntry?.inclusion || "",
@@ -462,7 +466,7 @@ const transformLiveDataToCalendarData = (rateData: any, rateCompData: any, start
         hasIndicator: currentDate.getDay() === 5 || currentDate.getDay() === 6, // Weekend indicator
         indicatorColor: currentDate.getDay() === 5 || currentDate.getDay() === 6 ? 'bg-red-400' : undefined,
         indicatorType: currentDate.getDay() === 5 || currentDate.getDay() === 6 ? 'square' : 'circle',
-        hasLightningRefresh: false, // Can be enhanced based on actual data
+        hasLightningRefresh: hasLightningRefresh, // Can be enhanced based on actual data
         rateEntry: rateEntry, // Store original rate entry for live data access
         abbreviation: rateEntry?.abbreviation
       }
@@ -548,6 +552,7 @@ function RateTrendCalendarInner({
   // Use props if available, otherwise fall back to date context
   const dateContext = useDateContext()
   const { selectedComparison } = useComparison()
+  const { hotelColumnWidth, gridTemplateColumns, isCollapsed } = useResponsiveWidth()
   const startDate = propStartDate || dateContext.startDate
   const endDate = propEndDate || dateContext.endDate
   const isLoading = dateContext.isLoading
@@ -720,7 +725,9 @@ function RateTrendCalendarInner({
   // Memoize competitor data to prevent refresh
   const memoizedCompetitorData = useMemo(() => {
     if (!selectedWeekForCompetitors || !rateData || !rateCompData) return []
-    return transformLiveDataToCompetitorData(rateData, rateCompData, selectedWeekForCompetitors, selectedComparison)
+    const transFormData = transformLiveDataToCompetitorData(rateData, rateCompData, selectedWeekForCompetitors, selectedComparison)
+    console.log("transFormData", transFormData)
+    return transFormData
   }, [selectedWeekForCompetitors, rateData, rateCompData, selectedComparison])
 
   // Memoize all competitive data for the entire calendar to prevent constant reloading
@@ -920,7 +927,7 @@ function RateTrendCalendarInner({
     }
 
     return (
-      <div className="w-full shadow-xl border border-border/50 rounded-lg bg-white dark:bg-slate-900">
+      <div className="w-full bg-white dark:bg-slate-900">
         <div>
           <table className="w-full relative table-fixed">
             {/* Two-Level Sticky Header */}
@@ -928,32 +935,32 @@ function RateTrendCalendarInner({
               {/* First Header Row - Main Column Groups */}
               <tr className="border-b border-gray-200">
                 {/* Sticky Date Column */}
-                <th rowSpan={2} className="sticky left-0 z-30 bg-gray-50 text-left py-1.5 pl-4 pr-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-36" style={{ width: '141px' }}>
+                <th rowSpan={2} className="sticky left-0 z-30 bg-gray-50 text-left py-1.5 pl-4 pr-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-36" style={{ width: '141px' }}>
                   Date
                 </th>
 
                 {/* Sticky Demand Column */}
-                <th rowSpan={2} className="sticky left-40 z-30 bg-gray-50 text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-15" style={{ width: '60px' }}>
+                <th rowSpan={2} className="sticky left-40 z-30 bg-gray-50 text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-15" style={{ width: '60px' }}>
                   Demand
                 </th>
 
                 {/* Sticky Avg. Compset Column Group */}
-                <th colSpan={2} className="sticky left-56 z-30 bg-gray-50 text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-24">
+                <th colSpan={2} className="sticky left-56 z-30 bg-gray-50 text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-24">
                   Avg. Compset
                 </th>
 
                 {/* Sticky Subscriber Column Group */}
-                <th colSpan={4} className="sticky left-84 z-30 bg-blue-50 text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-40">
+                <th colSpan={4} className="sticky left-84 z-30 bg-blue-50 text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-40">
                   Subscriber
                 </th>
 
                 {/* Competitor Hotel 1 */}
-                <th colSpan={4} className="text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-40">
+                <th colSpan={4} className="text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-40">
                   Comfort Hotel..
                 </th>
 
                 {/* Competitor Hotel 2 */}
-                <th colSpan={4} className="text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-40">
+                <th colSpan={4} className="text-center py-1.5 px-2 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-40">
                   acom Hotel B..
                 </th>
 
@@ -962,52 +969,52 @@ function RateTrendCalendarInner({
               {/* Second Header Row - Sub Columns */}
               <tr className="border-b border-gray-200">
                 {/* Avg. Compset Sub-columns */}
-                <th className="sticky left-56 z-30 bg-gray-50 text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
+                <th className="sticky left-56 z-30 bg-gray-50 text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-12">
                   €
                 </th>
-                <th className="sticky left-68 z-30 bg-gray-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
+                <th className="sticky left-68 z-30 bg-gray-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-12">
                   ⟂⇂
                 </th>
 
                 {/* Subscriber Sub-columns */}
-                <th className="sticky left-84 z-30 bg-blue-50 text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-16" style={{ width: '64px' }}>
+                <th className="sticky left-84 z-30 bg-blue-50 text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-16" style={{ width: '64px' }}>
                   €
                 </th>
-                <th className="sticky left-96 z-30 bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
+                <th className="sticky left-96 z-30 bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-12">
                   ⟂⇂
                 </th>
-                <th className="sticky left-108 z-30 bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+                <th className="sticky left-108 z-30 bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-8">
                   <Utensils className="w-3 h-3 mx-auto" />
                 </th>
-                <th className="sticky left-116 z-30 bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+                <th className="sticky left-116 z-30 bg-blue-50 text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-8">
                   #
                 </th>
 
                 {/* Comfort Hotel Sub-columns */}
-                <th className="text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-16" style={{ width: '64px' }}>
+                <th className="text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-16" style={{ width: '64px' }}>
                   €
                 </th>
-                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
+                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-12">
                   ⟂⇂
                 </th>
-                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-8">
                   <Utensils className="w-3 h-3 mx-auto" />
                 </th>
-                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-8">
                   #
                 </th>
 
                 {/* acom Hotel Sub-columns */}
-                <th className="text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-16" style={{ width: '64px' }}>
+                <th className="text-center py-1.5 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-16" style={{ width: '64px' }}>
                   €
                 </th>
-                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-12">
+                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-12">
                   ⟂⇂
                 </th>
-                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-8">
                   <Utensils className="w-3 h-3 mx-auto" />
                 </th>
-                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 w-8">
+                <th className="text-center py-1.5 px-1 font-semibold text-xs text-muted-foreground border-r border-gray-200 border-t border-gray-200 rounded-none w-8">
                   #
                 </th>
 
@@ -1238,11 +1245,12 @@ function RateTrendCalendarInner({
                               </div>
                               {/* Lightning refresh icon next to date */}
                               {day.hasLightningRefresh && (
-                                <div className="ml-1">
-                                  <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                  <Check className="w-2 h-2 text-white stroke-4" />
                                 </div>
                               )}
                               {/* Event icon after specific margin */}
+
                               <div className="ml-2 text-xs text-gray-500 dark:text-gray-400">
                                 {day.hasEvent ? day.eventIcon : ''}
                               </div>
@@ -1521,8 +1529,8 @@ function RateTrendCalendarInner({
                                     </div>
                                     {/* Lightning refresh icon next to date */}
                                     {day.hasLightningRefresh && (
-                                      <div className="ml-1">
-                                        <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                      <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                        <Check className="w-2 h-2 text-white stroke-4" />
                                       </div>
                                     )}
                                   </div>
@@ -1707,11 +1715,11 @@ function RateTrendCalendarInner({
 
                       <div className="overflow-x-auto">
                         {/* Fixed Avg. Compset Row */}
-                        <div className="grid" style={{ gridTemplateColumns: `1fr repeat(7, 1fr)` }}>
+                        <div className="grid" style={{ gridTemplateColumns: gridTemplateColumns }}>
                           {/* Hotel Names Column - Avg. Compset */}
                           <div>
-                            <div className="px-2 py-0.5 text-xs font-medium text-gray-900 dark:text-gray-100 bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800/60 border-0 h-12 flex items-center border-b border-b-gray-300 dark:border-b-gray-500 transition-colors duration-200" style={{ width: '120px' }}>
-                              <div className="truncate w-full font-semibold" style={{ width: '120px' }}>
+                            <div className={`px-2 py-0.5 text-xs font-medium text-gray-900 dark:text-gray-100 bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800/60 border-0 h-12 flex items-center border-b border-b-gray-300 dark:border-b-gray-500 transition-colors duration-200 ${hotelColumnWidth}`}>
+                              <div className="truncate w-full font-semibold" title="Avg. Compset">
                                 Avg. Compset
                               </div>
                             </div>
@@ -1739,9 +1747,9 @@ function RateTrendCalendarInner({
                                             }`}>
                                             {avgDiff}
                                           </span>
-                                          {Math.random() > 0.5 && (
+                                          {/* {avgDiff?.hasLightningRefresh && (
                                             <Zap className="w-3 h-3 text-blue-500 fill-current" />
-                                          )}
+                                          )} */}
                                         </div>
                                       </>
                                     ) : null}
@@ -1753,15 +1761,19 @@ function RateTrendCalendarInner({
                         </div>
 
                         {/* Scrollable Competitor Rows */}
-                        <div className="grid max-h-60 overflow-y-auto" style={{ gridTemplateColumns: `1fr repeat(7, 1fr)` }}>
+                        <div className="grid max-h-60 overflow-y-auto" style={{ gridTemplateColumns: gridTemplateColumns }}>
                           {/* Hotel Names Column */}
                           <div>
                             {memoizedCompetitorData[0]?.competitors.map((_, compIndex) => {
                               const isLastRow = compIndex === memoizedCompetitorData[0]?.competitors.length - 1;
                               return (
-                                <div key={compIndex} className={`px-2 py-0.5 text-xs font-medium text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/60 border-0 h-12 flex items-center transition-colors duration-200 ${!isLastRow ? 'border-b border-b-gray-300 dark:border-b-gray-500' : ''}`} style={{ width: '120px' }}>
-                                  <div className="truncate w-full" title={memoizedCompetitorData[0]?.competitors[compIndex]?.hotelName} style={{ width: '120px' }}>
-                                    {memoizedCompetitorData[0]?.competitors[compIndex]?.hotelName}
+                                <div key={compIndex} className={`px-2 py-0.5 text-xs font-medium text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/60 border-0 h-12 flex items-center transition-colors duration-200 ${!isLastRow ? 'border-b border-b-gray-300 dark:border-b-gray-500' : ''} ${hotelColumnWidth}`}>
+                                  <div className="truncate w-full" title={memoizedCompetitorData[0]?.competitors[compIndex]?.hotelName}>
+                                    {(() => {
+                                      const hotelName = memoizedCompetitorData[0]?.competitors[compIndex]?.hotelName || '';
+                                      // Truncate at 16 characters and add ellipsis
+                                      return hotelName.length > 16 ? hotelName.substring(0, 16) + '...' : hotelName;
+                                    })()}
                                   </div>
                                 </div>
                               );
@@ -1803,8 +1815,10 @@ function RateTrendCalendarInner({
                                                       }`}>
                                                       {competitor?.difference}
                                                     </span>
-                                                    {Math.random() > 0.6 && (
-                                                      <Zap className="w-3 h-3 text-blue-500 fill-current" />
+                                                    {competitor?.hasLightningRefresh && (
+                                                      <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                                        <Check className="w-2 h-2 text-white stroke-4" />
+                                                      </div>
                                                     )}
                                                   </div>
                                                 </div>

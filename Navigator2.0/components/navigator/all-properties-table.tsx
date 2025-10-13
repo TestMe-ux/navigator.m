@@ -8,6 +8,7 @@ import { useScreenSize } from "@/hooks/use-screen-size"
 import { useDateContext } from "@/components/date-context"
 import { AllPropertiesTooltip } from "./all-properties-tooltip"
 import { format } from "date-fns"
+import { LocalStorageService } from "@/lib/localstorage"
 
 interface AllPropertiesTableProps {
   className?: string
@@ -233,245 +234,9 @@ export function AllPropertiesTable({
     return rates
   }
 
-  // Property data mapping for the first 3 columns (Competitiveness, Availability, Parity Score)
-  const propertyMetricsData: Record<string, { competitiveness: number | null, availability: number | null, parityScore: number | null }> = {
-    "Chaidee Mansi Bangkok Riverside Luxury Resort & Spa": { competitiveness: 85, availability: 78, parityScore: 82 },
-    "City Hotel Gottingen Downtown Business Center": { competitiveness: 92, availability: 65, parityScore: 88 },
-    "Swiss-Belinn Singapore Marina Bay Financial District": { competitiveness: 78, availability: 88, parityScore: 76 },
-    "Grand Palace Hotel Tokyo Shibuya Premium Suites & Conference Center": { competitiveness: 95, availability: 75, parityScore: 85 },
-    "Royal Heritage Resort Mumbai Bandra Kurla Complex Business District": { competitiveness: 88, availability: 69, parityScore: 44 },
-    "Oceanfront Paradise Resort & Spa": { competitiveness: 91, availability: 74, parityScore: 48 },
-    "Metropolitan Plaza Business Hotel": { competitiveness: 87, availability: 82, parityScore: 51 },
-    "Historic Grand Hotel Downtown": { competitiveness: 89, availability: 71, parityScore: 58 },
-    "Business Center Inn & Suites": { competitiveness: 83, availability: 86, parityScore: 54 },
-    "Riverside Retreat Luxury Resort": { competitiveness: 90, availability: 77, parityScore: 67 },
-    "Downtown Business Hotel Plaza": { competitiveness: 86, availability: 73, parityScore: 62 },
-    "Garden View Resort & Conference Center": { competitiveness: 84, availability: 80, parityScore: 59 },
-    "Executive Suites Downtown": { competitiveness: 93, availability: 68, parityScore: 71 },
-    "City Center Hotel & Spa": { competitiveness: 81, availability: 85, parityScore: 46 },
-    "Luxury Business Inn & Suites": { competitiveness: 88, availability: 72, parityScore: 63 },
-    "Coastal Resort & Spa Paradise": { competitiveness: 94, availability: 66, parityScore: 69 },
-    "Urban Business Plaza Hotel": { competitiveness: 87, availability: 79, parityScore: 55 },
-    "Historic Downtown Inn & Suites": { competitiveness: 85, availability: 81, parityScore: 57 },
-    "Executive Business Center Hotel": { competitiveness: 91, availability: 70, parityScore: 65 },
-    "Premium City Hotel & Conference Center": { competitiveness: 89, availability: 76, parityScore: 61 },
-    "Seaside Resort & Spa Luxury": { competitiveness: 92, availability: 74, parityScore: 68 },
-    "City Hotel Gotland Business Center": { competitiveness: 86, availability: 78, parityScore: 52 },
-    "Grand Palace Hotel Premium Suites": { competitiveness: 90, availability: 75, parityScore: 64 },
-    "Mountain View Lodge & Resort": { competitiveness: 88, availability: 82, parityScore: 58 },
-    "Urban Business Center Plaza": { competitiveness: 84, availability: 77, parityScore: 56 }
-  }
-
-  // Generate hotel data dynamically - expanded to 25 hotels
-  // const allHotels = [
-  //   {
-  //     id: "1",
-  //     name: "Chaidee Mansi Bangkok Riverside Luxury Resort & Spa",
-  //     currency: "THB",
-  //     symbol: "฿",
-  //     rates: generateHotelRates("1", 2000, "THB", dates)
-  //   },
-  //   {
-  //     id: "2",
-  //     name: "City Hotel Gottingen Downtown Business Center",
-  //     currency: "EUR",
-  //     symbol: "€",
-  //     rates: generateHotelRates("2", 100, "EUR", dates)
-  //   },
-  //   {
-  //     id: "3",
-  //     name: "Swiss-Belinn Singapore Marina Bay Financial District",
-  //     currency: "IDR",
-  //     symbol: "Rp",
-  //     rates: generateHotelRates("3", 5000000, "IDR", dates)
-  //   },
-  //   {
-  //     id: "4",
-  //     name: "Grand Palace Hotel Tokyo Shibuya Premium Suites & Conference Center",
-  //     currency: "JPY",
-  //     symbol: "¥",
-  //     rates: generateHotelRates("4", 15000, "JPY", dates)
-  //   },
-  //   {
-  //     id: "5",
-  //     name: "Royal Heritage Resort Mumbai Bandra Kurla Complex Business District",
-  //     currency: "INR",
-  //     symbol: "₹",
-  //     rates: generateHotelRates("5", 8000, "INR", dates)
-  //   },
-  //   {
-  //     id: "6",
-  //     name: "Oceanfront Paradise Resort & Spa",
-  //     currency: "USD",
-  //     symbol: "$",
-  //     rates: generateHotelRates("6", 250, "USD", dates)
-  //   },
-  //   {
-  //     id: "7",
-  //     name: "Metropolitan Plaza Business Hotel",
-  //     currency: "EUR",
-  //     symbol: "€",
-  //     rates: generateHotelRates("7", 120, "EUR", dates)
-  //   },
-  //   {
-  //     id: "8",
-  //     name: "Historic Grand Hotel Downtown",
-  //     currency: "GBP",
-  //     symbol: "£",
-  //     rates: generateHotelRates("8", 180, "GBP", dates)
-  //   },
-  //   {
-  //     id: "9",
-  //     name: "Business Center Inn & Suites",
-  //     currency: "CAD",
-  //     symbol: "C$",
-  //     rates: generateHotelRates("9", 150, "CAD", dates)
-  //   },
-  //   {
-  //     id: "10",
-  //     name: "Riverside Retreat Luxury Resort",
-  //     currency: "AUD",
-  //     symbol: "A$",
-  //     rates: generateHotelRates("10", 200, "AUD", dates)
-  //   },
-  //   {
-  //     id: "11",
-  //     name: "Downtown Business Hotel Plaza",
-  //     currency: "USD",
-  //     symbol: "$",
-  //     rates: generateHotelRates("11", 180, "USD", dates)
-  //   },
-  //   {
-  //     id: "12",
-  //     name: "Garden View Resort & Conference Center",
-  //     currency: "EUR",
-  //     symbol: "€",
-  //     rates: generateHotelRates("12", 140, "EUR", dates)
-  //   },
-  //   {
-  //     id: "13",
-  //     name: "Executive Suites Downtown",
-  //     currency: "USD",
-  //     symbol: "$",
-  //     rates: generateHotelRates("13", 220, "USD", dates)
-  //   },
-  //   {
-  //     id: "14",
-  //     name: "City Center Hotel & Spa",
-  //     currency: "JPY",
-  //     symbol: "¥",
-  //     rates: generateHotelRates("14", 18000, "JPY", dates)
-  //   },
-  //   {
-  //     id: "15",
-  //     name: "Luxury Business Inn & Suites",
-  //     currency: "USD",
-  //     symbol: "$",
-  //     rates: generateHotelRates("15", 190, "USD", dates)
-  //   },
-  //   {
-  //     id: "16",
-  //     name: "Coastal Resort & Spa Paradise",
-  //     currency: "USD",
-  //     symbol: "$",
-  //     rates: generateHotelRates("16", 280, "USD", dates)
-  //   },
-  //   {
-  //     id: "17",
-  //     name: "Urban Business Plaza Hotel",
-  //     currency: "EUR",
-  //     symbol: "€",
-  //     rates: generateHotelRates("17", 160, "EUR", dates)
-  //   },
-  //   {
-  //     id: "18",
-  //     name: "Historic Downtown Inn & Suites",
-  //     currency: "USD",
-  //     symbol: "$",
-  //     rates: generateHotelRates("18", 170, "USD", dates)
-  //   },
-  //   {
-  //     id: "19",
-  //     name: "Executive Business Center Hotel",
-  //     currency: "USD",
-  //     symbol: "$",
-  //     rates: generateHotelRates("19", 210, "USD", dates)
-  //   },
-  //   {
-  //     id: "20",
-  //     name: "Premium City Hotel & Conference Center",
-  //     currency: "USD",
-  //     symbol: "$",
-  //     rates: generateHotelRates("20", 240, "USD", dates)
-  //   },
-  //   {
-  //     id: "21",
-  //     name: "Seaside Resort & Spa Luxury",
-  //     currency: "USD",
-  //     symbol: "$",
-  //     rates: generateHotelRates("21", 300, "USD", dates)
-  //   },
-  //   {
-  //     id: "22",
-  //     name: "City Hotel Gotland Business Center",
-  //     currency: "EUR",
-  //     symbol: "€",
-  //     rates: generateHotelRates("22", 130, "EUR", dates)
-  //   },
-  //   {
-  //     id: "23",
-  //     name: "Grand Palace Hotel Premium Suites",
-  //     currency: "JPY",
-  //     symbol: "¥",
-  //     rates: generateHotelRates("23", 20000, "JPY", dates)
-  //   },
-  //   {
-  //     id: "24",
-  //     name: "Mountain View Lodge & Resort",
-  //     currency: "USD",
-  //     symbol: "$",
-  //     rates: generateHotelRates("24", 160, "USD", dates)
-  //   },
-  //   {
-  //     id: "25",
-  //     name: "Urban Business Center Plaza",
-  //     currency: "USD",
-  //     symbol: "$",
-  //     rates: generateHotelRates("25", 175, "USD", dates)
-  //   }
-  // ]
-
-  // Property name mapping from dropdown to table - expanded for all 25 hotels
-  // const propertyNameMapping: Record<string, string[]> = {
-  //   "Seaside Resort & Spa": ["Chaidee Mansi Bangkok Riverside Luxury Resort & Spa", "Seaside Resort & Spa Luxury"],
-  //   "City Hotel Gotland": ["City Hotel Gottingen Downtown Business Center", "City Hotel Gotland Business Center"],
-  //   "Grand Palace Hotel": ["Grand Palace Hotel Tokyo Shibuya Premium Suites & Conference Center", "Grand Palace Hotel Premium Suites"],
-  //   "Mountain View Lodge": ["Royal Heritage Resort Mumbai Bandra Kurla Complex Business District", "Mountain View Lodge & Resort"],
-  //   "Urban Business Center": ["City Hotel Gottingen Downtown Business Center", "Urban Business Center Plaza"],
-  //   "Riverside Inn": ["Chaidee Mansi Bangkok Riverside Luxury Resort & Spa", "Riverside Retreat Luxury Resort"],
-  //   "Downtown Plaza": ["Grand Palace Hotel Tokyo Shibuya Premium Suites & Conference Center", "Downtown Business Hotel Plaza"],
-  //   "Garden Hotel": ["Royal Heritage Resort Mumbai Bandra Kurla Complex Business District", "Garden View Resort & Conference Center"],
-  //   "Business Tower": ["City Hotel Gottingen Downtown Business Center", "Business Center Inn & Suites"],
-  //   "Luxury Suites": ["Swiss-Belinn Singapore Marina Bay Financial District", "Executive Suites Downtown"],
-  //   "Oceanfront Paradise": ["Oceanfront Paradise Resort & Spa"],
-  //   "Metropolitan Plaza": ["Metropolitan Plaza Business Hotel"],
-  //   "Historic Grand Hotel": ["Historic Grand Hotel Downtown"],
-  //   "Business Center Inn": ["Business Center Inn & Suites"],
-  //   "Riverside Retreat": ["Riverside Retreat Luxury Resort"],
-  //   "Downtown Business Hotel": ["Downtown Business Hotel Plaza"],
-  //   "Garden View Resort": ["Garden View Resort & Conference Center"],
-  //   "Executive Suites": ["Executive Suites Downtown"],
-  //   "City Center Hotel": ["City Center Hotel & Spa"],
-  //   "Luxury Business Inn": ["Luxury Business Inn & Suites"],
-  //   "Coastal Resort & Spa": ["Coastal Resort & Spa Paradise"],
-  //   "Urban Business Plaza": ["Urban Business Plaza Hotel"],
-  //   "Historic Downtown Inn": ["Historic Downtown Inn & Suites"],
-  //   "Executive Business Center": ["Executive Business Center Hotel"],
-  //   "Premium City Hotel": ["Premium City Hotel & Conference Center"]
-  // }
-
   // Filter hotels based on selected properties
   const hotels = React.useMemo(() => {
+    debugger;
     if (!clusterData) return
     if (selectedProperties.length === 0) {
       return clusterData // Show all hotels if no properties selected
@@ -531,6 +296,7 @@ export function AllPropertiesTable({
   }
 
   const toggleHotelExpansion = (hotelName: string) => {
+    debugger;
     setExpandedHotels(prev => {
       const newSet = new Set(prev)
       if (newSet.has(hotelName)) {
@@ -561,6 +327,13 @@ export function AllPropertiesTable({
     } else {
       return "text-gray-900 dark:text-gray-100"
     }
+  }
+
+  const handlePropertyClick = (hotel: any) => {
+    const allProperties = LocalStorageService.getItem("Properties");
+    const selectedLatestProperty = allProperties?.find((x: any) => x.sid === hotel.sid);
+    LocalStorageService.setItem('SelectedProperty', selectedLatestProperty ? selectedLatestProperty : allProperties[0]);
+    window.location.href = '/';
   }
 
   return (
@@ -685,7 +458,7 @@ export function AllPropertiesTable({
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className="text-blue-600 hover:text-blue-800 font-medium text-sm cursor-pointer">
+                              <span className="text-blue-600 hover:text-blue-800 font-medium text-sm cursor-pointer" onClick={() => handlePropertyClick(hotel)}>
                                 {(() => {
                                   let maxLength = 22
 
@@ -838,7 +611,7 @@ export function AllPropertiesTable({
                         return (
                           <td key={`expanded-metrics-${index}`} className={`px-2 py-3 text-center border-r ${index === 2 ? 'border-gray-400 dark:border-gray-500' : 'border-gray-200 dark:border-gray-700'} bg-gray-50 dark:bg-gray-800 ${visibleDayNames[index] === 'Sat' || visibleDayNames[index] === 'Sun' ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`} style={{ width: '80px', minWidth: '50px', maxWidth: '80px' }}>
                             <div className="flex flex-col gap-0.5">
-                              <span className="text-sm font-medium text-gray-400">--</span>
+                              <span className="text-sm font-medium text-gray-400"></span>
                             </div>
                           </td>
                         )
@@ -865,11 +638,12 @@ export function AllPropertiesTable({
                               {/* Y-axis labels */}
                               {index === 3 && (() => {
                                 debugger;
-                                const allSubRate = hotel.pricePositioningEntites.find((x: any) => x.propertyType === 0)?.subscriberPropertyRate
-                                const allRatesHighest = allSubRate.map((r: any) => r.highestRate).filter((r: any) => r > 0)
-                                const allRatesLowest = allSubRate.map((r: any) => r.lowestRate).filter((r: any) => r > 0)
-                                const globalMinRate = Math.min(...allRatesLowest)
-                                const globalMaxRate = Math.max(...allRatesHighest)
+                                console.log("hotel", hotel)
+                                const allSubRate = hotel?.pricePositioningEntites.find((x: any) => x.propertyType === 0)?.subscriberPropertyRate
+                                const allRatesHighest = allSubRate?.map((r: any) => r.highestRate).filter((r: any) => r > 0)
+                                const allRatesLowest = allSubRate?.map((r: any) => r.lowestRate).filter((r: any) => r > 0)
+                                const globalMinRate = allRatesLowest?.length > 0 ? Math.min(...allRatesLowest) : 0 || 0
+                                const globalMaxRate = allRatesHighest?.length > 0 ? Math.max(...allRatesHighest) : 0 || 0
                                 const yAxisRange = globalMaxRate - globalMinRate
                                 let divisor = 1;
                                 let suffix = '';
@@ -923,27 +697,28 @@ export function AllPropertiesTable({
                               <div className={`relative h-full ${index === 3 ? 'ml-3' : ''}`}>
                                 {/* Range bar for this date */}
                                 {(() => {
-                                  const rateData = hotel.pricePositioningEntites.find((x: any) => x.propertyType === 0)?.subscriberPropertyRate.find((x: any) => format(x.checkInDateTime, 'd MMM') === date)
-                                  const lowestRateData = hotel.pricePositioningEntites.find((x: any) => x.propertName === rateData?.lowestRatePropName)?.subscriberPropertyRate.find((x: any) => format(x.checkInDateTime, 'd MMM') === date)
-                                  const highestRateData = hotel.pricePositioningEntites.find((x: any) => x.propertName === rateData?.highestRatePropName)?.subscriberPropertyRate.find((x: any) => format(x.checkInDateTime, 'd MMM') === date)
+                                  debugger;
+                                  const rateData = hotel?.pricePositioningEntites.find((x: any) => x.propertyType === 0)?.subscriberPropertyRate.find((x: any) => format(x.checkInDateTime, 'd MMM') === date)
+                                  const lowestRateData = hotel?.pricePositioningEntites.find((x: any) => x.propertName === rateData?.lowestRatePropName)?.subscriberPropertyRate.find((x: any) => format(x.checkInDateTime, 'd MMM') === date)
+                                  const highestRateData = hotel?.pricePositioningEntites.find((x: any) => x.propertName === rateData?.highestRatePropName)?.subscriberPropertyRate.find((x: any) => format(x.checkInDateTime, 'd MMM') === date)
                                   // Simple data structure - can be easily extended
                                   const rangeData = {
                                     currentRate: rateData?.status === "O" ? Math.round(rateData.rate) : 0,
-                                    minRate: Math.round(rateData.lowestRate),
-                                    maxRate: Math.round(rateData.highestRate),
-                                    rateType: rateData.rateType || 'normal'
+                                    minRate: Math.round(rateData?.lowestRate || 0),
+                                    maxRate: Math.round(rateData?.highestRate || 0),
+                                    rateType: rateData?.rateType || 'normal'
                                   }
 
                                   // Calculate Y-axis range (price range, not starting from 0)
-                                  const allSubRate = hotel.pricePositioningEntites.find((x: any) => x.propertyType === 0)?.subscriberPropertyRate
-                                  const allRates = allSubRate.map((r: any) => r.rate).filter((r: any) => r > 0)
-                                  const globalMinRate = Math.min(...allRates)
-                                  const globalMaxRate = Math.max(...allRates)
+                                  const allSubRate = hotel?.pricePositioningEntites.find((x: any) => x.propertyType === 0)?.subscriberPropertyRate
+                                  const allRates = allSubRate?.map((r: any) => r.rate).filter((r: any) => r > 0)
+                                  const globalMinRate = allRates?.length > 0 ? Math.min(...allRates) : 0 || 0
+                                  const globalMaxRate = allRates?.length > 0 ? Math.max(...allRates) : 0 || 0
                                   const yAxisRange = globalMaxRate - globalMinRate
 
                                   // Calculate range bar height and position (constrained within Y-axis)
                                   const maxBarHeight = 100 // Maximum height to prevent overflow
-                                  const rangeHeight = Math.min(((rangeData.maxRate - rangeData.minRate) / yAxisRange) * 120, maxBarHeight)
+                                  const rangeHeight = yAxisRange > 0 ? Math.min(((rangeData.maxRate - rangeData.minRate) / yAxisRange) * 120, maxBarHeight) : 0
 
                                   // Position blue dot based on rate type
                                   let currentPosition = 0;
@@ -963,9 +738,9 @@ export function AllPropertiesTable({
 
                                   // Center the range bar in the Y-axis (with constraints)
                                   const availableHeight = 120
-                                  const barBottomOffset = Math.max(10, Math.min(110 - rangeHeight, ((rangeData.minRate - globalMinRate) / yAxisRange) * availableHeight))
+                                  const barBottomOffset = yAxisRange > 0 ? Math.max(10, Math.min(110 - rangeHeight, ((rangeData.minRate - globalMinRate) / yAxisRange) * availableHeight)) : 0
 
-                                  return rateData.status === '--' ? (
+                                  return rateData && rateData?.status === '--' ? (
                                     <TooltipProvider delayDuration={0}>
                                       <Tooltip delayDuration={0} disableHoverableContent>
                                         <TooltipTrigger asChild>
@@ -1044,28 +819,29 @@ export function AllPropertiesTable({
                                                   }}
                                                 ></div>
                                                 {/* Current price marker (filled blue circle) */}
-                                                <div
+                                                {rateData?.rate > 0 && (<div
                                                   className="absolute left-1/2 transform -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full"
                                                   style={{ bottom: `${currentPosition}px` }}
-                                                ></div>
+                                                ></div>)}
                                               </div>
                                             </div>
                                           </TooltipTrigger>
-                                          <AllPropertiesTooltip
-                                            date={rateData?.checkInDateTime}
-                                            dayName={visibleDayNames[index] || ''}
-                                            rate={rateData?.rate}
-                                            variance={rateData?.rate > 0 ? Math.floor(rateData?.rate * 0.1) : 0}
-                                            hasEvent={rateData?.event?.eventDetails.length > 0}
-                                            eventNames={rateData?.event?.eventDetails.length > 0 ? rateData?.event?.eventDetails : []}
-                                            hotelName={hotel.hotels?.name}
-                                            lowestRate={lowestRateData}
-                                            highestRate={highestRateData}
-                                            rowIndex={hotels.indexOf(hotel.hotels)}
-                                            rateEntry={rateData}
-                                            currency={hotel.hotels?.currencySymbol}
-                                            symbol={hotel.hotels?.currencySymbol}
-                                          />
+                                          {(rateData?.rate > 0 || lowestRateData?.rate > 0 || highestRateData?.rate > 0) && (
+                                            <AllPropertiesTooltip
+                                              date={rateData?.checkInDateTime}
+                                              dayName={visibleDayNames[index] || ''}
+                                              rate={rateData?.rate}
+                                              variance={rateData?.rate > 0 ? Math.floor(rateData?.rate * 0.1) : 0}
+                                              hasEvent={rateData?.event?.eventDetails.length > 0}
+                                              eventNames={rateData?.event?.eventDetails.length > 0 ? rateData?.event?.eventDetails : []}
+                                              hotelName={hotel.hotels?.name}
+                                              lowestRate={lowestRateData}
+                                              highestRate={highestRateData}
+                                              rowIndex={hotels.indexOf(hotel.hotels)}
+                                              rateEntry={rateData}
+                                              currency={hotel.hotels?.currencySymbol}
+                                              symbol={hotel.hotels?.currencySymbol}
+                                            />)}
                                         </Tooltip>
                                       </TooltipProvider>
                                       {rateData?.event?.eventDetails.length > 0 &&

@@ -351,7 +351,13 @@ export function LoginForm() {
             {/* Welcome Text with Small Icon */}
             <div className="flex items-center space-x-3 mb-8">
               <div className="w-8 h-8 rounded-md bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-md">
-                <Activity className="w-4 h-4 text-white" />
+                <img
+                  src="/navigator-icon.svg"
+                  alt="Navigator Icon"
+                  width={22}
+                  height={20}
+                  className="w-[22px] h-5"
+                />
               </div>
               <h1 className="text-2xl font-medium text-white">
                 Welcome to Navigator

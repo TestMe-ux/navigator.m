@@ -22,14 +22,17 @@ import { ComparisonProvider, useComparison } from "@/components/comparison-conte
 import { format, differenceInDays, set } from "date-fns"
 import { getKPIData } from "@/lib/rate-trends-data"
 // import { LocalStorageService } from "@/lib/localstorage" // Removed - using static data only
-import { useLocalStorage, useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
+import { useLocalStorage, usePackageDetails, useSelectedProperty, useUserDetail } from "@/hooks/use-local-storage"
 import { useScreenSize } from "@/hooks/use-screen-size"
 import { getRateTrends, PPExcelDownload } from "@/lib/rate"
-import { generateRTRRReport, getCompleteCompSet, getRTRRReportStatusBySID, getRTRRValidation } from "@/lib/reports"
+import { generateRTRRReport, getAllReports, getCompleteCompSet, getRTRRReportStatusBySID, getRTRRValidation } from "@/lib/reports"
 import { RTRRRequestModel } from "@/lib/RTRRRequestModel"
 import { usePollingContext } from "@/components/polling/polling-context"
 import { useToast } from "@/hooks/use-toast"
 import { GetDemandAIData } from "@/lib/demand"
+import { RateTrendsCoachMarkTrigger } from "@/components/navigator/rate-trends-coach-mark-system"
+import OnDemandReportModal from "@/components/on-demand-report-modal/OnDemandReportModal"
+// import { OnDemandReportModal } from "@/components/on-demand-report-modal"
 
 /**
  * Utility function to format dates consistently across server and client
@@ -101,14 +104,17 @@ export default function RateTrendPage() {
   // State for competitor scrolling (only for table view)
   const [competitorStartIndex, setCompetitorStartIndex] = useState(0)
   const [selectedProperty] = useSelectedProperty();
+  const [packageDetails] = usePackageDetails()
   const [userDetails] = useUserDetail();
   const [rateData, setRateData] = useState(Object);
-
+  const [isModalOpen, setIsModalOpen] = useState(false)
   // Polling context for task management
   const { startTaskPolling, isTaskPolling, resumePolling } = usePollingContext();
   const [rateCompData, setRateCompData] = useState(Object);
   const [demandData, setDemandData] = useState<any>([])
+  const [reportInProgress, setReportInProgress] = useState<boolean>(true);
   const [competitorCount, setCompetitorCount] = useState(0)
+  const [compsetData, setCompsetData] = useState<any[]>([])
   const [primaryHotelsData, setPrimaryHotelsData] = useState<any[]>([])
   const [secondaryHotelsData, setSecondaryHotelsData] = useState<any[]>([])
   // const [runningReport, setRunningReport] = useState<any>({});
@@ -118,19 +124,18 @@ export default function RateTrendPage() {
   // Dynamic competitor count based on digitCount and screen resolution
   const getCompetitorsPerPage = () => {
     const { isSmall, isMedium, isLarge } = screenSize
-
     if (isSmall) {
       // Resolution from 1352px to 1500px
-      return selectedDigitCount === 4 ? 4 : selectedDigitCount === 6 ? 3 : 2
+      return selectedDigitCount <= 4 ? 4 : selectedDigitCount <= 7 ? 3 : 2
     } else if (isMedium) {
       // Resolution from 1501px to 1800px
-      return selectedDigitCount === 4 ? 5 : selectedDigitCount === 6 ? 4 : 4
+      return selectedDigitCount <= 4 ? 5 : selectedDigitCount <= 7 ? 4 : 4
     } else if (isLarge) {
       // Resolution above 1800px
-      return selectedDigitCount === 4 ? 8 : selectedDigitCount === 6 ? 6 : 5
+      return selectedDigitCount <= 4 ? 8 : selectedDigitCount <= 7 ? 6 : 5
     } else {
       // Default fallback (for screens < 1352px)
-      return selectedDigitCount === 4 ? 4 : selectedDigitCount === 6 ? 3 : 2
+      return selectedDigitCount <= 4 ? 4 : selectedDigitCount <= 7 ? 3 : 2
     }
   }
 
@@ -155,18 +160,20 @@ export default function RateTrendPage() {
   const nextCompetitors = () => {
     setCompetitorStartIndex(prev => {
       debugger
+      console.log(Math.min(prev + getCompetitorsPerPage(), competitorCount));
       // Always move by 5 positions, even if it goes beyond total competitors
-      return Math.min(prev + 4, competitorCount)
+      return Math.min(prev + getCompetitorsPerPage(), competitorCount)
     })
   }
 
   const prevCompetitors = () => {
-    setCompetitorStartIndex(prev => Math.max(0, prev - 4))
+    setCompetitorStartIndex(prev => Math.max(0, prev - getCompetitorsPerPage()))
   }
 
   const canGoNext = () => {
+    debugger;
     // Allow going to next page if we can show at least 1 more competitor
-    return competitorStartIndex + 4 < competitorCount
+    return competitorStartIndex + getCompetitorsPerPage() < competitorCount
   }
 
   const canGoPrev = () => {
@@ -220,7 +227,13 @@ export default function RateTrendPage() {
   // Use calculated values directly
   const availableMonths = calculateAvailableMonths
   const shouldShowMonthNavigation = availableMonths.length > 1
+  const handleReportGenerated = (reportId: number) => {
+    console.log('Report generated with ID:', reportId)
+  }
 
+  const handleError = (error: string) => {
+    console.error('Error:', error)
+  }
   // Handle lightning refresh
   const RTRFInitatedSuccess = (runningReport: any, lightingRefreshData: any) => {
     if (validationObject) {
@@ -513,7 +526,8 @@ export default function RateTrendPage() {
     Promise.all([
       getRateDate(),
       getCompRateData(),
-      getDemandAIData()
+      getDemandAIData(),
+      fetchReportsDataWithDates(startDate, endDate)
     ]).finally(() => {
       clearInterval(progressInterval);
       setLoadingProgress(100);
@@ -567,6 +581,7 @@ export default function RateTrendPage() {
 
           setPrimaryHotelsData(primaryCompSets)
           setSecondaryHotelsData(secondaryCompSets)
+          setCompsetData(response.body);
         }
       } catch (error) {
         console.error('Error fetching compset data:', error)
@@ -600,6 +615,42 @@ export default function RateTrendPage() {
       })
       .catch((err) => console.error(err));
   }
+  const fetchReportsDataWithDates = async (startDate: Date, endDate: Date) => {
+    let progressInterval: NodeJS.Timeout | undefined = undefined
+    try {
+
+      const sid = selectedProperty?.sid ?? 0
+
+      // Format dates for API call
+      const startDateStr = format(new Date(startDate), "MM/dd/yyyy")
+      const endDateStr = format(new Date(endDate), "MM/dd/yyyy")
+      debugger;
+      // Call the API
+      const response = await getAllReports({
+        sid: selectedProperty?.sid,
+        startdate: startDateStr,
+        enddate: endDateStr
+      })
+
+      // Handle response - check if response exists and has data
+      if (response && (response.status || response.body !== undefined)) {
+        debugger
+        let data = response.body || []
+        const reportInProgres = data.filter((x: any) => x.reportStatus.toLowerCase() !== 'error' && (!x.reportFilePath ||
+          x.reportFilePath === 'NONE' ||
+          x.reportFilePath === 'PENDING' ||
+          x.reportFilePath === ""));
+        setReportInProgress(reportInProgres?.length > 0 ? true : false);
+      } else {
+        // Only log as error if there's an actual API error
+
+      }
+    } catch (error) {
+      console.error('Error fetching reports:', error)
+
+    }
+  }
+
   const getRateDate = () => {
     setRateData({});
     const filtersValue = {
@@ -784,10 +835,10 @@ export default function RateTrendPage() {
   return (
 
 
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950" data-coach-mark="rate-trends-overview">
 
-      {/* Enhanced Filter Bar with Sticky Positioning */}
-      <div className="sticky top-0 z-50 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md transition-all duration-200 min-h-[80px]">
+      {/* Filter Bar */}
+      <div className="bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md transition-all duration-200 min-h-[80px]" data-coach-mark="rate-trends-filter-bar">
         <FilterBar onMoreFiltersClick={handleMoreFiltersClick} />
       </div>
 
@@ -810,7 +861,7 @@ export default function RateTrendPage() {
               Track rate movements and competitive positioning across time periods
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3" data-coach-mark="rate-trends-lightning-refresh">
             {/* Lightning Refresh and Report Buttons */}
             <TooltipProvider>
               <div className="flex items-center gap-2">
@@ -882,9 +933,10 @@ export default function RateTrendPage() {
                   size="sm"
                   className="h-8 px-3 hover:bg-blue-500 hover:text-white hover:border-blue-500"
                   onClick={() => {
-                    console.log('📊 On Demand Report clicked');
+                    setIsModalOpen(true);
                     // Add report logic here
                   }}
+                  disabled={reportInProgress}
                 >
                   <FileText className="h-4 w-4" style={{ marginRight: '2px' }} />
                   On Demand Report
@@ -937,7 +989,7 @@ export default function RateTrendPage() {
         </div>
 
         {/* Main Rate Trend Content */}
-        <div className="relative bg-white dark:bg-slate-900 shadow-xl border border-border/50 rounded-lg">
+        <div className="relative bg-white dark:bg-slate-900 border rounded-lg" data-coach-mark="rate-trends-chart-visualization">
           {/* Table View Heading - Only visible when table view is active */}
           {currentView === "table" && (
             <div className="absolute left-4 lg:left-6 z-10 flex items-center" style={{ top: 'calc(1rem + 2px)' }}>
@@ -1036,7 +1088,7 @@ export default function RateTrendPage() {
 
 
           {/* View Toggle - Positioned consistently for all views */}
-          <div className="absolute top-4 right-4 lg:right-6 z-10">
+          <div className="absolute top-4 right-4 lg:right-6 z-10" data-coach-mark="rate-trends-view-toggle">
             <TooltipProvider>
               <div className="flex items-center border border-border rounded-lg overflow-hidden bg-white dark:bg-slate-800 shadow-sm">
                 <Tooltip>
@@ -1099,7 +1151,7 @@ export default function RateTrendPage() {
 
           {/* Content based on current view */}
           {currentView === "table" ? (
-            <div className="pt-16">
+            <div className="pt-16" data-coach-mark="rate-trends-table-analysis">
               <RateTrendsTable
                 competitorStartIndex={competitorStartIndex}
                 digitCount={selectedDigitCount}
@@ -1109,31 +1161,33 @@ export default function RateTrendPage() {
               />
             </div>
           ) : currentView === "chart" ? (
-            <div className="pt-16">
+            <div className="pt-16" data-coach-mark="rate-trends-chart-visualization">
               <RTRateTrendsChart key="rate-trends-chart" rateData={rateData}
                 rateCompData={rateCompData} digitCount={selectedDigitCount} />
             </div>
           ) : (
-            <RateTrendCalendar
-              currentView={currentView}
-              highlightToday={true}
-              showWeekNumbers={false}
-              shouldShowMonthNavigation={shouldShowMonthNavigation}
-              availableMonths={availableMonths}
-              currentMonthIndex={currentMonthIndex}
-              onPrevMonth={prevMonth}
-              onNextMonth={nextMonth}
-              digitCount={selectedDigitCount}
-              startDate={startDate || new Date()}
-              endDate={endDate || new Date()}
-              onDateSelect={(date) => {
-                console.log('📅 Date selected:', date.toLocaleDateString())
-                // Add any additional date selection logic here
-              }}
-              rateData={rateData}
-              rateCompData={rateCompData}
-              selectedProperty={selectedProperty}
-            />
+            <div data-coach-mark="rate-trends-calendar-view">
+              <RateTrendCalendar
+                currentView={currentView}
+                highlightToday={true}
+                showWeekNumbers={false}
+                shouldShowMonthNavigation={shouldShowMonthNavigation}
+                availableMonths={availableMonths}
+                currentMonthIndex={currentMonthIndex}
+                onPrevMonth={prevMonth}
+                onNextMonth={nextMonth}
+                digitCount={selectedDigitCount}
+                startDate={startDate || new Date()}
+                endDate={endDate || new Date()}
+                onDateSelect={(date) => {
+                  console.log('📅 Date selected:', date.toLocaleDateString())
+                  // Add any additional date selection logic here
+                }}
+                rateData={rateData}
+                rateCompData={rateCompData}
+                selectedProperty={selectedProperty}
+              />
+            </div>
           )}
         </div>
 
@@ -1173,6 +1227,19 @@ export default function RateTrendPage() {
         onClose={() => setIsSnackbarOpen(false)}
         message={snackbarMessage}
         type={snackbarType}
+      />
+
+      {/* Rate Trends Coach Mark Trigger */}
+      <RateTrendsCoachMarkTrigger onViewChange={setCurrentView} />
+      <OnDemandReportModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        userDetails={userDetails}
+        selectedProperty={selectedProperty}
+        packageDetails={packageDetails}
+        compsetData={compsetData}
+        onReportGenerated={handleReportGenerated}
+        onError={handleError}
       />
     </div>
   )

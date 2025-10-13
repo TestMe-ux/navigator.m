@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AllPropertiesFilterBar } from "@/components/navigator/all-properties-filter-bar"
@@ -15,6 +15,7 @@ import { ChevronDown } from "lucide-react"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
 import { getPricePositioningCluster, getRateTrends } from "@/lib/rate"
 import { conevrtDateforApi } from "@/lib/utils"
+import { GetParityData, GetRateSummaryCluster } from "@/lib/parity"
 
 function AllPropertiesPageContent() {
   const router = useRouter()
@@ -27,37 +28,73 @@ function AllPropertiesPageContent() {
   const [selectedChannel, setSelectedChannel] = useState([])
   const [viewMode, setViewMode] = useState("All Properties")
   const [screenWidth, setScreenWidth] = useState(0)
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([])
+  const [selectedCities, setSelectedCities] = useState<string[]>([])
 
   // Property selector state - will be populated dynamically
   const [selectedProperties, setSelectedProperties] = useState<string[]>([])
   const [clusterData, setClusterData] = useState<any[]>([]);
+  const [cominedData, setCominedData] = useState<any[]>([]);
+
+  const [parityData, setparityData] = useState<any[]>([]);
   const [isPropertySelectorOpen, setIsPropertySelectorOpen] = useState(false)
-  const [displayedPropertiesCount, setDisplayedPropertiesCount] = useState(10)
+  const [displayedPropertiesCount, setDisplayedPropertiesCount] = useState(5)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingMoreData, setIsLoadingMoreData] = useState(false)
+  const [loadingProperty, setLoadingProperty] = useState<string | null>(null)
   const [losGuest, setLosGuest] = useState<{ "Los": any[], "Guest": any[] }>({ "Los": [], "Guest": [] });
-  // Dynamic available properties from allProperties using name field
+  // Dynamic available properties from allProperties filtered by country and city
   const availableProperties = React.useMemo(() => {
     if (!allProperties || allProperties.length === 0) {
       return []
     }
 
-    const properties = allProperties
+    let filteredProperties = allProperties
+
+    // Filter by selected countries if any are selected
+    if (selectedCountries.length > 0 && !selectedCountries.includes("All Countries")) {
+      filteredProperties = filteredProperties.filter((property: any) =>
+        property?.country && selectedCountries.includes(property.country)
+      )
+    }
+
+    // Filter by selected cities if any are selected
+    if (selectedCities.length > 0 && !selectedCities.includes("All Cities")) {
+      filteredProperties = filteredProperties.filter((property: any) =>
+        property?.city && selectedCities.includes(property.city)
+      )
+    }
+
+    const properties = filteredProperties
       .map((property: any) => property?.name)
       .filter((name: any): name is string => Boolean(name))
       .filter((name: string, index: number, array: string[]) => array.indexOf(name) === index) // Remove duplicates
       .sort()
 
     return properties
-  }, [allProperties])
+  }, [allProperties, selectedCountries, selectedCities])
 
   // Initialize selected properties when availableProperties changes
   useEffect(() => {
     if (availableProperties.length > 0 && selectedProperties.length === 0) {
-      // Select first 10 properties by default
-      setSelectedProperties(availableProperties.slice(0, 10))
+      // Select first 5 properties by default
+      setSelectedProperties(availableProperties.slice(0, 5))
     }
-  }, [availableProperties, selectedProperties.length])
+  }, [availableProperties])
+
+  // Reset selected properties when country/city filter changes
+  useEffect(() => {
+    debugger;
+    // Filter out properties that are no longer available due to country/city filtering
+    const validProperties = selectedProperties.filter(prop => availableProperties.includes(prop))
+
+    if (validProperties.length !== selectedProperties.length) {
+      setSelectedProperties(validProperties)
+      // Reset displayed count when properties change
+      setDisplayedPropertiesCount(Math.min(5, validProperties.length))
+    }
+  }, [availableProperties])
 
   // Track screen width for resolution indicator
   useEffect(() => {
@@ -70,8 +107,6 @@ function AllPropertiesPageContent() {
     return () => window.removeEventListener('resize', updateScreenWidth)
   }, [])
   useEffect(() => {
-
-
     const channelIds = channelFilter?.channelId ?? [];
     if (
       !startDate ||
@@ -96,7 +131,23 @@ function AllPropertiesPageContent() {
     sideFilter,
     compsetFilter
   ]);
-  const getRateDate = () => {
+  useEffect(() => {
+    if (!startDate ||
+      !endDate ||
+      !selectedProperty?.sid ||
+      selectedChannel.length === 0) return;
+    Promise.all([
+      GetParityDatas()
+    ]);
+  }, [
+    startDate,
+    endDate,
+    selectedProperty?.sid,
+    sideFilter,
+    selectedChannel.join(',') // ✅ fixes re-render from array identity change
+  ]);
+  const getRateDate = (propertiesToUse?: string[]) => {
+    const properties = propertiesToUse || selectedProperties;
     const filtersValue = {
       "SID": selectedProperty?.sid,
       "channels": (channelFilter?.channelId?.length ?? 0) > 0 ? channelFilter.channelId : [-1],
@@ -123,34 +174,88 @@ function AllPropertiesPageContent() {
       "compsetRatesRequired": true,
       "propertiesText": [],
       "isSecondary": compsetFilter,
-      "hotelsToDisplay": [...allProperties?.filter(x => selectedProperties.includes(x?.name || ''))]
+      "hotelsToDisplay": [...allProperties?.filter(x => properties.includes(x?.name || ''))]
     }
-    getPricePositioningCluster(filtersValue, userDetails?.userId)
+    return getPricePositioningCluster(filtersValue, userDetails?.userId)
       .then((res) => {
         if (res.status) {
-          const updatedVisibleProperties = addCompetitivenessToVisibleProperties(res?.body);
-          const sortedClusterData = updatedVisibleProperties.sort((a, b) => (a?.hotels?.name || '').localeCompare(b?.hotels?.name || ''));
-          console.log("ClusterData :", sortedClusterData)
-          setClusterData(sortedClusterData);
+          // const updatedVisibleProperties = addCompetitivenessToVisibleProperties(res?.body);
+          // const sortedClusterData = updatedVisibleProperties.sort((a, b) => (a?.hotels?.name || '').localeCompare(b?.hotels?.name || ''));
+          // console.log("ClusterData :", sortedClusterData)
+          setClusterData(res?.body);
           // setRateData(res.body);
           setLosGuest({ "Los": res.body?.losList, "Guest": res.body?.guestList });
           // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
         }
+        return res;
       })
-      .catch((err) => console.error(err));
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
   }
 
-  function addCompetitivenessToVisibleProperties(visibleProperties: any[]): any[] {
-    if (
-      !visibleProperties.length ||
-      !visibleProperties[0].pricePositioningEntites.length
-    )
-      return visibleProperties;
+  // Helper function for load more functionality
+  const getRateDateWithProperties = (properties: string[]) => {
+    return getRateDate(properties);
+  }
+  const GetParityDatas = (propertiesToUse?: string[]) => {
+    const channelIds = channelFilter?.channelId ?? [];
+    const properties = propertiesToUse || selectedProperties;
 
-    const updatedProperties = visibleProperties.map((prop) => ({ ...prop }));
+    if (!selectedProperty?.sid || !startDate || !endDate || channelIds.length === 0) {
+      console.warn('Missing required parameters for parity data fetch');
+      return Promise.resolve();
+    }
+
+    // setparityData([]);
+    const filtersValue = {
+      "sid": selectedProperty?.sid,
+      "checkInStartDate": conevrtDateforApi(startDate?.toString()),
+      "checkInEndDate": conevrtDateforApi(endDate?.toString()),
+      "channelName": selectedChannel.map((x: any) => x.cid),
+      "guest": sideFilter?.guest || null,
+      "los": sideFilter?.lengthOfStay || null,
+      "promotion": sideFilter?.rateViewBy?.PromotionText === "All" ? null : sideFilter?.rateViewBy?.PromotionText,
+      "qualification": sideFilter?.rateViewBy?.QualificationText === "All" ? null : sideFilter?.rateViewBy?.QualificationText,
+      "restriction": sideFilter?.rateViewBy?.RestrictionText === "All" ? null : sideFilter?.rateViewBy?.RestrictionText,
+      "hotelsToDisplay": [...allProperties?.filter(x => properties.includes(x?.name || ''))]
+    }
+
+    return GetRateSummaryCluster(filtersValue, userDetails?.userId)
+      .then((res) => {
+        if (res.status) {
+          let parityDatasMain = res.body;
+          setparityData(parityDatasMain);
+          console.log(parityDatasMain)
+          // setinclusionValues(res.body.map((inclusion: any) => ({ id: inclusion, label: inclusion })));
+        }
+        return res;
+      })
+      .catch((err) => {
+        console.error('Parity data fetch failed:', err);
+        setparityData([]);
+        throw err;
+      });
+  }
+
+  // Helper function for load more functionality
+  const GetParityDatasWithProperties = (properties: string[]) => {
+    return GetParityDatas(properties);
+  }
+  useEffect(() => {
+    if (
+      !clusterData.length ||
+      !clusterData[0].pricePositioningEntites.length ||
+      parityData.length === 0 ||
+      isLoadingMoreData
+    )
+      return;
+
+    const updatedProperties = clusterData.map((prop) => ({ ...prop }));
 
     const totalDates =
-      visibleProperties[0].pricePositioningEntites[0].subscriberPropertyRate.map(
+      clusterData[0].pricePositioningEntites[0].subscriberPropertyRate.map(
         (x: any) => x.checkInDateTime
       );
 
@@ -160,7 +265,7 @@ function AllPropertiesPageContent() {
     >();
 
     totalDates.forEach((checkinDate: any) => {
-      visibleProperties.forEach((prop) => {
+      clusterData.forEach((prop) => {
         const priceInner: { key: 'Subscriber' | 'Compset'; value: number }[] = [];
 
         prop.pricePositioningEntites.forEach((positioning: any) => {
@@ -196,8 +301,11 @@ function AllPropertiesPageContent() {
       });
     });
 
-    return updatedProperties.map((prop) => {
+
+    const dataComined = updatedProperties.map((prop) => {
       const comp = competitivenessMap.get(prop.sid);
+      debugger
+      const paritys = parityData.find((x: any) => x.sid === prop.sid);
       const competitiveness =
         comp && comp.denominator > 0
           ? parseFloat(Math.round(comp.value / comp.denominator).toFixed(0))
@@ -226,15 +334,34 @@ function AllPropertiesPageContent() {
           availability = Math.round((countAvailable * 100) / countTotal);
         }
       }
+      let parityDatas = paritys?.violationRateSummaryEntity?.otaViolationChannelRate?.overallWinMeetLoss;
+      let parityScore = 0;
 
+      if (parityDatas != null && (parityDatas.winCount + parityDatas.meetCount + parityDatas.lossCount) != 0) {
+        let win = parityDatas.winCount
+        let meet = parityDatas.meetCount
+        let loss = parityDatas.lossCount
+        parityScore = Math.round(((win + meet) / (win + meet + loss)) * 100)
+      }
+      else {
+        parityScore = 0;
+      }
       return {
         ...prop,
         competitiveness,
         availability,
-        parityScore: 0
+        parityScore
       };
     });
-  }
+    const sortedClusterData = dataComined.sort((a: any, b: any) => (a?.hotels?.name || '').localeCompare(b?.hotels?.name || ''));
+    // For load more functionality, append new data to existing data
+    setCominedData(prevData => {
+      // Filter out any existing data for the same properties to avoid duplicates
+      const existingSids = new Set(prevData.map(item => item.sid));
+      const newData = sortedClusterData.filter(item => !existingSids.has(item.sid));
+      return [...prevData, ...newData];
+    });
+  }, [clusterData, parityData, isLoadingMoreData]);
 
 
   // Get resolution category and column count
@@ -252,13 +379,48 @@ function AllPropertiesPageContent() {
 
   const resolutionInfo = getResolutionInfo()
 
-  // Property selector handlers - copied from Cluster page
-  const handlePropertyToggle = (property: string) => {
-    setSelectedProperties(prev =>
-      prev.includes(property)
-        ? prev.filter(p => p !== property)
-        : [...prev, property]
-    )
+  // Helper function to check if property data exists in cominedData
+  const isPropertyDataLoaded = (propertyName: string) => {
+    return cominedData.some(item => item.hotels?.name === propertyName);
+  }
+
+  // Function to load individual property data
+  const loadIndividualPropertyData = async (propertyName: string) => {
+    try {
+      setLoadingProperty(propertyName);
+      setIsLoadingMoreData(true);
+
+      // Call APIs with only this individual property
+      await Promise.all([
+        getRateDateWithProperties([propertyName]),
+        GetParityDatasWithProperties([propertyName])
+      ]);
+    } catch (error) {
+      console.error(`Error loading data for property ${propertyName}:`, error);
+    } finally {
+      setLoadingProperty(null);
+      setIsLoadingMoreData(false);
+    }
+  }
+
+  // Property selector handlers - enhanced to load individual property data
+  const handlePropertyToggle = async (property: string) => {
+    const isCurrentlySelected = selectedProperties.includes(property);
+
+    if (!isCurrentlySelected) {
+      // Adding a new property
+      setSelectedProperties(prev => [...prev, property]);
+
+      // Check if property data is already loaded
+      if (!isPropertyDataLoaded(property)) {
+        // Load data for this individual property
+        await loadIndividualPropertyData(property);
+      }
+      // If data already exists, just show it (no API call needed)
+    } else {
+      // Removing a property - just hide it, don't call API
+      setSelectedProperties(prev => prev.filter(p => p !== property));
+    }
   }
 
   // Handle "All Properties" selection - copied from Cluster page
@@ -285,35 +447,50 @@ function AllPropertiesPageContent() {
     }
   }
 
-  // Load more properties handler - copied from Cluster page
+  // Load more properties handler - calls APIs with next 5 properties only
   const handleLoadMoreProperties = async () => {
     setIsLoadingMore(true)
+    setIsLoadingMoreData(true)
 
-    // Simulate loading delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    try {
+      // Calculate next 5 properties to load (only the new ones, not previously loaded)
+      const nextPropertiesCount = Math.min(displayedPropertiesCount + 5, selectedProperties.length)
+      const nextProperties = selectedProperties.slice(displayedPropertiesCount, nextPropertiesCount)
 
-    setDisplayedPropertiesCount(prev => Math.min(prev + 10, selectedProperties.length))
-    setIsLoadingMore(false)
+      // Update displayed count first
+      setDisplayedPropertiesCount(nextPropertiesCount)
+
+      // Call APIs with only the next 5 new properties
+      await Promise.all([
+        getRateDateWithProperties(nextProperties),
+        GetParityDatasWithProperties(nextProperties)
+      ])
+    } catch (error) {
+      console.error('Error loading more properties:', error)
+    } finally {
+      setIsLoadingMore(false)
+      setIsLoadingMoreData(false)
+    }
   }
 
   // Reset displayed count when selected properties change
   useEffect(() => {
     // Always show 10 properties by default, regardless of selection
-    if (selectedProperties.length <= 10) {
-      setDisplayedPropertiesCount(10)
+    if (selectedProperties.length <= 5) {
+      setDisplayedPropertiesCount(5)
     } else if (displayedPropertiesCount > selectedProperties.length) {
-      setDisplayedPropertiesCount(10)
+      setDisplayedPropertiesCount(5)
     }
   }, [selectedProperties.length, displayedPropertiesCount])
 
   // Simulate loading for skeleton effect
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 2000) // 2 second loading simulation
+  // useEffect(() => {
+  //   const timer = setTimeout(() => {
+  //     setIsLoading(false)
+  //   }, 2000) // 2 second loading simulation
 
-    return () => clearTimeout(timer)
-  }, [])
+  //   return () => clearTimeout(timer)
+  // }, [])
 
   const handleMoreFiltersClick = () => {
     setIsFilterSidebarOpen(true)
@@ -330,6 +507,16 @@ function AllPropertiesPageContent() {
 
   return (
     <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col" data-coach-mark="all-properties-overview">
+      <div className="sticky top-0 z-40 filter-bar-minimal bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
+        <AllPropertiesFilterBar
+          onMoreFiltersClick={handleMoreFiltersClick}
+          setSelectedChannel={setSelectedChannel}
+          viewMode={viewMode}
+          setViewMode={handleViewModeChange}
+          onCountryChange={setSelectedCountries}
+          onCityChange={setSelectedCities}
+        />
+      </div>
       {isLoading && (
         <div className="min-h-screen bg-gradient-to-br from-slate-50/50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
           <GlobalProgressBar />
@@ -343,16 +530,7 @@ function AllPropertiesPageContent() {
       {!isLoading && (
         <>
           {/* Enhanced Filter Bar with Sticky Positioning */}
-          <div className="sticky top-0 z-40 filter-bar-minimal bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
-            <AllPropertiesFilterBar
-              onMoreFiltersClick={handleMoreFiltersClick}
-              setSelectedChannel={setSelectedChannel}
-              viewMode={viewMode}
-              setViewMode={handleViewModeChange}
-            />
-          </div>
-
-          <FilterSidebar
+          {/* <FilterSidebar
             losGuest={{ "Los": losGuest.Los, "Guest": losGuest.Guest }}
             isOpen={isFilterSidebarOpen}
             onClose={() => setIsFilterSidebarOpen(false)}
@@ -362,7 +540,7 @@ function AllPropertiesPageContent() {
               console.log('Applied all properties filters:', filters)
               setIsFilterSidebarOpen(false)
             }}
-          />
+          /> */}
 
           <main className="relative flex-1 overflow-auto">
             <div
@@ -408,13 +586,13 @@ function AllPropertiesPageContent() {
                                       {/* All Properties Option */}
                                       <label
                                         className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
-                                        onClick={() => handleSelectAllProperties()}
+
                                       >
                                         <input
                                           type="checkbox"
                                           className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
                                           checked={selectedProperties.length === availableProperties.length}
-                                          onChange={() => { }} // Prevent default behavior
+                                          onClick={() => handleSelectAllProperties()}
                                           readOnly
                                         />
                                         <span
@@ -429,13 +607,14 @@ function AllPropertiesPageContent() {
                                         <label
                                           key={property}
                                           className="py-2 px-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 rounded-sm flex items-center cursor-pointer"
-                                          onClick={() => handlePropertyToggle(property)}
+
                                         >
                                           <input
                                             type="checkbox"
                                             className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-0 focus:outline-none mr-3 cursor-pointer"
                                             checked={selectedProperties.includes(property)}
-                                            onChange={() => { }} // Prevent default behavior
+                                            onClick={() => handlePropertyToggle(property)}
+                                            disabled={loadingProperty === property}
                                             readOnly
                                           />
                                           <span
@@ -443,6 +622,14 @@ function AllPropertiesPageContent() {
                                           >
                                             {property}
                                           </span>
+                                          <div className="flex items-center gap-2">
+                                            {isPropertyDataLoaded(property) && (
+                                              <div className="w-2 h-2 bg-green-500 rounded-full" title="Data loaded"></div>
+                                            )}
+                                            {loadingProperty === property && (
+                                              <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-600 border-t-transparent"></div>
+                                            )}
+                                          </div>
                                         </label>
                                       ))}
                                     </div>
@@ -453,9 +640,9 @@ function AllPropertiesPageContent() {
                           </DropdownMenu>
 
                           {/* Resolution Section - next to dropdown */}
-                          <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-xs font-medium rounded">
+                          {/* <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-xs font-medium rounded">
                             {screenWidth}px | {resolutionInfo.category} | {resolutionInfo.columns} cols
-                          </div>
+                          </div> */}
                         </div>
 
                         {/* Helper Text - below heading and dropdown, left aligned */}
@@ -481,7 +668,7 @@ function AllPropertiesPageContent() {
                       competitorStartIndex={0}
                       digitCount={4}
                       selectedProperties={selectedProperties.slice(0, displayedPropertiesCount)}
-                      clusterData={clusterData}
+                      clusterData={cominedData}
                     />
 
                     {/* Load More Properties Button */}
@@ -498,7 +685,7 @@ function AllPropertiesPageContent() {
                               onClick={handleLoadMoreProperties}
                               className="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors duration-200 text-sm bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/50 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md w-full"
                             >
-                              <span>Load {Math.min(10, selectedProperties.length - displayedPropertiesCount)} more properties</span>
+                              <span>Load {Math.min(5, selectedProperties.length - displayedPropertiesCount)} more properties</span>
                               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                               </svg>

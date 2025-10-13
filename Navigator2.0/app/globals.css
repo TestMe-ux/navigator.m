@@ -26,6 +26,87 @@
   }
 }
 
+/* Spotlight Effect for Coach Marks */
+.coach-mark-highlight-spotlight {
+  position: relative;
+  z-index: 1001;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  outline: 2px solid #1d4ed8 !important;
+  outline-offset: 4px !important;
+  transition: all 0.3s ease-in-out;
+}
+
+/* Demand-specific Coach Mark Highlighting - Consistent with Overview */
+.demand-coach-mark-highlight-spotlight {
+  outline: 2px solid #1d4ed8 !important;
+  outline-offset: 4px !important;
+  border-radius: 8px !important;
+  position: relative !important;
+  z-index: 1000 !important;
+}
+
+.demand-coach-mark-card {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  z-index: 9999 !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure all card content is above everything and fully interactive */
+.demand-coach-mark-card * {
+  z-index: 9999 !important;
+  position: relative !important;
+  pointer-events: auto !important;
+}
+
+/* Force all buttons to be fully clickable */
+.demand-coach-mark-card button {
+  z-index: 10000 !important;
+  pointer-events: auto !important;
+  position: relative !important;
+}
+
+/* Ensure card content is always interactive */
+.demand-coach-mark-card .card-content {
+  pointer-events: auto !important;
+  z-index: 10000 !important;
+}
+
+/* Rate Trends-specific Coach Mark Highlighting - Consistent with Demand */
+.rate-trends-coach-mark-highlight-spotlight {
+  outline: 2px solid #1d4ed8 !important;
+  outline-offset: 4px !important;
+  border-radius: 8px !important;
+  position: relative !important;
+  z-index: 1000 !important;
+}
+
+.rate-trends-coach-mark-card {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  z-index: 9999 !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure all card content is above everything and fully interactive */
+.rate-trends-coach-mark-card * {
+  z-index: 9999 !important;
+  position: relative !important;
+  pointer-events: auto !important;
+}
+
+/* Force all buttons to be fully clickable */
+.rate-trends-coach-mark-card button {
+  z-index: 10000 !important;
+  pointer-events: auto !important;
+  position: relative !important;
+}
+
+/* Ensure card content is always interactive */
+.rate-trends-coach-mark-card .card-content {
+  pointer-events: auto !important;
+  z-index: 10000 !important;
+}
+
 /* Custom Scrollbar Styles */
 .custom-scrollbar {
   scrollbar-width: thin;
@@ -416,6 +497,16 @@ a {
 
 .animate-fade-in {
   animation: fade-in 0.3s ease-out;
+}
+
+/* Card Elevated - Enhanced shadow and border styling */
+.card-elevated {
+  box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border: 1px solid hsl(var(--border));
+}
+
+.dark .card-elevated {
+  box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
 }
 
 @keyframes slide-in-right {

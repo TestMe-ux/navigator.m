@@ -15,11 +15,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Search, Plus, History, MoreVertical, Trash2, Edit, CheckCircle, X, ArrowUp, ArrowDown, ArrowUpDown, ChevronDown } from "lucide-react"
 import { LoadingSkeleton, GlobalProgressBar } from "@/components/loading-skeleton"
-import { 
-  getTaxPreference, 
-  setTaxPreference as setTaxPreferenceAPI, 
-  getTaxData, 
-  getHotelsData, 
+import {
+  getTaxPreference,
+  setTaxPreference as setTaxPreferenceAPI,
+  getTaxData,
+  getHotelsData,
   getChannelsData,
   getTaxSettingHistory,
   getCompleteCompSet,
@@ -65,7 +65,7 @@ export default function TaxSettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const hasLoadedTaxPreferenceRef = useRef(false)
   const [showGlobalTaxModal, setShowGlobalTaxModal] = useState(false)
-  
+
   // Tax preference states matching Angular implementation
   const [taxPreference, setTaxPreference] = useState<string>("NotSet")
   const [previousTaxPreference, setPreviousTaxPreference] = useState<string>("NotSet")
@@ -73,7 +73,7 @@ export default function TaxSettingsPage() {
   const [isTaxExclusive, setIsTaxExclusive] = useState(false)
   const [isTaxNotSet, setIsTaxNotSet] = useState(true)
   const [selectedProperty] = useSelectedProperty()
-  
+
   // State for modal preference selection (not saved yet)
   const [modalTaxPreference, setModalTaxPreference] = useState<string>("NotSet")
   const [showTaxPreferenceSnackbar, setShowTaxPreferenceSnackbar] = useState(false)
@@ -86,27 +86,27 @@ export default function TaxSettingsPage() {
     channels: "Booking.com",
     tax: "",
   })
-  
+
   // Multiple taxes state
   const [taxInputs, setTaxInputs] = useState([
     { id: 1, name: "", percentage: "", checked: false }
   ])
-  
+
   // Tax properties state for the dynamic tax fields
   const [taxProperties, setTaxProperties] = useState([
     { id: 1, TaxName: "", Tax: "", isPercentage: false }
   ])
-  
+
   // Additional state for tax settings
   const [isAllFieldFilled, setIsAllFieldFilled] = useState(false)
   const [taxSettingId, setTaxSettingId] = useState<number>(0)
   const [activity, setActivity] = useState<string>("Create")
-  
+
   // Original values for edit mode comparison
   const [originalSelectedSubscribers, setOriginalSelectedSubscribers] = useState<string[]>([])
   const [originalSelectedChannels, setOriginalSelectedChannels] = useState<string[]>([])
-  const [originalTaxInputs, setOriginalTaxInputs] = useState<Array<{id: number, name: string, percentage: string, checked: boolean}>>([])
-  
+  const [originalTaxInputs, setOriginalTaxInputs] = useState<Array<{ id: number, name: string, percentage: string, checked: boolean }>>([])
+
   // Multiselect dropdown states
   const [isSubscriberDropdownOpen, setIsSubscriberDropdownOpen] = useState(false)
   const [isChannelsDropdownOpen, setIsChannelsDropdownOpen] = useState(false)
@@ -163,7 +163,7 @@ export default function TaxSettingsPage() {
       setModalTaxPreference(taxPreference)
     }
   }, [showGlobalTaxModal])
-  
+
   // Simulate loading effect on component mount
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -174,17 +174,17 @@ export default function TaxSettingsPage() {
   }, [])
 
   // Load all data on component mount - using ref to prevent multiple calls
-  useEffect(() => { 
+  useEffect(() => {
 
     if (!selectedProperty?.sid) return;
     if (hasLoadedTaxPreferenceRef.current) {
       console.log('⏭️ Skipping tax preference load - already loaded')
       return
     }
-    
+
     console.log('🚀 Loading tax preference for the first time')
     hasLoadedTaxPreferenceRef.current = true
-    
+
     const loadData = async () => {
       try {
         const sid = selectedProperty?.sid
@@ -283,9 +283,9 @@ export default function TaxSettingsPage() {
   // Save tax preference function matching Angular implementation
   const onclickSaveTaxPreference = async () => {
     try {
-      const preferenceValue = modalTaxPreference === "Inclusive" ? PreferenceValue.Inclusive : 
-                            modalTaxPreference === "Exclusive" ? PreferenceValue.Exclusive : 
-                            PreferenceValue.NotSet
+      const preferenceValue = modalTaxPreference === "Inclusive" ? PreferenceValue.Inclusive :
+        modalTaxPreference === "Exclusive" ? PreferenceValue.Exclusive :
+          PreferenceValue.NotSet
 
       const response = await setTaxPreferenceAPI({
         SID: selectedProperty?.sid,
@@ -342,7 +342,7 @@ export default function TaxSettingsPage() {
       setShowTaxPreferenceSnackbar(true)
     }
   }
-  
+
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -365,24 +365,24 @@ export default function TaxSettingsPage() {
   // Filter tax settings based on search term
   const filteredTaxSettings = taxSettings.filter(tax => {
     if (!searchTerm) return true
-    
+    debugger
     const searchLower = searchTerm.toLowerCase()
     return (
       tax.taxValue?.toLowerCase().includes(searchLower) ||
-      tax.taxName?.toLowerCase().includes(searchLower) ||
-      tax.propertiesText?.toLowerCase().includes(searchLower) ||
-      tax.channelsText?.toLowerCase().includes(searchLower) ||
-      tax.activity?.toLowerCase().includes(searchLower) ||
+        tax.taxName?.toLowerCase().includes(searchLower) ||
+        tax.propertiesText?.toLowerCase().includes(searchLower) ||
+        tax.channelsText?.toLowerCase().includes(searchLower) ||
+        // tax.activity?.toLowerCase() === "create" ? "added".includes(searchLower) : tax.activity?.toLowerCase().includes(searchLower) ||
       tax.updatedByName?.toLowerCase().includes(searchLower)
     )
   })
 
   const filteredTaxes = filteredTaxSettings.sort((a, b) => {
     if (!sortConfig.key || !sortConfig.direction) return 0
-    
+
     let aValue: any
     let bValue: any
-    
+
     // Handle different field types for proper sorting
     switch (sortConfig.key) {
       case 'tax':
@@ -425,15 +425,15 @@ export default function TaxSettingsPage() {
         aValue = a[sortConfig.key as keyof typeof a] || ''
         bValue = b[sortConfig.key as keyof typeof b] || ''
     }
-    
+
     // Handle null/undefined values
     if (aValue === null || aValue === undefined) aValue = ''
     if (bValue === null || bValue === undefined) bValue = ''
-    
+
     // Convert to strings for comparison
     const aStr = String(aValue).toLowerCase()
     const bStr = String(bValue).toLowerCase()
-    
+
     if (aStr < bStr) return sortConfig.direction === 'asc' ? -1 : 1
     if (aStr > bStr) return sortConfig.direction === 'asc' ? 1 : -1
     return 0
@@ -452,8 +452,8 @@ export default function TaxSettingsPage() {
     // Reset form for create mode
     setTaxSettingId(0)
     setActivity("Create")
-      setSelectedSubscribers([])
-      setSelectedChannels([])
+    setSelectedSubscribers([])
+    setSelectedChannels([])
     setTaxInputs([
       { id: 1, name: "", percentage: "", checked: false }
     ])
@@ -467,16 +467,16 @@ export default function TaxSettingsPage() {
   // Check if there are any changes from original values
   const hasChanges = () => {
     if (activity === "Create") return true // Always enabled for create mode
-    
+
     // Compare selected subscribers
     const subscribersChanged = JSON.stringify(selectedSubscribers.sort()) !== JSON.stringify(originalSelectedSubscribers.sort())
-    
+
     // Compare selected channels
     const channelsChanged = JSON.stringify(selectedChannels.sort()) !== JSON.stringify(originalSelectedChannels.sort())
-    
+
     // Compare tax inputs
     const taxInputsChanged = JSON.stringify(taxInputs) !== JSON.stringify(originalTaxInputs)
-    
+
     return subscribersChanged || channelsChanged || taxInputsChanged
   }
 
@@ -504,7 +504,7 @@ export default function TaxSettingsPage() {
       // Set the tax setting ID and activity
       setTaxSettingId(taxSettingId)
       setActivity("Update")
-      
+
       // Find matching properties and channels from available lists (matching Angular logic)
       // Use word boundary matching to avoid partial matches like "Agoda" matching "AgodaUS"
       const editedProperties = properties.filter(prop => {
@@ -514,7 +514,7 @@ export default function TaxSettingsPage() {
         const regex = new RegExp(`\\b${propName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`)
         return regex.test(propertiesText)
       })
-      
+
       const editedChannels = channels.filter(channel => {
         const channelsText = taxToEdit.channelsText?.toLowerCase() || ""
         const channelName = channel.name.toLowerCase()
@@ -522,15 +522,15 @@ export default function TaxSettingsPage() {
         const regex = new RegExp(`\\b${channelName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`)
         return regex.test(channelsText)
       })
-      
+
       // Set selected properties and channels using the found matches
       setSelectedSubscribers(editedProperties.map(prop => prop.name))
       setSelectedChannels(editedChannels.map(channel => channel.name))
-      
+
       // Parse tax values and names
       const taxValues = taxToEdit.taxValue?.split(",").map(v => v.trim()).filter(Boolean) || []
       const taxNames = taxToEdit.taxName?.split(",").map(n => n.trim()).filter(Boolean) || []
-      
+
       // Create tax inputs from the parsed data
       const newTaxInputs = []
       for (let i = 0; i < Math.max(taxValues.length, taxNames.length); i++) {
@@ -538,7 +538,7 @@ export default function TaxSettingsPage() {
         const taxName = taxNames[i] || `Tax${i + 1}`
         const isPercentage = taxValue.includes('%')
         const percentage = isPercentage ? taxValue.replace('%', '') : taxValue
-        
+
         newTaxInputs.push({
           id: i + 1,
           name: taxName,
@@ -546,7 +546,7 @@ export default function TaxSettingsPage() {
           checked: isPercentage
         })
       }
-      
+
       // If no tax inputs, add one empty one
       if (newTaxInputs.length === 0) {
         newTaxInputs.push({
@@ -556,14 +556,14 @@ export default function TaxSettingsPage() {
           checked: false
         })
       }
-      
+
       setTaxInputs(newTaxInputs)
-      
+
       // Store original values for comparison
       setOriginalSelectedSubscribers(editedProperties.map(prop => prop.name))
       setOriginalSelectedChannels(editedChannels.map(channel => channel.name))
       setOriginalTaxInputs([...newTaxInputs])
-      
+
       // Open the Add Tax modal
       setShowAddTax(true)
     }
@@ -583,7 +583,7 @@ export default function TaxSettingsPage() {
         taxSettingId: taxToDelete,
         SID: sid
       }
-      
+
       console.log('🗑️ Delete Tax Request:', deleteParams)
       const response = await deleteTaxSetting(deleteParams)
       console.log('🗑️ Delete Tax Response:', response)
@@ -591,7 +591,7 @@ export default function TaxSettingsPage() {
       if (response.status && response.body) {
         // Refresh data
         await loadTaxSettingsData()
-        
+
         // Show success message
         setSnackbarMessage("Tax Settings Deleted Successfully!!")
         setSnackbarType("success")
@@ -621,7 +621,7 @@ export default function TaxSettingsPage() {
   // Save tax settings function matching Angular implementation
   const saveTaxSettingsFunction = async () => {
     setIsAllFieldFilled(false)
-    
+
     // Validate tax inputs - check if any field is partially filled
     for (const item of taxInputs) {
       if ((item.name !== '' && item.percentage === '') || (item.percentage !== '' && item.name === '')) {
@@ -632,7 +632,7 @@ export default function TaxSettingsPage() {
         return
       }
     }
-    
+
     if (isAllFieldFilled) return
 
     // Map selected names to proper objects with IDs (matching Angular implementation)
@@ -678,7 +678,7 @@ export default function TaxSettingsPage() {
 
     try {
       const response = await saveTaxSettings(taxModel)
-      
+
       if (!response.status && response.message === 'Few Combinations are Existing') {
         setSnackbarMessage("The Tax settings has not been added. Maybe this combination already exists")
         setSnackbarType("error")
@@ -687,10 +687,10 @@ export default function TaxSettingsPage() {
         setSnackbarMessage(`The Tax settings has been ${activity.toLowerCase() === "update" ? "updated" : "saved"}!!`)
         setSnackbarType("success")
         setShowSnackbar(true)
-        
+
         // Refresh data
         await loadTaxSettingsData()
-        
+
         // Reset form
         setSelectedChannels([])
         setSelectedSubscribers([])
@@ -747,7 +747,7 @@ export default function TaxSettingsPage() {
   }
 
   const updateTaxProperty = (index: number, field: string, value: any) => {
-    setTaxProperties(prev => prev.map((item, i) => 
+    setTaxProperties(prev => prev.map((item, i) =>
       i === index ? { ...item, [field]: value } : item
     ))
   }
@@ -799,16 +799,16 @@ export default function TaxSettingsPage() {
       const filteredProperties = properties.filter(property =>
         property.name.toLowerCase().includes(subscriberSearchTerm.toLowerCase())
       )
-      
+
       // Check if all filtered properties are selected
-      const allFilteredSelected = filteredProperties.every(property => 
+      const allFilteredSelected = filteredProperties.every(property =>
         selectedSubscribers.includes(property.name)
       )
-      
+
       if (allFilteredSelected) {
         // All filtered are selected, so deselect all filtered
-        setSelectedSubscribers(prev => 
-          prev.filter(selected => 
+        setSelectedSubscribers(prev =>
+          prev.filter(selected =>
             !filteredProperties.some(filtered => filtered.name === selected)
           )
         )
@@ -826,8 +826,8 @@ export default function TaxSettingsPage() {
         })
       }
     } else {
-      setSelectedSubscribers(prev => 
-        prev.includes(subscriber) 
+      setSelectedSubscribers(prev =>
+        prev.includes(subscriber)
           ? prev.filter(s => s !== subscriber)
           : [...prev, subscriber]
       )
@@ -840,16 +840,16 @@ export default function TaxSettingsPage() {
       const filteredChannels = channels.filter(channel =>
         channel.name.toLowerCase().includes(channelsSearchTerm.toLowerCase())
       )
-      
+
       // Check if all filtered channels are selected
-      const allFilteredSelected = filteredChannels.every(channel => 
+      const allFilteredSelected = filteredChannels.every(channel =>
         selectedChannels.includes(channel.name)
       )
-      
+
       if (allFilteredSelected) {
         // All filtered are selected, so deselect all filtered
-        setSelectedChannels(prev => 
-          prev.filter(selected => 
+        setSelectedChannels(prev =>
+          prev.filter(selected =>
             !filteredChannels.some(filtered => filtered.name === selected)
           )
         )
@@ -867,8 +867,8 @@ export default function TaxSettingsPage() {
         })
       }
     } else {
-      setSelectedChannels(prev => 
-        prev.includes(channel) 
+      setSelectedChannels(prev =>
+        prev.includes(channel)
           ? prev.filter(c => c !== channel)
           : [...prev, channel]
       )
@@ -908,21 +908,21 @@ export default function TaxSettingsPage() {
         return
       }
     }
-    
-    setTaxInputs(taxInputs.map(tax => 
+
+    setTaxInputs(taxInputs.map(tax =>
       tax.id === id ? { ...tax, [field]: value } : tax
     ))
   }
 
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc'
-    
+
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = 'desc'
     } else if (sortConfig.key === key && sortConfig.direction === 'desc') {
       direction = 'asc'
     }
-    
+
     setSortConfig({ key: direction ? key : null, direction })
   }
 
@@ -930,13 +930,13 @@ export default function TaxSettingsPage() {
     if (sortConfig.key !== key) {
       return null
     }
-    
+
     if (sortConfig.direction === 'asc') {
       return <ArrowUp className="w-3 h-3 font-bold text-blue-600" strokeWidth={2.5} />
     } else if (sortConfig.direction === 'desc') {
       return <ArrowDown className="w-3 h-3 font-bold text-blue-600" strokeWidth={2.5} />
     }
-    
+
     return <ArrowUpDown className="w-3 h-3 font-bold text-blue-600" strokeWidth={2.5} />
   }
 
@@ -963,7 +963,7 @@ export default function TaxSettingsPage() {
         <Tooltip>
           <TooltipTrigger asChild>
             <div ref={ref} className={`${className} cursor-pointer`}>
-              {children}
+              {content}
             </div>
           </TooltipTrigger>
           <TooltipContent className="bg-black text-white text-xs">
@@ -1037,7 +1037,7 @@ export default function TaxSettingsPage() {
                       <div className="h-4 w-16 bg-gray-300 animate-pulse rounded"></div>
                     </div>
                   </div>
-                  
+
                   {/* Table Rows */}
                   {Array.from({ length: 5 }).map((_, i) => (
                     <div key={i} className="px-4 py-4 border-b last:border-b-0">
@@ -1063,1117 +1063,1115 @@ export default function TaxSettingsPage() {
 
   return (
     <TooltipProvider>
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <div className="space-y-1">
-            <div className="flex items-center gap-3">
-              <span className="text-xl font-semibold text-foreground">Global Tax Preference:</span>
-              <button
-                onClick={() => setShowGlobalTaxModal(true)}
-                className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer"
-              >
-                {taxPreference}
-              </button>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Configure tax settings, manage tax rates, and set up tax calculations for different properties
-            </p>
-          </div>
-        </div>
-        
-        {/* Search and Actions Bar - Moved back to header right side */}
-        <div className="flex items-center gap-3">
-          {/* Search Icon/Field */}
-          <div className="flex items-center gap-2">
-            {!isSearch ? (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      onClick={openSearch}
-                      className="flex items-center gap-2"
-                    >
-                      <Search className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Search By Tax</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            ) : (
-              <div className="relative">
-                <Input
-                  value={searchTerm}
-                  onChange={applyFilter}
-                  placeholder="Type here"
-                  className="w-[120px] h-9 px-3 pr-8 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
-                  autoFocus
-                />
-                <Button
-                  variant="ghost"
-                  onClick={closeSearch}
-                  className="absolute right-1 top-1/2 transform -translate-y-1/2 p-1 h-6 w-6 hover:bg-gray-100"
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-8">
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <span className="text-xl font-semibold text-foreground">Global Tax Preference:</span>
+                <button
+                  onClick={() => setShowGlobalTaxModal(true)}
+                  className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer"
                 >
-                  <X className="w-3 h-3" />
-                </Button>
+                  {taxPreference}
+                </button>
               </div>
-            )}
-          </div>
-
-
-          <Button
-            variant="outline"
-            onClick={() => setShowChangeHistory(true)}
-            className="flex items-center gap-2"
-          >
-            <History className="w-4 h-4" />
-            Change History
-          </Button>
-          <Button
-            onClick={openAddTaxModal}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
-            <Plus className="w-4 h-4" />
-            Add Tax
-          </Button>
-        </div>
-      </div>
-
-      {/* Taxes Table */}
-      <Card className="bg-gradient-to-br from-card to-card/50 border-gray-200 dark:border-slate-700">
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-gray-700">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tl-lg">
-                    <div 
-                      className="flex items-center gap-1 cursor-pointer group"
-                      onClick={() => handleSort('tax')}
-                    >
-                      Tax
-                      <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-                        {getHoverIcon('tax')}
-                      </span>
-                      <span className="opacity-100 mt-0.5">
-                        {getSortIcon('tax')}
-                      </span>
-            </div>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider">
-                    <div 
-                      className="flex items-center gap-1 cursor-pointer group"
-                      onClick={() => handleSort('subscriberCompetitor')}
-                    >
-                      Subscriber/Competitor
-                      <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-                        {getHoverIcon('subscriberCompetitor')}
-                      </span>
-                      <span className="opacity-100 mt-0.5">
-                        {getSortIcon('subscriberCompetitor')}
-                      </span>
-          </div>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider">
-                    <div 
-                      className="flex items-center gap-1 cursor-pointer group"
-                      onClick={() => handleSort('channels')}
-                    >
-                      Channels
-                      <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-                        {getHoverIcon('channels')}
-                      </span>
-                      <span className="opacity-100 mt-0.5">
-                        {getSortIcon('channels')}
-                      </span>
-                    </div>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider">
-                    <div 
-                      className="flex items-center gap-1 cursor-pointer group"
-                      onClick={() => handleSort('lastActivity')}
-                    >
-                      Last Activity
-                      <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-                        {getHoverIcon('lastActivity')}
-                      </span>
-                      <span className="opacity-100 mt-0.5">
-                        {getSortIcon('lastActivity')}
-                      </span>
-                  </div>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider">
-                    <div 
-                      className="flex items-center gap-1 cursor-pointer group"
-                      onClick={() => handleSort('lastModifiedBy')}
-                    >
-                      Last Modified By
-                      <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-                        {getHoverIcon('lastModifiedBy')}
-                      </span>
-                      <span className="opacity-100 mt-0.5">
-                        {getSortIcon('lastModifiedBy')}
-                      </span>
-                </div>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tr-lg">
-                    <div 
-                      className="flex items-center gap-1 cursor-pointer group"
-                      onClick={() => handleSort('action')}
-                    >
-                      &nbsp;&nbsp;&nbsp;Action
-                      <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-                        {getHoverIcon('action')}
-                      </span>
-                      <span className="opacity-100 mt-0.5">
-                        {getSortIcon('action')}
-                      </span>
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredTaxes.map((tax, index) => {
-                  const isLastRow = index === filteredTaxes.length - 1;
-                  return (
-                    <tr key={tax.taxSettingId} className={`hover:bg-gray-50 dark:hover:bg-slate-800/50 ${index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-800'}`}>
-                      <td className={`px-4 py-2 whitespace-nowrap ${isLastRow ? 'rounded-bl-lg' : ''}`}>
-                        <div className="flex items-center">
-                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            <TruncatedTooltip 
-                              content={tax.taxValue.trim().split(',').length > 1 && tax.taxValue.trim().split(',')[1] != '' ? tax.taxValue : tax.taxValue.trim().split(',')[0]}
-                              className="truncate max-w-xs"
-                            >
-                              {tax.taxValue.trim().split(',').length > 1 && tax.taxValue.trim().split(',')[1] != '' ? tax.taxValue : tax.taxValue.trim().split(',')[0]}
-                            </TruncatedTooltip>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                        <TruncatedTooltip 
-                          content={(() => {
-                            const properties = tax.propertiesText.split(',').map(prop => prop.trim())
-                            if (properties.length > 1) {
-                              // Show the visible text + count of remaining hidden items
-                              // Assuming 2-3 items are visible in the truncated text
-                              const visibleCount = Math.min(2, properties.length)
-                              const visibleProperties = properties.slice(0, visibleCount)
-                              const remainingCount = properties.length - visibleCount
-                              if (remainingCount > 0) {
-                                return `${visibleProperties.join(', ')} (+${remainingCount})`
-                              }
-                              return visibleProperties.join(', ')
-                            }
-                            return tax.propertiesText
-                          })()}
-                          className="truncate max-w-32"
-                        >
-                          {tax.propertiesText}
-                        </TruncatedTooltip>
-                      </td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                        <TruncatedTooltip 
-                          content={(() => {
-                            const channels = tax.channelsText.split(',').map(ch => ch.trim())
-                            if (channels.length > 1) {
-                              // Show the visible text + count of remaining hidden items
-                              // Assuming 2-3 items are visible in the truncated text
-                              const visibleCount = Math.min(2, channels.length)
-                              const visibleChannels = channels.slice(0, visibleCount)
-                              const remainingCount = channels.length - visibleCount
-                              if (remainingCount > 0) {
-                                return `${visibleChannels.join(', ')} (+${remainingCount})`
-                              }
-                              return visibleChannels.join(', ')
-                            }
-                            return tax.channelsText
-                          })()}
-                          className="truncate max-w-32"
-                        >
-                          {tax.channelsText}
-                        </TruncatedTooltip>
-                      </td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          tax.activity === 'Create' || tax.activity === 'Added'
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                            : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-                        }`}>
-                          {tax.activity === 'Create' ? 'Added' : tax.activity === 'Update' ? 'Updated' : tax.activity}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                        <TruncatedTooltip 
-                          content={tax.updatedByName}
-                          className="truncate max-w-32"
-                        >
-                          {tax.updatedByName}
-                        </TruncatedTooltip>
-                      </td>
-                      <td className={`px-4 py-2 whitespace-nowrap text-left ${isLastRow ? 'rounded-br-lg' : ''}`}>
-                <div className="flex items-center gap-2">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 text-xs"
-                                >
-                                  {tax.action ?? "Show Current ADR"}
-                  </Button>
-                              </TooltipTrigger>
-                              <TooltipContent 
-                                side="top" 
-                                className="bg-white dark:bg-white border border-gray-200 dark:border-gray-300 shadow-lg p-0 max-w-none"
-                              >
-                                <div className="pl-4 pr-4 py-3 space-y-2 min-w-[280px]">
-                                  {/* Title */}
-                                  <div className="text-sm font-bold text-gray-900 dark:text-gray-900 mb-3">
-                                    Current ADR Inclusive of Tax
-                </div>
-                                  
-                                  {/* BAR Rate Section */}
-                                  <div className="space-y-1">
-                                    <div className="flex justify-between items-start">
-                                      <div className="flex-1">
-                                        <div className="text-xs font-semibold text-gray-900 dark:text-gray-900 mb-1">
-                                          BAR Rate on 10 Mar'23
-              </div>
-                                        <div className="text-xs text-gray-600 dark:text-gray-600 max-w-[140px]">
-                                          for Standard Room with 1 LOS<br />
-                                          and 2 Guests on Booking.com
-                                        </div>
-                                      </div>
-                                      <span className="text-sm font-bold text-gray-900 dark:text-gray-900 ml-2">
-                                        $200
-                                      </span>
-                  </div>
-                </div>
-                
-                                  {/* Separator */}
-                                  <div className="border-t border-gray-200 dark:border-gray-300"></div>
-                                  
-                                  {/* Tax Section */}
-                                  <div className="flex justify-between items-center">
-                                    <span className="text-xs font-semibold text-gray-900 dark:text-gray-900">
-                                      Tax 18%
-                                    </span>
-                                    <span className="text-sm font-bold text-gray-900 dark:text-gray-900">
-                                      $36
-                                    </span>
-                                  </div>
-                                  
-                                  {/* Separator */}
-                                  <div className="border-t border-gray-200 dark:border-gray-300"></div>
-                                  
-                                  {/* Total Section */}
-                                  <div className="flex justify-end">
-                                    <span className="text-sm font-bold text-gray-900 dark:text-gray-900">
-                                      $236
-                                    </span>
-                </div>
-              </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEditTax(tax.taxSettingId)}
-                                  className="text-gray-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 h-6 w-6 p-0"
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent className="bg-black text-white text-xs">
-                                <p>Edit Tax</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeleteTax(tax.taxSettingId)}
-                                  className="text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 h-6 w-6 p-0"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent className="bg-black text-white text-xs">
-                                <p>Delete Tax</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Add Tax Modal */}
-      <Dialog open={showAddTax} onOpenChange={setShowAddTax}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-black">
-              {isEditMode ? 'Edit Tax' : 'Add Tax'}
-            </DialogTitle>
-            <DialogDescription>
-              {isEditMode 
-                ? 'Update the tax configuration for specific properties and channels.'
-                : 'Add a new tax configuration for specific properties and channels.'
-              }
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6 mt-4">
-            {/* First Row: Subscriber/Competitor and Channels */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Subscriber/Competitor Multiselect */}
-              <div>
-                <Label className="block text-xs font-medium text-gray-700 mb-1">
-                  Subscriber/Competitor<span className="text-red-500 ml-1">*</span>
-              </Label>
-                <div className="relative" ref={subscriberDropdownRef}>
-                  <button
-                    onClick={() => setIsSubscriberDropdownOpen(!isSubscriberDropdownOpen)}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200 text-left flex items-center justify-between"
-                  >
-                    <span className="text-gray-900">
-                      {selectedSubscribers.length === 0 
-                        ? "Select hotels..." 
-                        : (() => {
-                            const filteredProperties = properties.filter(property =>
-                              property.name.toLowerCase().includes(subscriberSearchTerm.toLowerCase())
-                            )
-                            const allFilteredSelected = filteredProperties.length > 0 && filteredProperties.every(property => 
-                              selectedSubscribers.includes(property.name)
-                            )
-                            return allFilteredSelected ? "All" : 
-                              selectedSubscribers.length === 1 
-                          ? selectedSubscribers[0]
-                                : selectedSubscribers.length > 1 
-                          ? `${selectedSubscribers[0]} + ${selectedSubscribers.length - 1}`
-                                : "Select hotels..."
-                          })()
-                      }
-                    </span>
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                  </button>
-
-                  {isSubscriberDropdownOpen && (
-                    <div className="absolute z-50 top-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-hidden min-w-80 w-full">
-                      {/* Search Input */}
-                      <div className="p-3 border-b border-gray-200">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                          <Input
-                            placeholder="Search hotels..."
-                            value={subscriberSearchTerm}
-                            onChange={(e) => setSubscriberSearchTerm(e.target.value)}
-                            className="pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
-                          />
-                        </div>
-            </div>
-
-                      {/* Hotels List */}
-                      <div className="max-h-40 overflow-y-auto">
-                        <label className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={(() => {
-                              const filteredProperties = properties.filter(property =>
-                                property.name.toLowerCase().includes(subscriberSearchTerm.toLowerCase())
-                              )
-                              return filteredProperties.length > 0 && filteredProperties.every(property => 
-                                selectedSubscribers.includes(property.name)
-                              )
-                            })()}
-                            onChange={() => handleSubscriberToggle('All Hotels')}
-                            className="w-4 h-4 mr-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                          />
-                          <span className="text-sm font-medium text-gray-900">All Hotels</span>
-                        </label>
-                        {filteredSubscribers.map((property, index) => (
-                          <label
-                            key={property.propertyID || `property-${index}`}
-                            className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedSubscribers.includes(property.name)}
-                              onChange={() => handleSubscriberToggle(property.name)}
-                              className="w-4 h-4 mr-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                            />
-                            <span className="text-sm text-gray-900" title={property.name}>
-                              {property.name}
-                            </span>
-                          </label>
-                        ))}
-                        {filteredSubscribers.length === 0 && (
-                          <div className="px-3 py-2 text-sm text-gray-500">
-                            No hotels found
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-            </div>
-
-                {/* Tax Input Section */}
-                <div className="mt-4">
-                  <div className="flex items-center gap-3 mb-2 pt-4">
-                    <div className="w-48">
-                      <Label className="block text-xs font-medium text-gray-700">
-                        Tax Name<span className="text-red-500 ml-1">*</span>
-              </Label>
-                    </div>
-                    <div className="w-32">
-                      <Label className="block text-xs font-medium text-gray-700">
-                        Tax Value<span className="text-red-500 ml-1">*</span>
-                      </Label>
-                    </div>
-                    <div className="w-16">
-                      <Label className="block text-xs font-medium text-gray-700">
-                        Actions
-                      </Label>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    {taxInputs.map((tax, index) => (
-                      <div key={tax.id} className="flex items-center gap-3">
-                        <div className="w-48">
-              <Input
-                            placeholder="Tax Name"
-                            value={tax.name}
-                            onChange={(e) => updateTaxInput(tax.id, 'name', e.target.value)}
-                            className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
-                          />
-                        </div>
-                        <div className="w-32 flex items-center gap-2">
-                          <Input
-                            type="number"
-                            min="0.1"
-                            step="0.1"
-                            value={tax.percentage}
-                            onChange={(e) => updateTaxInput(tax.id, 'percentage', e.target.value)}
-                            className="w-16 px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
-                          />
-                          <Checkbox
-                            checked={tax.checked}
-                            onCheckedChange={(checked) => updateTaxInput(tax.id, 'checked', checked as boolean)}
-                            className="w-4 h-4"
-                          />
-                          <span className="text-sm text-gray-500">%</span>
-                        </div>
-                        <div className="w-16 flex items-center justify-start gap-1">
-                          {taxInputs.length < 5 && index === taxInputs.length - 1 && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={addTaxInput}
-                                    className="h-7 w-7 p-0 border-gray-300 hover:bg-gray-50"
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent className="bg-black text-white">
-                                  <p>Add Next Tax</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                          {taxInputs.length > 1 && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => removeTaxInput(tax.id)}
-                                    className="h-7 w-7 p-0 border-gray-300 hover:bg-gray-50"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent className="bg-black text-white">
-                                  <p>Remove Tax</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-            </div>
-
-              {/* Channels Multiselect */}
-              <div>
-                <Label className="block text-xs font-medium text-gray-700 mb-1">
-                  Channels<span className="text-red-500 ml-1">*</span>
-              </Label>
-                <div className="relative" ref={channelsDropdownRef}>
-                  <button
-                    onClick={() => setIsChannelsDropdownOpen(!isChannelsDropdownOpen)}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200 text-left flex items-center justify-between"
-                  >
-                    <span className="text-gray-900">
-                      {selectedChannels.length === 0 
-                        ? "Select channels..." 
-                        : (() => {
-                            const filteredChannels = channels.filter(channel =>
-                              channel.name.toLowerCase().includes(channelsSearchTerm.toLowerCase())
-                            )
-                            const allFilteredSelected = filteredChannels.length > 0 && filteredChannels.every(channel => 
-                              selectedChannels.includes(channel.name)
-                            )
-                            return allFilteredSelected ? "All" : 
-                              selectedChannels.length === 1 
-                          ? selectedChannels[0]
-                                : selectedChannels.length > 1 
-                          ? `${selectedChannels[0]} + ${selectedChannels.length - 1}`
-                                : "Select channels..."
-                          })()
-                      }
-                    </span>
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                  </button>
-
-                  {isChannelsDropdownOpen && (
-                    <div className="absolute z-50 top-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-hidden min-w-80 w-full">
-                      {/* Search Input */}
-                      <div className="p-3 border-b border-gray-200">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                            placeholder="Search channels..."
-                            value={channelsSearchTerm}
-                            onChange={(e) => setChannelsSearchTerm(e.target.value)}
-                            className="pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
-              />
+              <p className="text-sm text-muted-foreground">
+                Configure tax settings, manage tax rates, and set up tax calculations for different properties
+              </p>
             </div>
           </div>
 
-                      {/* Channels List */}
-                      <div className="max-h-40 overflow-y-auto">
-                        <label className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={(() => {
-                              const filteredChannels = channels.filter(channel =>
-                                channel.name.toLowerCase().includes(channelsSearchTerm.toLowerCase())
-                              )
-                              return filteredChannels.length > 0 && filteredChannels.every(channel => 
-                                selectedChannels.includes(channel.name)
-                              )
-                            })()}
-                            onChange={() => handleChannelToggle('All Channels')}
-                            className="w-4 h-4 mr-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                          />
-                          <span className="text-sm font-medium text-gray-900">All Channels</span>
-                        </label>
-                        {filteredChannels.map((channel, index) => (
-                          <label
-                            key={channel.cid || `channel-${index}`}
-                            className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedChannels.includes(channel.name)}
-                              onChange={() => handleChannelToggle(channel.name)}
-                              className="w-4 h-4 mr-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                            />
-                            <span className="text-sm text-gray-900" title={channel.name}>
-                              {channel.name}
-                            </span>
-                          </label>
-                        ))}
-                        {filteredChannels.length === 0 && (
-                          <div className="px-3 py-2 text-sm text-gray-500">
-                            No channels found
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Sample Rate Calculation */}
-                <div className="mt-4">
-                  <Label className="block text-xs font-medium text-gray-700 mb-2 pt-4">
-                    Sample Preview
-                  </Label>
-                  <div className="border border-gray-200 rounded-md p-4 bg-white">
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-600">Rate</span>
-                        <span className="font-medium text-gray-900">$200</span>
-                      </div>
-                      {taxInputs.length > 0 ? (
-                        taxInputs.map((tax, index) => {
-                          // Calculate tax amount based on checkbox selection
-                          let taxAmount = 0
-                          let taxValue = ''
-                          
-                          if (tax.checked) {
-                            if (tax.percentage && tax.percentage.trim() !== '') {
-                              // If checkbox is checked, treat as percentage
-                              taxAmount = 200 * parseFloat(tax.percentage) / 100
-                              taxValue = `${tax.percentage}%`
-                            } else {
-                              // If checkbox is checked but no value, show 0%
-                              taxAmount = 0
-                              taxValue = '0%'
-                            }
-                          } else {
-                            if (tax.percentage && tax.percentage.trim() !== '') {
-                              // If checkbox is not checked, treat as absolute value
-                              taxAmount = parseFloat(tax.percentage)
-                              taxValue = `$${tax.percentage}`
-                            } else {
-                              // If no value, show $0
-                              taxAmount = 0
-                              taxValue = '$0'
-                            }
-                          }
-                          
-                          const taxName = tax.name && tax.name.trim() !== '' ? tax.name : `Tax Name ${index + 1}`
-                          
-                          return (
-                            <div key={tax.id} className="flex justify-between items-center text-sm">
-                              <span className="text-gray-600">
-                                + {taxName} {taxValue}
-                              </span>
-                              <span className="font-medium text-gray-900">
-                                ${taxAmount.toFixed(0)}
-                              </span>
-                            </div>
-                          )
-                        })
-                      ) : (
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-gray-600">
-                            + Tax Name 1 $0
-                          </span>
-                          <span className="font-medium text-gray-900">
-                            $0
-                          </span>
-                        </div>
-                      )}
-                      <div className="border-t border-gray-300 pt-2 mt-2">
-                        <div className="flex justify-between items-center text-sm font-semibold">
-                          <span className="text-gray-900">Total</span>
-                          <span className="text-gray-900">
-                            ${(200 + taxInputs.reduce((sum, tax) => {
-                              if (tax.checked) {
-                                // If checkbox is checked, treat as percentage
-                                return sum + (tax.percentage ? (200 * parseFloat(tax.percentage) / 100) : 0)
-                              } else {
-                                // If checkbox is not checked, treat as absolute value
-                                return sum + (tax.percentage ? parseFloat(tax.percentage) : 0)
-                              }
-                            }, 0)).toFixed(0)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-200 dark:border-gray-700 mt-6 pt-4">
-            <div className="flex items-center justify-end gap-3">
-            <Button
-              variant="outline"
-              onClick={handleCancelAddTax}
-              className="px-6"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAddTax}
-              disabled={
-                !hasChanges() ||
-                selectedSubscribers.length === 0 ||
-                selectedChannels.length === 0 ||
-                taxInputs.some(tax => !tax.name || !tax.percentage) ||
-                taxInputs.some(tax => parseFloat(tax.percentage) <= 0)
-              }
-              className="px-6 bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {activity === 'Update' ? 'Update Tax' : 'Add Tax'}
-            </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-black">Delete Tax</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this tax? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex items-center justify-end gap-3 mt-6">
-            <Button
-              variant="outline"
-              onClick={cancelDeleteTax}
-              className="px-6"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={confirmDeleteTax}
-              className="px-6 bg-red-600 hover:bg-red-700 text-white"
-            >
-              Delete
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Change History Modal */}
-      <Dialog open={showChangeHistory} onOpenChange={setShowChangeHistory}>
-        <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Tax Change History</DialogTitle>
-            <DialogDescription>
-              View all changes made to tax settings.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="mt-2 flex-1 overflow-hidden">
-            <div className="border border-gray-300 dark:border-gray-600 rounded-lg h-full">
-              <div className="h-[400px] overflow-y-auto border-b border-gray-200 dark:border-gray-700 mb-2.5">
-                <table className="w-full table-fixed">
-                <thead className="bg-gray-50 dark:bg-slate-800">
-                  <tr className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-800 align-top">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tl-lg border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-32">
-                      Channel
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-32">
-                      Property
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
-                      Tax Value
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
-                      <div 
-                        className="flex items-center gap-1 cursor-pointer group"
-                        onClick={() => handleSort('createdOn')}
+          {/* Search and Actions Bar - Moved back to header right side */}
+          <div className="flex items-center gap-3">
+            {/* Search Icon/Field */}
+            <div className="flex items-center gap-2">
+              {!isSearch ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        onClick={openSearch}
+                        className="flex items-center gap-2"
                       >
-                        Action Date
+                        <Search className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Search By Tax</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : (
+                <div className="relative">
+                  <Input
+                    value={searchTerm}
+                    onChange={applyFilter}
+                    placeholder="Type here"
+                    className="w-[120px] h-9 px-3 pr-8 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
+                    autoFocus
+                  />
+                  <Button
+                    variant="ghost"
+                    onClick={closeSearch}
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2 p-1 h-6 w-6 hover:bg-gray-100"
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
+
+            <Button
+              variant="outline"
+              onClick={() => setShowChangeHistory(true)}
+              className="flex items-center gap-2"
+            >
+              <History className="w-4 h-4" />
+              Change History
+            </Button>
+            <Button
+              onClick={openAddTaxModal}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              <Plus className="w-4 h-4" />
+              Add Tax
+            </Button>
+          </div>
+        </div>
+
+        {/* Taxes Table */}
+        <Card className="bg-gradient-to-br from-card to-card/50 border-gray-200 dark:border-slate-700">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-gray-700">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tl-lg">
+                      <div
+                        className="flex items-center gap-1 cursor-pointer group"
+                        onClick={() => handleSort('tax')}
+                      >
+                        Tax
                         <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-                          {getHoverIcon('createdOn')}
+                          {getHoverIcon('tax')}
                         </span>
                         <span className="opacity-100 mt-0.5">
-                          {getSortIcon('createdOn')}
+                          {getSortIcon('tax')}
                         </span>
-            </div>
+                      </div>
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-32">
-                      <div 
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider">
+                      <div
+                        className="flex items-center gap-1 cursor-pointer group"
+                        onClick={() => handleSort('subscriberCompetitor')}
+                      >
+                        Subscriber/Competitor
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                          {getHoverIcon('subscriberCompetitor')}
+                        </span>
+                        <span className="opacity-100 mt-0.5">
+                          {getSortIcon('subscriberCompetitor')}
+                        </span>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider">
+                      <div
+                        className="flex items-center gap-1 cursor-pointer group"
+                        onClick={() => handleSort('channels')}
+                      >
+                        Channels
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                          {getHoverIcon('channels')}
+                        </span>
+                        <span className="opacity-100 mt-0.5">
+                          {getSortIcon('channels')}
+                        </span>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider">
+                      <div
+                        className="flex items-center gap-1 cursor-pointer group"
+                        onClick={() => handleSort('lastActivity')}
+                      >
+                        Last Activity
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                          {getHoverIcon('lastActivity')}
+                        </span>
+                        <span className="opacity-100 mt-0.5">
+                          {getSortIcon('lastActivity')}
+                        </span>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider">
+                      <div
                         className="flex items-center gap-1 cursor-pointer group"
                         onClick={() => handleSort('lastModifiedBy')}
                       >
-                        Created/Modified By
+                        Last Modified By
                         <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
                           {getHoverIcon('lastModifiedBy')}
                         </span>
                         <span className="opacity-100 mt-0.5">
                           {getSortIcon('lastModifiedBy')}
                         </span>
-          </div>
+                      </div>
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tr-lg border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
-                      Activity
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tr-lg">
+                      <div
+                        className="flex items-center gap-1 cursor-pointer group"
+                        onClick={() => handleSort('action')}
+                      >
+                        &nbsp;&nbsp;&nbsp;Action
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                          {getHoverIcon('action')}
+                        </span>
+                        <span className="opacity-100 mt-0.5">
+                          {getSortIcon('action')}
+                        </span>
+                      </div>
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white dark:bg-slate-900">
-                  {taxSettingHistory.map((historyItem, index) => {
-                    const isLastRow = index === taxSettingHistory.length - 1;
-                      return (
-                      <tr key={index} className={`hover:bg-gray-50 dark:hover:bg-slate-800/50 ${index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-800'}`}>
-                        <td className={`px-4 py-2 whitespace-nowrap border-b border-gray-200 dark:border-gray-700 ${isLastRow ? 'rounded-bl-lg' : ''} w-32`}>
-                          <TruncatedTooltip 
+                <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-gray-700">
+                  {filteredTaxes.map((tax, index) => {
+                    const isLastRow = index === filteredTaxes.length - 1;
+                    return (
+                      <tr key={tax.taxSettingId} className={`hover:bg-gray-50 dark:hover:bg-slate-800/50 ${index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-800'}`}>
+                        <td className={`px-4 py-2 whitespace-nowrap ${isLastRow ? 'rounded-bl-lg' : ''}`}>
+                          <div className="flex items-center">
+                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                              <TruncatedTooltip
+                                content={tax.taxValue.trim().split(',').length > 1 && tax.taxValue.trim().split(',')[1] != '' ? tax.taxValue : tax.taxValue.trim().split(',')[0]}
+                                className="truncate max-w-xs"
+                              >
+                                {tax.taxValue.trim().split(',').length > 1 && tax.taxValue.trim().split(',')[1] != '' ? tax.taxValue : tax.taxValue.trim().split(',')[0]}
+                              </TruncatedTooltip>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                          <TruncatedTooltip
                             content={(() => {
-                              const channels = historyItem.channels.split(',').map((ch: string) => ch.trim())
-                              if (channels.length > 2) {
-                                const visibleChannels = channels.slice(0, 2)
-                                const remainingCount = channels.length - 2
-                                return `${visibleChannels.join(', ')} (+${remainingCount})`
+                              const properties = tax.propertiesText.split(',').map(prop => prop.trim())
+                              if (properties.length > 1) {
+                                // Show the visible text + count of remaining hidden items
+                                // Assuming 2-3 items are visible in the truncated text
+                                const visibleCount = Math.min(2, properties.length)
+                                const visibleProperties = properties.slice(0, visibleCount)
+                                const remainingCount = properties.length - visibleCount
+                                if (remainingCount > 0) {
+                                  return `${visibleProperties.join(', ')} (+${remainingCount})`
+                                }
+                                return visibleProperties.join(', ')
                               }
-                              return historyItem.channels
+                              return tax.propertiesText
                             })()}
-                            className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate"
+                            className="truncate max-w-32"
                           >
-                            {historyItem.channels}
+                            {tax.propertiesText}
                           </TruncatedTooltip>
                         </td>
-                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-32">
-                          <TruncatedTooltip 
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                          <TruncatedTooltip
                             content={(() => {
-                              const properties = historyItem.properties.split(',').map((prop: string) => prop.trim())
-                              if (properties.length > 2) {
-                                const visibleProperties = properties.slice(0, 2)
-                                const remainingCount = properties.length - 2
-                                return `${visibleProperties.join(', ')} (+${remainingCount})`
+                              const channels = tax.channelsText.split(',').map(ch => ch.trim())
+                              if (channels.length > 1) {
+                                // Show the visible text + count of remaining hidden items
+                                // Assuming 2-3 items are visible in the truncated text
+                                const visibleCount = Math.min(2, channels.length)
+                                const visibleChannels = channels.slice(0, visibleCount)
+                                const remainingCount = channels.length - visibleCount
+                                if (remainingCount > 0) {
+                                  return `${visibleChannels.join(', ')} (+${remainingCount})`
+                                }
+                                return visibleChannels.join(', ')
                               }
-                              return historyItem.properties
+                              return tax.channelsText
                             })()}
-                            className="truncate"
+                            className="truncate max-w-32"
                           >
-                            {historyItem.properties}
+                            {tax.channelsText}
                           </TruncatedTooltip>
                         </td>
-                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-20">
-                          <TruncatedTooltip 
-                            content={historyItem.taxValue}
-                            className="truncate"
-                          >
-                            {historyItem.taxValue.length > 8 ? `${historyItem.taxValue.slice(0, 8)}...` : historyItem.taxValue}
-                          </TruncatedTooltip>
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-20">
-                          <TruncatedTooltip 
-                            content={historyItem.createdOn}
-                            className="truncate"
-                          >
-                            {historyItem.createdOn}
-                          </TruncatedTooltip>
-                        </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-32">
-                          <TruncatedTooltip 
-                            content={historyItem.createdByName}
-                            className="truncate"
-                          >
-                            {historyItem.createdByName}
-                          </TruncatedTooltip>
-                        </td>
-                        <td className={`px-4 py-2 text-center text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 ${isLastRow ? 'rounded-br-lg' : ''} w-20`}>
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            historyItem.action === 'Create' 
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
-                              : historyItem.action === 'Update'
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-                              : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                          }`}>
-                            {historyItem.action}
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${tax.activity === 'Create' || tax.activity === 'Added'
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                              : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
+                            }`}>
+                            {tax.activity === 'Create' ? 'Added' : tax.activity === 'Update' ? 'Updated' : tax.activity}
                           </span>
                         </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                          <TruncatedTooltip
+                            content={tax.updatedByName}
+                            className="truncate max-w-32"
+                          >
+                            {tax.updatedByName}
+                          </TruncatedTooltip>
+                        </td>
+                        <td className={`px-4 py-2 whitespace-nowrap text-left ${isLastRow ? 'rounded-br-lg' : ''}`}>
+                          <div className="flex items-center gap-2">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 text-xs"
+                                  >
+                                    {tax.action ?? "Show Current ADR"}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent
+                                  side="top"
+                                  className="bg-white dark:bg-white border border-gray-200 dark:border-gray-300 shadow-lg p-0 max-w-none"
+                                >
+                                  <div className="pl-4 pr-4 py-3 space-y-2 min-w-[280px]">
+                                    {/* Title */}
+                                    <div className="text-sm font-bold text-gray-900 dark:text-gray-900 mb-3">
+                                      Current ADR Inclusive of Tax
+                                    </div>
+
+                                    {/* BAR Rate Section */}
+                                    <div className="space-y-1">
+                                      <div className="flex justify-between items-start">
+                                        <div className="flex-1">
+                                          <div className="text-xs font-semibold text-gray-900 dark:text-gray-900 mb-1">
+                                            BAR Rate on 10 Mar'23
+                                          </div>
+                                          <div className="text-xs text-gray-600 dark:text-gray-600 max-w-[140px]">
+                                            for Standard Room with 1 LOS<br />
+                                            and 2 Guests on Booking.com
+                                          </div>
+                                        </div>
+                                        <span className="text-sm font-bold text-gray-900 dark:text-gray-900 ml-2">
+                                          $200
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Separator */}
+                                    <div className="border-t border-gray-200 dark:border-gray-300"></div>
+
+                                    {/* Tax Section */}
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-xs font-semibold text-gray-900 dark:text-gray-900">
+                                        Tax 18%
+                                      </span>
+                                      <span className="text-sm font-bold text-gray-900 dark:text-gray-900">
+                                        $36
+                                      </span>
+                                    </div>
+
+                                    {/* Separator */}
+                                    <div className="border-t border-gray-200 dark:border-gray-300"></div>
+
+                                    {/* Total Section */}
+                                    <div className="flex justify-end">
+                                      <span className="text-sm font-bold text-gray-900 dark:text-gray-900">
+                                        $236
+                                      </span>
+                                    </div>
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditTax(tax.taxSettingId)}
+                                    className="text-gray-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 h-6 w-6 p-0"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-black text-white text-xs">
+                                  <p>Edit Tax</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteTax(tax.taxSettingId)}
+                                    className="text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 h-6 w-6 p-0"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-black text-white text-xs">
+                                  <p>Delete Tax</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                        </td>
                       </tr>
-                      );
+                    );
                   })}
-                  {/* Add padding to ensure last row is visible */}
-                  <tr>
-                    <td colSpan={6} className="h-4"></td>
-                  </tr>
                 </tbody>
-                </table>
-                {/* Add blank space after table */}
-                <div className="h-2.5"></div>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Add Tax Modal */}
+        <Dialog open={showAddTax} onOpenChange={setShowAddTax}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold text-black">
+                {isEditMode ? 'Edit Tax' : 'Add Tax'}
+              </DialogTitle>
+              <DialogDescription>
+                {isEditMode
+                  ? 'Update the tax configuration for specific properties and channels.'
+                  : 'Add a new tax configuration for specific properties and channels.'
+                }
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6 mt-4">
+              {/* First Row: Subscriber/Competitor and Channels */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Subscriber/Competitor Multiselect */}
+                <div>
+                  <Label className="block text-xs font-medium text-gray-700 mb-1">
+                    Subscriber/Competitor<span className="text-red-500 ml-1">*</span>
+                  </Label>
+                  <div className="relative" ref={subscriberDropdownRef}>
+                    <button
+                      onClick={() => setIsSubscriberDropdownOpen(!isSubscriberDropdownOpen)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200 text-left flex items-center justify-between"
+                    >
+                      <span className="text-gray-900">
+                        {selectedSubscribers.length === 0
+                          ? "Select hotels..."
+                          : (() => {
+                            const filteredProperties = properties.filter(property =>
+                              property.name.toLowerCase().includes(subscriberSearchTerm.toLowerCase())
+                            )
+                            const allFilteredSelected = filteredProperties.length > 0 && filteredProperties.every(property =>
+                              selectedSubscribers.includes(property.name)
+                            )
+                            return allFilteredSelected ? "All" :
+                              selectedSubscribers.length === 1
+                                ? selectedSubscribers[0]
+                                : selectedSubscribers.length > 1
+                                  ? `${selectedSubscribers[0]} + ${selectedSubscribers.length - 1}`
+                                  : "Select hotels..."
+                          })()
+                        }
+                      </span>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+
+                    {isSubscriberDropdownOpen && (
+                      <div className="absolute z-50 top-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-hidden min-w-80 w-full">
+                        {/* Search Input */}
+                        <div className="p-3 border-b border-gray-200">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                            <Input
+                              placeholder="Search hotels..."
+                              value={subscriberSearchTerm}
+                              onChange={(e) => setSubscriberSearchTerm(e.target.value)}
+                              className="pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Hotels List */}
+                        <div className="max-h-40 overflow-y-auto">
+                          <label className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={(() => {
+                                const filteredProperties = properties.filter(property =>
+                                  property.name.toLowerCase().includes(subscriberSearchTerm.toLowerCase())
+                                )
+                                return filteredProperties.length > 0 && filteredProperties.every(property =>
+                                  selectedSubscribers.includes(property.name)
+                                )
+                              })()}
+                              onChange={() => handleSubscriberToggle('All Hotels')}
+                              className="w-4 h-4 mr-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                            />
+                            <span className="text-sm font-medium text-gray-900">All Hotels</span>
+                          </label>
+                          {filteredSubscribers.map((property, index) => (
+                            <label
+                              key={property.propertyID || `property-${index}`}
+                              className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedSubscribers.includes(property.name)}
+                                onChange={() => handleSubscriberToggle(property.name)}
+                                className="w-4 h-4 mr-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                              />
+                              <span className="text-sm text-gray-900" title={property.name}>
+                                {property.name}
+                              </span>
+                            </label>
+                          ))}
+                          {filteredSubscribers.length === 0 && (
+                            <div className="px-3 py-2 text-sm text-gray-500">
+                              No hotels found
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tax Input Section */}
+                  <div className="mt-4">
+                    <div className="flex items-center gap-3 mb-2 pt-4">
+                      <div className="w-48">
+                        <Label className="block text-xs font-medium text-gray-700">
+                          Tax Name<span className="text-red-500 ml-1">*</span>
+                        </Label>
+                      </div>
+                      <div className="w-32">
+                        <Label className="block text-xs font-medium text-gray-700">
+                          Tax Value<span className="text-red-500 ml-1">*</span>
+                        </Label>
+                      </div>
+                      <div className="w-16">
+                        <Label className="block text-xs font-medium text-gray-700">
+                          Actions
+                        </Label>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      {taxInputs.map((tax, index) => (
+                        <div key={tax.id} className="flex items-center gap-3">
+                          <div className="w-48">
+                            <Input
+                              placeholder="Tax Name"
+                              value={tax.name}
+                              onChange={(e) => updateTaxInput(tax.id, 'name', e.target.value)}
+                              className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
+                            />
+                          </div>
+                          <div className="w-32 flex items-center gap-2">
+                            <Input
+                              type="number"
+                              min="0.1"
+                              step="0.1"
+                              value={tax.percentage}
+                              onChange={(e) => updateTaxInput(tax.id, 'percentage', e.target.value)}
+                              className="w-16 px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
+                            />
+                            <Checkbox
+                              checked={tax.checked}
+                              onCheckedChange={(checked) => updateTaxInput(tax.id, 'checked', checked as boolean)}
+                              className="w-4 h-4"
+                            />
+                            <span className="text-sm text-gray-500">%</span>
+                          </div>
+                          <div className="w-16 flex items-center justify-start gap-1">
+                            {taxInputs.length < 5 && index === taxInputs.length - 1 && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={addTaxInput}
+                                      className="h-7 w-7 p-0 border-gray-300 hover:bg-gray-50"
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="bg-black text-white">
+                                    <p>Add Next Tax</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                            {taxInputs.length > 1 && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => removeTaxInput(tax.id)}
+                                      className="h-7 w-7 p-0 border-gray-300 hover:bg-gray-50"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="bg-black text-white">
+                                    <p>Remove Tax</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Channels Multiselect */}
+                <div>
+                  <Label className="block text-xs font-medium text-gray-700 mb-1">
+                    Channels<span className="text-red-500 ml-1">*</span>
+                  </Label>
+                  <div className="relative" ref={channelsDropdownRef}>
+                    <button
+                      onClick={() => setIsChannelsDropdownOpen(!isChannelsDropdownOpen)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200 text-left flex items-center justify-between"
+                    >
+                      <span className="text-gray-900">
+                        {selectedChannels.length === 0
+                          ? "Select channels..."
+                          : (() => {
+                            const filteredChannels = channels.filter(channel =>
+                              channel.name.toLowerCase().includes(channelsSearchTerm.toLowerCase())
+                            )
+                            const allFilteredSelected = filteredChannels.length > 0 && filteredChannels.every(channel =>
+                              selectedChannels.includes(channel.name)
+                            )
+                            return allFilteredSelected ? "All" :
+                              selectedChannels.length === 1
+                                ? selectedChannels[0]
+                                : selectedChannels.length > 1
+                                  ? `${selectedChannels[0]} + ${selectedChannels.length - 1}`
+                                  : "Select channels..."
+                          })()
+                        }
+                      </span>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+
+                    {isChannelsDropdownOpen && (
+                      <div className="absolute z-50 top-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-hidden min-w-80 w-full">
+                        {/* Search Input */}
+                        <div className="p-3 border-b border-gray-200">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                            <Input
+                              placeholder="Search channels..."
+                              value={channelsSearchTerm}
+                              onChange={(e) => setChannelsSearchTerm(e.target.value)}
+                              className="pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Channels List */}
+                        <div className="max-h-40 overflow-y-auto">
+                          <label className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={(() => {
+                                const filteredChannels = channels.filter(channel =>
+                                  channel.name.toLowerCase().includes(channelsSearchTerm.toLowerCase())
+                                )
+                                return filteredChannels.length > 0 && filteredChannels.every(channel =>
+                                  selectedChannels.includes(channel.name)
+                                )
+                              })()}
+                              onChange={() => handleChannelToggle('All Channels')}
+                              className="w-4 h-4 mr-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                            />
+                            <span className="text-sm font-medium text-gray-900">All Channels</span>
+                          </label>
+                          {filteredChannels.map((channel, index) => (
+                            <label
+                              key={channel.cid || `channel-${index}`}
+                              className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedChannels.includes(channel.name)}
+                                onChange={() => handleChannelToggle(channel.name)}
+                                className="w-4 h-4 mr-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                              />
+                              <span className="text-sm text-gray-900" title={channel.name}>
+                                {channel.name}
+                              </span>
+                            </label>
+                          ))}
+                          {filteredChannels.length === 0 && (
+                            <div className="px-3 py-2 text-sm text-gray-500">
+                              No channels found
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sample Rate Calculation */}
+                  <div className="mt-4">
+                    <Label className="block text-xs font-medium text-gray-700 mb-2 pt-4">
+                      Sample Preview
+                    </Label>
+                    <div className="border border-gray-200 rounded-md p-4 bg-white">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-600">Rate</span>
+                          <span className="font-medium text-gray-900">$200</span>
+                        </div>
+                        {taxInputs.length > 0 ? (
+                          taxInputs.map((tax, index) => {
+                            // Calculate tax amount based on checkbox selection
+                            let taxAmount = 0
+                            let taxValue = ''
+
+                            if (tax.checked) {
+                              if (tax.percentage && tax.percentage.trim() !== '') {
+                                // If checkbox is checked, treat as percentage
+                                taxAmount = 200 * parseFloat(tax.percentage) / 100
+                                taxValue = `${tax.percentage}%`
+                              } else {
+                                // If checkbox is checked but no value, show 0%
+                                taxAmount = 0
+                                taxValue = '0%'
+                              }
+                            } else {
+                              if (tax.percentage && tax.percentage.trim() !== '') {
+                                // If checkbox is not checked, treat as absolute value
+                                taxAmount = parseFloat(tax.percentage)
+                                taxValue = `$${tax.percentage}`
+                              } else {
+                                // If no value, show $0
+                                taxAmount = 0
+                                taxValue = '$0'
+                              }
+                            }
+
+                            const taxName = tax.name && tax.name.trim() !== '' ? tax.name : `Tax Name ${index + 1}`
+
+                            return (
+                              <div key={tax.id} className="flex justify-between items-center text-sm">
+                                <span className="text-gray-600">
+                                  + {taxName} {taxValue}
+                                </span>
+                                <span className="font-medium text-gray-900">
+                                  ${taxAmount.toFixed(0)}
+                                </span>
+                              </div>
+                            )
+                          })
+                        ) : (
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-600">
+                              + Tax Name 1 $0
+                            </span>
+                            <span className="font-medium text-gray-900">
+                              $0
+                            </span>
+                          </div>
+                        )}
+                        <div className="border-t border-gray-300 pt-2 mt-2">
+                          <div className="flex justify-between items-center text-sm font-semibold">
+                            <span className="text-gray-900">Total</span>
+                            <span className="text-gray-900">
+                              ${(200 + taxInputs.reduce((sum, tax) => {
+                                if (tax.checked) {
+                                  // If checkbox is checked, treat as percentage
+                                  return sum + (tax.percentage ? (200 * parseFloat(tax.percentage) / 100) : 0)
+                                } else {
+                                  // If checkbox is not checked, treat as absolute value
+                                  return sum + (tax.percentage ? parseFloat(tax.percentage) : 0)
+                                }
+                              }, 0)).toFixed(0)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="border-t border-gray-300 dark:border-gray-600 mt-6"></div>
-
-          <div className="flex items-center justify-end gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setShowChangeHistory(false)}
-              className="px-6"
-            >
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dynamic Snackbar */}
-      {showSnackbar && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div className={`${snackbarType === 'success' ? 'bg-green-600' : snackbarType === 'error' ? 'bg-red-600' : 'bg-blue-600'} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4`}>
-            <div className="flex items-center gap-3">
-              <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-4 h-4" />
-    </div>
-              <span className="text-sm font-medium">
-                {snackbarMessage}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Success Snackbar */}
-      {showDeleteSnackbar && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div className="bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                <Trash2 className="w-4 h-4" />
+            <div className="border-t border-gray-200 dark:border-gray-700 mt-6 pt-4">
+              <div className="flex items-center justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={handleCancelAddTax}
+                  className="px-6"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleAddTax}
+                  disabled={
+                    !hasChanges() ||
+                    selectedSubscribers.length === 0 ||
+                    selectedChannels.length === 0 ||
+                    taxInputs.some(tax => !tax.name || !tax.percentage) ||
+                    taxInputs.some(tax => parseFloat(tax.percentage) <= 0)
+                  }
+                  className="px-6 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {activity === 'Update' ? 'Update Tax' : 'Add Tax'}
+                </Button>
               </div>
-              <span className="text-sm font-medium">
-                Tax deleted successfully
-              </span>
             </div>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+        </Dialog>
 
-      {/* Add Tax Success Snackbar */}
-      {showAddTaxSnackbar && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-4 h-4" />
-              </div>
-              <span className="text-sm font-medium">
-                Tax values added successfully
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold text-black">Delete Tax</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this tax? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
 
-      {/* Tax Preference Snackbar */}
-      {showTaxPreferenceSnackbar && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div className={`${taxPreferenceSnackbarType === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4`}>
-            <div className="flex items-center gap-3">
-              <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-4 h-4" />
-              </div>
-              <span className="text-sm font-medium">
-                {taxPreferenceSnackbarMessage}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Global Tax Setting Modal */}
-      <Dialog open={showGlobalTaxModal} onOpenChange={setShowGlobalTaxModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-black">Global Tax Setting</DialogTitle>
-            <DialogDescription>
-              Configure global tax preferences for your properties.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6 mt-2">
-            <div className="space-y-4">
-              <RadioGroup
-                value={modalTaxPreference === "Inclusive" ? "1" : modalTaxPreference === "Exclusive" ? "2" : "0"}
-                onValueChange={(value) => onChangeTaxPreference(parseInt(value))}
-                className="space-y-4"
+            <div className="flex items-center justify-end gap-3 mt-6">
+              <Button
+                variant="outline"
+                onClick={cancelDeleteTax}
+                className="px-6"
               >
-                <div className="space-y-2">
-                  <div className="flex items-start space-x-3">
-                    <RadioGroupItem value="1" id="inclusive" className="mt-1.5" />
-                    <div className="space-y-1">
-                      <Label htmlFor="inclusive" className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        Inclusive of Taxes
-                      </Label>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        The Room rate will include taxes
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmDeleteTax}
+                className="px-6 bg-red-600 hover:bg-red-700 text-white"
+              >
+                Delete
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
-                <div className="space-y-2">
-                  <div className="flex items-start space-x-3">
-                    <RadioGroupItem value="2" id="exclusive" className="mt-1.5" />
-                    <div className="space-y-1">
-                      <Label htmlFor="exclusive" className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        Exclusive of Taxes
-                      </Label>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        The Room rate does not include taxes
-                      </p>
-                    </div>
-                  </div>
-                </div>
+        {/* Change History Modal */}
+        <Dialog open={showChangeHistory} onOpenChange={setShowChangeHistory}>
+          <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold">Tax Change History</DialogTitle>
+              <DialogDescription>
+                View all changes made to tax settings.
+              </DialogDescription>
+            </DialogHeader>
 
-                <div className="space-y-2">
-                  <div className="flex items-start space-x-3">
-                    <RadioGroupItem value="0" id="not-configured" className="mt-1.5" />
-                    <div className="space-y-1">
-                      <Label htmlFor="not-configured" className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        Tax Not Configured
-                      </Label>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        The rates fetched from OTA will be displayed, they can be inclusive or exclusive of taxes. No tax setting will be applied by default.
-                      </p>
-                    </div>
-                  </div>
+            <div className="mt-2 flex-1 overflow-hidden">
+              <div className="border border-gray-300 dark:border-gray-600 rounded-lg h-full">
+                <div className="h-[400px] overflow-y-auto border-b border-gray-200 dark:border-gray-700 mb-2.5">
+                  <table className="w-full table-fixed">
+                    <thead className="bg-gray-50 dark:bg-slate-800">
+                      <tr className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-800 align-top">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tl-lg border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-32">
+                          Channel
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-32">
+                          Property
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
+                          Tax Value
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
+                          <div
+                            className="flex items-center gap-1 cursor-pointer group"
+                            onClick={() => handleSort('createdOn')}
+                          >
+                            Action Date
+                            <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                              {getHoverIcon('createdOn')}
+                            </span>
+                            <span className="opacity-100 mt-0.5">
+                              {getSortIcon('createdOn')}
+                            </span>
+                          </div>
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-32">
+                          <div
+                            className="flex items-center gap-1 cursor-pointer group"
+                            onClick={() => handleSort('lastModifiedBy')}
+                          >
+                            Created/Modified By
+                            <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                              {getHoverIcon('lastModifiedBy')}
+                            </span>
+                            <span className="opacity-100 mt-0.5">
+                              {getSortIcon('lastModifiedBy')}
+                            </span>
+                          </div>
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 capitalize tracking-wider rounded-tr-lg border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 align-top w-20">
+                          Activity
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-slate-900">
+                      {taxSettingHistory.map((historyItem, index) => {
+                        const isLastRow = index === taxSettingHistory.length - 1;
+                        return (
+                          <tr key={index} className={`hover:bg-gray-50 dark:hover:bg-slate-800/50 ${index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-800'}`}>
+                            <td className={`px-4 py-2 whitespace-nowrap border-b border-gray-200 dark:border-gray-700 ${isLastRow ? 'rounded-bl-lg' : ''} w-32`}>
+                              <TruncatedTooltip
+                                content={(() => {
+                                  const channels = historyItem.channels.split(',').map((ch: string) => ch.trim())
+                                  if (channels.length > 2) {
+                                    const visibleChannels = channels.slice(0, 2)
+                                    const remainingCount = channels.length - 2
+                                    return `${visibleChannels.join(', ')} (+${remainingCount})`
+                                  }
+                                  return historyItem.channels
+                                })()}
+                                className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate"
+                              >
+                                {historyItem.channels}
+                              </TruncatedTooltip>
+                            </td>
+                            <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-32">
+                              <TruncatedTooltip
+                                content={(() => {
+                                  const properties = historyItem.properties.split(',').map((prop: string) => prop.trim())
+                                  if (properties.length > 2) {
+                                    const visibleProperties = properties.slice(0, 1)
+                                    const remainingCount = properties.length - 1
+                                    return `${visibleProperties.join(', ')} (+${remainingCount})`
+                                  }
+                                  return historyItem.properties
+                                })()}
+                                className="truncate"
+                              >
+                                {historyItem.properties}
+                              </TruncatedTooltip>
+                            </td>
+                            <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-20">
+                              <TruncatedTooltip
+                                content={historyItem.taxValue}
+                                className="truncate"
+                              >
+                                {historyItem.taxValue.length > 8 ? `${historyItem.taxValue.slice(0, 8)}...` : historyItem.taxValue}
+                              </TruncatedTooltip>
+                            </td>
+                            <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-20">
+                              <TruncatedTooltip
+                                content={historyItem.createdOn}
+                                className="truncate"
+                              >
+                                {historyItem.createdOn}
+                              </TruncatedTooltip>
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 w-32">
+                              <TruncatedTooltip
+                                content={historyItem.createdByName}
+                                className="truncate"
+                              >
+                                {historyItem.createdByName}
+                              </TruncatedTooltip>
+                            </td>
+                            <td className={`px-4 py-2 text-center text-sm text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 ${isLastRow ? 'rounded-br-lg' : ''} w-20`}>
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${historyItem.action === 'Create'
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                                  : historyItem.action === 'Update'
+                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
+                                    : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                                }`}>
+                                {historyItem.action}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {/* Add padding to ensure last row is visible */}
+                      <tr>
+                        <td colSpan={6} className="h-4"></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  {/* Add blank space after table */}
+                  <div className="h-2.5"></div>
                 </div>
-              </RadioGroup>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-300 dark:border-gray-600 mt-6"></div>
+
+            <div className="flex items-center justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowChangeHistory(false)}
+                className="px-6"
+              >
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dynamic Snackbar */}
+        {showSnackbar && (
+          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+            <div className={`${snackbarType === 'success' ? 'bg-green-600' : snackbarType === 'error' ? 'bg-red-600' : 'bg-blue-600'} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4`}>
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-4 h-4" />
+                </div>
+                <span className="text-sm font-medium">
+                  {snackbarMessage}
+                </span>
+              </div>
             </div>
           </div>
+        )}
 
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setShowGlobalTaxModal(false)
-                openAddTaxModal()
-              }}
-              className="h-9 px-4 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-            >
-              Add Tax
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowGlobalTaxModal(false)}
-              className="h-9 px-4 text-sm font-medium text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={onclickSaveTaxPreference}
-              disabled={modalTaxPreference === taxPreference}
-              className="h-9 px-4 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              Save
-            </Button>
+        {/* Delete Success Snackbar */}
+        {showDeleteSnackbar && (
+          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+            <div className="bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-4 h-4" />
+                </div>
+                <span className="text-sm font-medium">
+                  Tax deleted successfully
+                </span>
+              </div>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+        )}
+
+        {/* Add Tax Success Snackbar */}
+        {showAddTaxSnackbar && (
+          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+            <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-4 h-4" />
+                </div>
+                <span className="text-sm font-medium">
+                  Tax values added successfully
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tax Preference Snackbar */}
+        {showTaxPreferenceSnackbar && (
+          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+            <div className={`${taxPreferenceSnackbarType === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4`}>
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-4 h-4" />
+                </div>
+                <span className="text-sm font-medium">
+                  {taxPreferenceSnackbarMessage}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Global Tax Setting Modal */}
+        <Dialog open={showGlobalTaxModal} onOpenChange={setShowGlobalTaxModal}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold text-black">Global Tax Setting</DialogTitle>
+              <DialogDescription>
+                Configure global tax preferences for your properties.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6 mt-2">
+              <div className="space-y-4">
+                <RadioGroup
+                  value={modalTaxPreference === "Inclusive" ? "1" : modalTaxPreference === "Exclusive" ? "2" : "0"}
+                  onValueChange={(value) => onChangeTaxPreference(parseInt(value))}
+                  className="space-y-4"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-start space-x-3">
+                      <RadioGroupItem value="1" id="inclusive" className="mt-1.5" />
+                      <div className="space-y-1">
+                        <Label htmlFor="inclusive" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          Inclusive of Taxes
+                        </Label>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          The Room rate will include taxes
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-start space-x-3">
+                      <RadioGroupItem value="2" id="exclusive" className="mt-1.5" />
+                      <div className="space-y-1">
+                        <Label htmlFor="exclusive" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          Exclusive of Taxes
+                        </Label>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          The Room rate does not include taxes
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-start space-x-3">
+                      <RadioGroupItem value="0" id="not-configured" className="mt-1.5" />
+                      <div className="space-y-1">
+                        <Label htmlFor="not-configured" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          Tax Not Configured
+                        </Label>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          The rates fetched from OTA will be displayed, they can be inclusive or exclusive of taxes. No tax setting will be applied by default.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setShowGlobalTaxModal(false)
+                  openAddTaxModal()
+                }}
+                className="h-9 px-4 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+              >
+                Add Tax
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowGlobalTaxModal(false)}
+                className="h-9 px-4 text-sm font-medium text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={onclickSaveTaxPreference}
+                disabled={modalTaxPreference === taxPreference}
+                className="h-9 px-4 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                Save
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
     </TooltipProvider>
   )
 }

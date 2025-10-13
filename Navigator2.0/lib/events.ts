@@ -15,14 +15,14 @@ export async function getEventCitiesCountryList(filtersValue: any) {
     return data;
 }
 
-export async function saveEvents(paramsValues:any) {
-     const { data } = await apiClient.post(`${Constants.API_AddEvents}`, paramsValues);
-    return data;    
+export async function saveEvents(paramsValues: any) {
+    const { data } = await apiClient.post(`${Constants.API_AddEvents}`, paramsValues);
+    return data;
 }
 
-export async function updateEvents(paramsValues:any) {
-     const { data } = await apiClient.post(`${Constants.API_UpdateEvents}`, paramsValues);
-    return data;    
+export async function updateEvents(paramsValues: any) {
+    const { data } = await apiClient.post(`${Constants.API_UpdateEvents}`, paramsValues);
+    return data;
 }
 
 export async function deleteEvents(eventId: number) {
@@ -45,5 +45,9 @@ export async function setSubscribeUnsubscribeEvent(filtersValue: any) {
 }
 export async function setSubsUnSubsHolidayEvent(filtersValue: any) {
     const { data } = await apiClient.post(`${Constants.API_UpdateHolidayList}`, filtersValue);
+    return data;
+}
+export async function getAllSubscribeEventsforMarketEdge(filtersValue: any) {
+    const { data } = await apiClient.post(`${Constants.API_GET_GetAllSubscribeEventforMarketEdge}`, filtersValue);
     return data;
 }

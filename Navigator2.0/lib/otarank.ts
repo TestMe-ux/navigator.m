@@ -18,3 +18,8 @@ export async function GetMasterActiveReviews() {
     const { data } = await apiClient.get(`${Constants.API_GetMasterActiveReviews}`);
     return data;
 }
+export async function GetOTARankTrendsOnSelectedOTA(filtersValue: any) {
+    const { data } = await apiClient.get(`${Constants.OTARankAPI_GET_GetOTARankTrendsOnSelectedOTA}`, { params: filtersValue });
+    return data;
+}
+

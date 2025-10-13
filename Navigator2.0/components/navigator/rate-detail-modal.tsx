@@ -194,6 +194,7 @@ const handleDownloadCSV = () => {
         <DialogContent
           className="!w-[950px] !max-w-[950px] flex flex-col p-0 overflow-hidden z-[999]"
           style={{ height: '550px', maxHeight: '550px', minHeight: '550px' }}
+          data-coach-mark="rate-trends-evolution-graph"
         >
           <DialogHeader className="p-6 pb-4 flex-shrink-0">
             <div className="flex items-center justify-between">

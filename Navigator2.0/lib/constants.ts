@@ -7,6 +7,7 @@ export class Constants {
   public static readonly API_GET_OTARankOnAllChannel = "OTARank/GetOTARankOnAllChannel";
   public static readonly API_GET_OTAChannels = "OTARank/GetOTAChannels";
   public static readonly ParityAPI_GET_Parity = "Parity/GetRateSummary";
+  public static readonly ParityAPI_GET_GetRateSummaryCluster = "Parity/GetRateSummaryCluster";
   public static readonly API_GET_BRGCalculationSetting = "BRG/GetBRGCalculationSetting";
   public static readonly API_GET_Mapping_GetSIDListforUser = "GeneralSettings/GetSIDListforUser";
   public static readonly API_SET_Login = "UserRole/Login";
@@ -25,11 +26,13 @@ export class Constants {
   public static readonly API_DeleteEvent = "Events/DeleteEvents";
   public static readonly API_GET_GetEventCitiesCountryList = "Events/FetchEventCitiesCountryList";
   public static readonly API_GET_GetAllSubscribeEvent = "Events/GetAllSubscribeEvent"
+  public static readonly API_GET_GetAllSubscribeEventforMarketEdge = "Events/GetAllSubscribeEventforMarketEdge";
   public static readonly API_SubscribeUnsubscribeEvent = "Events/SubscribeUnsubscribeEvent"
   public static readonly API_UpdateHolidayList = "Events/UpdateHolidayList"
   public static readonly API_GetMasterActiveReviews = "OTARank/GetMasterActiveReviews";
   public static readonly API_GET_GetCurrencySymbolDetails = "GeneralSettings/GetCurrencySymbolDetails";
   public static readonly API_GET_OTARankTrends = "OTARank/GetOTARankTrends";
+  public static readonly OTARankAPI_GET_GetOTARankTrendsOnSelectedOTA = "OTARank/GetOTARankTrendsOnSelectedOTA";
   public static readonly API_GETALLREPORTS = "Report/GetReportDates";
   public static readonly API_GETREPORTDATA = "Report/GetReportData";
   public static readonly API_GETSCHEDULEDATA = "Report/GetScheduleReportData";
@@ -83,7 +86,7 @@ export class Constants {
   public static readonly API_HISTORY_Alerts = "Alert/history";
   public static readonly API_UPDATE_Alerts = "Alert/update";
   public static readonly API_SAVE_Alerts = "Alert/insert";
-
+  public static readonly API_GetNotificationAlert = "Alert/GetNotificationAlert";
 
   // Tax Settings APIs
   public static readonly API_GET_TaxPreference = "Tax/GetTaxPreference";
