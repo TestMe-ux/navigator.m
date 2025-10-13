@@ -71,3 +71,29 @@ export async function uploadImage(filtersValue: any) {
 
 }
 
+export async function getAccessurl(filtersValue: any) {
+    try {
+        const { data } = await apiClient.get(`${Constants.API_GetAccessurlForSid}`, { params: filtersValue });
+        console.log('✅ getAccessurl success:', data);
+        return data;
+    } catch (error: any) {
+        console.error('❌ getUserHistory error details:', {
+            message: error.message,
+        });
+        throw error;
+    }
+}
+
+export async function saveSwitchAccessUrl(filtersValue: any) {
+    try {
+        const { data } = await apiClient.post(`${Constants.API_SET_AddUpdateUserSwitchAccessUrl}`, filtersValue);
+        console.log('✅ saveSwitchAccessUrl success:', data);
+        return data;
+    } catch (error: any) {
+        console.error('❌ saveSwitchAccessUrl error details:', {
+            message: error.message,
+        });
+        throw error;
+    }
+}
+

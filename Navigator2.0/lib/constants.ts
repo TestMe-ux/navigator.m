@@ -67,6 +67,9 @@ export class Constants {
   public static readonly API_GetActivePageMaster = "GeneralSettings/GetActiveAppPageMaster";
   public static readonly API_AddUpdateUser = "UserRole/AddUpdateUser";
   public static readonly API_AddProfilePhoto = "GCSUploadOps/AddProfilePhoto";
+  public static readonly API_GetAccessurlForSid = "UserRole/GetAccessUrlForSid";
+  public static readonly API_SET_AddUpdateUserSwitchAccessUrl = "UserRole/AddUpdateUserSwitchAccessUrl";
+
 
   public static readonly API_GenerateAndMailReportCSV = "Report/GenerateAndMailReportCSV";
   public static readonly API_CheckMappingValidation = "Report/CheckMappingValidation";

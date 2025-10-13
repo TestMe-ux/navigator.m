@@ -45,6 +45,8 @@ export function LoginForm() {
     general: ""
   })
 
+  const [paramSid, setParamSid] = useState<number | null>(null);
+
   // Override autofill styling with comprehensive CSS
   React.useEffect(() => {
     const style = document.createElement('style')
@@ -204,10 +206,24 @@ export function LoginForm() {
       const loginSuccess = handleSuccessfulLogin(response, stayLoggedIn)
 
       if (loginSuccess) {
+
         // Get SID list for user
         getSIDListforUser();
 
-        // Redirect to dashboard on success
+
+        if (!response.body.userDetails.operationType) {
+
+          const baseUrl = response.body.userDetails.applicationURL;
+          const authToken = response.body.userDetails.accessToken;
+
+          const Sid = paramSid ?? 17535
+          const redirectUrl = `${baseUrl}/auth?unifiedauth=${authToken}&sid=${Sid}`;
+
+          console.log("Redirecting to Classic Optima:", redirectUrl);
+
+          // Option 1: Redirect in same tab
+          window.location.href = redirectUrl;
+        }
 
       } else {
         setErrors(prev => ({
@@ -301,6 +317,7 @@ export function LoginForm() {
           setSelectedHotel(defaultProperty);
           setHotelOptions(res.body);
 
+          setParamSid(defaultProperty.sId);
           // Call getPackageDetails after setting properties
           getPackageDetails(res.body[0]);
 
