@@ -14,7 +14,6 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T)
   // Effect to initialize value from localStorage on client side
   useEffect(() => {
     if (typeof window !== 'undefined' && !isInitialized) {
-      debugger;
       try {
         const item = window.localStorage.getItem(key)
         if (item && item !== 'undefined' && item !== 'null') {
