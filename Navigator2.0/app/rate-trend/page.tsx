@@ -30,6 +30,7 @@ import { RTRRRequestModel } from "@/lib/RTRRRequestModel"
 import { usePollingContext } from "@/components/polling/polling-context"
 import { useToast } from "@/hooks/use-toast"
 import { GetDemandAIData } from "@/lib/demand"
+import { RateTrendsCoachMarkTrigger } from "@/components/navigator/rate-trends-coach-mark-system"
 
 /**
  * Utility function to format dates consistently across server and client
@@ -725,10 +726,10 @@ export default function RateTrendPage() {
   return (
 
 
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950" data-coach-mark="rate-trends-overview">
 
-      {/* Enhanced Filter Bar with Sticky Positioning */}
-      <div className="sticky top-0 z-50 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md transition-all duration-200 min-h-[80px]">
+      {/* Filter Bar */}
+      <div className="bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md transition-all duration-200 min-h-[80px]" data-coach-mark="rate-trends-filter-bar">
         <FilterBar onMoreFiltersClick={handleMoreFiltersClick} />
       </div>
 
@@ -779,7 +780,7 @@ export default function RateTrendPage() {
               Track rate movements and competitive positioning across time periods
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3" data-coach-mark="rate-trends-lightning-refresh">
             {/* Lightning Refresh and Report Buttons */}
             <TooltipProvider>
               <div className="flex items-center gap-2">
@@ -876,7 +877,7 @@ export default function RateTrendPage() {
         </div>
 
         {/* Main Rate Trend Content */}
-        <div className="relative bg-white dark:bg-slate-900 shadow-xl border border-border/50 rounded-lg">
+        <div className="relative bg-white dark:bg-slate-900 border rounded-lg" data-coach-mark="rate-trends-chart-visualization">
           {/* Table View Heading - Only visible when table view is active */}
           {currentView === "table" && (
             <div className="absolute left-4 lg:left-6 z-10 flex items-center" style={{ top: 'calc(1rem + 2px)' }}>
@@ -975,7 +976,7 @@ export default function RateTrendPage() {
 
 
           {/* View Toggle - Positioned consistently for all views */}
-          <div className="absolute top-4 right-4 lg:right-6 z-10">
+          <div className="absolute top-4 right-4 lg:right-6 z-10" data-coach-mark="rate-trends-view-toggle">
             <TooltipProvider>
               <div className="flex items-center border border-border rounded-lg overflow-hidden bg-white dark:bg-slate-800 shadow-sm">
                 <Tooltip>
@@ -1038,7 +1039,7 @@ export default function RateTrendPage() {
 
           {/* Content based on current view */}
           {currentView === "table" ? (
-            <div className="pt-16">
+            <div className="pt-16" data-coach-mark="rate-trends-table-analysis">
               <RateTrendsTable
                 competitorStartIndex={competitorStartIndex}
                 digitCount={selectedDigitCount}
@@ -1048,31 +1049,33 @@ export default function RateTrendPage() {
               />
             </div>
           ) : currentView === "chart" ? (
-            <div className="pt-16">
+            <div className="pt-16" data-coach-mark="rate-trends-chart-visualization">
               <RTRateTrendsChart key="rate-trends-chart" rateData={rateData}
                 rateCompData={rateCompData} digitCount={selectedDigitCount} />
             </div>
           ) : (
-            <RateTrendCalendar
-              currentView={currentView}
-              highlightToday={true}
-              showWeekNumbers={false}
-              shouldShowMonthNavigation={shouldShowMonthNavigation}
-              availableMonths={availableMonths}
-              currentMonthIndex={currentMonthIndex}
-              onPrevMonth={prevMonth}
-              onNextMonth={nextMonth}
-              digitCount={selectedDigitCount}
-              startDate={startDate || new Date()}
-              endDate={endDate || new Date()}
-              onDateSelect={(date) => {
-                console.log('📅 Date selected:', date.toLocaleDateString())
-                // Add any additional date selection logic here
-              }}
-              rateData={rateData}
-              rateCompData={rateCompData}
-              selectedProperty={selectedProperty}
-            />
+            <div data-coach-mark="rate-trends-calendar-view">
+              <RateTrendCalendar
+                currentView={currentView}
+                highlightToday={true}
+                showWeekNumbers={false}
+                shouldShowMonthNavigation={shouldShowMonthNavigation}
+                availableMonths={availableMonths}
+                currentMonthIndex={currentMonthIndex}
+                onPrevMonth={prevMonth}
+                onNextMonth={nextMonth}
+                digitCount={selectedDigitCount}
+                startDate={startDate || new Date()}
+                endDate={endDate || new Date()}
+                onDateSelect={(date) => {
+                  console.log('📅 Date selected:', date.toLocaleDateString())
+                  // Add any additional date selection logic here
+                }}
+                rateData={rateData}
+                rateCompData={rateCompData}
+                selectedProperty={selectedProperty}
+              />
+            </div>
           )}
         </div>
 
@@ -1113,6 +1116,9 @@ export default function RateTrendPage() {
         message={snackbarMessage}
         type={snackbarType}
       />
+
+      {/* Rate Trends Coach Mark Trigger */}
+      <RateTrendsCoachMarkTrigger onViewChange={setCurrentView} />
     </div>
   )
 }

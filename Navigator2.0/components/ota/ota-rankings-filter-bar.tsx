@@ -49,7 +49,7 @@ export function OTARankingsFilterBar({
   compsetOptions
 }: OTARankingsFilterBarProps) {
   return (
-    <div className="sticky top-0 z-40 filter-bar-minimal bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
+    <div className="filter-bar-minimal bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
       <div className="bg-background border-b border-border shadow-sm">
         <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
           <div className="max-w-7xl xl:max-w-none mx-auto">

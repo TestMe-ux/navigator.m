@@ -187,8 +187,8 @@ function AllPropertiesPageContent() {
       )}
       {!isLoading && (
         <>
-      {/* Enhanced Filter Bar with Sticky Positioning */}
-      <div className="sticky top-0 z-40 filter-bar-minimal bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
+      {/* Filter Bar */}
+      <div className="filter-bar-minimal bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-shadow duration-200">
         <AllPropertiesFilterBar 
           onMoreFiltersClick={handleMoreFiltersClick} 
           setSelectedChannel={setSelectedChannel}

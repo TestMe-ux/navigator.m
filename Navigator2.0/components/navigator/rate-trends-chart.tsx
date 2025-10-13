@@ -1073,7 +1073,7 @@ export function RateTrendsChart({ rateData, rateCompData }: any) {
 
   return (
     <Card ref={cardRef} className="chart-container-minimal animate-fade-in bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700">
-      <CardHeader className="pb-4">
+      <CardHeader className="pb-4" data-coach-mark="rate-trends-header">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
             <CardTitle className="text-minimal-title flex items-center gap-2">
