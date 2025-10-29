@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { User, Building, Radio, Target, Bell, BarChart3, Map, Calculator } from "lucide-react"
 import { SettingsTab } from "@/components/settings-tab"
@@ -25,21 +26,52 @@ const settingsTabs = [
 ]
 
 export default function SettingsPage() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState("user-management")
+
+  // Handle URL parameter for tab selection
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    
+    // If mapping tab is requested, navigate to /settings/mapping
+    if (tabParam === "mapping") {
+      router.push("/settings/mapping")
+      return
+    }
+    
+    if (tabParam && settingsTabs.some(tab => tab.id === tabParam)) {
+      setActiveTab(tabParam)
+    } else if (!tabParam) {
+      // Default to user-management if no tab param
+      setActiveTab("user-management")
+    }
+  }, [searchParams, pathname, router])
+  
+  // Handle tab click - navigate to /settings/mapping for mapping tab
+  const handleTabChange = (value: string) => {
+    if (value === "mapping") {
+      router.push("/settings/mapping")
+    } else {
+      setActiveTab(value)
+      router.push(`/settings?tab=${value}`)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       {/* Settings Tabs Section */}
       <SettingsTab 
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleTabChange}
         settingsTabs={settingsTabs}
       />
       
       {/* Tab Contents */}
       <div className="px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 pt-4 py-4 md:py-6 lg:py-8">
         <div className="max-w-6xl mx-auto">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsContent value="user-management" className="mt-2">
               <UserManagement />
             </TabsContent>

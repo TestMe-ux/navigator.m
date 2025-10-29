@@ -40,7 +40,7 @@ export function SettingsTab({ className, activeTab, setActiveTab, settingsTabs }
                     <TabsTrigger
                       key={tab.id}
                       value={tab.id}
-                      className="px-5 py-3 text-sm font-medium border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent bg-transparent hover:text-foreground rounded-none flex items-center gap-2 whitespace-nowrap flex-1 justify-center"
+                      className="px-5 py-3 text-sm font-medium border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent bg-transparent hover:text-foreground rounded-none flex items-center gap-2 whitespace-nowrap flex-1 justify-center text-[14px]"
                     >
                       <IconComponent className="w-4 h-4" />
                       <span className="hidden sm:inline">{tab.label}</span>
