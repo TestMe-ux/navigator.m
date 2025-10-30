@@ -31,7 +31,9 @@ const RoomTypeCell = ({
   bulkMappingMode = false,
   selectedRoomsForBulk,
   onCheckboxChange,
-  selectedKeywords
+  selectedKeywords,
+  basicChannel,
+  mappingMode
 }: {
   displayText: string
   fullDescription: string
@@ -49,7 +51,9 @@ const RoomTypeCell = ({
   bulkMappingMode?: boolean
   selectedRoomsForBulk?: Set<string>
   onCheckboxChange?: (key: string, checked: boolean) => void
-  selectedKeywords?: string[]
+  selectedKeywords?: Array<{text: string, start: number, end: number, id: string}>
+  basicChannel?: string
+  mappingMode?: string
 }) => {
   const dropdownKey = `${roomCategoryId}-${hotelId}-${cellKey}`
   
@@ -78,12 +82,12 @@ const RoomTypeCell = ({
       <div 
         className={`hotel-cell-container relative text-xs ${bgColor} px-2 py-1 rounded flex items-center justify-between hover:bg-gray-300 transition-colors duration-300`}
       >
-        <Tooltip>
+        <Tooltip disableHoverableContent>
           <TooltipTrigger asChild>
             <span className="truncate flex-1">{displayText}</span>
           </TooltipTrigger>
-          <TooltipContent side="top" className="bg-black text-white p-2 max-w-[468px]">
-            <div className="line-clamp-5">{fullDescription}</div>
+          <TooltipContent side="top" className="bg-black text-white p-3 max-w-[600px] whitespace-pre-wrap pointer-events-none">
+            <div className="text-sm leading-relaxed max-h-[200px] overflow-y-auto">{fullDescription}</div>
           </TooltipContent>
         </Tooltip>
         <Checkbox
@@ -101,57 +105,52 @@ const RoomTypeCell = ({
       className={`hotel-cell-container relative text-xs ${bgColor} px-2 py-1 rounded flex items-center justify-between hover:bg-gray-300 cursor-pointer transition-colors duration-300`}
       onClick={() => handleHotelCellDropdownToggle(dropdownKey)}
     >
-      <Tooltip>
+      <Tooltip disableHoverableContent>
         <TooltipTrigger asChild>
           <span className="truncate flex-1">{displayText}</span>
         </TooltipTrigger>
-        <TooltipContent side="top" className="bg-black text-white p-2 max-w-[468px]">
+        <TooltipContent 
+          side="top" 
+          className={`bg-black text-white p-3 pointer-events-none ${
+            roomCategoryId === "unmapped" 
+              ? "max-w-[600px] whitespace-pre-wrap" 
+              : "max-w-[468px]"
+          }`}
+        >
           {selectedKeywords && selectedKeywords.length > 0 ? (
-            <div>
+            <div className={roomCategoryId === "unmapped" ? "text-sm leading-relaxed max-h-[200px] overflow-y-auto" : ""}>
               {(() => {
                 const parts: Array<{text: string, isKeyword: boolean}> = []
-                let remainingText = fullDescription
-                const sortedKeywords = [...selectedKeywords].sort((a, b) => b.length - a.length)
                 
-                // Find all keyword positions
-                const keywordPositions: Array<{start: number, end: number}> = []
-                sortedKeywords.forEach(keyword => {
-                  let searchIndex = 0
-                  while (true) {
-                    const index = remainingText.indexOf(keyword, searchIndex)
-                    if (index === -1) break
-                    keywordPositions.push({ start: index, end: index + keyword.length })
-                    searchIndex = index + 1
-                  }
-                })
+                // Sort selected ranges by start position (using exact positions from modal)
+                const sortedRanges = [...selectedKeywords].sort((a, b) => a.start - b.start)
                 
-                // Sort positions
-                keywordPositions.sort((a, b) => a.start - b.start)
-                
-                // Remove overlapping positions
-                const nonOverlapping: Array<{start: number, end: number}> = []
-                keywordPositions.forEach(pos => {
-                  const overlaps = nonOverlapping.some(existing => 
-                    (pos.start >= existing.start && pos.start < existing.end) ||
-                    (pos.end > existing.start && pos.end <= existing.end) ||
-                    (pos.start <= existing.start && pos.end >= existing.end)
-                  )
-                  if (!overlaps) {
-                    nonOverlapping.push(pos)
-                  }
-                })
-                
-                // Build parts array
+                // Build parts array from exact selected ranges only
                 let lastIndex = 0
-                nonOverlapping.forEach(pos => {
-                  if (pos.start > lastIndex) {
-                    parts.push({text: fullDescription.substring(lastIndex, pos.start), isKeyword: false})
+                sortedRanges.forEach(range => {
+                  // Add text before this range
+                  if (range.start > lastIndex) {
+                    parts.push({
+                      text: fullDescription.substring(lastIndex, range.start),
+                      isKeyword: false
+                    })
                   }
-                  parts.push({text: fullDescription.substring(pos.start, pos.end), isKeyword: true})
-                  lastIndex = pos.end
+                  
+                  // Add the selected range (highlight it)
+                  parts.push({
+                    text: fullDescription.substring(range.start, range.end),
+                    isKeyword: true
+                  })
+                  
+                  lastIndex = Math.max(lastIndex, range.end)
                 })
+                
+                // Add remaining text after last range
                 if (lastIndex < fullDescription.length) {
-                  parts.push({text: fullDescription.substring(lastIndex), isKeyword: false})
+                  parts.push({
+                    text: fullDescription.substring(lastIndex),
+                    isKeyword: false
+                  })
                 }
                 
                 return (
@@ -168,7 +167,11 @@ const RoomTypeCell = ({
               })()}
             </div>
           ) : (
-            <div className="line-clamp-5">{fullDescription}</div>
+            <div className={
+              roomCategoryId === "unmapped" 
+                ? "text-sm leading-relaxed max-h-[200px] overflow-y-auto whitespace-pre-wrap" 
+                : "line-clamp-5"
+            }>{fullDescription}</div>
           )}
         </TooltipContent>
       </Tooltip>
@@ -262,7 +265,7 @@ export default function MappingSettingsPage() {
   const [windowWidth, setWindowWidth] = useState(0)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null) // Track which 3-dots dropdown is open
   const [openHotelCellDropdown, setOpenHotelCellDropdown] = useState<string | null>(null) // Track which hotel cell dropdown is open
-  const [roomMappingsMap, setRoomMappingsMap] = useState<Map<string, {displayText: string, fullDescription: string, sourceCategoryId: string, sourceHotelId: string, sourceCellKey: string, selectedKeywords?: string[]}>>(new Map())
+  const [roomMappingsMap, setRoomMappingsMap] = useState<Map<string, {displayText: string, fullDescription: string, sourceCategoryId: string, sourceHotelId: string, sourceCellKey: string, selectedKeywords?: Array<{text: string, start: number, end: number, id: string}>}>>(new Map())
   const [animatingRoom, setAnimatingRoom] = useState<string | null>(null)
   const [mappedCellKeys, setMappedCellKeys] = useState<Set<string>>(new Set())
   const [removingRooms, setRemovingRooms] = useState<Set<string>>(new Set()) // Track rooms being removed
@@ -296,7 +299,7 @@ export default function MappingSettingsPage() {
     hotelId: string
     cellKey: string
   } | null>(null) // Track data for keyword modal
-  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]) // Track selected keywords
+  const [selectedKeywords, setSelectedKeywords] = useState<Array<{text: string, start: number, end: number, id: string}>>([]) // Track selected keyword ranges with positions
   const [isSelecting, setIsSelecting] = useState(false) // Track if user is currently selecting text
   const [roomCreationMode, setRoomCreationMode] = useState("new") // Track room creation mode: "new" or "recommended"
   const [showManageRoomModal, setShowManageRoomModal] = useState(false) // Track Manage Room modal visibility
@@ -809,41 +812,76 @@ export default function MappingSettingsPage() {
   
   // Helper function to get room data by key
   const getRoomDataByKey = (roomKey: string) => {
+    // First, try to find the room directly in roomMappingsMap
+    // The roomKey from checkbox is "unmapped-hotelId-cellKey"
+    // In roomMappingsMap, unmapped rooms are stored with key "unmapped-hotelId-{timestamp}"
+    // where the timestamp IS the cellKey
+    const directMatch = roomMappingsMap.get(roomKey)
+    if (directMatch) {
+      return {
+        displayText: directMatch.displayText,
+        fullDescription: directMatch.fullDescription
+      }
+    }
+    
+    // If not found directly, search for matching unmapped room
+    // The checkbox key format is "unmapped-hotelId-cellKey"
+    // We need to find the room in roomMappingsMap where:
+    // - key starts with "unmapped-hotelId-"
+    // - and sourceCellKey or key ends with cellKey
     const parts = roomKey.split('-')
     if (parts.length >= 3 && parts[0] === "unmapped") {
       const hotelId = parts[1]
       const cellKey = parts.slice(2).join('-')
       
-      // Hardcoded room data mapping
+      // Search roomMappingsMap for matching unmapped room
+      for (const [key, room] of roomMappingsMap.entries()) {
+        if (key.startsWith(`unmapped-${hotelId}-`)) {
+          // Check if this is the room we're looking for
+          // The cellKey might be in the key itself or in sourceCellKey
+          const keyParts = key.split('-')
+          const keyTimestamp = keyParts.slice(2).join('-') // Everything after hotelId
+          
+          // Match if: cellKey matches keyTimestamp OR sourceCellKey matches cellKey
+          if (keyTimestamp === cellKey || room.sourceCellKey === cellKey) {
+            return {
+              displayText: room.displayText,
+              fullDescription: room.fullDescription
+            }
+          }
+        }
+      }
+      
+      // Fallback to hardcoded room data mapping
       const roomData: Record<string, Record<string, { displayText: string, fullDescription: string }>> = {
         "central-hotel": {
-          "0": { displayText: "2 Beds", fullDescription: "Room with 2 Beds and Modern Amenities" },
-          "1": { displayText: "Deluxe Double Room...", fullDescription: "Deluxe Double Room with Premium Amenities and City Views" },
-          "2": { displayText: "Economy Single Roo...", fullDescription: "Economy Single Room with Essential Amenities" },
-          "3": { displayText: "Room Assigned on A...", fullDescription: "Room Assigned on Arrival with Flexible Check-in" },
-          "4": { displayText: "Single Room shared...", fullDescription: "Single Room with Shared Facilities and Budget-Friendly Option" },
-          "5": { displayText: "Single Room with Sh...", fullDescription: "Single Room with Shared Bathroom and Essential Amenities" },
-          "6": { displayText: "Standard Double Ro...", fullDescription: "Standard Double Room with Basic Amenities and Comfortable Space" },
-          "7": { displayText: "Standard Single Roo...", fullDescription: "Standard Single Room with Essential Amenities" },
-          "8": { displayText: "Standard Suite, Ensu...", fullDescription: "Standard Suite with Ensuite Bathroom and Spacious Accommodation" },
-          "9": { displayText: "Standard Triple Roo...", fullDescription: "Standard Triple Room with Three Beds and Extra Space" },
-          "10": { displayText: "Standard Twin Room...", fullDescription: "Standard Twin Room with Two Beds and Comfortable Accommodation" },
-          "11": { displayText: "Triple Ensuite", fullDescription: "Triple Room with Ensuite Bathroom and Three Beds" },
+          "0": { displayText: "2 Beds", fullDescription: "Room with 2 Beds and Modern Amenities including Wi-Fi, Air Conditioning, and Flat Screen TV. This comfortable accommodation features contemporary furnishings and provides a relaxing environment for your stay. Perfect for families or groups traveling together." },
+          "1": { displayText: "Deluxe Double Room...", fullDescription: "Deluxe Double Room with Premium Amenities and City Views. This spacious room features a large king-size bed, elegant furnishings, and floor-to-ceiling windows offering panoramic city vistas. Includes complimentary high-speed internet, minibar, and en-suite bathroom with luxury toiletries. Ideal for business travelers and couples seeking comfort and style." },
+          "2": { displayText: "Economy Single Roo...", fullDescription: "Economy Single Room with Essential Amenities designed for budget-conscious travelers. Features a comfortable single bed, work desk, and compact en-suite bathroom. Includes basic amenities like Wi-Fi, television, and air conditioning. Perfect for solo travelers who prioritize value and convenience during their stay." },
+          "3": { displayText: "Room Assigned on A...", fullDescription: "Room Assigned on Arrival with Flexible Check-in Options. This accommodation type provides maximum flexibility for travelers with uncertain arrival times. The room category will be confirmed at check-in based on availability, ensuring you receive the best available room for your needs. Includes all standard amenities and services." },
+          "4": { displayText: "Single Room shared...", fullDescription: "Single Room with Shared Facilities and Budget-Friendly Option. This economical accommodation features a cozy single bed and access to shared bathroom facilities on the same floor. Perfect for budget travelers who don't mind sharing facilities to save money. Includes basic amenities and access to common areas." },
+          "5": { displayText: "Single Room with Sh...", fullDescription: "Single Room with Shared Bathroom and Essential Amenities. This affordable option includes a comfortable single bed, wardrobe, and work desk. The shared bathroom is located just steps away from your room, providing convenience while maintaining affordability. Includes Wi-Fi, air conditioning, and daily housekeeping service." },
+          "6": { displayText: "Standard Double Ro...", fullDescription: "Standard Double Room with Basic Amenities and Comfortable Space. This room features a double bed suitable for couples or single travelers who prefer extra space. Includes standard amenities such as television, Wi-Fi, air conditioning, and an en-suite bathroom. Clean and comfortable accommodation with all the essentials for a pleasant stay." },
+          "7": { displayText: "Standard Single Roo...", fullDescription: "Standard Single Room with Essential Amenities perfect for solo travelers. Features a comfortable single bed, work desk, chair, and compact en-suite bathroom. Includes all basic amenities like free Wi-Fi, flat-screen TV, air conditioning, and daily housekeeping. A practical choice for business travelers and those seeking comfortable yet affordable accommodation." },
+          "8": { displayText: "Standard Suite, Ensu...", fullDescription: "Standard Suite with Ensuite Bathroom and Spacious Accommodation ideal for extended stays or travelers who appreciate extra space. This suite features a separate living area, bedroom, and fully equipped ensuite bathroom. Includes premium amenities such as a mini-refrigerator, microwave, coffee maker, and larger workspace. Perfect for families or business travelers needing more room and privacy." },
+          "9": { displayText: "Standard Triple Roo...", fullDescription: "Standard Triple Room with Three Beds and Extra Space designed to accommodate three guests comfortably. This room includes three single beds or one double and one single bed, along with additional furniture and storage space. Features en-suite bathroom, television, Wi-Fi, and air conditioning. Ideal for families with one child or groups of three friends traveling together." },
+          "10": { displayText: "Standard Twin Room...", fullDescription: "Standard Twin Room with Two Beds and Comfortable Accommodation featuring two separate single beds, perfect for friends or colleagues sharing a room. Includes standard amenities such as en-suite bathroom, television, free Wi-Fi, air conditioning, and daily housekeeping. Spacious enough for two adults with comfortable bedding and modern furnishings for a restful stay." },
+          "11": { displayText: "Triple Ensuite", fullDescription: "Triple Room with Ensuite Bathroom and Three Beds providing comfortable accommodation for three guests. This room features three single beds or a combination of bed types, along with a private ensuite bathroom. Includes all essential amenities like Wi-Fi, television, air conditioning, and wardrobe space. Perfect for families or small groups who want private bathroom facilities and comfortable shared accommodation." },
         },
         "hotel-palermitano": {
-          "0": { displayText: "Basic Double Room...", fullDescription: "Basic Double Room with Essential Amenities and Simple Accommodation" },
-          "1": { displayText: "Room Assigned on A...", fullDescription: "Room Assigned on Arrival with Flexible Check-in Options" },
+          "0": { displayText: "Basic Double Room...", fullDescription: "Basic Double Room with Essential Amenities and Simple Accommodation offering value-for-money lodging. This room features a double bed, basic furniture, and a functional ensuite bathroom. Includes essential services like Wi-Fi, television, and air conditioning. A straightforward accommodation option for travelers who need a clean and comfortable place to rest without extra frills." },
+          "1": { displayText: "Room Assigned on A...", fullDescription: "Room Assigned on Arrival with Flexible Check-in Options providing maximum booking flexibility. Your exact room type will be confirmed upon arrival based on current availability, ensuring you receive appropriate accommodation. This option is perfect for travelers with flexible plans who prioritize getting the best available room at check-in time." },
         },
         "grand-palace": {
-          "0": { displayText: "Palace Suite", fullDescription: "Palace Suite with Grand Views and Luxury Amenities" },
-          "1": { displayText: "Royal Villa", fullDescription: "Royal Villa with Private Garden and Premium Services" },
+          "0": { displayText: "Palace Suite", fullDescription: "Palace Suite with Grand Views and Luxury Amenities represents the pinnacle of comfort and elegance. This expansive suite features a separate living room, luxurious bedroom, and opulent bathroom with premium fixtures. Includes breathtaking city or garden views, high-end furnishings, butler service, and exclusive access to hotel facilities. Perfect for special occasions, honeymoons, or guests seeking an unforgettable luxury experience." },
+          "1": { displayText: "Royal Villa", fullDescription: "Royal Villa with Private Garden and Premium Services offers the ultimate in privacy and luxury. This exclusive standalone accommodation features multiple bedrooms, a private garden or terrace, and premium furnishings throughout. Includes dedicated concierge service, private entrance, and access to exclusive amenities. Ideal for VIP guests, large families, or those seeking complete privacy and personalized service during their stay." },
         },
         "luxury-beachfront": {
-          "0": { displayText: "Beach Villa", fullDescription: "Beach Villa with Ocean Views and Private Beach Access" },
-          "1": { displayText: "Beach House", fullDescription: "Beach House with Ocean Views" },
+          "0": { displayText: "Beach Villa", fullDescription: "Beach Villa with Ocean Views and Private Beach Access provides direct access to pristine sandy beaches and stunning ocean vistas. This villa features spacious accommodations with balconies or terraces overlooking the water, premium furnishings, and modern amenities. Includes private beach access, outdoor furniture, and all luxury amenities. Perfect for beach lovers and those seeking a tranquil seaside retreat with breathtaking views." },
+          "1": { displayText: "Beach House", fullDescription: "Beach House with Ocean Views offers a relaxed beachside accommodation experience. This charming property features comfortable interiors, outdoor spaces for relaxation, and direct or near-direct beach access. Includes basic to premium amenities depending on category, and provides a casual, laid-back atmosphere perfect for families and beach enthusiasts. Wake up to the sound of waves and enjoy easy access to water activities and beachside dining." },
         },
         "mountain-lodge": {
-          "0": { displayText: "Mountain Cabin", fullDescription: "Mountain Cabin with Natural Surroundings" },
+          "0": { displayText: "Mountain Cabin", fullDescription: "Mountain Cabin with Natural Surroundings provides a cozy retreat in a scenic mountain setting. This rustic yet comfortable accommodation features wood paneling, fireplace or heating, and large windows offering mountain views. Includes basic amenities, outdoor spaces, and proximity to hiking trails and nature activities. Perfect for nature lovers, hikers, and those seeking a peaceful escape from urban life surrounded by pristine natural beauty." },
         },
         "downtown-business": {
           "0": { displayText: "Corporate Suite", fullDescription: "Corporate Suite with Business Amenities" },
@@ -887,7 +925,14 @@ export default function MappingSettingsPage() {
     console.log('Selected rooms:', Array.from(selectedRoomsForBulk))
     console.log('Target category:', bulkMappingTargetCategory)
     
+    // Batch all updates - collect all room data first, then update in one operation
+    const roomsToAdd: Array<{targetKey: string, displayText: string, fullDescription: string, sourceCategoryId: string, sourceHotelId: string, sourceCellKey: string}> = []
+    const sourceKeysToHide: string[] = []
+    const targetKeysForAnimation: string[] = []
+    
     // For each selected room, move it to the target category
+    // Use a counter to ensure unique timestamps for each room (prevents overwrites in bulk operations)
+    let timestampOffset = 0
     selectedRoomsForBulk.forEach((roomKey) => {
       // Parse the key format: "unmapped-hotelId-cellKey"
       const parts = roomKey.split('-')
@@ -895,30 +940,71 @@ export default function MappingSettingsPage() {
         const hotelId = parts[1]
         const cellKey = parts.slice(2).join('-')
         
-        // Get the actual room data
-        const roomData = getRoomDataByKey(roomKey)
+        // Try to get room data from roomMappingsMap first (for rooms that were unmapped)
+        let roomData = { displayText: "", fullDescription: "" }
+        let foundInMap = false
+        
+        // Search roomMappingsMap for the unmapped room
+        for (const [key, room] of roomMappingsMap.entries()) {
+          if (key === roomKey || (key.startsWith(`unmapped-${hotelId}-`) && (room.sourceCellKey === cellKey || key.endsWith(`-${cellKey}`)))) {
+            roomData = { displayText: room.displayText, fullDescription: room.fullDescription }
+            foundInMap = true
+            break
+          }
+        }
+        
+        // If not found in map, use getRoomDataByKey (includes hardcoded fallback)
+        if (!foundInMap) {
+          roomData = getRoomDataByKey(roomKey)
+        }
+        
         const displayText = roomData.displayText
         const fullDescription = roomData.fullDescription
         
-        // Add to mapped rooms with green background animation
-        const timestamp = Date.now()
+        // Validate room data before proceeding
+        if (!displayText || displayText === "Room" || !fullDescription) {
+          console.error(`Failed to find valid room data for key: ${roomKey}`)
+          return // Skip this room
+        }
+        
+        // Use timestamp with offset to ensure uniqueness (prevents overwrites when saving multiple rooms)
+        const timestamp = Date.now() + timestampOffset++
         const targetKey = `${bulkMappingTargetCategory}-${hotelId}-${timestamp}`
         
-        setRoomMappingsMap(prev => {
-          const newMap = new Map(prev)
+        // Store room data for batch update
+        roomsToAdd.push({
+          targetKey,
+          displayText,
+          fullDescription,
+          sourceCategoryId: 'unmapped',
+          sourceHotelId: hotelId,
+          sourceCellKey: cellKey
+        })
+        sourceKeysToHide.push(roomKey)
+        targetKeysForAnimation.push(targetKey)
+      }
+    })
+    
+    // Batch update roomMappingsMap with all rooms at once (prevents race conditions)
+    if (roomsToAdd.length > 0) {
+      setRoomMappingsMap(prev => {
+        const newMap = new Map(prev)
+        roomsToAdd.forEach(({targetKey, displayText, fullDescription, sourceCategoryId, sourceHotelId, sourceCellKey}) => {
           newMap.set(targetKey, {
             displayText,
             fullDescription,
-            sourceCategoryId: 'unmapped',
-            sourceHotelId: hotelId,
-            sourceCellKey: cellKey
+            sourceCategoryId,
+            sourceHotelId,
+            sourceCellKey
           })
           console.log(`Bulk mapping: Adding room "${displayText}" to ${bulkMappingTargetCategory} with key: ${targetKey}`)
-          console.log(`Current roomMappingsMap keys:`, Array.from(newMap.keys()))
-          return newMap
         })
-        
-        // Show green background on destination for 10 seconds
+        console.log(`Bulk mapping: Updated roomMappingsMap with ${roomsToAdd.length} rooms. All keys:`, Array.from(newMap.keys()))
+        return newMap
+      })
+      
+      // Show green background on destination for 10 seconds
+      targetKeysForAnimation.forEach(targetKey => {
         setNewlyMappedRooms(prev => new Set(prev).add(targetKey))
         setTimeout(() => {
           setNewlyMappedRooms(prev => {
@@ -927,8 +1013,10 @@ export default function MappingSettingsPage() {
             return newSet
           })
         }, 10000)
-        
-        // Show red background on source (unmapped section) for 1 second
+      })
+      
+      // Show red background on source (unmapped section) for 1 second
+      sourceKeysToHide.forEach(roomKey => {
         setRemovingRooms(prev => new Set(prev).add(roomKey))
         setTimeout(() => {
           setRemovingRooms(prev => {
@@ -937,13 +1025,17 @@ export default function MappingSettingsPage() {
             return newSet
           })
         }, 1000)
-        
-        // Hide the source room after red animation
-        setTimeout(() => {
-          setMappedCellKeys(prev => new Set(prev).add(roomKey))
-        }, 1000)
-      }
-    })
+      })
+      
+      // Hide the source rooms after red animation
+      setTimeout(() => {
+        setMappedCellKeys(prev => {
+          const newSet = new Set(prev)
+          sourceKeysToHide.forEach(key => newSet.add(key))
+          return newSet
+        })
+      }, 1000)
+    }
     
     // Clear bulk mapping mode and selections after all operations complete
     setTimeout(() => {
@@ -977,14 +1069,24 @@ export default function MappingSettingsPage() {
       setRoomCategories(prev => prev.filter(room => room.id !== roomToDelete.id))
       setShowDeleteRoomConfirm(false)
       setRoomToDelete(null)
-      setShowManageRoomModal(true) // Reopen Manage Room modal
+      // Only reopen Manage Room modal in Advanced mode, not in Basic mode
+      if (mappingMode === "advanced") {
+        setShowManageRoomModal(true)
+      } else {
+        setShowManageRoomModal(false) // Ensure it stays closed in Basic mode
+      }
     }
   }
   
   const cancelDeleteRoom = () => {
     setShowDeleteRoomConfirm(false)
     setRoomToDelete(null)
-    setShowManageRoomModal(true) // Reopen Manage Room modal
+    // Only reopen Manage Room modal in Advanced mode, not in Basic mode
+    if (mappingMode === "advanced") {
+      setShowManageRoomModal(true)
+    } else {
+      setShowManageRoomModal(false) // Ensure it stays closed in Basic mode
+    }
   }
   
   const handleRenameRoom = () => {
@@ -999,7 +1101,12 @@ export default function MappingSettingsPage() {
       setRenameRoomName("")
       setRenameAbbreviation("")
       setRoomToRename(null)
-      setShowManageRoomModal(true) // Reopen Manage Room modal
+      // Only reopen Manage Room modal in Advanced mode, not in Basic mode
+      if (mappingMode === "advanced") {
+        setShowManageRoomModal(true)
+      } else {
+        setShowManageRoomModal(false) // Ensure it stays closed in Basic mode
+      }
     }
   }
   
@@ -1008,7 +1115,12 @@ export default function MappingSettingsPage() {
     setRenameRoomName("")
     setRenameAbbreviation("")
     setRoomToRename(null)
-    setShowManageRoomModal(true) // Reopen Manage Room modal
+    // Only reopen Manage Room modal in Advanced mode, not in Basic mode
+    if (mappingMode === "advanced") {
+      setShowManageRoomModal(true)
+    } else {
+      setShowManageRoomModal(false) // Ensure it stays closed in Basic mode
+    }
   }
 
   // Hotel cell dropdown handler
@@ -1053,6 +1165,71 @@ export default function MappingSettingsPage() {
       const timestamp = Date.now()
       const roomKey = `${targetCategoryId}-${hotelId}-${timestamp}`
       
+      // CRITICAL: Find previous locations BEFORE removing from roomMappingsMap
+      // This ensures we can show red background at the previous location for 2nd+ moves
+      const previousLocationKeys: string[] = []
+      const previousSourceKeysForRedBg: string[] = []
+      // Track if there's already an instance at the target location (to prevent duplicates when moving back)
+      let existingTargetInstanceKey: string | null = null
+      
+      roomMappingsMap.forEach((room, key) => {
+        // Find all instances of this room in the map
+        if (room.displayText === displayText && room.sourceHotelId === hotelId) {
+          const keyParts = key.split('-')
+          if (keyParts.length >= 2) {
+            const instanceCategoryId = keyParts[0]
+            
+            // If this instance is already at the target location, track it separately
+            // This handles the case when moving a room back to a previous location
+            if (instanceCategoryId === targetCategoryId) {
+              // Store the existing target instance key to remove it immediately
+              if (!existingTargetInstanceKey) {
+                existingTargetInstanceKey = key
+              }
+              // Don't add to previousLocationKeys - it should be removed immediately
+              return
+            }
+          }
+          
+          // This is a previous location (not the target), add to previousLocationKeys
+          previousLocationKeys.push(key)
+          
+          // Build the source cell key from the current location
+          // Key format: {categoryId}-{hotelId}-{timestamp}
+          if (keyParts.length >= 2) {
+            const prevCategoryId = keyParts[0]
+            const prevHotelId = keyParts[1]
+            // Use the sourceCellKey from room data to build the cell key
+            const prevSourceCellKey = `${prevCategoryId}-${prevHotelId}-${room.sourceCellKey}`
+            previousSourceKeysForRedBg.push(prevSourceCellKey)
+          }
+        }
+      })
+      
+      // Also check mappedCellKeys for additional previous locations
+      // CRITICAL: Exclude target location keys - only include source locations
+      mappedCellKeys.forEach(key => {
+        // Exclude the target location - we don't want red background at destination
+        if (key.startsWith(`${targetCategoryId}-${hotelId}-`)) {
+          return // Skip target location keys
+        }
+        // Only include keys that match this room and are NOT at the target location
+        if (key.includes(hotelId) && displayText) {
+          if (!previousSourceKeysForRedBg.includes(key)) {
+            previousSourceKeysForRedBg.push(key)
+          }
+        }
+      })
+      
+      // Make previous locations visible temporarily to show red background
+      if (previousSourceKeysForRedBg.length > 0) {
+        setMappedCellKeys(prev => {
+          const newSet = new Set(prev)
+          previousSourceKeysForRedBg.forEach(key => newSet.delete(key))
+          return newSet
+        })
+      }
+      
       setRoomMappingsMap(prev => {
         const newMap = new Map(prev)
         
@@ -1078,19 +1255,53 @@ export default function MappingSettingsPage() {
               keysToRemove.push(key)
             }
           }
+          
+          // CRITICAL: Also check if the room already exists at the target location
+          // This prevents duplicate entries when moving a room multiple times
+          const targetKeyPrefix = `${targetCategoryId}-${hotelId}-`
+          if (key.startsWith(targetKeyPrefix) && room.displayText === displayText && room.sourceHotelId === hotelId) {
+            // Remove it to prevent duplicates at destination
+            // Always remove existing target instances immediately
+            keysToRemove.push(key)
+          }
         })
         
-        // Remove the room from all previous locations
-        keysToRemove.forEach(key => newMap.delete(key))
+        // CRITICAL: If there's an existing instance at the target location, remove it first
+        // This handles the case when moving a room back to a previous location
+        if (existingTargetInstanceKey && newMap.has(existingTargetInstanceKey)) {
+          newMap.delete(existingTargetInstanceKey)
+          console.log(`Removed existing target instance: ${existingTargetInstanceKey} to prevent duplicate`)
+        }
         
-        // Add to target location
-        newMap.set(roomKey, {
-          displayText,
-          fullDescription,
-          sourceCategoryId: roomCategoryId,
-          sourceHotelId: hotelId,
-          sourceCellKey: cellKey
+        // Remove current location immediately, but keep previous locations for animation
+        keysToRemove.forEach(key => {
+          if (!previousLocationKeys.includes(key)) {
+            newMap.delete(key)
+          }
         })
+        
+        // Add to target location (only if it doesn't already exist)
+        // Check if we already have this room at the target location (shouldn't happen after above cleanup)
+        const targetKeyPrefix = `${targetCategoryId}-${hotelId}-`
+        let roomAlreadyExistsAtTarget = false
+        newMap.forEach((room, key) => {
+          if (key.startsWith(targetKeyPrefix) && room.displayText === displayText && room.sourceHotelId === hotelId) {
+            roomAlreadyExistsAtTarget = true
+          }
+        })
+        
+        // Only add if it doesn't already exist
+        if (!roomAlreadyExistsAtTarget) {
+          newMap.set(roomKey, {
+            displayText,
+            fullDescription,
+            sourceCategoryId: roomCategoryId,
+            sourceHotelId: hotelId,
+            sourceCellKey: cellKey
+          })
+        } else {
+          console.log(`Room "${displayText}" already exists at target ${targetCategoryId}, skipping duplicate add`)
+        }
         return newMap
       })
       
@@ -1098,31 +1309,42 @@ export default function MappingSettingsPage() {
       const sourceCellKey = `${roomCategoryId}-${hotelId}-${cellKey}`
       console.log(`Adding to mappedCellKeys: ${sourceCellKey}`)
       
-      // Show light red background on source before hiding (1000ms)
-      setRemovingRooms(prev => new Set(prev).add(sourceCellKey))
+      // Show light red background on source before hiding (2000ms for subsequent moves)
+      const allSourceKeysToShowRed = previousSourceKeysForRedBg.length > 0 ? [...previousSourceKeysForRedBg, sourceCellKey] : [sourceCellKey]
+      allSourceKeysToShowRed.forEach(key => {
+        setRemovingRooms(prev => new Set(prev).add(key))
+      })
+      
+      // Remove previous location rooms from roomMappingsMap AFTER showing red background
+      if (previousLocationKeys.length > 0) {
+        setTimeout(() => {
+          setRoomMappingsMap(prev => {
+            const newMap = new Map(prev)
+            previousLocationKeys.forEach(key => newMap.delete(key))
+            return newMap
+          })
+        }, 2000)
+      }
+      
       setTimeout(() => {
         setRemovingRooms(prev => {
           const newSet = new Set(prev)
-          newSet.delete(sourceCellKey)
+          allSourceKeysToShowRed.forEach(key => newSet.delete(key))
           return newSet
         })
-      }, 1000)
+      }, 2000)
       
       // Hide the source room after showing red background
       setTimeout(() => {
         setMappedCellKeys(prev => {
           const newSet = new Set(prev)
           // Remove any existing source keys for this room before adding the new one
-          Array.from(newSet).forEach(key => {
-            if (key.includes(hotelId) && key.includes(displayText)) {
-              newSet.delete(key)
-            }
-          })
+          previousSourceKeysForRedBg.forEach(key => newSet.delete(key))
           newSet.add(sourceCellKey)
           console.log(`Updated mappedCellKeys:`, Array.from(newSet))
           return newSet
         })
-      }, 1000)
+      }, 2000)
       
       // Set animation state for smooth transition
       setAnimatingRoom(roomKey)
@@ -1200,7 +1422,7 @@ export default function MappingSettingsPage() {
 
   // Helper to get mapped rooms for a specific category and hotel
   const getMappedRooms = (roomCategoryId: string, hotelId: string) => {
-    const mappedRooms: Array<{displayText: string, fullDescription: string, cellKey: string, selectedKeywords?: string[]}> = []
+    const mappedRooms: Array<{displayText: string, fullDescription: string, cellKey: string, selectedKeywords?: Array<{text: string, start: number, end: number, id: string}>}> = []
     const searchKey = `${roomCategoryId}-${hotelId}-`
     roomMappingsMap.forEach((room, key) => {
       if (key.startsWith(searchKey)) {
@@ -1355,7 +1577,7 @@ export default function MappingSettingsPage() {
       {/* Tab Contents */}
       <div className="px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 pt-4 py-4 md:py-6 lg:py-8">
         <div className="max-w-6xl mx-auto">
-          <TooltipProvider>
+          <TooltipProvider delayDuration={0} skipDelayDuration={0}>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -2290,7 +2512,11 @@ getAllRoomCategories={getAllRoomCategories}
                                     {getMappedRooms(roomCategory.id, hotel.id).map((mappedRoom, index) => {
                                       const roomKey = `${roomCategory.id}-${hotel.id}-mapped-${mappedRoom.cellKey}`
                                       const mappedRoomFullKey = `${roomCategory.id}-${hotel.id}-${mappedRoom.cellKey}`
-                                      const isRemovingRoom = removingRooms.has(mappedRoomFullKey)
+                                      // CRITICAL: Destination rooms should NOT show red background
+                                      // Only check removingRooms with the mapped prefix to avoid false positives
+                                      // For destination rooms, cellKey is a timestamp, so it won't match source cellKeys
+                                      const mappedCellKeyForRemovalCheck = `${roomCategory.id}-${hotel.id}-mapped-${mappedRoom.cellKey}`
+                                      const isRemovingRoom = removingRooms.has(mappedCellKeyForRemovalCheck)
                                       // Check for newly mapped using the correct key format (with timestamp)
                                       const isNewlyMappedRoom = Array.from(newlyMappedRooms).some(key => 
                                         key.startsWith(`${roomCategory.id}-${hotel.id}-`) && key.includes(mappedRoom.cellKey)
@@ -2925,7 +3151,16 @@ getAllRoomCategories={getAllRoomCategories}
       </Dialog>
 
       {/* Add Room Modal */}
-      <Dialog open={showAddRoomModal} onOpenChange={setShowAddRoomModal}>
+      <Dialog 
+        open={showAddRoomModal} 
+        onOpenChange={(open) => {
+          // Only allow closing, prevent Manage Room modal from opening
+          if (!open) {
+            setShowAddRoomModal(false)
+            setShowManageRoomModal(false) // Ensure Manage Room modal doesn't open
+          }
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">Add Room</DialogTitle>
@@ -2971,8 +3206,11 @@ getAllRoomCategories={getAllRoomCategories}
 
           <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
                 setShowAddRoomModal(false)
+                setShowManageRoomModal(false) // Ensure Manage Room modal doesn't open
                 setRoomName("")
                 setAbbreviation("")
                 setTouchedRoomName(false)
@@ -2982,7 +3220,9 @@ getAllRoomCategories={getAllRoomCategories}
               Cancel
             </button>
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
                 if (roomName && abbreviation) {
                   // Generate unique ID for new room
                   const newRoomId = roomName.toLowerCase().replace(/\s+/g, '-')
@@ -2994,6 +3234,7 @@ getAllRoomCategories={getAllRoomCategories}
                   ])
                   
                   setShowAddRoomModal(false)
+                  setShowManageRoomModal(false) // Ensure Manage Room modal doesn't open
                   setRoomName("")
                   setAbbreviation("")
                   setTouchedRoomName(false)
@@ -3181,7 +3422,20 @@ getAllRoomCategories={getAllRoomCategories}
       </Dialog>
 
       {/* Delete Room Confirmation Modal */}
-      <Dialog open={showDeleteRoomConfirm} onOpenChange={setShowDeleteRoomConfirm}>
+      <Dialog 
+        open={showDeleteRoomConfirm} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowDeleteRoomConfirm(false)
+            // Only reopen Manage Room modal in Advanced mode, not in Basic mode
+            if (mappingMode === "advanced") {
+              setShowManageRoomModal(true)
+            } else {
+              setShowManageRoomModal(false) // Ensure it stays closed in Basic mode
+            }
+          }
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-black">Delete Room</DialogTitle>
@@ -3192,13 +3446,21 @@ getAllRoomCategories={getAllRoomCategories}
 
           <div className="flex items-center justify-end gap-3 mt-6">
             <button
-              onClick={cancelDeleteRoom}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                cancelDeleteRoom()
+              }}
               className="px-6 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
-              onClick={handleDeleteRoom}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                handleDeleteRoom()
+              }}
               className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium"
             >
               Delete
@@ -3208,7 +3470,20 @@ getAllRoomCategories={getAllRoomCategories}
       </Dialog>
 
       {/* Rename Room Modal */}
-      <Dialog open={showRenameRoomModal} onOpenChange={setShowRenameRoomModal}>
+      <Dialog 
+        open={showRenameRoomModal} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowRenameRoomModal(false)
+            // Only reopen Manage Room modal in Advanced mode, not in Basic mode
+            if (mappingMode === "advanced") {
+              setShowManageRoomModal(true)
+            } else {
+              setShowManageRoomModal(false) // Ensure it stays closed in Basic mode
+            }
+          }
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">Rename Room</DialogTitle>
@@ -3250,13 +3525,21 @@ getAllRoomCategories={getAllRoomCategories}
 
           <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
             <button
-              onClick={cancelRenameRoom}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                cancelRenameRoom()
+              }}
               className="h-9 px-4 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-colors"
             >
               Cancel
             </button>
             <button
-              onClick={handleRenameRoom}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                handleRenameRoom()
+              }}
               disabled={!renameRoomName || !renameAbbreviation}
               className="h-9 px-4 text-sm font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -3545,10 +3828,152 @@ getAllRoomCategories={getAllRoomCategories}
                 }}
                 onMouseUp={(e) => {
                   const selection = window.getSelection()
-                  if (selection && selection.toString().trim()) {
+                  if (selection && selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0)
                     const selectedText = selection.toString().trim()
-                    if (selectedText && !selectedKeywords.includes(selectedText)) {
-                      setSelectedKeywords(prev => [...prev, selectedText])
+                    
+                    if (selectedText && selectedText.length > 0) {
+                      // Get the text container element
+                      const textElement = e.currentTarget as HTMLElement
+                      const fullText = keywordModalData?.roomDescription || keywordModalData?.displayText || ''
+                      
+                      // Calculate positions using a more robust method that works with complex DOM structures
+                      let start = 0
+                      let end = 0
+                      
+                      try {
+                        // Helper function to get text position by traversing text nodes
+                        const getTextPosition = (node: Node, offset: number): number => {
+                          let position = 0
+                          const walker = document.createTreeWalker(
+                            textElement,
+                            NodeFilter.SHOW_TEXT,
+                            null
+                          )
+                          
+                          let textNode: Node | null
+                          while ((textNode = walker.nextNode())) {
+                            if (textNode === node && textNode.nodeType === Node.TEXT_NODE) {
+                              position += offset
+                              break
+                            } else if (textNode.contains && textNode.contains(node)) {
+                              // Node is inside this text node
+                              position += (textNode.textContent || '').length
+                              break
+                            }
+                            position += (textNode.textContent || '').length
+                          }
+                          
+                          return position
+                        }
+                        
+                        // Calculate start position using text node traversal for accuracy
+                        if (range.startContainer.nodeType === Node.TEXT_NODE) {
+                          start = getTextPosition(range.startContainer, range.startOffset)
+                        } else {
+                          // Fallback: use range method
+                          const startRange = document.createRange()
+                          startRange.selectNodeContents(textElement)
+                          startRange.setEnd(range.startContainer, range.startOffset)
+                          start = startRange.toString().length
+                        }
+                        
+                        // Calculate end position
+                        if (range.endContainer.nodeType === Node.TEXT_NODE) {
+                          end = getTextPosition(range.endContainer, range.endOffset)
+                        } else {
+                          // Fallback: use range method
+                          const endRange = document.createRange()
+                          endRange.selectNodeContents(textElement)
+                          endRange.setEnd(range.endContainer, range.endOffset)
+                          end = endRange.toString().length
+                        }
+                        
+                        // Validate that end is after start
+                        if (end <= start) {
+                          // Fallback: use selectedText length
+                          end = start + selectedText.length
+                        }
+                        
+                        // Verify the calculated positions match the actual selected text
+                        const actualSelectedText = fullText.substring(start, end)
+                        
+                        // Normalize whitespace for comparison (trim and collapse spaces)
+                        const normalizeText = (text: string) => text.trim().replace(/\s+/g, ' ')
+                        const normalizedSelected = normalizeText(selectedText)
+                        const normalizedActual = normalizeText(actualSelectedText)
+                        
+                        // If the texts don't match exactly, try to find the selected text in fullText
+                        // Skip blank or whitespace-only selections
+                        if (normalizedSelected.length === 0 || /^\s+$/.test(selectedText)) {
+                          // Skip blank/whitespace selections
+                          return
+                        }
+                        
+                        if (normalizedSelected !== normalizedActual && normalizedSelected.length > 0) {
+                          // Search within a larger window around the calculated position (±100 chars)
+                          // to handle cases where selection spans multiple highlighted keywords
+                          const searchStart = Math.max(0, start - 100)
+                          const searchEnd = Math.min(fullText.length, end + 100)
+                          const searchWindow = fullText.substring(searchStart, searchEnd)
+                          
+                          let foundOffset = searchWindow.indexOf(normalizedSelected)
+                          if (foundOffset === -1) {
+                            // Try case-insensitive search
+                            foundOffset = searchWindow.toLowerCase().indexOf(normalizedSelected.toLowerCase())
+                            if (foundOffset !== -1) {
+                              start = searchStart + foundOffset
+                              end = start + normalizedSelected.length
+                            } else {
+                              // Skip invalid selection if we can't find it nearby (likely blank space)
+                              return
+                            }
+                          } else {
+                            // Found at calculated position
+                            start = searchStart + foundOffset
+                            end = start + normalizedSelected.length
+                          }
+                        }
+                      } catch (error) {
+                        console.error('Error calculating selection position:', error)
+                        // Fallback: try to find selected text in fullText
+                        const trimmedSelected = selectedText.trim()
+                        const foundIndex = fullText.indexOf(trimmedSelected)
+                        if (foundIndex !== -1) {
+                          start = foundIndex
+                          end = start + trimmedSelected.length
+                        } else {
+                          // If we can't find it, skip this selection
+                          return
+                        }
+                      }
+                      
+                      // Validate positions are within bounds
+                      if (start >= 0 && end <= fullText.length && start < end) {
+                        // Final verification: check the text at calculated position matches
+                        const textAtPosition = fullText.substring(start, end).trim()
+                        const selectedTrimmed = selectedText.trim()
+                        
+                        // Allow for slight variations in whitespace
+                        if (textAtPosition === selectedTrimmed || 
+                            textAtPosition.replace(/\s+/g, ' ') === selectedTrimmed.replace(/\s+/g, ' ')) {
+                          // Check if this exact range already exists
+                          const rangeExists = selectedKeywords.some(
+                            kw => kw.start === start && kw.end === end && kw.text === selectedText
+                          )
+                          
+                          if (!rangeExists) {
+                            // Add with unique ID
+                            const newKeyword = {
+                              text: selectedText,
+                              start: start,
+                              end: end,
+                              id: `${start}-${end}-${Date.now()}`
+                            }
+                            setSelectedKeywords(prev => [...prev, newKeyword])
+                          }
+                        }
+                      }
                     }
                     selection.removeAllRanges()
                   }
@@ -3564,55 +3989,40 @@ getAllRoomCategories={getAllRoomCategories}
                     return <span>{fullText}</span>
                   }
                   
-                  // Split text by selected keywords and render with tags
-                  const parts: Array<{text: string, isKeyword: boolean, keyword: string}> = []
+                  // Sort selected ranges by start position
+                  const sortedRanges = [...selectedKeywords].sort((a, b) => a.start - b.start)
                   
-                  // Sort keywords by length (longest first) to handle overlapping/contained selections
-                  const sortedKeywords = [...selectedKeywords].sort((a, b) => b.length - a.length)
-                  
-                  // Find all keyword positions in the original text (case-sensitive match)
-                  const keywordPositions: Array<{start: number, end: number, keyword: string}> = []
-                  sortedKeywords.forEach(keyword => {
-                    let searchIndex = 0
-                    while (true) {
-                      const index = fullText.indexOf(keyword, searchIndex)
-                      if (index === -1) break
-                      keywordPositions.push({
-                        start: index,
-                        end: index + keyword.length,
-                        keyword: keyword
-                      })
-                      searchIndex = index + 1
-                    }
-                  })
-                  
-                  // Sort positions by start index
-                  keywordPositions.sort((a, b) => a.start - b.start)
-                  
-                  // Remove overlapping positions (keep longer ones when they overlap)
-                  const nonOverlapping: Array<{start: number, end: number, keyword: string}> = []
-                  keywordPositions.forEach(pos => {
-                    const overlaps = nonOverlapping.some(existing => 
-                      (pos.start >= existing.start && pos.start < existing.end) ||
-                      (pos.end > existing.start && pos.end <= existing.end) ||
-                      (pos.start <= existing.start && pos.end >= existing.end)
-                    )
-                    if (!overlaps) {
-                      nonOverlapping.push(pos)
-                    }
-                  })
-                  
-                  // Build parts array
+                  // Build parts array from exact selected ranges
+                  const parts: Array<{text: string, isKeyword: boolean, keywordId: string}> = []
                   let lastIndex = 0
-                  nonOverlapping.forEach(pos => {
-                    if (pos.start > lastIndex) {
-                      parts.push({text: fullText.substring(lastIndex, pos.start), isKeyword: false, keyword: ''})
+                  
+                  sortedRanges.forEach(range => {
+                    // Add text before this range
+                    if (range.start > lastIndex) {
+                      parts.push({
+                        text: fullText.substring(lastIndex, range.start),
+                        isKeyword: false,
+                        keywordId: ''
+                      })
                     }
-                    parts.push({text: fullText.substring(pos.start, pos.end), isKeyword: true, keyword: pos.keyword})
-                    lastIndex = pos.end
+                    
+                    // Add the selected range
+                    parts.push({
+                      text: fullText.substring(range.start, range.end),
+                      isKeyword: true,
+                      keywordId: range.id
+                    })
+                    
+                    lastIndex = Math.max(lastIndex, range.end)
                   })
+                  
+                  // Add remaining text after last range
                   if (lastIndex < fullText.length) {
-                    parts.push({text: fullText.substring(lastIndex), isKeyword: false, keyword: ''})
+                    parts.push({
+                      text: fullText.substring(lastIndex),
+                      isKeyword: false,
+                      keywordId: ''
+                    })
                   }
                   
                   return (
@@ -3620,15 +4030,19 @@ getAllRoomCategories={getAllRoomCategories}
                       {parts.map((part, index) => {
                         if (part.isKeyword) {
                           return (
-                            <span key={index} className="inline-flex items-center gap-0 relative">
+                            <span key={`${part.keywordId}-${index}`} className="inline-flex items-center gap-0 relative">
                               <span className="bg-teal-200 px-2 py-0.5 rounded text-sm text-gray-900 relative">
                                 {part.text}
                               </span>
                               <button
+                                onMouseDown={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                }}
                                 onClick={(e) => {
                                   e.preventDefault()
                                   e.stopPropagation()
-                                  setSelectedKeywords(prev => prev.filter(k => k !== part.keyword))
+                                  setSelectedKeywords(prev => prev.filter(k => k.id !== part.keywordId))
                                 }}
                                 className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center transition-colors flex-shrink-0 z-10 shadow-sm group"
                               >
@@ -3708,29 +4122,47 @@ getAllRoomCategories={getAllRoomCategories}
                   // Mark the source cell as mapped
                   const sourceCellKey = `unmapped-${keywordModalData.hotelId}-${keywordModalData.cellKey}`
                   
-                  // Show light red background on source before hiding
-                  setRemovingRooms(prev => new Set(prev).add(sourceCellKey))
+                  // Find all previous locations of this room (for 2nd, 3rd, 4th time moves)
+                  const previousSourceKeys: string[] = []
+                  mappedCellKeys.forEach(key => {
+                    if (key.includes(keywordModalData.hotelId) && key.includes(keywordModalData.displayText)) {
+                      previousSourceKeys.push(key)
+                    }
+                  })
+                  
+                  // Make previous locations visible temporarily to show red background
+                  if (previousSourceKeys.length > 0) {
+                    setMappedCellKeys(prev => {
+                      const newSet = new Set(prev)
+                      previousSourceKeys.forEach(key => newSet.delete(key))
+                      return newSet
+                    })
+                  }
+                  
+                  // Show light red background on source before hiding (2000ms for subsequent moves)
+                  const allSourceKeysToShowRed = previousSourceKeys.length > 0 ? [...previousSourceKeys, sourceCellKey] : [sourceCellKey]
+                  allSourceKeysToShowRed.forEach(key => {
+                    setRemovingRooms(prev => new Set(prev).add(key))
+                  })
+                  
                   setTimeout(() => {
                     setRemovingRooms(prev => {
                       const newSet = new Set(prev)
-                      newSet.delete(sourceCellKey)
+                      allSourceKeysToShowRed.forEach(key => newSet.delete(key))
                       return newSet
                     })
-                  }, 1000)
+                  }, 2000)
                   
                   // Hide the source room after showing red background
                   setTimeout(() => {
                     setMappedCellKeys(prev => {
                       const newSet = new Set(prev)
-                      Array.from(newSet).forEach(key => {
-                        if (key.includes(keywordModalData.hotelId) && key.includes(keywordModalData.displayText)) {
-                          newSet.delete(key)
-                        }
-                      })
+                      // Remove any existing source keys for this room before adding the new one
+                      previousSourceKeys.forEach(key => newSet.delete(key))
                       newSet.add(sourceCellKey)
                       return newSet
                     })
-                  }, 1000)
+                  }, 2000)
                   
                   // Set animation state
                   setAnimatingRoom(roomKey)
