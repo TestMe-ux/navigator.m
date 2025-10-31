@@ -241,9 +241,9 @@ export default function MappingSettingsPage() {
   const handleSaveEdit = () => {
     if (editingRoomId && inlineRoomName && inlineAbbreviation) {
       setRateCategories(prev => prev.map(rate => 
-        room.id === editingRoomId 
-          ? { ...room, name: inlineRoomName, code: inlineAbbreviation }
-          : room
+        rate.id === editingRoomId 
+          ? { ...rate, name: inlineRoomName, code: inlineAbbreviation }
+          : rate
       ))
       setEditingRoomId(null)
       setInlineRoomName("")
@@ -279,19 +279,19 @@ export default function MappingSettingsPage() {
     setRoomToDelete(null)
   }
   
-  // Function to handle moving a room up or down in priority
+  // Function to handle moving a rate up or down in priority
   const handleMoveRoom = (roomId: string, direction: 'up' | 'down') => {
-    setRoomCategories(prev => {
+    setRateCategories(prev => {
       const newCategories = [...prev]
-      const currentIndex = newCategories.findIndex(room => room.id === roomId)
+      const currentIndex = newCategories.findIndex(rate => rate.id === roomId)
       
       if (currentIndex === -1) return prev
       
       if (direction === 'up' && currentIndex > 0) {
-        // Move up: swap with previous room
+        // Move up: swap with previous rate
         [newCategories[currentIndex], newCategories[currentIndex - 1]] = [newCategories[currentIndex - 1], newCategories[currentIndex]]
       } else if (direction === 'down' && currentIndex < newCategories.length - 1) {
-        // Move down: swap with next room
+        // Move down: swap with next rate
         [newCategories[currentIndex], newCategories[currentIndex + 1]] = [newCategories[currentIndex + 1], newCategories[currentIndex]]
       }
       
@@ -424,13 +424,20 @@ export default function MappingSettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [showChangeHistory, setShowChangeHistory] = useState(false)
   const [currentPage, setCurrentPage] = useState(1) // Added for pagination
+  // Records per page - editable from backend only (not shown in UI)
+  // To update from backend: call setItemsPerPage(value) with desired number (e.g., 10, 20, 50)
+  const [itemsPerPage, setItemsPerPage] = useState(10) // Default: 10 records per page
   const [descriptionSets, setDescriptionSets] = useState([{ id: 1, includeText: "Cloud 9 Suite, Studio Suite, 1 Bedroom Suite, 1 King, Mountain view, Suite, Suite Prestige with Spa", excludeText: "" }]) // Added for description sets
   const [selectedRule, setSelectedRule] = useState(1) // Added for selected rule
   const [rules, setRules] = useState([{ id: 1, name: "Rule 1" }]) // Added for rules - start with only Rule 1
   const [ruleDescriptions, setRuleDescriptions] = useState({
     1: [{ id: 1, includeText: "Cloud 9 Suite, Studio Suite, 1 Bedroom Suite, 1 King, Mountain view, Suite, Suite Prestige with Spa", excludeText: "" }]
   }) // Added for rule-specific descriptions
-  const [tableData, setTableData] = useState([
+  // Store all records from backend
+  // When data comes from backend API, update this state with setAllTableData(apiResponseData)
+  // The pagination will automatically handle slicing and displaying records per page
+  // You can also configure itemsPerPage from backend: setItemsPerPage(desiredValue)
+  const [allTableData, setAllTableData] = useState([
     {
       id: 1,
       property: "Grand Luxe Hotel - Small Luxury Hotel of the World",
@@ -490,63 +497,152 @@ export default function MappingSettingsPage() {
       property: "Oceanfront Resort Complex with Multiple Restaurants",
       channel: "Booking.com",
       description: "Oceanfront Villa with Private Beach | Continental breakfast included Breakfast rated 6 Non-refundable Note that if canceled, modified, or in case of no-show, the total price of the reservation will be charged. Daily spa access per adult"
+    },
+    // Add more sample data to simulate 26 records total
+    {
+      id: 11,
+      property: "Luxury Beachfront Villa Resort",
+      channel: "Makemytrip.com",
+      description: "Beachfront Villa with Ocean Views | Continental breakfast included"
+    },
+    {
+      id: 12,
+      property: "Executive Corporate Center & Business Hub",
+      channel: "Booking.com",
+      description: "Executive Suite with Business Amenities | Continental breakfast included"
+    },
+    {
+      id: 13,
+      property: "Ultra Luxury Mega Resort & Spa Complex",
+      channel: "Agoda.com",
+      description: "Presidential Suite with Luxury Amenities | Continental breakfast included"
+    },
+    {
+      id: 14,
+      property: "Family Friendly Suite Hotel with Kids Club",
+      channel: "Expedia.com",
+      description: "Family Suite with Kids Area | Continental breakfast included"
+    },
+    {
+      id: 15,
+      property: "International Business Hotel & Convention Center",
+      channel: "Hotels.com",
+      description: "Business Class Room with Conference Access | Continental breakfast included"
+    },
+    {
+      id: 16,
+      property: "Historic Boutique Inn & Heritage Museum",
+      channel: "Trivago.com",
+      description: "Heritage Room with Historic Charm | Continental breakfast included"
+    },
+    {
+      id: 17,
+      property: "Oceanfront Resort Complex with Multiple Restaurants",
+      channel: "Kayak.com",
+      description: "Oceanfront Suite with Premium Views | Continental breakfast included"
+    },
+    {
+      id: 18,
+      property: "Mountain View Lodge & Wellness Center",
+      channel: "Goibibo.com",
+      description: "Mountain View Suite with Spa Access | Continental breakfast included"
+    },
+    {
+      id: 19,
+      property: "Downtown Business Hotel & Conference Center",
+      channel: "Yatra.com",
+      description: "Corporate Suite with Meeting Rooms | Continental breakfast included"
+    },
+    {
+      id: 20,
+      property: "Grand Palace Resort & Spa Complex",
+      channel: "Cleartrip.com",
+      description: "Royal Suite with Palace Views | Continental breakfast included"
+    },
+    {
+      id: 21,
+      property: "Luxury Beachfront Villa Resort",
+      channel: "Bookmyhotel.com",
+      description: "Beach Villa with Private Access | Continental breakfast included"
+    },
+    {
+      id: 22,
+      property: "Executive Corporate Center & Business Hub",
+      channel: "Makemytrip.com",
+      description: "Executive Boardroom Suite | Continental breakfast included"
+    },
+    {
+      id: 23,
+      property: "Ultra Luxury Mega Resort & Spa Complex",
+      channel: "Booking.com",
+      description: "Penthouse Suite with Panoramic Views | Continental breakfast included"
+    },
+    {
+      id: 24,
+      property: "Family Friendly Suite Hotel with Kids Club",
+      channel: "Agoda.com",
+      description: "Family Room with Play Area | Continental breakfast included"
+    },
+    {
+      id: 25,
+      property: "International Business Hotel & Convention Center",
+      channel: "Expedia.com",
+      description: "International Suite with Global Standards | Continental breakfast included"
+    },
+    {
+      id: 26,
+      property: "Historic Boutique Inn & Heritage Museum",
+      channel: "Hotels.com",
+      description: "Boutique Room with Cultural Experience | Continental breakfast included"
     }
   ])
 
-  // Generate random data for pagination
-  const generateRandomData = () => {
-    const properties = [
-      "Luxury Beachfront Villa Resort",
-      "Executive Corporate Center & Business Hub",
-      "Ultra Luxury Mega Resort & Spa Complex",
-      "Family Friendly Suite Hotel with Kids Club",
-      "International Business Hotel & Convention Center",
-      "Historic Boutique Inn & Heritage Museum",
-      "Oceanfront Resort Complex with Multiple Restaurants",
-      "Mountain View Lodge & Wellness Center",
-      "Downtown Business Hotel & Conference Center",
-      "Grand Palace Resort & Spa Complex"
-    ]
-    
-    const channels = ["Makemytrip.com", "Bookmyhotel.com", "Goibibo.com", "Yatra.com", "Cleartrip.com", "Hotels.com", "Trivago.com", "Kayak.com", "Agoda.com", "Booking.com"]
-    
-    const descriptions = [
-      "Standard Room with City View | Continental breakfast included",
-      "Deluxe Room with Ocean View | Continental breakfast included", 
-      "Premium King Room with Mountain View | Continental breakfast included",
-      "Business Class Room with City View | Continental breakfast included",
-      "Heritage Suite with Garden View | Continental breakfast included",
-      "Oceanfront Villa with Private Beach | Continental breakfast included",
-      "Executive Suite with Balcony | Continental breakfast included",
-      "Family Suite with Kids Area | Continental breakfast included",
-      "Presidential Suite with Panoramic View | Continental breakfast included",
-      "Penthouse Suite with Private Terrace | Continental breakfast included"
-    ]
+  // Calculate paginated data based on currentPage and itemsPerPage
+  const getPaginatedData = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    return allTableData.slice(startIndex, endIndex)
+  }
 
-    return Array.from({ length: 10 }, (_, index) => ({
-      id: (currentPage - 1) * 10 + index + 1,
-      property: properties[Math.floor(Math.random() * properties.length)],
-      channel: channels[Math.floor(Math.random() * channels.length)],
-      description: descriptions[Math.floor(Math.random() * descriptions.length)]
-    }))
+  // Calculate total pages
+  const totalPages = Math.ceil(allTableData.length / itemsPerPage)
+
+  // Get current page data
+  const tableData = getPaginatedData()
+
+  // Calculate pagination display text
+  const getPaginationText = () => {
+    const start = (currentPage - 1) * itemsPerPage + 1
+    const end = Math.min(currentPage * itemsPerPage, allTableData.length)
+    return `${start} - ${end} of ${allTableData.length}`
   }
 
   const handlePreviousPage = () => {
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1)
-      setTableData(generateRandomData())
     }
   }
 
   const handleNextPage = () => {
-    if (currentPage < 3) { // Assuming 3 pages total (26 items / 10 per page)
+    if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1)
-      setTableData(generateRandomData())
     }
+  }
+
+  // Function to update items per page from backend (not exposed in UI)
+  // Usage: updateItemsPerPage(20) to show 20 records per page
+  const updateItemsPerPage = (newItemsPerPage: number) => {
+    const validValue = Math.max(1, Math.min(100, newItemsPerPage)) // Limit between 1 and 100
+    setItemsPerPage(validValue)
+    setCurrentPage(1) // Reset to first page when items per page changes
   }
 
   const handleAddDescriptionSet = () => {
     const currentDescriptions = ruleDescriptions[selectedRule] || []
+    // Limit to maximum 3 sections total (1 initial + 2 additional)
+    if (currentDescriptions.length >= 3) {
+      return
+    }
     const newId = Math.max(...currentDescriptions.map(set => set.id), 0) + 1
     const newSet = { id: newId, includeText: "", excludeText: "" }
     
@@ -558,7 +654,12 @@ export default function MappingSettingsPage() {
 
   const handleRemoveDescriptionSet = (idToRemove) => {
     const currentDescriptions = ruleDescriptions[selectedRule] || []
-    if (currentDescriptions.length > 1) {
+    // Prevent removing the first section
+    const indexToRemove = currentDescriptions.findIndex(set => set.id === idToRemove)
+    if (indexToRemove === 0) {
+      return // Cannot remove first section
+    }
+    if (currentDescriptions.length > 1 && indexToRemove !== -1) {
       const updatedDescriptions = currentDescriptions.filter(set => set.id !== idToRemove)
       
       setRuleDescriptions(prev => ({
@@ -582,6 +683,13 @@ export default function MappingSettingsPage() {
 
   const handleRuleSelection = (ruleId) => {
     setSelectedRule(ruleId)
+    // Ensure the selected rule has at least one description set initialized
+    if (!ruleDescriptions[ruleId]) {
+      setRuleDescriptions(prev => ({
+        ...prev,
+        [ruleId]: [{ id: 1, includeText: "", excludeText: "" }]
+      }))
+    }
   }
 
   const handleAddRule = () => {
@@ -655,7 +763,7 @@ export default function MappingSettingsPage() {
   }
 
   const handleRemoveMapping = (mappingId) => {
-    setRoomMappings(prev => prev.filter(mapping => mapping.id !== mappingId))
+    setRateMappings(prev => prev.filter(mapping => mapping.id !== mappingId))
   }
 
   // Table pagination handlers - for columns (hotels)
@@ -680,12 +788,12 @@ export default function MappingSettingsPage() {
   }
 
   // Dropdown handlers
-  const handleDropdownToggle = (roomCategoryId) => {
-    setOpenDropdown(openDropdown === roomCategoryId ? null : roomCategoryId)
+  const handleDropdownToggle = (rateCategoryId) => {
+    setOpenDropdown(openDropdown === rateCategoryId ? null : rateCategoryId)
   }
 
-  const handleDropdownAction = (action, roomCategoryId) => {
-    console.log(`${action} clicked for room category: ${roomCategoryId}`)
+  const handleDropdownAction = (action, rateCategoryId) => {
+    console.log(`${action} clicked for rate category: ${rateCategoryId}`)
     setOpenDropdown(null) // Close dropdown after action
     
     if (action === 'Delete') {
@@ -704,7 +812,7 @@ export default function MappingSettingsPage() {
         setRenameAbbreviation(rateToRename.code)
         setShowRenameRoomModal(true)
       }
-    } else if (action === 'Map to Room type') {
+    } else if (action === 'Map to Rate type') {
       // Set target category and enable bulk mapping mode
       setBulkMappingTargetCategory(rateCategoryId)
       setBulkMappingMode(true)
@@ -774,9 +882,9 @@ export default function MappingSettingsPage() {
         },
       }
       
-      return roomData[hotelId]?.[cellKey] || { displayText: "Room", fullDescription: "Room description" }
+      return roomData[hotelId]?.[cellKey] || { displayText: "Rate", fullDescription: "Rate description" }
     }
-    return { displayText: "Room", fullDescription: "Room description" }
+    return { displayText: "Rate", fullDescription: "Rate description" }
   }
 
   const handleBulkMappingSave = () => {
@@ -805,11 +913,11 @@ export default function MappingSettingsPage() {
         const displayText = roomData.displayText
         const fullDescription = roomData.fullDescription
         
-        // Add to mapped rooms with green background animation
+        // Add to mapped rates with green background animation
         const timestamp = Date.now()
         const targetKey = `${bulkMappingTargetCategory}-${hotelId}-${timestamp}`
         
-        setRoomMappingsMap(prev => {
+        setRateMappingsMap(prev => {
           const newMap = new Map(prev)
           newMap.set(targetKey, {
             displayText,
@@ -818,8 +926,8 @@ export default function MappingSettingsPage() {
             sourceHotelId: hotelId,
             sourceCellKey: cellKey
           })
-          console.log(`Bulk mapping: Adding room "${displayText}" to ${bulkMappingTargetCategory} with key: ${targetKey}`)
-          console.log(`Current roomMappingsMap keys:`, Array.from(newMap.keys()))
+          console.log(`Bulk mapping: Adding rate "${displayText}" to ${bulkMappingTargetCategory} with key: ${targetKey}`)
+          console.log(`Current rateMappingsMap keys:`, Array.from(newMap.keys()))
           return newMap
         })
         
@@ -843,7 +951,7 @@ export default function MappingSettingsPage() {
           })
         }, 1000)
         
-        // Hide the source room after red animation
+        // Hide the source rate after red animation
         setTimeout(() => {
           setMappedCellKeys(prev => new Set(prev).add(roomKey))
         }, 1000)
@@ -878,7 +986,7 @@ export default function MappingSettingsPage() {
   
   const handleDeleteRoom = () => {
     if (roomToDelete) {
-      // Remove the room from the categories list
+      // Remove the rate from the categories list
       setRateCategories(prev => prev.filter(rate => rate.id !== roomToDelete.id))
       setShowDeleteRoomConfirm(false)
       setRoomToDelete(null)
@@ -892,11 +1000,11 @@ export default function MappingSettingsPage() {
   
   const handleRenameRoom = () => {
     if (roomToRename && renameRoomName && renameAbbreviation) {
-      // Update the room in the categories list
+      // Update the rate in the categories list
       setRateCategories(prev => prev.map(rate => 
-        room.id === roomToRename.id 
-          ? { ...room, name: renameRoomName, code: renameAbbreviation }
-          : room
+        rate.id === roomToRename.id 
+          ? { ...rate, name: renameRoomName, code: renameAbbreviation }
+          : rate
       ))
       setShowRenameRoomModal(false)
       setRenameRoomName("")
@@ -926,48 +1034,48 @@ export default function MappingSettingsPage() {
     fullDescription?: string, 
     cellKey?: string
   ) => {
-    console.log(`${action} clicked for ${roomCategoryId} at ${hotelId}`, {targetCategoryId, displayText, fullDescription, cellKey})
+    console.log(`${action} clicked for ${rateCategoryId} at ${hotelId}`, {targetCategoryId, displayText, fullDescription, cellKey})
     
     if (action === 'Map to' && targetCategoryId && displayText && fullDescription && cellKey) {
-      // Map room to target category - generate unique key with timestamp
+      // Map rate to target category - generate unique key with timestamp
       const timestamp = Date.now()
       const roomKey = `${targetCategoryId}-${hotelId}-${timestamp}`
       
-      setRoomMappingsMap(prev => {
+      setRateMappingsMap(prev => {
         const newMap = new Map(prev)
         
-        // Find and remove all existing instances of this room
-        // The room might be in the map from a previous move operation
-        // We need to find it by matching the current location (roomCategoryId-hotelId-cellKey)
-        // OR by matching the source information stored in the room data
+        // Find and remove all existing instances of this rate
+        // The rate might be in the map from a previous move operation
+        // We need to find it by matching the current location (rateCategoryId-hotelId-cellKey)
+        // OR by matching the source information stored in the rate data
         const keysToRemove: string[] = []
         
-        newMap.forEach((room, key) => {
-          // Check if this is the room we're moving by:
+        newMap.forEach((rate, key) => {
+          // Check if this is the rate we're moving by:
           // 1. Checking if the key matches the current location pattern (for first move)
           // 2. Checking if the source info matches (for subsequent moves)
-          const keyPrefix = `${roomCategoryId}-${hotelId}-`
+          const keyPrefix = `${rateCategoryId}-${hotelId}-`
           
           if (key.startsWith(keyPrefix)) {
-            // This key is in the current location, check if it matches our room
+            // This key is in the current location, check if it matches our rate
             // For Central Hotel, we'll match by the source info since keys have timestamps
-            if (room.displayText === displayText || 
-                (room.sourceCategoryId === roomCategoryId && 
-                 room.sourceHotelId === hotelId && 
-                 room.sourceCellKey === cellKey)) {
+            if (rate.displayText === displayText || 
+                (rate.sourceCategoryId === rateCategoryId && 
+                 rate.sourceHotelId === hotelId && 
+                 rate.sourceCellKey === cellKey)) {
               keysToRemove.push(key)
             }
           }
         })
         
-        // Remove the room from all previous locations
+        // Remove the rate from all previous locations
         keysToRemove.forEach(key => newMap.delete(key))
         
         // Add to target location
         newMap.set(roomKey, {
           displayText,
           fullDescription,
-          sourceCategoryId: roomCategoryId,
+          sourceCategoryId: rateCategoryId,
           sourceHotelId: hotelId,
           sourceCellKey: cellKey
         })
@@ -975,7 +1083,7 @@ export default function MappingSettingsPage() {
       })
       
       // Mark the source cell as mapped (so it hides)
-      const sourceCellKey = `${roomCategoryId}-${hotelId}-${cellKey}`
+      const sourceCellKey = `${rateCategoryId}-${hotelId}-${cellKey}`
       console.log(`Adding to mappedCellKeys: ${sourceCellKey}`)
       
       // Show light red background on source before hiding (1000ms)
@@ -988,11 +1096,11 @@ export default function MappingSettingsPage() {
         })
       }, 1000)
       
-      // Hide the source room after showing red background
+      // Hide the source rate after showing red background
       setTimeout(() => {
         setMappedCellKeys(prev => {
           const newSet = new Set(prev)
-          // Remove any existing source keys for this room before adding the new one
+          // Remove any existing source keys for this rate before adding the new one
           Array.from(newSet).forEach(key => {
             if (key.includes(hotelId) && key.includes(displayText)) {
               newSet.delete(key)
@@ -1007,7 +1115,7 @@ export default function MappingSettingsPage() {
       // Set animation state for smooth transition
       setAnimatingRoom(roomKey)
       
-      // Add to newly mapped rooms with green background for 10000ms (10 seconds)
+      // Add to newly mapped rates with green background for 10000ms (10 seconds)
       setNewlyMappedRooms(prev => new Set(prev).add(roomKey))
       setTimeout(() => {
         setNewlyMappedRooms(prev => {
@@ -1020,10 +1128,10 @@ export default function MappingSettingsPage() {
       // Clear animating state
       setTimeout(() => setAnimatingRoom(null), 500)
       
-      console.log(`Mapping room "${displayText}" from ${roomCategoryId} to ${targetCategoryId}`)
+      console.log(`Mapping rate "${displayText}" from ${rateCategoryId} to ${targetCategoryId}`)
     } else if (action === 'Unmap' && displayText && fullDescription && cellKey) {
       // Unmap logic - move from current category to unmapped section
-      const sourceCellKey = `${roomCategoryId}-${hotelId}-${cellKey}`
+      const sourceCellKey = `${rateCategoryId}-${hotelId}-${cellKey}`
       
       // Show red background on source for 1 second
       console.log(`Unmap: Adding to removingRooms: ${sourceCellKey}`)
@@ -1036,7 +1144,7 @@ export default function MappingSettingsPage() {
         })
       }, 1000)
       
-      // Hide the source room after red animation
+      // Hide the source rate after red animation
       setTimeout(() => {
         setMappedCellKeys(prev => {
           const newSet = new Set(prev)
@@ -1049,7 +1157,7 @@ export default function MappingSettingsPage() {
       const timestamp = Date.now()
       const unmappedKey = `unmapped-${hotelId}-${timestamp}`
       
-      setRoomMappingsMap(prev => {
+      setRateMappingsMap(prev => {
         const newMap = new Map(prev)
         newMap.set(unmappedKey, {
           displayText,
@@ -1072,41 +1180,41 @@ export default function MappingSettingsPage() {
         })
       }, 10000)
       
-      console.log(`Unmapping room "${displayText}" from ${roomCategoryId}`)
+      console.log(`Unmapping rate "${displayText}" from ${rateCategoryId}`)
     }
     
     setOpenHotelCellDropdown(null)
   }
 
-  // Helper to get mapped rooms for a specific category and hotel
-  const getMappedRooms = (roomCategoryId: string, hotelId: string) => {
-    const mappedRooms: Array<{displayText: string, fullDescription: string, cellKey: string}> = []
-    const searchKey = `${roomCategoryId}-${hotelId}-`
-    roomMappingsMap.forEach((room, key) => {
+  // Helper to get mapped rates for a specific category and hotel
+  const getMappedRooms = (rateCategoryId: string, hotelId: string) => {
+    const mappedRates: Array<{displayText: string, fullDescription: string, cellKey: string}> = []
+    const searchKey = `${rateCategoryId}-${hotelId}-`
+    rateMappingsMap.forEach((rate, key) => {
       if (key.startsWith(searchKey)) {
         const keyParts = key.split('-')
         const uniqueId = keyParts.slice(2).join('-') // Get everything after first two parts
-        mappedRooms.push({
-          displayText: room.displayText,
-          fullDescription: room.fullDescription,
+        mappedRates.push({
+          displayText: rate.displayText,
+          fullDescription: rate.fullDescription,
           cellKey: uniqueId
         })
       }
     })
-    console.log(`getMappedRooms for ${roomCategoryId}-${hotelId}: Found ${mappedRooms.length} rooms`, Array.from(roomMappingsMap.keys()).filter(k => k.startsWith(searchKey)))
-    return mappedRooms
+    console.log(`getMappedRates for ${rateCategoryId}-${hotelId}: Found ${mappedRates.length} rates`, Array.from(rateMappingsMap.keys()).filter(k => k.startsWith(searchKey)))
+    return mappedRates
   }
 
   // Helper to check if a cell is mapped (should be hidden)
-  const isCellMapped = (roomCategoryId: string, hotelId: string, cellKey: string) => {
-    const cellKeyString = `${roomCategoryId}-${hotelId}-${cellKey}`
+  const isCellMapped = (rateCategoryId: string, hotelId: string, cellKey: string) => {
+    const cellKeyString = `${rateCategoryId}-${hotelId}-${cellKey}`
     const isMapped = mappedCellKeys.has(cellKeyString)
     console.log(`Checking if cell is mapped: ${cellKeyString} = ${isMapped}`, Array.from(mappedCellKeys))
     return isMapped
   }
 
-  // Full room descriptions data
-  const getFullRoomDescription = (roomCategoryId, hotelId, displayText) => {
+  // Full rate descriptions data
+  const getFullRoomDescription = (rateCategoryId, hotelId, displayText) => {
     const descriptions = {
       "executive-central-hotel": {
         "Double Room": "Double Room with Premium View and Private Balcony",
@@ -1118,7 +1226,7 @@ export default function MappingSettingsPage() {
       // Add more mappings as needed
     }
     
-    return descriptions[`${roomCategoryId}-${hotelId}`]?.[displayText] || displayText
+    return descriptions[`${rateCategoryId}-${hotelId}`]?.[displayText] || displayText
   }
 
   // Generate paginated hotel columns data
@@ -1423,6 +1531,9 @@ export default function MappingSettingsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="max-h-[150px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-800">
+                      <div className="px-2 py-2 text-xs font-semibold text-gray-700 border-b border-gray-200 cursor-default mb-0.5">
+                        Qualification
+                      </div>
                       <SelectItem value="c9" className="pl-3 [&>span:first-child]:hidden">C9</SelectItem>
                       <SelectItem value="suite" className="pl-3 [&>span:first-child]:hidden">Suite</SelectItem>
                       <SelectItem value="deluxe" className="pl-3 [&>span:first-child]:hidden">Deluxe</SelectItem>
@@ -1435,6 +1546,10 @@ export default function MappingSettingsPage() {
                       <SelectItem value="heritage" className="pl-3 [&>span:first-child]:hidden">Heritage</SelectItem>
                       <SelectItem value="oceanfront" className="pl-3 [&>span:first-child]:hidden">Oceanfront</SelectItem>
                       <SelectItem value="mountain" className="pl-3 [&>span:first-child]:hidden">Mountain View</SelectItem>
+                      <div className="border-t border-gray-200 my-0.5"></div>
+                      <SelectItem value="restriction" className="pl-3 [&>span:first-child]:hidden font-semibold">Restriction</SelectItem>
+                      <div className="border-t border-gray-200 my-0.5"></div>
+                      <SelectItem value="promotion" className="pl-3 [&>span:first-child]:hidden font-semibold">Promotion</SelectItem>
                     </SelectContent>
                   </Select>
             </div>
@@ -1480,6 +1595,7 @@ export default function MappingSettingsPage() {
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-gray-700 mt-2">Rate Description</h3>
 
+                          {/* Render all Include Sections first */}
                           {ruleDescriptions[selectedRule]?.map((set, index) => (
                             <div key={set.id} className="space-y-4">
                               {/* Include Section */}
@@ -1488,19 +1604,41 @@ export default function MappingSettingsPage() {
                                   <p className="w-[90%] text-xs text-black font-semibold">
                                     Rate Description <span className="text-green-600">Includes</span> atleast one Custom keyword from the box
                                   </p>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <button 
-                                          className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm hover:bg-blue-700 transition-colors"
-                                          onClick={ruleDescriptions[selectedRule]?.length > 1 ? () => handleRemoveDescriptionSet(set.id) : handleAddDescriptionSet}
-                                        >
-                                          {ruleDescriptions[selectedRule]?.length > 1 ? "-" : "+"}
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="bg-black text-white text-xs">
-                                      <p>{ruleDescriptions[selectedRule]?.length > 1 ? "Remove Description" : "Add Another Description"}</p>
-                                    </TooltipContent>
-                                  </Tooltip>
+                                  {/* Show + icon for first section (disabled when max reached), or - icon for additional sections */}
+                                  {index === 0 ? (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                          <button 
+                                            className={`w-6 h-6 rounded-full flex items-center justify-center text-sm transition-colors ${
+                                              (ruleDescriptions[selectedRule]?.length || 0) >= 3
+                                                ? "bg-gray-400 text-white cursor-not-allowed opacity-50" 
+                                                : "bg-blue-600 text-white hover:bg-blue-700"
+                                            }`}
+                                            onClick={handleAddDescriptionSet}
+                                            disabled={(ruleDescriptions[selectedRule]?.length || 0) >= 3}
+                                          >
+                                            +
+                                          </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent className="bg-black text-white text-xs">
+                                        <p>{(ruleDescriptions[selectedRule]?.length || 0) >= 3 ? "Maximum limit reached" : "Add Another Description"}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  ) : (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                          <button 
+                                            className="w-6 h-6 rounded-full flex items-center justify-center text-sm transition-colors bg-red-600 text-white hover:bg-red-700"
+                                            onClick={() => handleRemoveDescriptionSet(set.id)}
+                                          >
+                                            -
+                                          </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent className="bg-black text-white text-xs">
+                                        <p>Remove Description</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )}
                   </div>
                               </div>
 
@@ -1511,8 +1649,14 @@ export default function MappingSettingsPage() {
                                   onChange={(e) => handleUpdateDescriptionSet(set.id, 'includeText', e.target.value)}
               />
             </div>
+                      </div>
+                    ))}
 
-                              {/* Exclude Section */}
+                          {/* Exclude Section - Show below all include sections, only for first set */}
+                          {ruleDescriptions[selectedRule]?.[0] && (
+                            <>
+                              {/* Separator line above Exclude section */}
+                              <div className="border-t border-dashed border-gray-300"></div>
             <div className="space-y-2">
                                 <p className="text-xs text-black font-semibold">
                                   and <span className="text-red-600">Excludes</span> atleast one Custom keyword from the box
@@ -1520,17 +1664,12 @@ export default function MappingSettingsPage() {
                                 <textarea
                                   className="w-full h-24 p-3 border border-gray-300 rounded-md text-sm resize-none"
                                   placeholder="Enter keywords to exclude..."
-                                  value={set.excludeText}
-                                  onChange={(e) => handleUpdateDescriptionSet(set.id, 'excludeText', e.target.value)}
+                                  value={ruleDescriptions[selectedRule][0].excludeText}
+                                  onChange={(e) => handleUpdateDescriptionSet(ruleDescriptions[selectedRule][0].id, 'excludeText', e.target.value)}
               />
             </div>
-
-                              {/* Separator line between sets (except for last one) */}
-                              {index < (ruleDescriptions[selectedRule]?.length || 0) - 1 && (
-                                <div className="border-t border-gray-200"></div>
-                              )}
-                      </div>
-                    ))}
+                            </>
+                          )}
                   </div>
 
                 {/* Refresh Button */}
@@ -1544,7 +1683,7 @@ export default function MappingSettingsPage() {
                 {/* Pagination - Aligned with Room label */}
                 <div className="flex justify-end items-center h-6 mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">1 - 10 of 26</span>
+                    <span className="text-sm text-gray-600">{getPaginationText()}</span>
                     <button 
                       onClick={handlePreviousPage}
                       disabled={currentPage === 1}
@@ -1556,8 +1695,8 @@ export default function MappingSettingsPage() {
                     </button>
                     <button 
                       onClick={handleNextPage}
-                      disabled={currentPage === 3}
-                      className={`p-1 rounded ${currentPage === 3 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                      disabled={currentPage >= totalPages}
+                      className={`p-1 rounded ${currentPage >= totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -1679,28 +1818,28 @@ export default function MappingSettingsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Room Modal */}
+      {/* Add Rate Modal */}
       <Dialog open={showAddRoomModal} onOpenChange={setShowAddRoomModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold">Add Room</DialogTitle>
+            <DialogTitle className="text-lg font-bold">Add Rate</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-6 mt-4">
-            {/* Room Name */}
+            {/* Rate Name */}
             <div>
               <Label className="block text-xs font-medium text-gray-700 mb-1">
-                Room Name<span className="text-red-500 ml-1">*</span>
+                Rate Name<span className="text-red-500 ml-1">*</span>
               </Label>
               <Input
                 value={roomName}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRoomName(e.target.value)}
                 onBlur={() => setTouchedRoomName(true)}
-                placeholder="Enter room name"
+                placeholder="Enter rate name"
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
               />
               {touchedRoomName && roomName.length === 0 && (
-                <p className="text-red-500 text-xs mt-1">Room Name is required.</p>
+                <p className="text-red-500 text-xs mt-1">Rate Name is required.</p>
               )}
             </div>
 
@@ -1739,10 +1878,10 @@ export default function MappingSettingsPage() {
             <button
               onClick={() => {
                 if (roomName && abbreviation) {
-                  // Generate unique ID for new room
+                  // Generate unique ID for new rate
                   const newRoomId = roomName.toLowerCase().replace(/\s+/g, '-')
                   
-                  // Add new room to the top of the categories list
+                  // Add new rate to the top of the categories list
                   setRateCategories(prev => [
                     { id: newRoomId, name: roomName, code: abbreviation },
                     ...prev
@@ -1848,13 +1987,13 @@ export default function MappingSettingsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Room Confirmation Modal */}
+      {/* Delete Rate Confirmation Modal */}
       <Dialog open={showDeleteRoomConfirm} onOpenChange={setShowDeleteRoomConfirm}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-black">Delete Room</DialogTitle>
+            <DialogTitle className="text-xl font-semibold text-black">Delete Rate</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this room? This action cannot be undone.
+              Are you sure you want to delete this rate? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
 
@@ -1875,23 +2014,23 @@ export default function MappingSettingsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Rename Room Modal */}
+      {/* Rename Rate Modal */}
       <Dialog open={showRenameRoomModal} onOpenChange={setShowRenameRoomModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold">Rename Room</DialogTitle>
+            <DialogTitle className="text-lg font-bold">Rename Rate</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-6 mt-4">
-            {/* Room Name */}
+            {/* Rate Name */}
             <div>
               <Label className="block text-xs font-medium text-gray-700 mb-1">
-                Room Name<span className="text-red-500 ml-1">*</span>
+                Rate Name<span className="text-red-500 ml-1">*</span>
               </Label>
               <Input
                 value={renameRoomName}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRenameRoomName(e.target.value)}
-                placeholder="Enter room name"
+                placeholder="Enter rate name"
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:border-gray-200"
               />
             </div>
