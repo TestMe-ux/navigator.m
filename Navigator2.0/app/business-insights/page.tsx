@@ -1,11 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { Target, BarChart3, TrendingUp, Calendar, Globe, ChevronDown } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Target, BarChart3, TrendingUp, Globe, ChevronDown } from "lucide-react"
 import { BusinessInsightsTabs } from "@/components/business-insights/business-insights-tabs"
 import { BusinessInsightsTable } from "@/components/business-insights/business-insights-table"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { EnhancedDatePicker } from "@/components/enhanced-date-picker"
 import { cn } from "@/lib/utils"
 
@@ -17,7 +18,21 @@ const businessInsightsTabs = [
 ]
 
 export default function BusinessInsightsPage() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState("market-insights")
+  
+  // Handle tab navigation
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+    if (value === "market-insights") {
+      // Stay on current page (market insights)
+      router.push("/business-insights")
+    } else if (value === "rate-leaderboard") {
+      router.push("/business-insights/rate-leaderboard")
+    } else if (value === "rate-volatility") {
+      router.push("/business-insights/rate-volatility")
+    }
+  }
   
   // Filter states
   const [startDate, setStartDate] = useState<Date | undefined>(new Date())
@@ -82,13 +97,13 @@ export default function BusinessInsightsPage() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       
       {/* Business Insights Tabs Section - Below Navigation */}
-      {/* <div className="relative z-10">
+      <div className="relative z-10">
         <BusinessInsightsTabs 
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          setActiveTab={handleTabChange}
           businessInsightsTabs={businessInsightsTabs}
         />
-      </div> */}
+      </div>
       
       {/* Filter Bar - Below Tabs */}
       <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
@@ -155,7 +170,7 @@ export default function BusinessInsightsPage() {
       {/* Main Content Area */}
       <main className="relative z-10">
         <div className="px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16 py-2 md:py-4 lg:py-6 max-w-7xl xl:max-w-none mx-auto">
-          {/* Business Insights Table */}
+          {/* Market Insights Content */}
           <BusinessInsightsTable 
             startDate={startDate}
             endDate={endDate}
