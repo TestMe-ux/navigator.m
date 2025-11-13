@@ -115,7 +115,23 @@ type UserDetails = {
  * Hook specifically for getting selected property safely
  */
 export function useSelectedProperty(): [SelectedProperty, (value: SelectedProperty) => void] {
-  return useLocalStorage<SelectedProperty>('SelectedProperty', null)
+  // Default property for demo when authentication is bypassed
+  const defaultProperty: SelectedProperty = {
+    sid: 1,
+    hmid: 1,
+    name: "Alhambra Hotel",
+    city: "Dubai",
+    country: "UAE",
+    currencySymbol: "$",
+    currencyCode: "USD"
+  }
+
+  const [property, setProperty] = useLocalStorage<SelectedProperty>('SelectedProperty', null)
+  
+  // If no property is set (authentication bypassed), use default
+  const selectedProperty = property || defaultProperty
+  
+  return [selectedProperty, setProperty]
 }
 
 export function useUserDetail(): [UserDetails, (value: UserDetails) => void] {
