@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { ChevronDown, UserCircle, Search, Bell, Menu, X } from "lucide-react"
 import { NotificationDrawer } from "@/components/notification-drawer"
+import { AMAChatDrawer } from "@/components/ama-chat-drawer"
 import { GetSIDListforUser } from "@/lib/login"
 import { LocalStorageService } from "@/lib/localstorage"
 import { useUserDetail } from "@/hooks/use-local-storage"
@@ -213,7 +214,7 @@ export function Header() {
         </nav>
 
         {/* Right Side Actions */}
-        <div className="flex items-center space-x-2 pr-5">
+        <div className="flex items-center gap-2 pr-5 justify-end">
 
           {/* Hotel Selector */}
           <TooltipProvider>
@@ -291,6 +292,9 @@ export function Header() {
               </DropdownMenu>
             </Tooltip>
           </TooltipProvider>
+
+          {/* AI Assistant */}
+          <AMAChatDrawer />
 
           {/* Notifications */}
           <NotificationDrawer notificationCount={notificationCount} />
