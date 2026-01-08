@@ -1,8 +1,0 @@
----
-alwaysApply: false
----
-make changes on parity-monitoring page only.
-
-Always check, if css loading properly before changes done confirmation. If css is not loading then update the issue and then confirm changes as done.
-
-If you need to change any other page, then please confirm and after confirmation update as per my reply.

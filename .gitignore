@@ -1,0 +1,13 @@
+# Exclude Navigator2.0 directory
+Navigator2.0/
+
+# Vercel configuration for Navigator2.0 (not needed for mobile version)
+vercel.json
+
+# OS files
+.DS_Store
+*.DS_Store
+
+# Node modules (if any in root)
+node_modules/
+
