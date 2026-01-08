@@ -1,0 +1,234 @@
+"use client"
+
+import { useState } from "react"
+import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Building2,
+  Sparkles,
+  Trophy,
+  Gift,
+  Star,
+  ShoppingCart,
+  Heart,
+  Calendar,
+  Presentation,
+  Building,
+  GraduationCap,
+  PartyPopper,
+  Globe
+} from "lucide-react"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { format, isValid, parse } from "date-fns"
+
+interface EventData {
+  name: string
+  dates: string
+  category: string
+  impact: {
+    percentage: string
+    level: string
+    calculation: string
+  }
+}
+
+interface MyEventsHolidaysTableProps {
+  events?: any,
+  holidaysData?: any
+}
+
+/**
+ * Static Event Category Icons (Fixed to match Events page filter dropdown)
+ * 
+ * Widget Position-Based Static Icons:
+ * - Widget 1 (index 0): Conference - Presentation icon (blue)
+ * - Widget 2 (index 1): Trade Shows - Building icon (emerald)  
+ * - Widget 3 (index 2): Holidays - Sparkles icon (yellow)
+ * 
+ * These icons are now static and match exactly the icons shown in the
+ * Events page Category dropdown filter as requested.
+ */
+
+export function MyEventsHolidaysTable({ events, holidaysData }: MyEventsHolidaysTableProps) {
+  const [hoveredRow, setHoveredRow] = useState<number | null>(null)
+
+  // Format date according to requirements
+  const formatEventDate = (row: any) => {
+    // Simple approach: convert existing displayDate to the new format
+    try {
+      if (!row?.displayDate) {
+        return 'No date available'
+      }
+
+      // Handle date parsing more intelligently
+
+      // If it's already in the correct format, return it
+      if (typeof row.displayDate === 'string' && row.displayDate.includes(',') && row.displayDate.includes("'")) {
+        return row.displayDate
+      }
+
+      // Check if displayDate contains a date range (has " to " or " - ")
+      const dateStr = row.displayDate.toString()
+      
+      if (dateStr.includes(' to ')) {
+        // It's a date range, parse both dates
+        const parts = dateStr.split(/ to /)
+        if (parts.length === 2) {
+          const start = parseAndFormatDate(parts[0].trim())
+          const end = parseAndFormatDate(parts[1].trim())
+          return `${start} – ${end}`
+        }
+      }
+      
+      // Single date
+      return parseAndFormatDate(dateStr)
+      
+    } catch (error) {
+      return row?.displayDate || 'Invalid Date'
+    }
+  }
+
+  // Helper function to parse and format a single date
+const parseAndFormatDate = (dateStr: string): string => {
+  try {
+    if (!dateStr || dateStr === 'Invalid Date') {
+      return 'Mon, 18 Aug \'25'
+    }
+
+    // Parse the custom format like "Thu, 28 Aug - 2025"
+    const parsedDate = parse(dateStr, "EEE, dd LLL - yyyy", new Date())
+
+    if (!isValid(parsedDate)) {
+      return 'Mon, 18 Aug \'25'
+    }
+
+    // Format as "Thu, 28 Aug '25"
+    return format(parsedDate, "EEE, dd LLL ''yy")
+  } catch (error) {
+    return 'Mon, 18 Aug \'25'
+  }
+}
+
+ 
+  const mergedEventandHoliday = [
+    ...(Array.isArray(events) ? events : []),
+    ...(Array.isArray(holidaysData) ? holidaysData : [])
+  ];
+
+  // Sort descending by eventFrom date
+  const sorted = mergedEventandHoliday.sort((a, b) => {
+    const dateA = new Date(a.eventFrom).getTime();
+    const dateB = new Date(b.eventFrom).getTime();
+    return dateA - dateB; // latest first
+  });
+
+  // Take top 3
+  const data = sorted.slice(0, 3) || [];
+  console.log('Sorted Events and Holidays Data:', data);
+
+  // Static icons from Events page Category dropdown - Use fixed icons for each widget position
+  const getStaticCategoryIcon = (widgetIndex: number) => {
+    switch (widgetIndex) {
+      case 0:
+        return <Presentation className="w-5 h-5 text-blue-600" />     // Widget 1: Conference icon
+      case 1:
+        return <Building className="w-5 h-5 text-emerald-600" />      // Widget 2: Trade Shows icon  
+      case 2:
+        return <Sparkles className="w-5 h-5 text-yellow-600" />       // Widget 3: Holidays icon
+      default:
+        return <Calendar className="w-5 h-5 text-slate-600" />
+    }
+  }
+
+  // Static color scheme for each widget position - Matches Events page Category colors
+
+  // Static color scheme for each widget position - Matches Events page Category colors
+  const getStaticCategoryColors = (widgetIndex: number) => {
+    const staticColorSchemes = [
+      // Widget 1: Conference (Blue)
+      {
+        bg: 'bg-blue-50/20 dark:bg-blue-950/15',
+        border: 'border-blue-200/60 dark:border-blue-700/50',
+        icon: 'bg-white dark:bg-slate-800',
+        hover: 'hover:bg-blue-50/30 dark:hover:bg-blue-950/25'
+      },
+      // Widget 2: Trade Shows (Emerald)
+      {
+        bg: 'bg-emerald-50/20 dark:bg-emerald-950/15',
+        border: 'border-emerald-200/60 dark:border-emerald-700/50',
+        icon: 'bg-white dark:bg-slate-800',
+        hover: 'hover:bg-emerald-50/30 dark:hover:bg-emerald-950/25'
+      },
+      // Widget 3: Holidays (Yellow)
+      {
+        bg: 'bg-yellow-50/20 dark:bg-yellow-950/15',
+        border: 'border-yellow-200/60 dark:border-yellow-700/50',
+        icon: 'bg-white dark:bg-slate-800',
+        hover: 'hover:bg-yellow-50/30 dark:hover:bg-yellow-950/25'
+      }
+    ];
+    
+    return staticColorSchemes[widgetIndex] || {
+      bg: 'bg-gray-50/20 dark:bg-slate-800/15',
+      border: 'border-gray-200/60 dark:border-slate-600/50',
+      icon: 'bg-white dark:bg-slate-800',
+      hover: 'hover:bg-gray-50/30 dark:hover:bg-slate-800/25'
+    };
+  }
+
+
+
+
+
+  return (
+    <TooltipProvider>
+      <Card className="card-elevated shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg font-semibold text-foreground">
+            Top Events and Holidays
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pb-7">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+
+            {data.map((row: any, index: any) => {
+              // Use static functions defined outside the map
+              const colors = getStaticCategoryColors(index)
+
+              return (
+                <div
+                  key={index}
+                  className={`${colors.bg} ${colors.border} ${colors.hover} transition-all duration-300 cursor-pointer p-3 rounded-lg border shadow-sm hover:shadow-md transform hover:-translate-y-0.5 relative`}
+                  onMouseEnter={() => setHoveredRow(index)}
+                  onMouseLeave={() => setHoveredRow(null)}
+                >
+                  {/* Event Icon and Name */}
+                  <div className="flex items-center gap-3">
+                    <div className={`${colors.icon} p-2 rounded-lg shadow-sm`}>
+                      {getStaticCategoryIcon(index)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
+                        {row?.eventName ?? ''}
+                      </div>
+                      <div className="text-xs font-normal text-slate-600 dark:text-slate-300 mt-0.5">
+                        {formatEventDate(row)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+            {!!data && data.length === 0 && (
+              <div className="col-span-1 flex items-center justify-center text-slate-500 dark:text-slate-400">
+                <span className="text-sm">No upcoming events in your selected location.</span>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </TooltipProvider>
+  )
+}
+
+
