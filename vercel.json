@@ -1,7 +1,5 @@
 {
-  "buildCommand": "cd Navigator2.0 && npm install && npm run build",
-  "installCommand": "cd Navigator2.0 && npm install",
-  "framework": "nextjs",
-  "outputDirectory": "Navigator2.0/.next"
+  "buildCommand": "cd Navigator2.0 && npm run build",
+  "installCommand": "cd Navigator2.0 && npm install"
 }
 
